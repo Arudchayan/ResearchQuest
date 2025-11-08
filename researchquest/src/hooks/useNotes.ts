@@ -45,7 +45,15 @@ export function useNotes(userId: string | undefined) {
           console.log('Notes realtime update:', payload)
           // Optimistic UI update based on event type
           if (payload.eventType === 'INSERT') {
-            setNotes(prev => [payload.new as Note, ...prev])
+            // Check if note already exists (from optimistic update) to avoid duplicates
+            setNotes(prev => {
+              const exists = prev.some(n => n.id === (payload.new as Note).id)
+              if (exists) {
+                console.log('Note already exists (from optimistic update), skipping realtime insert')
+                return prev
+              }
+              return [payload.new as Note, ...prev]
+            })
           } else if (payload.eventType === 'UPDATE') {
             setNotes(prev => prev.map(note => 
               note.id === payload.new.id ? payload.new as Note : note
@@ -87,6 +95,11 @@ export function useNotes(userId: string | undefined) {
       return null
     }
 
+    console.log('Note created successfully:', data)
+    
+    // Optimistically update the UI immediately (don't wait for realtime)
+    setNotes(prev => [data, ...prev])
+    
     toast.success('Note created successfully')
     // Award XP (don't await to avoid blocking)
     awardXP(userId, XP_REWARDS.CREATE_NOTE, 'create_note').catch(console.error)
