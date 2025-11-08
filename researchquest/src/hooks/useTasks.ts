@@ -106,11 +106,19 @@ export function useTasks(userId: string | undefined) {
       priority: taskData.priority || 'medium',
     }
 
-    // Only add optional fields if they have values
-    if (taskData.description) cleanData.description = taskData.description
-    if (taskData.due_date) cleanData.due_date = taskData.due_date
-    if (taskData.category) cleanData.category = taskData.category
-    if (taskData.project_id) cleanData.project_id = taskData.project_id
+    // Only add optional fields if they have values (and trim strings)
+    if (taskData.description && taskData.description.trim()) {
+      cleanData.description = taskData.description.trim()
+    }
+    if (taskData.due_date && taskData.due_date.trim()) {
+      cleanData.due_date = taskData.due_date.trim()
+    }
+    if (taskData.category && taskData.category.trim()) {
+      cleanData.category = taskData.category.trim()
+    }
+    if (taskData.project_id && taskData.project_id.trim()) {
+      cleanData.project_id = taskData.project_id.trim()
+    }
 
     console.log('Creating task with cleaned data:', cleanData)
 
