@@ -1,6 +1,6 @@
 import { FileText, BookOpen, Lightbulb, Tag, CheckSquare, Search, Plus } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useNotes } from '../../hooks/useNotes'
 import { usePapers } from '../../hooks/usePapers'
@@ -106,7 +106,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   
 
   
-  const handleAddClick = async () => {
+  const handleAddClick = useCallback(async () => {
     if (currentView === 'notes') {
       const newNote = await createNote({
         markdown_body: '',
@@ -129,9 +129,9 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
         }
       }
     }
-  }
+  }, [currentView, createNote, setSelectedNote, createIdea, setSelectedIdea])
   
-  const handleAddPaper = async (paperData: any) => {
+  const handleAddPaper = useCallback(async (paperData: any) => {
     console.log('handleAddPaper called with:', paperData)
     
     try {
@@ -147,24 +147,24 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
     } catch (error) {
       console.error('Error in handleAddPaper:', error)
     }
-  }
+  }, [createPaper, setSelectedPaper])
   
-  // Filter entities by search query
-  const filteredNotes = notes.filter(note => {
+  // Filter entities by search query (memoized for performance)
+  const filteredNotes = useMemo(() => notes.filter(note => {
     const title = note.title || note.markdown_body.split('\n')[0] || ''
     return title.toLowerCase().includes(searchQuery.toLowerCase()) ||
            note.markdown_body.toLowerCase().includes(searchQuery.toLowerCase())
-  })
+  }), [notes, searchQuery])
   
-  const filteredPapers = papers.filter(paper =>
+  const filteredPapers = useMemo(() => papers.filter(paper =>
     paper.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     paper.authors.some(author => author.toLowerCase().includes(searchQuery.toLowerCase()))
-  )
+  ), [papers, searchQuery])
   
-  const filteredIdeas = ideas.filter(idea =>
+  const filteredIdeas = useMemo(() => ideas.filter(idea =>
     idea.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (idea.description && idea.description.toLowerCase().includes(searchQuery.toLowerCase()))
-  )
+  ), [ideas, searchQuery])
   
   return (
     <>

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, memo, useCallback } from 'react'
 import { Clock, BookOpen, Trash2, ExternalLink } from 'lucide-react'
 import type { Paper, ReadingStatus } from '../../types/database'
 
@@ -10,10 +10,10 @@ interface PaperCardProps {
   isSelected: boolean
 }
 
-export function PaperCard({ paper, onSelect, onDelete, onStatusChange, isSelected }: PaperCardProps) {
+const PaperCardComponent = ({ paper, onSelect, onDelete, onStatusChange, isSelected }: PaperCardProps) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   
-  const handleDelete = (e: React.MouseEvent) => {
+  const handleDelete = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
     if (showDeleteConfirm) {
       onDelete(paper.id)
@@ -21,7 +21,16 @@ export function PaperCard({ paper, onSelect, onDelete, onStatusChange, isSelecte
       setShowDeleteConfirm(true)
       setTimeout(() => setShowDeleteConfirm(false), 3000)
     }
-  }
+  }, [showDeleteConfirm, onDelete, paper.id])
+  
+  const handleSelect = useCallback(() => {
+    onSelect(paper)
+  }, [onSelect, paper])
+  
+  const handleStatusChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    e.stopPropagation()
+    onStatusChange(paper.id, e.target.value as ReadingStatus)
+  }, [onStatusChange, paper.id])
   
   const getStatusColor = (status: ReadingStatus) => {
     switch (status) {
@@ -36,7 +45,7 @@ export function PaperCard({ paper, onSelect, onDelete, onStatusChange, isSelecte
   
   return (
     <div
-      onClick={() => onSelect(paper)}
+      onClick={handleSelect}
       className={`p-3 rounded-md border cursor-pointer transition-all ${
         isSelected
           ? 'bg-bg-elevated border-primary-500'
@@ -68,10 +77,7 @@ export function PaperCard({ paper, onSelect, onDelete, onStatusChange, isSelecte
       <div className="flex items-center gap-2 flex-wrap">
         <select
           value={paper.status}
-          onChange={(e) => {
-            e.stopPropagation()
-            onStatusChange(paper.id, e.target.value as ReadingStatus)
-          }}
+          onChange={handleStatusChange}
           className={`px-2 py-1 text-caption rounded-md border ${getStatusColor(paper.status)} transition-colors`}
           onClick={(e) => e.stopPropagation()}
         >
@@ -101,6 +107,8 @@ export function PaperCard({ paper, onSelect, onDelete, onStatusChange, isSelecte
     </div>
   )
 }
+
+export const PaperCard = memo(PaperCardComponent)
 
 interface PaperListProps {
   papers: Paper[]

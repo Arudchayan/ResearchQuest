@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, memo, useCallback } from 'react'
 import { Clock, Hash, Link2, Trash2, FileText } from 'lucide-react'
 import type { Note } from '../../types/database'
 import { useAppStore } from '../../store/appStore'
@@ -10,14 +10,14 @@ interface NoteCardProps {
   isSelected: boolean
 }
 
-export function NoteCard({ note, onSelect, onDelete, isSelected }: NoteCardProps) {
+const NoteCardComponent = ({ note, onSelect, onDelete, isSelected }: NoteCardProps) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   
   // Extract title from markdown or use first line
   const title = note.title || note.markdown_body.split('\n')[0]?.replace(/^#+ /, '').trim() || 'Untitled Note'
   const preview = note.markdown_body.slice(0, 100) + (note.markdown_body.length > 100 ? '...' : '')
   
-  const handleDelete = (e: React.MouseEvent) => {
+  const handleDelete = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
     if (showDeleteConfirm) {
       onDelete(note.id)
@@ -25,11 +25,15 @@ export function NoteCard({ note, onSelect, onDelete, isSelected }: NoteCardProps
       setShowDeleteConfirm(true)
       setTimeout(() => setShowDeleteConfirm(false), 3000)
     }
-  }
+  }, [showDeleteConfirm, onDelete, note.id])
+  
+  const handleSelect = useCallback(() => {
+    onSelect(note)
+  }, [onSelect, note])
   
   return (
     <div
-      onClick={() => onSelect(note)}
+      onClick={handleSelect}
       className={`p-3 rounded-md border cursor-pointer transition-all ${
         isSelected
           ? 'bg-bg-elevated border-primary-500'
@@ -75,6 +79,8 @@ export function NoteCard({ note, onSelect, onDelete, isSelected }: NoteCardProps
     </div>
   )
 }
+
+export const NoteCard = memo(NoteCardComponent)
 
 interface NoteListProps {
   notes: Note[]

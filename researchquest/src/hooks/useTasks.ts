@@ -84,16 +84,18 @@ export function useTasks(userId: string | undefined) {
       return null
     }
 
-    // Award XP
-    await awardXP(userId, XP_REWARDS.CREATE_TASK, 'create_task')
-
-    // Manual refetch to ensure UI updates
-    await fetchTasks()
+    // Award XP (don't await to avoid blocking)
+    awardXP(userId, XP_REWARDS.CREATE_TASK, 'create_task').catch(console.error)
 
     return data
   }
 
   async function updateTask(taskId: string, updates: Partial<Task>): Promise<boolean> {
+    // Optimistic update
+    setTasks(prev => prev.map(task => 
+      task.id === taskId ? { ...task, ...updates, updated_at: new Date().toISOString() } : task
+    ))
+
     const { error: updateError } = await supabase
       .from('tasks')
       .update(updates)
@@ -101,11 +103,10 @@ export function useTasks(userId: string | undefined) {
 
     if (updateError) {
       setError(updateError.message)
+      // Revert on error
+      fetchTasks()
       return false
     }
-
-    // Manual refetch to ensure UI updates
-    await fetchTasks()
 
     return true
   }
@@ -117,6 +118,11 @@ export function useTasks(userId: string | undefined) {
     // Toggle completion status
     const newCompletedStatus = !task.completed
     
+    // Optimistic update
+    setTasks(prev => prev.map(t => 
+      t.id === taskId ? { ...t, completed: newCompletedStatus, updated_at: new Date().toISOString() } : t
+    ))
+
     const { error: updateError } = await supabase
       .from('tasks')
       .update({ completed: newCompletedStatus })
@@ -124,21 +130,24 @@ export function useTasks(userId: string | undefined) {
 
     if (updateError) {
       setError(updateError.message)
+      // Revert on error
+      fetchTasks()
       return false
     }
 
-    // Award XP only when completing (not un-completing)
+    // Award XP only when completing (not un-completing, don't await to avoid blocking)
     if (newCompletedStatus && userId) {
-      await awardXP(userId, XP_REWARDS.COMPLETE_TASK, 'complete_task')
+      awardXP(userId, XP_REWARDS.COMPLETE_TASK, 'complete_task').catch(console.error)
     }
-
-    // Manual refetch to ensure UI updates
-    await fetchTasks()
 
     return true
   }
 
   async function deleteTask(taskId: string): Promise<boolean> {
+    // Optimistic delete
+    const deletedTask = tasks.find(t => t.id === taskId)
+    setTasks(prev => prev.filter(task => task.id !== taskId))
+
     const { error: deleteError } = await supabase
       .from('tasks')
       .delete()
@@ -146,11 +155,12 @@ export function useTasks(userId: string | undefined) {
 
     if (deleteError) {
       setError(deleteError.message)
+      // Revert on error
+      if (deletedTask) {
+        setTasks(prev => [...prev, deletedTask])
+      }
       return false
     }
-
-    // Manual refetch to ensure UI updates
-    await fetchTasks()
 
     return true
   }
