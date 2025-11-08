@@ -45,7 +45,15 @@ export function usePapers(userId: string | undefined) {
           console.log('Papers realtime update:', payload)
           // Optimistic UI update based on event type
           if (payload.eventType === 'INSERT') {
-            setPapers(prev => [payload.new as Paper, ...prev])
+            // Check if paper already exists (from optimistic update) to avoid duplicates
+            setPapers(prev => {
+              const exists = prev.some(p => p.id === (payload.new as Paper).id)
+              if (exists) {
+                console.log('Paper already exists (from optimistic update), skipping realtime insert')
+                return prev
+              }
+              return [payload.new as Paper, ...prev]
+            })
           } else if (payload.eventType === 'UPDATE') {
             setPapers(prev => prev.map(paper => 
               paper.id === payload.new.id ? payload.new as Paper : paper
@@ -128,6 +136,10 @@ export function usePapers(userId: string | undefined) {
     }
 
     console.log('Paper created successfully:', data)
+    
+    // Optimistically update the UI immediately (don't wait for realtime)
+    setPapers(prev => [data, ...prev])
+    
     toast.success('Paper added successfully')
 
     // Award XP (don't await to avoid blocking)
