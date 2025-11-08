@@ -93,9 +93,13 @@ export function useNotes(userId: string | undefined) {
       tags: Array.isArray(noteData.tags) ? noteData.tags : [],
     }
 
-    // Only add optional fields if they have values
-    if (noteData.title) cleanData.title = noteData.title
-    if (noteData.linked_entity_ids) cleanData.linked_entity_ids = noteData.linked_entity_ids
+    // Only add optional fields if they have values (and trim strings)
+    if (noteData.title && noteData.title.trim()) {
+      cleanData.title = noteData.title.trim()
+    }
+    if (noteData.linked_entity_ids && Array.isArray(noteData.linked_entity_ids) && noteData.linked_entity_ids.length > 0) {
+      cleanData.linked_entity_ids = noteData.linked_entity_ids
+    }
 
     console.log('Creating note with cleaned data:', cleanData)
 

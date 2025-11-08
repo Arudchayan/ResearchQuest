@@ -93,10 +93,16 @@ export function useIdeas(userId: string | undefined) {
       stage: ideaData.stage || 'Seed',
     }
 
-    // Only add optional fields if they have values
-    if (ideaData.description) cleanData.description = ideaData.description
-    if (ideaData.linked_note_ids) cleanData.linked_note_ids = ideaData.linked_note_ids
-    if (ideaData.linked_paper_ids) cleanData.linked_paper_ids = ideaData.linked_paper_ids
+    // Only add optional fields if they have values (and trim strings)
+    if (ideaData.description && ideaData.description.trim()) {
+      cleanData.description = ideaData.description.trim()
+    }
+    if (ideaData.linked_note_ids && Array.isArray(ideaData.linked_note_ids) && ideaData.linked_note_ids.length > 0) {
+      cleanData.linked_note_ids = ideaData.linked_note_ids
+    }
+    if (ideaData.linked_paper_ids && Array.isArray(ideaData.linked_paper_ids) && ideaData.linked_paper_ids.length > 0) {
+      cleanData.linked_paper_ids = ideaData.linked_paper_ids
+    }
 
     console.log('Creating idea with cleaned data:', cleanData)
 
