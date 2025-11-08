@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, memo, useCallback } from 'react'
 import { Clock, Hash, Link2, Trash2, FileText } from 'lucide-react'
 import type { Note } from '../../types/database'
 import { useAppStore } from '../../store/appStore'
+import { ListSkeleton } from '../ui/Skeleton'
 
 interface NoteCardProps {
   note: Note
@@ -10,14 +11,14 @@ interface NoteCardProps {
   isSelected: boolean
 }
 
-export function NoteCard({ note, onSelect, onDelete, isSelected }: NoteCardProps) {
+const NoteCardComponent = ({ note, onSelect, onDelete, isSelected }: NoteCardProps) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   
   // Extract title from markdown or use first line
   const title = note.title || note.markdown_body.split('\n')[0]?.replace(/^#+ /, '').trim() || 'Untitled Note'
   const preview = note.markdown_body.slice(0, 100) + (note.markdown_body.length > 100 ? '...' : '')
   
-  const handleDelete = (e: React.MouseEvent) => {
+  const handleDelete = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
     if (showDeleteConfirm) {
       onDelete(note.id)
@@ -25,11 +26,15 @@ export function NoteCard({ note, onSelect, onDelete, isSelected }: NoteCardProps
       setShowDeleteConfirm(true)
       setTimeout(() => setShowDeleteConfirm(false), 3000)
     }
-  }
+  }, [showDeleteConfirm, onDelete, note.id])
+  
+  const handleSelect = useCallback(() => {
+    onSelect(note)
+  }, [onSelect, note])
   
   return (
     <div
-      onClick={() => onSelect(note)}
+      onClick={handleSelect}
       className={`p-3 rounded-md border cursor-pointer transition-all ${
         isSelected
           ? 'bg-bg-elevated border-primary-500'
@@ -76,14 +81,21 @@ export function NoteCard({ note, onSelect, onDelete, isSelected }: NoteCardProps
   )
 }
 
+export const NoteCard = memo(NoteCardComponent)
+
 interface NoteListProps {
   notes: Note[]
   onSelectNote: (note: Note) => void
   onDeleteNote: (id: string) => void
   selectedNoteId?: string
+  loading?: boolean
 }
 
-export function NoteList({ notes, onSelectNote, onDeleteNote, selectedNoteId }: NoteListProps) {
+export function NoteList({ notes, onSelectNote, onDeleteNote, selectedNoteId, loading = false }: NoteListProps) {
+  if (loading) {
+    return <ListSkeleton count={5} itemType="note" />
+  }
+  
   if (notes.length === 0) {
     return (
       <div className="text-center py-12 text-text-tertiary">

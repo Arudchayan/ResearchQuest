@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { awardXP, XP_REWARDS } from '../utils/gamification'
+import { toast } from 'sonner'
 
 export interface Task {
   id: string
@@ -67,7 +68,10 @@ export function useTasks(userId: string | undefined) {
   }, [userId, fetchTasks])
 
   async function createTask(taskData: Partial<Task>): Promise<Task | null> {
-    if (!userId) return null
+    if (!userId) {
+      toast.error('You must be logged in to create tasks')
+      return null
+    }
 
     const { data, error: createError } = await supabase
       .from('tasks')
@@ -81,19 +85,23 @@ export function useTasks(userId: string | undefined) {
 
     if (createError) {
       setError(createError.message)
+      toast.error('Failed to create task')
       return null
     }
 
-    // Award XP
-    await awardXP(userId, XP_REWARDS.CREATE_TASK, 'create_task')
-
-    // Manual refetch to ensure UI updates
-    await fetchTasks()
+    toast.success('Task created successfully')
+    // Award XP (don't await to avoid blocking)
+    awardXP(userId, XP_REWARDS.CREATE_TASK, 'create_task').catch(console.error)
 
     return data
   }
 
   async function updateTask(taskId: string, updates: Partial<Task>): Promise<boolean> {
+    // Optimistic update
+    setTasks(prev => prev.map(task => 
+      task.id === taskId ? { ...task, ...updates, updated_at: new Date().toISOString() } : task
+    ))
+
     const { error: updateError } = await supabase
       .from('tasks')
       .update(updates)
@@ -101,11 +109,11 @@ export function useTasks(userId: string | undefined) {
 
     if (updateError) {
       setError(updateError.message)
+      toast.error('Failed to update task')
+      // Revert on error
+      fetchTasks()
       return false
     }
-
-    // Manual refetch to ensure UI updates
-    await fetchTasks()
 
     return true
   }
@@ -117,6 +125,11 @@ export function useTasks(userId: string | undefined) {
     // Toggle completion status
     const newCompletedStatus = !task.completed
     
+    // Optimistic update
+    setTasks(prev => prev.map(t => 
+      t.id === taskId ? { ...t, completed: newCompletedStatus, updated_at: new Date().toISOString() } : t
+    ))
+
     const { error: updateError } = await supabase
       .from('tasks')
       .update({ completed: newCompletedStatus })
@@ -124,21 +137,29 @@ export function useTasks(userId: string | undefined) {
 
     if (updateError) {
       setError(updateError.message)
+      toast.error('Failed to update task')
+      // Revert on error
+      fetchTasks()
       return false
     }
 
-    // Award XP only when completing (not un-completing)
-    if (newCompletedStatus && userId) {
-      await awardXP(userId, XP_REWARDS.COMPLETE_TASK, 'complete_task')
+    if (newCompletedStatus) {
+      toast.success('Task completed! 🎉')
     }
 
-    // Manual refetch to ensure UI updates
-    await fetchTasks()
+    // Award XP only when completing (not un-completing, don't await to avoid blocking)
+    if (newCompletedStatus && userId) {
+      awardXP(userId, XP_REWARDS.COMPLETE_TASK, 'complete_task').catch(console.error)
+    }
 
     return true
   }
 
   async function deleteTask(taskId: string): Promise<boolean> {
+    // Optimistic delete
+    const deletedTask = tasks.find(t => t.id === taskId)
+    setTasks(prev => prev.filter(task => task.id !== taskId))
+
     const { error: deleteError } = await supabase
       .from('tasks')
       .delete()
@@ -146,12 +167,15 @@ export function useTasks(userId: string | undefined) {
 
     if (deleteError) {
       setError(deleteError.message)
+      toast.error('Failed to delete task')
+      // Revert on error
+      if (deletedTask) {
+        setTasks(prev => [...prev, deletedTask])
+      }
       return false
     }
 
-    // Manual refetch to ensure UI updates
-    await fetchTasks()
-
+    toast.success('Task deleted')
     return true
   }
 

@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { awardXP, XP_REWARDS } from '../utils/gamification'
+import { toast } from 'sonner'
 import type { Note } from '../types/database'
 
 export function useNotes(userId: string | undefined) {
@@ -8,32 +9,7 @@ export function useNotes(userId: string | undefined) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (!userId) {
-      setNotes([])
-      setLoading(false)
-      return
-    }
-
-    fetchNotes()
-    
-    // Subscribe to realtime updates
-    const subscription = supabase
-      .channel('notes_changes')
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'notes', filter: `user_id=eq.${userId}` },
-        () => {
-          fetchNotes()
-        }
-      )
-      .subscribe()
-
-    return () => {
-      subscription.unsubscribe()
-    }
-  }, [userId])
-
-  async function fetchNotes() {
+  const fetchNotes = useCallback(async () => {
     if (!userId) return
     
     setLoading(true)
@@ -49,10 +25,50 @@ export function useNotes(userId: string | undefined) {
       setNotes(data || [])
     }
     setLoading(false)
-  }
+  }, [userId])
+
+  useEffect(() => {
+    if (!userId) {
+      setNotes([])
+      setLoading(false)
+      return
+    }
+
+    void fetchNotes()
+    
+    // Subscribe to realtime updates
+    const subscription = supabase
+      .channel(`notes_realtime_${userId}`)
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'notes', filter: `user_id=eq.${userId}` },
+        (payload) => {
+          console.log('Notes realtime update:', payload)
+          // Optimistic UI update based on event type
+          if (payload.eventType === 'INSERT') {
+            setNotes(prev => [payload.new as Note, ...prev])
+          } else if (payload.eventType === 'UPDATE') {
+            setNotes(prev => prev.map(note => 
+              note.id === payload.new.id ? payload.new as Note : note
+            ))
+          } else if (payload.eventType === 'DELETE') {
+            setNotes(prev => prev.filter(note => note.id !== payload.old.id))
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('Notes subscription status:', status)
+      })
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [userId, fetchNotes])
 
   async function createNote(noteData: Partial<Note>): Promise<Note | null> {
-    if (!userId) return null
+    if (!userId) {
+      toast.error('You must be logged in to create notes')
+      return null
+    }
 
     const { data, error: createError } = await supabase
       .from('notes')
@@ -67,16 +83,23 @@ export function useNotes(userId: string | undefined) {
 
     if (createError) {
       setError(createError.message)
+      toast.error('Failed to create note')
       return null
     }
 
-    // Award XP
-    await awardXP(userId, XP_REWARDS.CREATE_NOTE, 'create_note')
+    toast.success('Note created successfully')
+    // Award XP (don't await to avoid blocking)
+    awardXP(userId, XP_REWARDS.CREATE_NOTE, 'create_note').catch(console.error)
     
     return data
   }
 
   async function updateNote(noteId: string, updates: Partial<Note>): Promise<boolean> {
+    // Optimistic update
+    setNotes(prev => prev.map(note => 
+      note.id === noteId ? { ...note, ...updates, updated_at: new Date().toISOString() } : note
+    ))
+
     const { error: updateError } = await supabase
       .from('notes')
       .update(updates)
@@ -84,18 +107,25 @@ export function useNotes(userId: string | undefined) {
 
     if (updateError) {
       setError(updateError.message)
+      toast.error('Failed to update note')
+      // Revert on error
+      fetchNotes()
       return false
     }
 
-    // Award XP
+    // Award XP (don't await to avoid blocking)
     if (userId) {
-      await awardXP(userId, XP_REWARDS.UPDATE_NOTE, 'update_note')
+      awardXP(userId, XP_REWARDS.UPDATE_NOTE, 'update_note').catch(console.error)
     }
     
     return true
   }
 
   async function deleteNote(noteId: string): Promise<boolean> {
+    // Optimistic delete
+    const deletedNote = notes.find(n => n.id === noteId)
+    setNotes(prev => prev.filter(note => note.id !== noteId))
+
     const { error: deleteError } = await supabase
       .from('notes')
       .delete()
@@ -103,9 +133,15 @@ export function useNotes(userId: string | undefined) {
 
     if (deleteError) {
       setError(deleteError.message)
+      toast.error('Failed to delete note')
+      // Revert on error
+      if (deletedNote) {
+        setNotes(prev => [...prev, deletedNote])
+      }
       return false
     }
 
+    toast.success('Note deleted')
     return true
   }
 

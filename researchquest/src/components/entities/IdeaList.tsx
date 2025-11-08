@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Clock, Lightbulb, Trash2, TrendingUp } from 'lucide-react'
 import type { Idea, IdeaStage } from '../../types/database'
+import { ListSkeleton } from '../ui/Skeleton'
 
 interface IdeaCardProps {
   idea: Idea
@@ -103,9 +104,14 @@ interface IdeaListProps {
   onDeleteIdea: (id: string) => void
   onStageChange: (id: string, stage: IdeaStage, oldStage: IdeaStage) => void
   selectedIdeaId?: string
+  loading?: boolean
 }
 
-export function IdeaList({ ideas, onSelectIdea, onDeleteIdea, onStageChange, selectedIdeaId }: IdeaListProps) {
+export function IdeaList({ ideas, onSelectIdea, onDeleteIdea, onStageChange, selectedIdeaId, loading = false }: IdeaListProps) {
+  if (loading) {
+    return <ListSkeleton count={5} itemType="idea" />
+  }
+  
   if (ideas.length === 0) {
     return (
       <div className="text-center py-12 text-text-tertiary">
