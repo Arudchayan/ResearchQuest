@@ -212,8 +212,8 @@ export function AddPaperModal({ isOpen, onClose, onAdd, searchByDOI, searchByQue
                   />
                   <button
                     onClick={handleDOISearch}
-                    disabled={loading}
-                    className="px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors disabled:opacity-50 flex items-center gap-2"
+                    disabled={loading || !doiInput.trim()}
+                    className="px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   >
                     {loading ? <Loader className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                     Search
@@ -268,8 +268,8 @@ export function AddPaperModal({ isOpen, onClose, onAdd, searchByDOI, searchByQue
                   />
                   <button
                     onClick={handleQuerySearch}
-                    disabled={loading}
-                    className="px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors disabled:opacity-50 flex items-center gap-2"
+                    disabled={loading || !searchQuery.trim()}
+                    className="px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   >
                     {loading ? <Loader className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                     Search

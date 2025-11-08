@@ -65,37 +65,55 @@ export function usePapers(userId: string | undefined) {
   }, [userId, fetchPapers])
 
   async function searchPaperByDOI(doi: string): Promise<CrossrefPaper | null> {
+    if (!doi.trim()) {
+      setError('Please enter a DOI to search')
+      return null
+    }
+
     try {
       const response = await supabase.functions.invoke('fetch-paper', {
         body: { doi },
       })
 
       if (response.error) {
-        setError(response.error.message)
+        const errorMessage = response.error.message || 'Failed to search for paper'
+        setError(errorMessage)
+        toast.error(errorMessage)
         return null
       }
 
       return response.data?.data || null
     } catch (err: any) {
-      setError(err.message)
+      const errorMessage = err.message || 'An error occurred while searching'
+      setError(errorMessage)
+      toast.error(errorMessage)
       return null
     }
   }
 
   async function searchPapersByQuery(query: string): Promise<CrossrefPaper[]> {
+    if (!query.trim()) {
+      setError('Please enter a search query')
+      return []
+    }
+
     try {
       const response = await supabase.functions.invoke('fetch-paper', {
         body: { query },
       })
 
       if (response.error) {
-        setError(response.error.message)
+        const errorMessage = response.error.message || 'Failed to search for papers'
+        setError(errorMessage)
+        toast.error(errorMessage)
         return []
       }
 
       return response.data?.data || []
     } catch (err: any) {
-      setError(err.message)
+      const errorMessage = err.message || 'An error occurred while searching'
+      setError(errorMessage)
+      toast.error(errorMessage)
       return []
     }
   }
