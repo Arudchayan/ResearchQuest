@@ -140,14 +140,19 @@ export function usePapers(userId: string | undefined) {
       status: paperData.status || 'To Read',
     }
 
-    // Only add optional fields if they have values
-    if (paperData.doi) cleanData.doi = paperData.doi
-    if (paperData.source_url) cleanData.source_url = paperData.source_url
-    if (paperData.abstract) cleanData.abstract = paperData.abstract
-    if (paperData.publication_date) cleanData.publication_date = paperData.publication_date
-    if (paperData.topic_ids) cleanData.topic_ids = paperData.topic_ids
+    // Only add optional fields if they have values (and are not empty strings)
+    if (paperData.doi && paperData.doi.trim()) cleanData.doi = paperData.doi.trim()
+    if (paperData.source_url && paperData.source_url.trim()) cleanData.source_url = paperData.source_url.trim()
+    if (paperData.abstract && paperData.abstract.trim()) cleanData.abstract = paperData.abstract.trim()
+    if (paperData.publication_date && paperData.publication_date.trim() && paperData.publication_date !== 'null') {
+      cleanData.publication_date = paperData.publication_date.trim()
+    }
+    if (paperData.topic_ids && Array.isArray(paperData.topic_ids) && paperData.topic_ids.length > 0) {
+      cleanData.topic_ids = paperData.topic_ids
+    }
 
     console.log('Creating paper with cleaned data:', cleanData)
+    console.log('User ID:', userId)
     
     const { data, error: createError } = await supabase
       .from('papers')
@@ -156,13 +161,30 @@ export function usePapers(userId: string | undefined) {
       .single()
 
     if (createError) {
-      console.error('Failed to create paper:', createError)
-      console.error('Error details:', JSON.stringify(createError, null, 2))
-      console.error('Paper data that failed:', { ...paperData, user_id: userId })
+      console.error('Failed to create paper - Full error object:', createError)
+      console.error('Error code:', createError.code)
+      console.error('Error message:', createError.message)
+      console.error('Error details:', createError.details)
+      console.error('Error hint:', createError.hint)
+      console.error('Error stringified:', JSON.stringify(createError, null, 2))
+      console.error('Paper data that failed:', cleanData)
       
-      const errorMessage = createError.message || createError.details || createError.hint || 'Unknown error occurred'
+      // Extract meaningful error message
+      let errorMessage = 'Unknown error occurred'
+      if (createError.message) {
+        errorMessage = createError.message
+      } else if (createError.details) {
+        errorMessage = createError.details
+      } else if (createError.hint) {
+        errorMessage = createError.hint
+      } else if (typeof createError === 'string') {
+        errorMessage = createError
+      } else if (createError.code) {
+        errorMessage = `Database error (code: ${createError.code})`
+      }
+      
       setError(`Failed to create paper: ${errorMessage}`)
-      toast.error(`Failed to add paper: ${errorMessage}`)
+      toast.error(`Failed to add paper: ${errorMessage}`, { duration: 5000 })
       return null
     }
 
