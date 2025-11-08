@@ -54,12 +54,29 @@ export function useTasks(userId: string | undefined) {
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'tasks', filter: `user_id=eq.${userId}` },
         (payload) => {
-          console.log('Realtime update received:', payload)
-          fetchTasks()
+          console.log('Tasks realtime update:', payload)
+          // Optimistic UI update based on event type
+          if (payload.eventType === 'INSERT') {
+            // Check if task already exists (from optimistic update) to avoid duplicates
+            setTasks(prev => {
+              const exists = prev.some(t => t.id === (payload.new as Task).id)
+              if (exists) {
+                console.log('Task already exists (from optimistic update), skipping realtime insert')
+                return prev
+              }
+              return [payload.new as Task, ...prev]
+            })
+          } else if (payload.eventType === 'UPDATE') {
+            setTasks(prev => prev.map(task => 
+              task.id === payload.new.id ? payload.new as Task : task
+            ))
+          } else if (payload.eventType === 'DELETE') {
+            setTasks(prev => prev.filter(task => task.id !== payload.old.id))
+          }
         }
       )
       .subscribe((status) => {
-        console.log('Subscription status:', status)
+        console.log('Tasks subscription status:', status)
       })
 
     return () => {
@@ -89,6 +106,11 @@ export function useTasks(userId: string | undefined) {
       return null
     }
 
+    console.log('Task created successfully:', data)
+    
+    // Optimistically update the UI immediately (don't wait for realtime)
+    setTasks(prev => [data, ...prev])
+    
     toast.success('Task created successfully')
     // Award XP (don't await to avoid blocking)
     awardXP(userId, XP_REWARDS.CREATE_TASK, 'create_task').catch(console.error)
