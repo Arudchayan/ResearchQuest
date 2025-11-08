@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import CodeMirror from '@uiw/react-codemirror'
 import { markdown } from '@codemirror/lang-markdown'
+import { EditorView } from '@codemirror/view'
+import { githubLight, githubDark } from '@uiw/codemirror-theme-github'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeSanitize from 'rehype-sanitize'
@@ -11,7 +13,7 @@ import { supabase } from '../../lib/supabase'
 import { awardXP, XP_REWARDS } from '../../utils/gamification'
 
 export function MarkdownEditor() {
-  const { selectedNote, setSelectedNote } = useAppStore()
+  const { selectedNote, setSelectedNote, effectiveTheme } = useAppStore()
   const [content, setContent] = useState('')
   const [title, setTitle] = useState('')
   const [saving, setSaving] = useState(false)
@@ -38,49 +40,51 @@ export function MarkdownEditor() {
   useEffect(() => {
     if (!selectedNote || !userId) return
     
-    const timer = setTimeout(async () => {
-      await saveNote()
+    const timer = setTimeout(() => {
+      void saveNote()
     }, 1000)
     
     return () => clearTimeout(timer)
-  }, [content, title])
+  }, [content, title, selectedNote, userId])
   
   const saveNote = useCallback(async () => {
     if (!selectedNote || !userId) return
     
     setSaving(true)
     
-    // Extract tags from content (words starting with #)
-    const tagMatches = content.match(/#(\w+)/g)
-    const tags = tagMatches ? [...new Set(tagMatches.map(tag => tag.slice(1)))] : []
-    
-    const { error } = await supabase
-      .from('notes')
-      .update({
+    try {
+      // Extract tags from content (words starting with #)
+      const tagMatches = content.match(/#(\w+)/g)
+      const tags = tagMatches ? [...new Set(tagMatches.map(tag => tag.slice(1)))] : []
+      
+      const updatedData = {
         title: title || content.split('\n')[0]?.replace(/^#+ /, '').trim() || 'Untitled Note',
         markdown_body: content,
         tags,
-      })
-      .eq('id', selectedNote.id)
-    
-    if (!error) {
-      // Award XP for updating
-      await awardXP(userId, XP_REWARDS.UPDATE_NOTE, 'update_note')
-      
-      // Refresh the note in store
-      const { data: updatedNote } = await supabase
-        .from('notes')
-        .select('*')
-        .eq('id', selectedNote.id)
-        .single()
-      
-      if (updatedNote) {
-        setSelectedNote(updatedNote)
       }
+      
+      const { error } = await supabase
+        .from('notes')
+        .update(updatedData)
+        .eq('id', selectedNote.id)
+      
+      if (!error) {
+        // Optimistically update the selected note in store
+        setSelectedNote({
+          ...selectedNote,
+          ...updatedData,
+          updated_at: new Date().toISOString(),
+        })
+        
+        // Award XP for updating (don't await to avoid blocking)
+        awardXP(userId, XP_REWARDS.UPDATE_NOTE, 'update_note').catch(console.error)
+      }
+    } catch (err) {
+      console.error('Error saving note:', err)
+    } finally {
+      setSaving(false)
     }
-    
-    setSaving(false)
-  }, [selectedNote, userId, content, title])
+  }, [selectedNote, userId, content, title, setSelectedNote])
   
   if (!selectedNote) {
     return (
@@ -138,9 +142,38 @@ export function MarkdownEditor() {
           <CodeMirror
             value={content}
             height="100%"
-            extensions={[markdown()]}
+            theme={effectiveTheme === 'dark' ? githubDark : githubLight}
+            extensions={[
+              markdown(),
+              EditorView.lineWrapping,
+            ]}
             onChange={(value) => setContent(value)}
             className="h-full font-mono text-code"
+            basicSetup={{
+              lineNumbers: true,
+              highlightActiveLineGutter: true,
+              highlightSpecialChars: true,
+              foldGutter: true,
+              drawSelection: true,
+              dropCursor: true,
+              allowMultipleSelections: true,
+              indentOnInput: true,
+              syntaxHighlighting: true,
+              bracketMatching: true,
+              closeBrackets: true,
+              autocompletion: true,
+              rectangularSelection: true,
+              crosshairCursor: true,
+              highlightActiveLine: true,
+              highlightSelectionMatches: true,
+              closeBracketsKeymap: true,
+              defaultKeymap: true,
+              searchKeymap: true,
+              historyKeymap: true,
+              foldKeymap: true,
+              completionKeymap: true,
+              lintKeymap: true,
+            }}
           />
         </div>
         
