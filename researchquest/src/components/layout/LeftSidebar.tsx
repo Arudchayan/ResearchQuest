@@ -32,6 +32,16 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   const handleTabClick = (tabId: typeof currentView) => {
     console.log('handleTabClick called with:', tabId)
     setCurrentView(tabId)
+    
+    // Clear selected items when switching views to show default content
+    if (tabId === 'papers') {
+      setSelectedPaper(null)
+    } else if (tabId === 'ideas') {
+      setSelectedIdea(null)
+    } else if (tabId === 'notes') {
+      setSelectedNote(null)
+    }
+    
     const newUrl = tabId === 'notes' ? '/' : `/${tabId}`
     window.history.pushState(null, '', newUrl)
     onNavigate?.()
@@ -228,7 +238,10 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
               <NoteList
                 notes={filteredNotes}
                 loading={loading}
-                onSelectNote={(note) => setSelectedNote(note)}
+                onSelectNote={(note) => {
+                  setSelectedNote(note)
+                  window.history.pushState(null, '', `/notes/${note.id}`)
+                }}
                 onDeleteNote={deleteNote}
                 selectedNoteId={undefined}
               />
@@ -238,7 +251,10 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
               <PaperList
                 papers={filteredPapers}
                 loading={loading}
-                onSelectPaper={(paper) => setSelectedPaper(paper)}
+                onSelectPaper={(paper) => {
+                  setSelectedPaper(paper)
+                  window.history.pushState(null, '', `/papers/${paper.id}`)
+                }}
                 onDeletePaper={deletePaper}
                 onStatusChange={(id, status) => updatePaper(id, { status })}
                 selectedPaperId={undefined}
@@ -249,7 +265,10 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
               <IdeaList
                 ideas={filteredIdeas}
                 loading={loading}
-                onSelectIdea={(idea) => setSelectedIdea(idea)}
+                onSelectIdea={(idea) => {
+                  setSelectedIdea(idea)
+                  window.history.pushState(null, '', `/ideas/${idea.id}`)
+                }}
                 onDeleteIdea={deleteIdea}
                 onStageChange={(id, stage, oldStage) => updateIdea(id, { stage }, oldStage)}
                 selectedIdeaId={undefined}
