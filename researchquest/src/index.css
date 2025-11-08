@@ -1,0 +1,186 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Light Mode - Primary Colors */
+    --primary-50: #E6F0FF;
+    --primary-100: #CCE0FF;
+    --primary-500: #0066FF;
+    --primary-600: #0052CC;
+    --primary-900: #003D99;
+    
+    /* Light Mode - Backgrounds */
+    --bg-base: #FAFAFA;
+    --bg-surface: #FFFFFF;
+    --bg-elevated: #F5F5F5;
+    --bg-layer-3: #FFFFFF;
+    
+    /* Light Mode - Text */
+    --text-primary: #171717;
+    --text-secondary: #404040;
+    --text-tertiary: #A3A3A3;
+    
+    /* Light Mode - Borders */
+    --border-subtle: #E5E5E5;
+    --border-moderate: #D4D4D8;
+    --border-strong: #A1A1AA;
+    
+    /* Light Mode - Semantic Colors */
+    --success: #22c55e;
+    --success-bg: #f0fdf4;
+    --warning: #f59e0b;
+    --warning-bg: #fffbeb;
+    --purple: #a855f7;
+    --purple-bg: #faf5ff;
+    
+    /* Light Mode - Shadows */
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05);
+    --shadow-hover: 0 10px 20px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.08);
+  }
+
+  .dark {
+    /* Dark Mode - Primary Colors */
+    --primary-50: #1e3a8a;
+    --primary-100: #1e40af;
+    --primary-500: #3b82f6;
+    --primary-600: #2563eb;
+    --primary-900: #1e40af;
+    
+    /* Dark Mode - Backgrounds */
+    --bg-base: #0a0a0a;
+    --bg-surface: #141414;
+    --bg-elevated: #1e1e1e;
+    --bg-layer-3: #282828;
+    
+    /* Dark Mode - Text */
+    --text-primary: #e4e4e7;
+    --text-secondary: #a1a1aa;
+    --text-tertiary: #71717a;
+    
+    /* Dark Mode - Borders */
+    --border-subtle: rgba(255, 255, 255, 0.1);
+    --border-moderate: rgba(255, 255, 255, 0.15);
+    --border-strong: rgba(255, 255, 255, 0.2);
+    
+    /* Dark Mode - Semantic Colors */
+    --success: #4ade80;
+    --success-bg: rgba(74, 222, 128, 0.1);
+    --warning: #fbbf24;
+    --warning-bg: rgba(251, 191, 36, 0.1);
+    --purple: #c084fc;
+    --purple-bg: rgba(192, 132, 252, 0.1);
+    
+    /* Dark Mode - Shadows/Glows */
+    --shadow-sm: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 2px 8px rgba(0, 0, 0, 0.5);
+    --shadow-md: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 4px 12px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 8px 20px rgba(0, 0, 0, 0.6);
+    --shadow-hover: 0 0 0 1px rgba(255, 255, 255, 0.15), 0 8px 24px rgba(0, 0, 0, 0.7);
+  }
+  
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+  
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background-color: var(--bg-base);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  /* Theme transition */
+  .theme-transitioning,
+  .theme-transitioning * {
+    transition: background-color 300ms ease-in-out,
+                color 300ms ease-in-out,
+                border-color 300ms ease-in-out !important;
+  }
+  
+  /* Reduced motion for accessibility */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* Custom scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    background: var(--bg-base);
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: var(--border-moderate);
+    border-radius: 4px;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--border-strong);
+  }
+  
+  /* Selection styling */
+  ::selection {
+    background-color: var(--primary-100);
+    color: var(--text-primary);
+  }
+  
+  .dark ::selection {
+    background-color: rgba(59, 130, 246, 0.2);
+  }
+  
+  /* Performance Optimizations */
+  
+  /* CSS Containment for sidebars and panels */
+  aside {
+    contain: layout style paint;
+  }
+  
+  /* GPU acceleration for transforms */
+  .transform,
+  [class*="translate"],
+  [class*="scale"],
+  [class*="rotate"] {
+    will-change: transform;
+  }
+  
+  /* Remove will-change after animation */
+  .transform-none {
+    will-change: auto;
+  }
+  
+  /* Content visibility for off-screen content */
+  .off-screen {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 500px;
+  }
+  
+  /* Smooth scrolling with performance */
+  .smooth-scroll {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Layer promotion for animated elements */
+  .gpu-accelerated {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    perspective: 1000px;
+  }
+}
