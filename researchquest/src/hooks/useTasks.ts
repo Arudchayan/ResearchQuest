@@ -86,27 +86,57 @@ export function useTasks(userId: string | undefined) {
 
   async function createTask(taskData: Partial<Task>): Promise<Task | null> {
     if (!userId) {
+      setError('User not authenticated')
       toast.error('You must be logged in to create tasks')
       return null
     }
 
+    // Validate required fields
+    if (!taskData.title || !taskData.title.trim()) {
+      setError('Task title is required')
+      toast.error('Task title is required')
+      return null
+    }
+
+    // Clean and prepare the data - only include defined fields
+    const cleanData: any = {
+      user_id: userId,
+      title: taskData.title.trim(),
+      completed: false,
+      priority: taskData.priority || 'medium',
+    }
+
+    // Only add optional fields if they have values
+    if (taskData.description) cleanData.description = taskData.description
+    if (taskData.due_date) cleanData.due_date = taskData.due_date
+    if (taskData.category) cleanData.category = taskData.category
+    if (taskData.project_id) cleanData.project_id = taskData.project_id
+
+    console.log('Creating task with cleaned data:', cleanData)
+
     const { data, error: createError } = await supabase
       .from('tasks')
-      .insert({
-        ...taskData,
-        user_id: userId,
-        completed: false,
-      })
+      .insert(cleanData)
       .select()
       .single()
 
     if (createError) {
-      setError(createError.message)
-      toast.error('Failed to create task')
+      console.error('Failed to create task:', createError)
+      console.error('Error details:', JSON.stringify(createError, null, 2))
+      console.error('Task data that failed:', cleanData)
+      
+      const errorMessage = createError.message || createError.details || createError.hint || 'Unknown error occurred'
+      setError(`Failed to create task: ${errorMessage}`)
+      toast.error(`Failed to create task: ${errorMessage}`)
       return null
     }
 
+    console.log('Task created successfully:', data)
     toast.success('Task created successfully')
+
+    // Optimistic update - add to local state immediately
+    setTasks(prev => [data, ...prev])
+
     // Award XP (don't await to avoid blocking)
     awardXP(userId, XP_REWARDS.CREATE_TASK, 'create_task').catch(console.error)
 
@@ -125,8 +155,12 @@ export function useTasks(userId: string | undefined) {
       .eq('id', taskId)
 
     if (updateError) {
-      setError(updateError.message)
-      toast.error('Failed to update task')
+      console.error('Failed to update task:', updateError)
+      console.error('Error details:', JSON.stringify(updateError, null, 2))
+      
+      const errorMessage = updateError.message || updateError.details || updateError.hint || 'Unknown error occurred'
+      setError(`Failed to update task: ${errorMessage}`)
+      toast.error(`Failed to update task: ${errorMessage}`)
       // Revert on error
       fetchTasks()
       return false
@@ -153,8 +187,12 @@ export function useTasks(userId: string | undefined) {
       .eq('id', taskId)
 
     if (updateError) {
-      setError(updateError.message)
-      toast.error('Failed to update task')
+      console.error('Failed to complete/uncomplete task:', updateError)
+      console.error('Error details:', JSON.stringify(updateError, null, 2))
+      
+      const errorMessage = updateError.message || updateError.details || updateError.hint || 'Unknown error occurred'
+      setError(`Failed to update task: ${errorMessage}`)
+      toast.error(`Failed to update task: ${errorMessage}`)
       // Revert on error
       fetchTasks()
       return false
@@ -183,8 +221,12 @@ export function useTasks(userId: string | undefined) {
       .eq('id', taskId)
 
     if (deleteError) {
-      setError(deleteError.message)
-      toast.error('Failed to delete task')
+      console.error('Failed to delete task:', deleteError)
+      console.error('Error details:', JSON.stringify(deleteError, null, 2))
+      
+      const errorMessage = deleteError.message || deleteError.details || deleteError.hint || 'Unknown error occurred'
+      setError(`Failed to delete task: ${errorMessage}`)
+      toast.error(`Failed to delete task: ${errorMessage}`)
       // Revert on error
       if (deletedTask) {
         setTasks(prev => [...prev, deletedTask])
