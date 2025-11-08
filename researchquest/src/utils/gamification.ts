@@ -80,6 +80,7 @@ export async function awardXP(userId: string, xpAmount: number, action: string):
   
   if (fetchError || !profile) {
     console.error('Failed to fetch user profile:', fetchError)
+    console.error('Error details:', JSON.stringify(fetchError, null, 2))
     return
   }
   
@@ -98,6 +99,7 @@ export async function awardXP(userId: string, xpAmount: number, action: string):
   
   if (updateError) {
     console.error('Failed to update user profile:', updateError)
+    console.error('Error details:', JSON.stringify(updateError, null, 2))
     return
   }
   
@@ -190,7 +192,7 @@ async function checkAchievements(userId: string, action: string): Promise<void> 
 
 // Award an achievement
 async function awardAchievement(userId: string, achievement: typeof ACHIEVEMENTS[keyof typeof ACHIEVEMENTS]): Promise<void> {
-  await supabase
+  const { error: insertError } = await supabase
     .from('research_achievements')
     .insert({
       user_id: userId,
@@ -200,6 +202,12 @@ async function awardAchievement(userId: string, achievement: typeof ACHIEVEMENTS
       xp_awarded: achievement.xp,
     })
   
+  if (insertError) {
+    console.error('Failed to award achievement:', insertError)
+    console.error('Error details:', JSON.stringify(insertError, null, 2))
+    return
+  }
+  
   // Award XP for achievement
   const { data: profile } = await supabase
     .from('user_profiles')
@@ -208,12 +216,17 @@ async function awardAchievement(userId: string, achievement: typeof ACHIEVEMENTS
     .single()
   
   if (profile) {
-    await supabase
+    const { error: xpError } = await supabase
       .from('user_profiles')
       .update({
         total_xp: profile.total_xp + achievement.xp,
       })
       .eq('id', userId)
+    
+    if (xpError) {
+      console.error('Failed to award achievement XP:', xpError)
+      console.error('Error details:', JSON.stringify(xpError, null, 2))
+    }
   }
 }
 
@@ -251,7 +264,7 @@ async function updateDailyLog(userId: string, xpEarned: number): Promise<void> {
   const longestStreak = Math.max(newStreak, profile.longest_streak || 0)
   
   // Update profile streak
-  await supabase
+  const { error: streakError } = await supabase
     .from('user_profiles')
     .update({
       current_streak: newStreak,
@@ -259,6 +272,11 @@ async function updateDailyLog(userId: string, xpEarned: number): Promise<void> {
       last_activity_date: today,
     })
     .eq('id', userId)
+  
+  if (streakError) {
+    console.error('Failed to update streak:', streakError)
+    console.error('Error details:', JSON.stringify(streakError, null, 2))
+  }
   
   // Check if daily log exists for today
   const { data: existingLog } = await supabase
@@ -270,16 +288,21 @@ async function updateDailyLog(userId: string, xpEarned: number): Promise<void> {
   
   if (existingLog) {
     // Update existing log
-    await supabase
+    const { error: updateLogError } = await supabase
       .from('daily_logs')
       .update({
         xp_earned: existingLog.xp_earned + xpEarned,
         streak_count: newStreak,
       })
       .eq('id', existingLog.id)
+    
+    if (updateLogError) {
+      console.error('Failed to update daily log:', updateLogError)
+      console.error('Error details:', JSON.stringify(updateLogError, null, 2))
+    }
   } else {
     // Create new log
-    await supabase
+    const { error: insertLogError } = await supabase
       .from('daily_logs')
       .insert({
         user_id: userId,
@@ -287,5 +310,10 @@ async function updateDailyLog(userId: string, xpEarned: number): Promise<void> {
         xp_earned: xpEarned,
         streak_count: newStreak,
       })
+    
+    if (insertLogError) {
+      console.error('Failed to create daily log:', insertLogError)
+      console.error('Error details:', JSON.stringify(insertLogError, null, 2))
+    }
   }
 }
