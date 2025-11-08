@@ -224,7 +224,7 @@ async function updateDailyLog(userId: string, xpEarned: number): Promise<void> {
   // Get current profile for streak info
   const { data: profile } = await supabase
     .from('user_profiles')
-    .select('current_streak, last_activity_date')
+    .select('current_streak, longest_streak, last_activity_date')
     .eq('id', userId)
     .single()
   
@@ -238,21 +238,25 @@ async function updateDailyLog(userId: string, xpEarned: number): Promise<void> {
     const daysDiff = Math.floor((todayDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24))
     
     if (daysDiff === 0) {
-      // Same day, keep streak
-      newStreak = profile.current_streak
+      // Same day, keep current streak
+      newStreak = profile.current_streak || 1
     } else if (daysDiff === 1) {
-      // Consecutive day, increment
-      newStreak = profile.current_streak + 1
+      // Consecutive day, increment streak
+      newStreak = (profile.current_streak || 0) + 1
     }
     // If > 1 day, streak resets to 1 (already set)
   }
+  
+  // Calculate longest streak
+  const longestStreak = Math.max(newStreak, profile.longest_streak || 0)
   
   // Update profile streak
   await supabase
     .from('user_profiles')
     .update({
       current_streak: newStreak,
-      longest_streak: Math.max(newStreak, profile.current_streak || 0),
+      longest_streak: longestStreak,
+      last_activity_date: today,
     })
     .eq('id', userId)
   
@@ -262,7 +266,7 @@ async function updateDailyLog(userId: string, xpEarned: number): Promise<void> {
     .select('*')
     .eq('user_id', userId)
     .eq('date', today)
-    .single()
+    .maybeSingle()
   
   if (existingLog) {
     // Update existing log

@@ -7,8 +7,13 @@ import { RightSidebar } from './components/layout/RightSidebar'
 import { MobileMenu } from './components/layout/MobileMenu'
 import { MarkdownEditor } from './components/editor/MarkdownEditor'
 import { TaskManager } from './components/tasks/TaskManager'
+import { IdeaDetailView } from './components/entities/IdeaDetailView'
+import { AddPaperView } from './components/entities/AddPaperView'
+import { PaperDetailView } from './components/entities/PaperDetailView'
 import { Toaster } from 'sonner'
 import type { User } from '@supabase/supabase-js'
+import { usePapers } from './hooks/usePapers'
+import { useIdeas } from './hooks/useIdeas'
 
 function AuthScreen() {
   const [email, setEmail] = useState('')
@@ -124,12 +129,18 @@ function AuthScreen() {
 function App() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
-  const { setUser: setUserProfile, currentView, setCurrentView, selectedNote, selectedPaper } = useAppStore()
+  const [userId, setUserId] = useState<string | undefined>(undefined)
+  const { setUser: setUserProfile, currentView, setCurrentView, selectedNote, selectedPaper, selectedIdea } = useAppStore()
+  
+  // Get hooks for CRUD operations
+  const { papers, searchPaperByDOI, searchPapersByQuery, createPaper, updatePaper } = usePapers(userId)
+  const { updateIdea } = useIdeas(userId)
   
   useEffect(() => {
     // Check active sessions
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
+      setUserId(session?.user?.id)
       setLoading(false)
     })
     
@@ -138,6 +149,7 @@ function App() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
+      setUserId(session?.user?.id)
     })
     
     return () => subscription.unsubscribe()
@@ -240,57 +252,38 @@ function App() {
             )
           ) : currentView === 'papers' ? (
             selectedPaper ? (
-              <div className="p-6">
-                <div className="max-w-4xl mx-auto">
-                  <h1 className="text-title font-bold text-text-primary mb-4">{selectedPaper.title}</h1>
-                  <p className="text-body text-text-secondary mb-4">
-                    {selectedPaper.authors.join(', ')}
-                  </p>
-                  <div className="space-y-3">
-                    <div>
-                      <span className="text-small font-semibold text-text-tertiary">DOI:</span>
-                      <span className="text-body text-text-primary ml-2">{selectedPaper.doi || 'N/A'}</span>
-                    </div>
-                    <div>
-                      <span className="text-small font-semibold text-text-tertiary">Publication Date:</span>
-                      <span className="text-body text-text-primary ml-2">{selectedPaper.publication_date || 'N/A'}</span>
-                    </div>
-                    <div>
-                      <span className="text-small font-semibold text-text-tertiary">Status:</span>
-                      <span className="text-body text-text-primary ml-2">{selectedPaper.status}</span>
-                    </div>
-                    {selectedPaper.abstract && (
-                      <div className="mt-6">
-                        <h3 className="text-lg font-semibold text-text-primary mb-2">Abstract</h3>
-                        <p className="text-body text-text-secondary">{selectedPaper.abstract}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
+              <PaperDetailView
+                paper={selectedPaper}
+                onUpdate={updatePaper}
+              />
+            ) : (
+              <AddPaperView
+                onAdd={async (paperData) => {
+                  const newPaper = await createPaper(paperData)
+                  return newPaper
+                }}
+                searchByDOI={searchPaperByDOI}
+                searchByQuery={searchPapersByQuery}
+              />
+            )
+          ) : currentView === 'ideas' ? (
+            selectedIdea ? (
+              <IdeaDetailView
+                idea={selectedIdea}
+                onUpdate={updateIdea}
+              />
             ) : (
               <div className="p-6">
                 <div className="max-w-4xl mx-auto text-center py-12">
                   <h2 className="text-title font-semibold text-text-primary mb-4">
-                    Papers Library
+                    Ideas Workspace
                   </h2>
                   <p className="text-body text-text-secondary">
-                    Select a paper from the sidebar or add a new paper to build your knowledge base.
+                    Select an idea from the sidebar or create a new one to capture your research ideas.
                   </p>
                 </div>
               </div>
             )
-          ) : currentView === 'ideas' ? (
-            <div className="p-6">
-              <div className="max-w-4xl mx-auto text-center py-12">
-                <h2 className="text-title font-semibold text-text-primary mb-4">
-                  Ideas Workspace
-                </h2>
-                <p className="text-body text-text-secondary">
-                  Select an idea from the sidebar or create a new one to capture your research ideas.
-                </p>
-              </div>
-            </div>
           ) : currentView === 'topics' ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">

@@ -8,7 +8,6 @@ import { useIdeas } from '../../hooks/useIdeas'
 import { NoteList } from '../entities/NoteList'
 import { PaperList } from '../entities/PaperList'
 import { IdeaList } from '../entities/IdeaList'
-import { AddPaperModal } from '../entities/AddPaperModal'
 import type { ReadingStatus, IdeaStage } from '../../types/database'
 
 const TABS = [
@@ -27,7 +26,6 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   const { currentView, setCurrentView, user, setUser: setUserProfile, setSelectedNote, setSelectedPaper, setSelectedIdea } = useAppStore()
   const [searchQuery, setSearchQuery] = useState('')
   const [userId, setUserId] = useState<string | undefined>(undefined)
-  const [showAddPaperModal, setShowAddPaperModal] = useState(false)
   const [todayXP, setTodayXP] = useState(0)
   
   // URL-based navigation handler
@@ -124,7 +122,8 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
         setSelectedNote(newNote)
       }
     } else if (currentView === 'papers') {
-      setShowAddPaperModal(true)
+      // Clear selected paper to show the AddPaperView in main content
+      setSelectedPaper(null)
     } else if (currentView === 'ideas') {
       const title = prompt('Enter idea title:')
       if (title) {
@@ -137,25 +136,9 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
         }
       }
     }
-  }, [currentView, createNote, setSelectedNote, createIdea, setSelectedIdea])
+  }, [currentView, createNote, setSelectedNote, createIdea, setSelectedIdea, setSelectedPaper])
   
-  const handleAddPaper = useCallback(async (paperData: any) => {
-    console.log('handleAddPaper called with:', paperData)
-    
-    try {
-      const newPaper = await createPaper(paperData)
-      console.log('createPaper result:', newPaper)
-      
-      if (newPaper) {
-        setSelectedPaper(newPaper)
-        console.log('Paper added and selected successfully')
-      } else {
-        console.error('createPaper returned null or undefined')
-      }
-    } catch (error) {
-      console.error('Error in handleAddPaper:', error)
-    }
-  }, [createPaper, setSelectedPaper])
+  // Removed handleAddPaper - now handled in AddPaperView
   
   // Filter entities by search query (memoized for performance)
   const filteredNotes = useMemo(() => notes.filter(note => {
@@ -309,13 +292,6 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
         </div>
       </div>
       
-      <AddPaperModal
-        isOpen={showAddPaperModal}
-        onClose={() => setShowAddPaperModal(false)}
-        onAdd={handleAddPaper}
-        searchByDOI={searchPaperByDOI}
-        searchByQuery={searchPapersByQuery}
-      />
     </>
   )
 }
