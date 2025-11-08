@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { awardXP, XP_REWARDS } from '../utils/gamification'
+import { toast } from 'sonner'
 import type { Note } from '../types/database'
 
 export function useNotes(userId: string | undefined) {
@@ -64,7 +65,10 @@ export function useNotes(userId: string | undefined) {
   }, [userId, fetchNotes])
 
   async function createNote(noteData: Partial<Note>): Promise<Note | null> {
-    if (!userId) return null
+    if (!userId) {
+      toast.error('You must be logged in to create notes')
+      return null
+    }
 
     const { data, error: createError } = await supabase
       .from('notes')
@@ -79,9 +83,11 @@ export function useNotes(userId: string | undefined) {
 
     if (createError) {
       setError(createError.message)
+      toast.error('Failed to create note')
       return null
     }
 
+    toast.success('Note created successfully')
     // Award XP (don't await to avoid blocking)
     awardXP(userId, XP_REWARDS.CREATE_NOTE, 'create_note').catch(console.error)
     
@@ -101,6 +107,7 @@ export function useNotes(userId: string | undefined) {
 
     if (updateError) {
       setError(updateError.message)
+      toast.error('Failed to update note')
       // Revert on error
       fetchNotes()
       return false
@@ -126,6 +133,7 @@ export function useNotes(userId: string | undefined) {
 
     if (deleteError) {
       setError(deleteError.message)
+      toast.error('Failed to delete note')
       // Revert on error
       if (deletedNote) {
         setNotes(prev => [...prev, deletedNote])
@@ -133,6 +141,7 @@ export function useNotes(userId: string | undefined) {
       return false
     }
 
+    toast.success('Note deleted')
     return true
   }
 

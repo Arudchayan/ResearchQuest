@@ -1,6 +1,7 @@
 import { useState, memo, useCallback } from 'react'
 import { Clock, BookOpen, Trash2, ExternalLink } from 'lucide-react'
 import type { Paper, ReadingStatus } from '../../types/database'
+import { ListSkeleton } from '../ui/Skeleton'
 
 interface PaperCardProps {
   paper: Paper
@@ -116,9 +117,14 @@ interface PaperListProps {
   onDeletePaper: (id: string) => void
   onStatusChange: (id: string, status: ReadingStatus) => void
   selectedPaperId?: string
+  loading?: boolean
 }
 
-export function PaperList({ papers, onSelectPaper, onDeletePaper, onStatusChange, selectedPaperId }: PaperListProps) {
+export function PaperList({ papers, onSelectPaper, onDeletePaper, onStatusChange, selectedPaperId, loading = false }: PaperListProps) {
+  if (loading) {
+    return <ListSkeleton count={5} itemType="paper" />
+  }
+  
   if (papers.length === 0) {
     return (
       <div className="text-center py-12 text-text-tertiary">

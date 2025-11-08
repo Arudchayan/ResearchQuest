@@ -2,6 +2,7 @@ import { useState, memo, useCallback } from 'react'
 import { Clock, Hash, Link2, Trash2, FileText } from 'lucide-react'
 import type { Note } from '../../types/database'
 import { useAppStore } from '../../store/appStore'
+import { ListSkeleton } from '../ui/Skeleton'
 
 interface NoteCardProps {
   note: Note
@@ -87,9 +88,14 @@ interface NoteListProps {
   onSelectNote: (note: Note) => void
   onDeleteNote: (id: string) => void
   selectedNoteId?: string
+  loading?: boolean
 }
 
-export function NoteList({ notes, onSelectNote, onDeleteNote, selectedNoteId }: NoteListProps) {
+export function NoteList({ notes, onSelectNote, onDeleteNote, selectedNoteId, loading = false }: NoteListProps) {
+  if (loading) {
+    return <ListSkeleton count={5} itemType="note" />
+  }
+  
   if (notes.length === 0) {
     return (
       <div className="text-center py-12 text-text-tertiary">

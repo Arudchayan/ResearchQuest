@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { awardXP, XP_REWARDS } from '../utils/gamification'
+import { toast } from 'sonner'
 import type { Paper, CrossrefPaper } from '../types/database'
 
 export function usePapers(userId: string | undefined) {
@@ -102,6 +103,7 @@ export function usePapers(userId: string | undefined) {
   async function createPaper(paperData: Partial<Paper>): Promise<Paper | null> {
     if (!userId) {
       setError('User not authenticated')
+      toast.error('You must be logged in to add papers')
       return null
     }
 
@@ -121,10 +123,12 @@ export function usePapers(userId: string | undefined) {
     if (createError) {
       console.error('Failed to create paper:', createError)
       setError(`Failed to create paper: ${createError.message}`)
+      toast.error('Failed to add paper')
       return null
     }
 
     console.log('Paper created successfully:', data)
+    toast.success('Paper added successfully')
 
     // Award XP (don't await to avoid blocking)
     awardXP(userId, XP_REWARDS.CREATE_PAPER, 'create_paper').catch(console.error)
@@ -145,9 +149,14 @@ export function usePapers(userId: string | undefined) {
 
     if (updateError) {
       setError(updateError.message)
+      toast.error('Failed to update paper')
       // Revert on error
       fetchPapers()
       return false
+    }
+
+    if (updates.status) {
+      toast.success(`Paper marked as ${updates.status}`)
     }
 
     // Award XP if status changed (don't await to avoid blocking)
@@ -170,6 +179,7 @@ export function usePapers(userId: string | undefined) {
 
     if (deleteError) {
       setError(deleteError.message)
+      toast.error('Failed to delete paper')
       // Revert on error
       if (deletedPaper) {
         setPapers(prev => [...prev, deletedPaper])
@@ -177,6 +187,7 @@ export function usePapers(userId: string | undefined) {
       return false
     }
 
+    toast.success('Paper deleted')
     return true
   }
 

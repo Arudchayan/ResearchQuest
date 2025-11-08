@@ -41,9 +41,17 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   }
   
   // Get hooks
-  const { notes, createNote, updateNote, deleteNote } = useNotes(userId)
-  const { papers, searchPaperByDOI, searchPapersByQuery, createPaper, updatePaper, deletePaper } = usePapers(userId)
-  const { ideas, createIdea, updateIdea, deleteIdea } = useIdeas(userId)
+  const { notes, loading: notesLoading, createNote, updateNote, deleteNote } = useNotes(userId)
+  const { papers, loading: papersLoading, searchPaperByDOI, searchPapersByQuery, createPaper, updatePaper, deletePaper } = usePapers(userId)
+  const { ideas, loading: ideasLoading, createIdea, updateIdea, deleteIdea } = useIdeas(userId)
+  
+  // Determine current loading state
+  const loading = useMemo(() => {
+    if (currentView === 'notes') return notesLoading
+    if (currentView === 'papers') return papersLoading
+    if (currentView === 'ideas') return ideasLoading
+    return false
+  }, [currentView, notesLoading, papersLoading, ideasLoading])
   
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -236,6 +244,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
             {currentView === 'notes' && (
               <NoteList
                 notes={filteredNotes}
+                loading={loading}
                 onSelectNote={(note) => setSelectedNote(note)}
                 onDeleteNote={deleteNote}
                 selectedNoteId={undefined}
@@ -245,6 +254,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
             {currentView === 'papers' && (
               <PaperList
                 papers={filteredPapers}
+                loading={loading}
                 onSelectPaper={(paper) => setSelectedPaper(paper)}
                 onDeletePaper={deletePaper}
                 onStatusChange={(id, status) => updatePaper(id, { status })}
@@ -255,6 +265,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
             {currentView === 'ideas' && (
               <IdeaList
                 ideas={filteredIdeas}
+                loading={loading}
                 onSelectIdea={(idea) => setSelectedIdea(idea)}
                 onDeleteIdea={deleteIdea}
                 onStageChange={(id, stage, oldStage) => updateIdea(id, { stage }, oldStage)}

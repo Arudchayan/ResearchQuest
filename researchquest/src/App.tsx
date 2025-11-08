@@ -7,6 +7,7 @@ import { RightSidebar } from './components/layout/RightSidebar'
 import { MobileMenu } from './components/layout/MobileMenu'
 import { MarkdownEditor } from './components/editor/MarkdownEditor'
 import { TaskManager } from './components/tasks/TaskManager'
+import { Toaster } from 'sonner'
 import type { User } from '@supabase/supabase-js'
 
 function AuthScreen() {
@@ -193,6 +194,16 @@ function App() {
   
   return (
     <div className="min-h-screen-dynamic bg-bg-base">
+      {/* Toast Notifications */}
+      <Toaster 
+        position="top-right"
+        richColors
+        expand={false}
+        duration={3000}
+        theme={useAppStore.getState().effectiveTheme}
+        closeButton
+      />
+      
       {/* Mobile Navigation */}
       <MobileMenu />
       

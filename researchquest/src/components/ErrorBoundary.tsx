@@ -1,32 +1,58 @@
 import React from 'react';
+import { ErrorFallback } from './ui/ErrorFallback';
 
-const searilizeError = (error: any) => {
-  if (error instanceof Error) {
-    return error.message + '\n' + error.stack;
-  }
-  return JSON.stringify(error, null, 2);
-};
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
 
-export class ErrorBoundary extends React.Component<
-  { children: React.ReactNode },
-  { hasError: boolean; error: any }
-> {
-  constructor(props: { children: React.ReactNode }) {
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+  fallback?: React.ComponentType<{ error: Error; resetError: () => void }>;
+  onError?: (error: Error, errorInfo: React.ErrorInfo) => void;
+}
+
+export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false, error: null };
   }
 
-  static getDerivedStateFromError(error: any) {
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { hasError: true, error };
   }
 
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    // Log error to console in development
+    if (process.env.NODE_ENV === 'development') {
+      console.error('ErrorBoundary caught an error:', error, errorInfo);
+    }
+    
+    // Call optional error handler
+    this.props.onError?.(error, errorInfo);
+    
+    // In production, you might want to send this to an error tracking service
+    // like Sentry, LogRocket, etc.
+    // Example: logErrorToService(error, errorInfo);
+  }
+
+  resetError = () => {
+    this.setState({ hasError: false, error: null });
+  }
+
   render() {
-    if (this.state.hasError) {
+    if (this.state.hasError && this.state.error) {
+      const FallbackComponent = this.props.fallback;
+      
+      if (FallbackComponent) {
+        return <FallbackComponent error={this.state.error} resetError={this.resetError} />;
+      }
+      
       return (
-        <div className="p-4 border border-red-500 rounded">
-          <h2 className="text-red-500">Something went wrong.</h2>
-          <pre className="mt-2 text-sm">{searilizeError(this.state.error)}</pre>
-        </div>
+        <ErrorFallback 
+          error={this.state.error} 
+          resetError={this.resetError}
+        />
       );
     }
 

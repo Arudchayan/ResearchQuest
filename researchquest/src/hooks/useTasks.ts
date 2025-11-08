@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { awardXP, XP_REWARDS } from '../utils/gamification'
+import { toast } from 'sonner'
 
 export interface Task {
   id: string
@@ -67,7 +68,10 @@ export function useTasks(userId: string | undefined) {
   }, [userId, fetchTasks])
 
   async function createTask(taskData: Partial<Task>): Promise<Task | null> {
-    if (!userId) return null
+    if (!userId) {
+      toast.error('You must be logged in to create tasks')
+      return null
+    }
 
     const { data, error: createError } = await supabase
       .from('tasks')
@@ -81,9 +85,11 @@ export function useTasks(userId: string | undefined) {
 
     if (createError) {
       setError(createError.message)
+      toast.error('Failed to create task')
       return null
     }
 
+    toast.success('Task created successfully')
     // Award XP (don't await to avoid blocking)
     awardXP(userId, XP_REWARDS.CREATE_TASK, 'create_task').catch(console.error)
 
@@ -103,6 +109,7 @@ export function useTasks(userId: string | undefined) {
 
     if (updateError) {
       setError(updateError.message)
+      toast.error('Failed to update task')
       // Revert on error
       fetchTasks()
       return false
@@ -130,9 +137,14 @@ export function useTasks(userId: string | undefined) {
 
     if (updateError) {
       setError(updateError.message)
+      toast.error('Failed to update task')
       // Revert on error
       fetchTasks()
       return false
+    }
+
+    if (newCompletedStatus) {
+      toast.success('Task completed! 🎉')
     }
 
     // Award XP only when completing (not un-completing, don't await to avoid blocking)
@@ -155,6 +167,7 @@ export function useTasks(userId: string | undefined) {
 
     if (deleteError) {
       setError(deleteError.message)
+      toast.error('Failed to delete task')
       // Revert on error
       if (deletedTask) {
         setTasks(prev => [...prev, deletedTask])
@@ -162,6 +175,7 @@ export function useTasks(userId: string | undefined) {
       return false
     }
 
+    toast.success('Task deleted')
     return true
   }
 

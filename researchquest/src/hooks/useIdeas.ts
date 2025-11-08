@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { awardXP, XP_REWARDS } from '../utils/gamification'
+import { toast } from 'sonner'
 import type { Idea, IdeaStage } from '../types/database'
 
 export function useIdeas(userId: string | undefined) {
@@ -64,7 +65,10 @@ export function useIdeas(userId: string | undefined) {
   }, [userId, fetchIdeas])
 
   async function createIdea(ideaData: Partial<Idea>): Promise<Idea | null> {
-    if (!userId) return null
+    if (!userId) {
+      toast.error('You must be logged in to create ideas')
+      return null
+    }
 
     const { data, error: createError } = await supabase
       .from('ideas')
@@ -78,9 +82,11 @@ export function useIdeas(userId: string | undefined) {
 
     if (createError) {
       setError(createError.message)
+      toast.error('Failed to create idea')
       return null
     }
 
+    toast.success('Idea created successfully')
     // Award XP (don't await to avoid blocking)
     awardXP(userId, XP_REWARDS.CREATE_IDEA, 'create_idea').catch(console.error)
 
@@ -100,9 +106,14 @@ export function useIdeas(userId: string | undefined) {
 
     if (updateError) {
       setError(updateError.message)
+      toast.error('Failed to update idea')
       // Revert on error
       fetchIdeas()
       return false
+    }
+
+    if (updates.stage) {
+      toast.success(`Idea stage updated to ${updates.stage}`)
     }
 
     // Award XP if stage advanced (don't await to avoid blocking)
@@ -131,6 +142,7 @@ export function useIdeas(userId: string | undefined) {
 
     if (deleteError) {
       setError(deleteError.message)
+      toast.error('Failed to delete idea')
       // Revert on error
       if (deletedIdea) {
         setIdeas(prev => [...prev, deletedIdea])
@@ -138,6 +150,7 @@ export function useIdeas(userId: string | undefined) {
       return false
     }
 
+    toast.success('Idea deleted')
     return true
   }
 
