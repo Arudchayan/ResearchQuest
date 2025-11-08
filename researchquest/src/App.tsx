@@ -178,14 +178,6 @@ function App() {
   // URL-based routing - handle initial load and navigation
   useEffect(() => {
     const handleRouteChange = () => {
-      // Check if we were redirected from a 404 page
-      const redirectPath = sessionStorage.getItem('redirectPath')
-      if (redirectPath) {
-        sessionStorage.removeItem('redirectPath')
-        console.log('Restoring path from 404 redirect:', redirectPath)
-        window.history.replaceState(null, '', redirectPath)
-      }
-      
       const path = window.location.pathname
       console.log('Route changed to:', path)
       
