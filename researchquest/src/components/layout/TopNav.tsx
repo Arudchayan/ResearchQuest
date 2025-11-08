@@ -1,0 +1,82 @@
+import { Sun, Moon, Flame, User } from 'lucide-react'
+import { useAppStore } from '../../store/appStore'
+import { supabase } from '../../lib/supabase'
+import { useEffect } from 'react'
+
+export function TopNav() {
+  const { theme, setTheme, user, effectiveTheme } = useAppStore()
+  
+  const toggleTheme = () => {
+    const newTheme = effectiveTheme === 'light' ? 'dark' : 'light'
+    document.body.classList.add('theme-transitioning')
+    setTheme(newTheme)
+    setTimeout(() => {
+      document.body.classList.remove('theme-transitioning')
+    }, 300)
+  }
+  
+  const xpProgress = user ? (user.total_xp % 500) / 500 * 100 : 0
+  const currentLevel = user?.current_level || 1
+  const xpInLevel = user ? user.total_xp % 500 : 0
+  
+  return (
+    <nav className="fixed top-0 left-0 right-0 h-16 bg-bg-surface/80 backdrop-blur-lg border-b border-border-subtle shadow-sm z-50">
+      <div className="h-full px-6 flex items-center justify-between max-w-screen-2xl mx-auto">
+        {/* Logo & Title */}
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-primary-500 rounded-md flex items-center justify-center text-white font-bold">
+            RQ
+          </div>
+          <h1 className="text-lg font-semibold text-text-primary">ResearchQuest</h1>
+        </div>
+        
+        {/* Center - XP Progress (hidden on mobile) */}
+        <div className="hidden md:flex items-center gap-4">
+          <div className="flex flex-col items-end gap-1">
+            <span className="text-caption text-text-tertiary font-medium">
+              Lvl {currentLevel} • {xpInLevel}/500 XP
+            </span>
+            <div className="w-48 h-2.5 bg-bg-elevated rounded-full overflow-hidden shadow-sm">
+              <div 
+                className="h-full bg-gradient-to-r from-primary-500 to-primary-600 transition-all duration-600 ease-in-out"
+                style={{ width: `${xpProgress}%` }}
+              />
+            </div>
+          </div>
+        </div>
+        
+        {/* Right - Streak & Theme Toggle */}
+        <div className="flex items-center gap-3">
+          {/* Streak Counter */}
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-success-bg border border-success rounded-full">
+            <Flame className="w-4 h-4 text-success" />
+            <span className="text-small font-semibold text-success">
+              {user?.current_streak || 0} days
+            </span>
+          </div>
+          
+          {/* Theme Toggle */}
+          <button
+            onClick={toggleTheme}
+            className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-bg-elevated transition-colors"
+            aria-label={`Switch to ${effectiveTheme === 'light' ? 'dark' : 'light'} mode`}
+          >
+            {effectiveTheme === 'light' ? (
+              <Moon className="w-5 h-5 text-text-secondary" />
+            ) : (
+              <Sun className="w-5 h-5 text-text-secondary" />
+            )}
+          </button>
+          
+          {/* User Avatar */}
+          <button
+            className="w-8 h-8 rounded-full bg-primary-500 flex items-center justify-center text-white hover:bg-primary-600 transition-colors"
+            aria-label="User profile"
+          >
+            <User className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+    </nav>
+  )
+}
