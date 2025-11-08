@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="refresh" content="0; url=/" />
+  <script>
+    // Store the attempted path before redirecting
+    sessionStorage.setItem('redirectPath', window.location.pathname + window.location.search + window.location.hash);
+    // Redirect to index
+    window.location.replace('/');
+  </script>
+  <title>Redirecting...</title>
+</head>
+<body>
+  <p>Redirecting...</p>
+</body>
+</html>
