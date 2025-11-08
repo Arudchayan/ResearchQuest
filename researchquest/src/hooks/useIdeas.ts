@@ -45,15 +45,7 @@ export function useIdeas(userId: string | undefined) {
           console.log('Ideas realtime update:', payload)
           // Optimistic UI update based on event type
           if (payload.eventType === 'INSERT') {
-            // Check if idea already exists (from optimistic update) to avoid duplicates
-            setIdeas(prev => {
-              const exists = prev.some(i => i.id === (payload.new as Idea).id)
-              if (exists) {
-                console.log('Idea already exists (from optimistic update), skipping realtime insert')
-                return prev
-              }
-              return [payload.new as Idea, ...prev]
-            })
+            setIdeas(prev => [payload.new as Idea, ...prev])
           } else if (payload.eventType === 'UPDATE') {
             setIdeas(prev => prev.map(idea => 
               idea.id === payload.new.id ? payload.new as Idea : idea
@@ -94,11 +86,6 @@ export function useIdeas(userId: string | undefined) {
       return null
     }
 
-    console.log('Idea created successfully:', data)
-    
-    // Optimistically update the UI immediately (don't wait for realtime)
-    setIdeas(prev => [data, ...prev])
-    
     toast.success('Idea created successfully')
     // Award XP (don't await to avoid blocking)
     awardXP(userId, XP_REWARDS.CREATE_IDEA, 'create_idea').catch(console.error)

@@ -106,11 +106,6 @@ export function useTasks(userId: string | undefined) {
       return null
     }
 
-    console.log('Task created successfully:', data)
-    
-    // Optimistically update the UI immediately (don't wait for realtime)
-    setTasks(prev => [data, ...prev])
-    
     toast.success('Task created successfully')
     // Award XP (don't await to avoid blocking)
     awardXP(userId, XP_REWARDS.CREATE_TASK, 'create_task').catch(console.error)

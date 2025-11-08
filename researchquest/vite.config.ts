@@ -21,17 +21,11 @@ export default defineConfig({
   preview: {
     port: 4173,
     strictPort: false,
-    host: true,
   },
   server: {
     port: 5173,
     strictPort: false,
     host: true,
-    // Enable HTML5 history mode for client-side routing
-    // This ensures that refreshing on routes like /papers or /tasks works
-    fs: {
-      strict: false,
-    },
   },
   build: {
     rollupOptions: {
