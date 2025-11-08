@@ -144,9 +144,18 @@ export function usePapers(userId: string | undefined) {
     if (paperData.doi && paperData.doi.trim()) cleanData.doi = paperData.doi.trim()
     if (paperData.source_url && paperData.source_url.trim()) cleanData.source_url = paperData.source_url.trim()
     if (paperData.abstract && paperData.abstract.trim()) cleanData.abstract = paperData.abstract.trim()
+    
+    // Handle publication_date - convert year to proper date format if needed
     if (paperData.publication_date && paperData.publication_date.trim() && paperData.publication_date !== 'null') {
-      cleanData.publication_date = paperData.publication_date.trim()
+      const pubDate = paperData.publication_date.trim()
+      // If it's just a year (4 digits), convert to YYYY-01-01 format
+      if (/^\d{4}$/.test(pubDate)) {
+        cleanData.publication_date = `${pubDate}-01-01`
+      } else {
+        cleanData.publication_date = pubDate
+      }
     }
+    
     if (paperData.topic_ids && Array.isArray(paperData.topic_ids) && paperData.topic_ids.length > 0) {
       cleanData.topic_ids = paperData.topic_ids
     }

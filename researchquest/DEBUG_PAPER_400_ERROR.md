@@ -1,8 +1,22 @@
 # Debugging Paper Creation 400 Error
 
+## Root Cause
+
+**Error:** `invalid input syntax for type date: "2025"`
+
+The database was expecting a proper date format (YYYY-MM-DD) but CrossRef API returns just the year (e.g., "2025"). This caused all paper additions to fail with a 400 error.
+
 ## What I Fixed
 
-### 1. Enhanced Error Logging
+### 1. Publication Date Format Conversion ⭐ (Main Fix)
+**The Problem:** CrossRef returns years like "2025" but the database expects dates like "2025-01-01"
+
+**The Solution:** Both `usePapers.ts` and `AddPaperView.tsx` now:
+- Detect if publication_date is just a year (4 digits)
+- Automatically convert it to proper date format: `YYYY-01-01`
+- Example: "2025" becomes "2025-01-01"
+
+### 2. Enhanced Error Logging
 The error handling in `usePapers.ts` now logs:
 - Full error object
 - Error code
@@ -12,7 +26,7 @@ The error handling in `usePapers.ts` now logs:
 - JSON stringified error
 - The exact data that failed
 
-### 2. Improved Data Validation
+### 3. Improved Data Validation
 Both `usePapers.ts` and `AddPaperView.tsx` now:
 - Trim all string values to remove whitespace
 - Check if strings are empty before including them
@@ -20,7 +34,7 @@ Both `usePapers.ts` and `AddPaperView.tsx` now:
 - Only include optional fields if they have valid values
 - Ensure arrays are properly formatted
 
-### 3. Better Error Display
+### 4. Better Error Display
 - Error messages now show for 5 seconds instead of 3
 - Multiple fallbacks for extracting error messages
 - More detailed console logging

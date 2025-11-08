@@ -55,7 +55,11 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
     if (doiResult.doi && doiResult.doi.trim()) paperData.doi = doiResult.doi.trim()
     if (doiResult.sourceUrl && doiResult.sourceUrl.trim()) paperData.source_url = doiResult.sourceUrl.trim()
     if (doiResult.abstract && doiResult.abstract.trim()) paperData.abstract = doiResult.abstract.trim()
-    if (doiResult.publicationDate) paperData.publication_date = doiResult.publicationDate.toString()
+    if (doiResult.publicationDate) {
+      const year = doiResult.publicationDate.toString()
+      // If it's just a year, format as YYYY-01-01
+      paperData.publication_date = /^\d{4}$/.test(year) ? `${year}-01-01` : year
+    }
     
     try {
       const result = await onAdd(paperData)
@@ -98,7 +102,11 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
     if (result.doi && result.doi.trim()) paperData.doi = result.doi.trim()
     if (result.sourceUrl && result.sourceUrl.trim()) paperData.source_url = result.sourceUrl.trim()
     if (result.abstract && result.abstract.trim()) paperData.abstract = result.abstract.trim()
-    if (result.publicationDate) paperData.publication_date = result.publicationDate.toString()
+    if (result.publicationDate) {
+      const year = result.publicationDate.toString()
+      // If it's just a year, format as YYYY-01-01
+      paperData.publication_date = /^\d{4}$/.test(year) ? `${year}-01-01` : year
+    }
     
     try {
       const result = await onAdd(paperData)
