@@ -45,7 +45,15 @@ export function useNotes(userId: string | undefined) {
           console.log('Notes realtime update:', payload)
           // Optimistic UI update based on event type
           if (payload.eventType === 'INSERT') {
-            setNotes(prev => [payload.new as Note, ...prev])
+            // Check if note already exists (from optimistic update) to avoid duplicates
+            setNotes(prev => {
+              const exists = prev.some(n => n.id === (payload.new as Note).id)
+              if (exists) {
+                console.log('Note already exists (from optimistic update), skipping realtime insert')
+                return prev
+              }
+              return [payload.new as Note, ...prev]
+            })
           } else if (payload.eventType === 'UPDATE') {
             setNotes(prev => prev.map(note => 
               note.id === payload.new.id ? payload.new as Note : note
@@ -66,28 +74,54 @@ export function useNotes(userId: string | undefined) {
 
   async function createNote(noteData: Partial<Note>): Promise<Note | null> {
     if (!userId) {
+      setError('User not authenticated')
       toast.error('You must be logged in to create notes')
       return null
     }
 
+    // Validate required fields - markdown_body is required, but can be empty
+    if (noteData.markdown_body === undefined) {
+      setError('Note content is required')
+      toast.error('Note content is required')
+      return null
+    }
+
+    // Clean and prepare the data - only include defined fields
+    const cleanData: any = {
+      user_id: userId,
+      markdown_body: noteData.markdown_body,
+      tags: Array.isArray(noteData.tags) ? noteData.tags : [],
+    }
+
+    // Only add optional fields if they have values
+    if (noteData.title) cleanData.title = noteData.title
+    if (noteData.linked_entity_ids) cleanData.linked_entity_ids = noteData.linked_entity_ids
+
+    console.log('Creating note with cleaned data:', cleanData)
+
     const { data, error: createError } = await supabase
       .from('notes')
-      .insert({
-        ...noteData,
-        user_id: userId,
-        markdown_body: noteData.markdown_body || '',
-        tags: noteData.tags || [],
-      })
+      .insert(cleanData)
       .select()
       .single()
 
     if (createError) {
-      setError(createError.message)
-      toast.error('Failed to create note')
+      console.error('Failed to create note:', createError)
+      console.error('Error details:', JSON.stringify(createError, null, 2))
+      console.error('Note data that failed:', cleanData)
+      
+      const errorMessage = createError.message || createError.details || createError.hint || 'Unknown error occurred'
+      setError(`Failed to create note: ${errorMessage}`)
+      toast.error(`Failed to create note: ${errorMessage}`)
       return null
     }
 
+    console.log('Note created successfully:', data)
     toast.success('Note created successfully')
+
+    // Optimistic update - add to local state immediately
+    setNotes(prev => [data, ...prev])
+
     // Award XP (don't await to avoid blocking)
     awardXP(userId, XP_REWARDS.CREATE_NOTE, 'create_note').catch(console.error)
     
@@ -106,8 +140,12 @@ export function useNotes(userId: string | undefined) {
       .eq('id', noteId)
 
     if (updateError) {
-      setError(updateError.message)
-      toast.error('Failed to update note')
+      console.error('Failed to update note:', updateError)
+      console.error('Error details:', JSON.stringify(updateError, null, 2))
+      
+      const errorMessage = updateError.message || updateError.details || updateError.hint || 'Unknown error occurred'
+      setError(`Failed to update note: ${errorMessage}`)
+      toast.error(`Failed to update note: ${errorMessage}`)
       // Revert on error
       fetchNotes()
       return false
@@ -132,8 +170,12 @@ export function useNotes(userId: string | undefined) {
       .eq('id', noteId)
 
     if (deleteError) {
-      setError(deleteError.message)
-      toast.error('Failed to delete note')
+      console.error('Failed to delete note:', deleteError)
+      console.error('Error details:', JSON.stringify(deleteError, null, 2))
+      
+      const errorMessage = deleteError.message || deleteError.details || deleteError.hint || 'Unknown error occurred'
+      setError(`Failed to delete note: ${errorMessage}`)
+      toast.error(`Failed to delete note: ${errorMessage}`)
       // Revert on error
       if (deletedNote) {
         setNotes(prev => [...prev, deletedNote])

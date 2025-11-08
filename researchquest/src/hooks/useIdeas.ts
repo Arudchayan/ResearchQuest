@@ -45,7 +45,15 @@ export function useIdeas(userId: string | undefined) {
           console.log('Ideas realtime update:', payload)
           // Optimistic UI update based on event type
           if (payload.eventType === 'INSERT') {
-            setIdeas(prev => [payload.new as Idea, ...prev])
+            // Check if idea already exists (from optimistic update) to avoid duplicates
+            setIdeas(prev => {
+              const exists = prev.some(i => i.id === (payload.new as Idea).id)
+              if (exists) {
+                console.log('Idea already exists (from optimistic update), skipping realtime insert')
+                return prev
+              }
+              return [payload.new as Idea, ...prev]
+            })
           } else if (payload.eventType === 'UPDATE') {
             setIdeas(prev => prev.map(idea => 
               idea.id === payload.new.id ? payload.new as Idea : idea
@@ -66,27 +74,55 @@ export function useIdeas(userId: string | undefined) {
 
   async function createIdea(ideaData: Partial<Idea>): Promise<Idea | null> {
     if (!userId) {
+      setError('User not authenticated')
       toast.error('You must be logged in to create ideas')
       return null
     }
 
+    // Validate required fields
+    if (!ideaData.title || !ideaData.title.trim()) {
+      setError('Idea title is required')
+      toast.error('Idea title is required')
+      return null
+    }
+
+    // Clean and prepare the data - only include defined fields
+    const cleanData: any = {
+      user_id: userId,
+      title: ideaData.title.trim(),
+      stage: ideaData.stage || 'Seed',
+    }
+
+    // Only add optional fields if they have values
+    if (ideaData.description) cleanData.description = ideaData.description
+    if (ideaData.linked_note_ids) cleanData.linked_note_ids = ideaData.linked_note_ids
+    if (ideaData.linked_paper_ids) cleanData.linked_paper_ids = ideaData.linked_paper_ids
+
+    console.log('Creating idea with cleaned data:', cleanData)
+
     const { data, error: createError } = await supabase
       .from('ideas')
-      .insert({
-        ...ideaData,
-        user_id: userId,
-        stage: ideaData.stage || 'Seed',
-      })
+      .insert(cleanData)
       .select()
       .single()
 
     if (createError) {
-      setError(createError.message)
-      toast.error('Failed to create idea')
+      console.error('Failed to create idea:', createError)
+      console.error('Error details:', JSON.stringify(createError, null, 2))
+      console.error('Idea data that failed:', cleanData)
+      
+      const errorMessage = createError.message || createError.details || createError.hint || 'Unknown error occurred'
+      setError(`Failed to create idea: ${errorMessage}`)
+      toast.error(`Failed to create idea: ${errorMessage}`)
       return null
     }
 
+    console.log('Idea created successfully:', data)
     toast.success('Idea created successfully')
+
+    // Optimistic update - add to local state immediately
+    setIdeas(prev => [data, ...prev])
+
     // Award XP (don't await to avoid blocking)
     awardXP(userId, XP_REWARDS.CREATE_IDEA, 'create_idea').catch(console.error)
 
@@ -105,8 +141,12 @@ export function useIdeas(userId: string | undefined) {
       .eq('id', ideaId)
 
     if (updateError) {
-      setError(updateError.message)
-      toast.error('Failed to update idea')
+      console.error('Failed to update idea:', updateError)
+      console.error('Error details:', JSON.stringify(updateError, null, 2))
+      
+      const errorMessage = updateError.message || updateError.details || updateError.hint || 'Unknown error occurred'
+      setError(`Failed to update idea: ${errorMessage}`)
+      toast.error(`Failed to update idea: ${errorMessage}`)
       // Revert on error
       fetchIdeas()
       return false
@@ -141,8 +181,12 @@ export function useIdeas(userId: string | undefined) {
       .eq('id', ideaId)
 
     if (deleteError) {
-      setError(deleteError.message)
-      toast.error('Failed to delete idea')
+      console.error('Failed to delete idea:', deleteError)
+      console.error('Error details:', JSON.stringify(deleteError, null, 2))
+      
+      const errorMessage = deleteError.message || deleteError.details || deleteError.hint || 'Unknown error occurred'
+      setError(`Failed to delete idea: ${errorMessage}`)
+      toast.error(`Failed to delete idea: ${errorMessage}`)
       // Revert on error
       if (deletedIdea) {
         setIdeas(prev => [...prev, deletedIdea])

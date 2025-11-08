@@ -65,37 +65,55 @@ export function usePapers(userId: string | undefined) {
   }, [userId, fetchPapers])
 
   async function searchPaperByDOI(doi: string): Promise<CrossrefPaper | null> {
+    if (!doi.trim()) {
+      setError('Please enter a DOI to search')
+      return null
+    }
+
     try {
       const response = await supabase.functions.invoke('fetch-paper', {
         body: { doi },
       })
 
       if (response.error) {
-        setError(response.error.message)
+        const errorMessage = response.error.message || 'Failed to search for paper'
+        setError(errorMessage)
+        toast.error(errorMessage)
         return null
       }
 
       return response.data?.data || null
     } catch (err: any) {
-      setError(err.message)
+      const errorMessage = err.message || 'An error occurred while searching'
+      setError(errorMessage)
+      toast.error(errorMessage)
       return null
     }
   }
 
   async function searchPapersByQuery(query: string): Promise<CrossrefPaper[]> {
+    if (!query.trim()) {
+      setError('Please enter a search query')
+      return []
+    }
+
     try {
       const response = await supabase.functions.invoke('fetch-paper', {
         body: { query },
       })
 
       if (response.error) {
-        setError(response.error.message)
+        const errorMessage = response.error.message || 'Failed to search for papers'
+        setError(errorMessage)
+        toast.error(errorMessage)
         return []
       }
 
       return response.data?.data || []
     } catch (err: any) {
-      setError(err.message)
+      const errorMessage = err.message || 'An error occurred while searching'
+      setError(errorMessage)
+      toast.error(errorMessage)
       return []
     }
   }
@@ -107,28 +125,52 @@ export function usePapers(userId: string | undefined) {
       return null
     }
 
-    console.log('Creating paper with data:', { ...paperData, user_id: userId })
+    // Validate required fields
+    if (!paperData.title || !paperData.title.trim()) {
+      setError('Paper title is required')
+      toast.error('Paper title is required')
+      return null
+    }
+
+    // Clean and prepare the data - only include defined fields
+    const cleanData: any = {
+      user_id: userId,
+      title: paperData.title.trim(),
+      authors: Array.isArray(paperData.authors) ? paperData.authors : [],
+      status: paperData.status || 'To Read',
+    }
+
+    // Only add optional fields if they have values
+    if (paperData.doi) cleanData.doi = paperData.doi
+    if (paperData.source_url) cleanData.source_url = paperData.source_url
+    if (paperData.abstract) cleanData.abstract = paperData.abstract
+    if (paperData.publication_date) cleanData.publication_date = paperData.publication_date
+    if (paperData.topic_ids) cleanData.topic_ids = paperData.topic_ids
+
+    console.log('Creating paper with cleaned data:', cleanData)
     
     const { data, error: createError } = await supabase
       .from('papers')
-      .insert({
-        ...paperData,
-        user_id: userId,
-        authors: paperData.authors || [],
-        status: paperData.status || 'To Read',
-      })
+      .insert(cleanData)
       .select()
       .single()
 
     if (createError) {
       console.error('Failed to create paper:', createError)
-      setError(`Failed to create paper: ${createError.message}`)
-      toast.error('Failed to add paper')
+      console.error('Error details:', JSON.stringify(createError, null, 2))
+      console.error('Paper data that failed:', { ...paperData, user_id: userId })
+      
+      const errorMessage = createError.message || createError.details || createError.hint || 'Unknown error occurred'
+      setError(`Failed to create paper: ${errorMessage}`)
+      toast.error(`Failed to add paper: ${errorMessage}`)
       return null
     }
 
     console.log('Paper created successfully:', data)
     toast.success('Paper added successfully')
+
+    // Optimistic update - add to local state immediately
+    setPapers(prev => [data, ...prev])
 
     // Award XP (don't await to avoid blocking)
     awardXP(userId, XP_REWARDS.CREATE_PAPER, 'create_paper').catch(console.error)
