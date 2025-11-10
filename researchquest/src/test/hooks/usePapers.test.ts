@@ -393,7 +393,29 @@ describe('usePapers Hook', () => {
       expect(searchResults).toEqual(mockSearchResults)
       expect(mockSupabaseClient.functions.invoke).toHaveBeenCalledWith(
         'fetch-paper',
-        { body: { query: 'quantum' } }
+        { body: { query: 'quantum', rows: undefined, sort: undefined, order: undefined } }
+      )
+    })
+
+    it('should pass search options to supabase function', async () => {
+      mockSupabaseClient.functions.invoke.mockResolvedValue({
+        data: { data: [] },
+        error: null,
+      })
+
+      const { result } = renderHook(() => usePapers('test-user-id'))
+
+      await waitFor(() => expect(result.current.loading).toBe(false))
+
+      await result.current.searchPapersByQuery('ai ethics', {
+        rows: 25,
+        sort: 'published',
+        order: 'asc',
+      })
+
+      expect(mockSupabaseClient.functions.invoke).toHaveBeenLastCalledWith(
+        'fetch-paper',
+        { body: { query: 'ai ethics', rows: 25, sort: 'published', order: 'asc' } }
       )
     })
 

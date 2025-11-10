@@ -9,6 +9,8 @@ describe('AddPaperView Component', () => {
   const mockOnAdd = vi.fn()
   const mockSearchByDOI = vi.fn()
   const mockSearchByQuery = vi.fn()
+  const reloadSpy = vi.fn()
+  const originalLocation = window.location
 
   const mockCrossrefPaper: CrossrefPaper = {
     title: 'Test Paper from CrossRef',
@@ -21,8 +23,37 @@ describe('AddPaperView Component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    reloadSpy.mockReset()
+    const locationMock: Location = {
+      ancestorOrigins: originalLocation.ancestorOrigins,
+      hash: originalLocation.hash,
+      host: originalLocation.host,
+      hostname: originalLocation.hostname,
+      href: originalLocation.href,
+      origin: originalLocation.origin,
+      pathname: originalLocation.pathname,
+      port: originalLocation.port,
+      protocol: originalLocation.protocol,
+      search: originalLocation.search,
+      assign: originalLocation.assign.bind(originalLocation),
+      reload: reloadSpy,
+      replace: originalLocation.replace.bind(originalLocation),
+      toString: () => originalLocation.toString(),
+    }
+
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: locationMock,
+    })
     mockOnAdd.mockResolvedValue({ id: 'new-paper-id', ...mockCrossrefPaper })
     useAppStore.setState({ selectedPaper: null })
+  })
+
+  afterEach(() => {
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: originalLocation,
+    })
   })
 
   describe('Tab Navigation', () => {
@@ -168,6 +199,7 @@ describe('AddPaperView Component', () => {
           abstract: mockCrossrefPaper.abstract,
           publication_date: '2024-01-01',
         })
+        expect(reloadSpy).toHaveBeenCalledTimes(1)
       })
     })
 
@@ -197,6 +229,7 @@ describe('AddPaperView Component', () => {
 
       await waitFor(() => {
         expect(screen.getByText(/paper added successfully/i)).toBeInTheDocument()
+        expect(reloadSpy).toHaveBeenCalledTimes(1)
       })
     })
 
@@ -246,7 +279,11 @@ describe('AddPaperView Component', () => {
       await userEvent.click(searchButton)
 
       await waitFor(() => {
-        expect(mockSearchByQuery).toHaveBeenCalledWith('quantum computing')
+        expect(mockSearchByQuery).toHaveBeenCalledWith('quantum computing', {
+          rows: 10,
+          sort: 'score',
+          order: 'desc',
+        })
         expect(screen.getAllByText(mockCrossrefPaper.title)).not.toHaveLength(0)
         expect(screen.getByRole('button', { name: /add to library/i })).toBeInTheDocument()
         expect(screen.getByText(/view original source/i)).toBeInTheDocument()
@@ -291,6 +328,7 @@ describe('AddPaperView Component', () => {
           abstract: mockCrossrefPaper.abstract,
           publication_date: '2024-01-01',
         })
+        expect(reloadSpy).toHaveBeenCalledTimes(1)
       })
     })
 
@@ -347,6 +385,7 @@ describe('AddPaperView Component', () => {
           title: 'Manual Test Paper',
           authors: ['Author One', 'Author Two'],
         })
+        expect(reloadSpy).toHaveBeenCalledTimes(1)
       })
     })
 
@@ -397,6 +436,7 @@ describe('AddPaperView Component', () => {
           doi: '10.1234/manual.doi',
           source_url: 'https://example.com/manual',
         })
+        expect(reloadSpy).toHaveBeenCalledTimes(1)
       })
     })
   })
