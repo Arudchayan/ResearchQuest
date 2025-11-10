@@ -20,8 +20,8 @@ export const mockSupabaseClient = {
     signOut: vi.fn(),
   },
   from: vi.fn(() => {
-    const builder: any = {}
-    builder.select = vi.fn().mockReturnValue(builder)
+    const builder: any = { __count: null }
+    builder.select = vi.fn().mockImplementation((_columns: string, _options?: { count?: string | null }) => builder)
     builder.insert = vi.fn().mockReturnValue(builder)
     builder.update = vi.fn().mockReturnValue(builder)
     builder.upsert = vi.fn().mockReturnValue(builder)
@@ -37,7 +37,7 @@ export const mockSupabaseClient = {
     builder.single = vi.fn().mockResolvedValue({ data: null, error: null })
     builder.maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null })
     builder.then = ((onFulfilled?: (value: any) => any) => {
-      const result = { data: null, error: null }
+      const result = { data: null, error: null, count: builder.__count }
       return Promise.resolve(result).then(onFulfilled)
     }) as any
     return builder

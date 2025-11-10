@@ -9,16 +9,16 @@
 
 ## Core Navigation and Dashboard
 - [x] Improve active section indicator visibility for accessibility.
-- [ ] Ensure Focus Studio counts reflect latest notes/papers/ideas.
+- [x] Ensure Focus Studio counts reflect latest notes/papers/ideas.
 
 ## Notes Module
-- [ ] Ensure note titles appear in Recent notes list.
-- [ ] Fix topic linking error (`user_id` column missing) for notes.
-- [ ] Implement working search for notes by title/content.
-- [ ] Replace browser confirm dialog with custom deletion modal (with undo).
-- [ ] Fix formatting toolbar actions and add tooltips.
-- [ ] Offer toggle between edit/preview instead of forced split.
-- [ ] Add keyboard shortcuts/accessibility improvements.
+- [x] Ensure note titles appear in Recent notes list.
+- [x] Fix topic linking error (`user_id` column missing) for notes.
+- [x] Implement working search for notes by title/content.
+- [x] Replace browser confirm dialog with custom deletion modal (with undo).
+- [x] Fix formatting toolbar actions and add tooltips.
+- [x] Offer toggle between edit/preview instead of forced split.
+- [x] Add keyboard shortcuts/accessibility improvements.
 
 ## Papers Module
 - [ ] Make "Add to library" button visible without extra scrolling.
