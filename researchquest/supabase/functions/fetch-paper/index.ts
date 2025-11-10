@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { doi, query } = await req.json()
+    const { doi, query, rows, sort, order } = await req.json()
 
     // Handle DOI search
     if (doi) {
@@ -48,7 +48,30 @@ Deno.serve(async (req) => {
 
     // Handle query search
     if (query) {
-      const crossrefUrl = `https://api.crossref.org/works?query=${encodeURIComponent(query)}&rows=10`
+      const params = new URLSearchParams()
+      params.set('query', query)
+
+      const parsedRows = Number(rows)
+      if (!Number.isNaN(parsedRows)) {
+        const safeRows = Math.min(Math.max(parsedRows, 1), 100)
+        params.set('rows', safeRows.toString())
+      } else {
+        params.set('rows', '10')
+      }
+
+      const allowedSorts = new Set(['score', 'published', 'created', 'updated', 'indexed'])
+      const allowedOrders = new Set(['asc', 'desc'])
+
+      if (typeof sort === 'string' && allowedSorts.has(sort)) {
+        params.set('sort', sort)
+
+        const normalizedOrder = typeof order === 'string' ? order.toLowerCase() : ''
+        if (allowedOrders.has(normalizedOrder)) {
+          params.set('order', normalizedOrder)
+        }
+      }
+
+      const crossrefUrl = `https://api.crossref.org/works?${params.toString()}`
       const response = await fetch(crossrefUrl)
       
       if (!response.ok) {

@@ -4,6 +4,12 @@ import { awardXP, XP_REWARDS } from '../utils/gamification'
 import { toast } from 'sonner'
 import type { Paper, CrossrefPaper } from '../types/database'
 
+export interface PaperSearchOptions {
+  rows?: number
+  sort?: 'score' | 'published' | 'created' | 'updated' | 'indexed'
+  order?: 'asc' | 'desc'
+}
+
 function extractFunctionErrorMessage(error: any, fallback: string): string {
   if (!error) return fallback
 
@@ -166,7 +172,7 @@ export function usePapers(userId: string | undefined) {
     }
   }
 
-  async function searchPapersByQuery(query: string): Promise<CrossrefPaper[]> {
+  async function searchPapersByQuery(query: string, options: PaperSearchOptions = {}): Promise<CrossrefPaper[]> {
     if (!query.trim()) {
       setError('Please enter a search query')
       return []
@@ -174,7 +180,12 @@ export function usePapers(userId: string | undefined) {
 
     try {
       const response = await supabase.functions.invoke('fetch-paper', {
-        body: { query },
+        body: {
+          query,
+          rows: options.rows,
+          sort: options.sort,
+          order: options.order,
+        },
       })
 
       if (response.error) {
