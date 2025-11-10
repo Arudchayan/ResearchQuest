@@ -1,13 +1,14 @@
-import { useState, memo, useCallback } from 'react'
+import { useState, memo, useCallback, useMemo, useRef, useEffect } from 'react'
 import { Clock, Hash, Link2, Trash2, FileText } from 'lucide-react'
 import type { Note } from '../../types/database'
-import { useAppStore } from '../../store/appStore'
 import { ListSkeleton } from '../ui/Skeleton'
+import { ConfirmDialog } from '../ui/ConfirmDialog'
+import { toast } from 'sonner'
 
 interface NoteCardProps {
   note: Note
   onSelect: (note: Note) => void
-  onDelete: (id: string) => void
+  onDelete: (note: Note) => void
   isSelected: boolean
 }
 
@@ -18,10 +19,8 @@ const NoteCardComponent = ({ note, onSelect, onDelete, isSelected }: NoteCardPro
 
   const handleDelete = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
-    if (confirm(`Delete "${title}"? This cannot be undone.`)) {
-      void onDelete(note.id)
-    }
-  }, [onDelete, note.id, title])
+    onDelete(note)
+  }, [onDelete, note])
   
   const handleSelect = useCallback(() => {
     onSelect(note)
@@ -79,17 +78,63 @@ export const NoteCard = memo(NoteCardComponent)
 interface NoteListProps {
   notes: Note[]
   onSelectNote: (note: Note) => void
-  onDeleteNote: (id: string) => void
+  onDeleteNote: (note: Note) => Promise<boolean>
+  onRestoreNote: (note: Note) => Promise<Note | null>
   selectedNoteId?: string
+  selectedNote?: Note | null
   loading?: boolean
+  searchQuery?: string
 }
 
-export function NoteList({ notes, onSelectNote, onDeleteNote, selectedNoteId, loading = false }: NoteListProps) {
-  if (loading) {
-    return <ListSkeleton count={5} itemType="note" />
-  }
-  
-  if (notes.length === 0) {
+export function NoteList({
+  notes,
+  onSelectNote,
+  onDeleteNote,
+  onRestoreNote,
+  selectedNoteId,
+  selectedNote,
+  loading = false,
+  searchQuery = '',
+}: NoteListProps) {
+  const [noteToDelete, setNoteToDelete] = useState<Note | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastDeletedRef = useRef<Note | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (undoTimeoutRef.current) {
+        clearTimeout(undoTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  const mergedNotes = useMemo(
+    () =>
+      notes.map((note) => {
+        if (selectedNote && note.id === selectedNote.id) {
+          return { ...note, ...selectedNote }
+        }
+        return note
+      }),
+    [notes, selectedNote]
+  )
+
+  const emptyState = useMemo(() => {
+    if (notes.length > 0) {
+      return null
+    }
+
+    if (searchQuery) {
+      return (
+        <div className="text-center py-12 text-text-tertiary">
+          <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
+          <p className="text-small font-semibold text-text-secondary">No matches found</p>
+          <p className="text-caption mt-1">Try a different keyword or clear your search.</p>
+        </div>
+      )
+    }
+
     return (
       <div className="text-center py-12 text-text-tertiary">
         <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
@@ -97,19 +142,89 @@ export function NoteList({ notes, onSelectNote, onDeleteNote, selectedNoteId, lo
         <p className="text-caption mt-1">Create your first note above</p>
       </div>
     )
+  }, [notes.length, searchQuery])
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!noteToDelete) return
+    setDeleting(true)
+    const note = noteToDelete
+    const success = await onDeleteNote(note)
+    setDeleting(false)
+    setNoteToDelete(null)
+
+    if (success) {
+      lastDeletedRef.current = note
+      if (undoTimeoutRef.current) {
+        clearTimeout(undoTimeoutRef.current)
+      }
+
+      const toastId = toast.success('Note deleted', {
+        description: 'Undo within 6 seconds to restore it.',
+        duration: 6000,
+        action: {
+          label: 'Undo',
+          onClick: async () => {
+            if (lastDeletedRef.current) {
+              await onRestoreNote(lastDeletedRef.current)
+              lastDeletedRef.current = null
+              if (undoTimeoutRef.current) {
+                clearTimeout(undoTimeoutRef.current)
+                undoTimeoutRef.current = null
+              }
+              toast.dismiss(toastId)
+            }
+          },
+        },
+      })
+
+      undoTimeoutRef.current = setTimeout(() => {
+        lastDeletedRef.current = null
+        toast.dismiss(toastId)
+        undoTimeoutRef.current = null
+      }, 6000)
+    }
+  }, [noteToDelete, onDeleteNote, onRestoreNote])
+
+  if (loading) {
+    return <ListSkeleton count={5} itemType="note" />
   }
-  
+
+  if (emptyState) {
+    return emptyState
+  }
+
   return (
-    <div className="space-y-2">
-      {notes.map((note) => (
-        <NoteCard
-          key={note.id}
-          note={note}
-          onSelect={onSelectNote}
-          onDelete={onDeleteNote}
-          isSelected={note.id === selectedNoteId}
-        />
-      ))}
-    </div>
+    <>
+      <div className="space-y-2">
+        {mergedNotes.map((note) => (
+          <NoteCard
+            key={note.id}
+            note={note}
+            onSelect={onSelectNote}
+            onDelete={(candidate) => {
+              setNoteToDelete(candidate)
+            }}
+            isSelected={note.id === selectedNoteId}
+          />
+        ))}
+      </div>
+
+      <ConfirmDialog
+        isOpen={Boolean(noteToDelete)}
+        onClose={() => {
+          if (!deleting) {
+            setNoteToDelete(null)
+          }
+        }}
+        onConfirm={() => {
+          void handleConfirmDelete()
+        }}
+        title="Delete note"
+        message={`Are you sure you want to delete "${noteToDelete?.title || noteToDelete?.markdown_body.split('\n')[0] || 'Untitled Note'}"? You can undo for a short time after deleting.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        isLoading={deleting}
+      />
+    </>
   )
 }

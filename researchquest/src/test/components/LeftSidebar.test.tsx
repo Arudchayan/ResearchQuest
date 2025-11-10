@@ -12,6 +12,7 @@ vi.mock('../../hooks/useNotes', () => ({
     createNote: vi.fn().mockResolvedValue(mockNote),
     updateNote: vi.fn(),
     deleteNote: vi.fn(),
+    restoreNote: vi.fn(),
   })),
 }))
 
@@ -49,6 +50,7 @@ const buildNotesMock = () => ({
   createNote: vi.fn().mockResolvedValue(mockNote),
   updateNote: vi.fn(),
   deleteNote: vi.fn(),
+  restoreNote: vi.fn(),
 })
 
 const buildPapersMock = () => ({
@@ -104,7 +106,7 @@ describe('LeftSidebar Component', () => {
       render(<LeftSidebar />)
 
       const papersTab = screen.getByRole('button', { name: /^Papers$/i })
-      expect(papersTab).toHaveClass('bg-bg-elevated')
+      expect(papersTab).toHaveClass('bg-primary-50')
     })
 
     it('should switch views when clicking tabs', async () => {
