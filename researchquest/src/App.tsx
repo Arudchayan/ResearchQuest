@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './lib/supabase'
 import { useAppStore } from './store/appStore'
+import { useGamificationStore } from './store/gamificationStore'
 import { TopNav } from './components/layout/TopNav'
 import { LeftSidebar } from './components/layout/LeftSidebar'
 import { RightSidebar } from './components/layout/RightSidebar'
@@ -133,6 +134,7 @@ function App() {
   const [userId, setUserId] = useState<string | undefined>(undefined)
   const [itemNotFound, setItemNotFound] = useState(false)
   const { setUser: setUserProfile, currentView, setCurrentView, selectedNote, selectedPaper, selectedIdea } = useAppStore()
+  const hydrateGamification = useGamificationStore(state => state.hydrateFromProfile)
   
   // Get hooks for CRUD operations
   const { papers, loading: papersLoading, searchPaperByDOI, searchPapersByQuery, createPaper, updatePaper } = usePapers(userId)
@@ -168,12 +170,14 @@ function App() {
         .then(({ data }) => {
           if (data) {
             setUserProfile(data)
+            hydrateGamification(data)
           }
         })
     } else {
       setUserProfile(null)
+      hydrateGamification({ streak_freeze_tokens: 0, rest_days: 0, active_boost: null })
     }
-  }, [user, setUserProfile])
+  }, [user, setUserProfile, hydrateGamification])
   
   // URL-based routing - handle initial load and navigation
   useEffect(() => {
