@@ -1,4 +1,4 @@
-import { FileText, BookOpen, Lightbulb, Tag, CheckSquare, Search, Plus, CalendarCheck, Sparkles, Snowflake, Coffee } from 'lucide-react'
+import { FileText, BookOpen, Lightbulb, Tag, CheckSquare, Search, Plus, Sparkles, Coffee, Compass, ListChecks, Sprout } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import type { RealtimeChannel } from '@supabase/supabase-js'
@@ -10,9 +10,10 @@ import { useTopics } from '../../hooks/useTopics'
 import { NoteList } from '../entities/NoteList'
 import { PaperList } from '../entities/PaperList'
 import { IdeaList } from '../entities/IdeaList'
+import { TopicList } from '../topics/TopicList'
 import type { ReadingStatus, IdeaStage } from '../../types/database'
 import { useGamificationStore } from '../../store/gamificationStore'
-import { formatTimeUntil, formatDateLabel } from '../../utils/time'
+import { formatTimeUntil } from '../../utils/time'
 
 const TABS = [
   { id: 'notes' as const, label: 'Notes', icon: FileText },
@@ -33,11 +34,17 @@ interface LeftSidebarProps {
 }
 
 export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
-  const { currentView, setCurrentView, user, setUser: setUserProfile, setSelectedNote, setSelectedPaper, setSelectedIdea } = useAppStore()
+  const {
+    currentView,
+    setCurrentView,
+    setUser: setUserProfile,
+    setSelectedNote,
+    setSelectedPaper,
+    setSelectedIdea,
+    setSelectedTopic,
+  } = useAppStore()
   const activeBoost = useGamificationStore((state) => state.activeBoost)
   const boostCountdown = useGamificationStore((state) => state.boostCountdown)
-  const streakFreezeTokens = useGamificationStore((state) => state.streakFreezeTokens)
-  const restDays = useGamificationStore((state) => state.restDays)
   const hydrateFromProfile = useGamificationStore((state) => state.hydrateFromProfile)
   const [searchQuery, setSearchQuery] = useState('')
   const [userId, setUserId] = useState<string | undefined>(undefined)
@@ -67,14 +74,9 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   
   // Get hooks
   const { notes, loading: notesLoading, createNote, updateNote, deleteNote } = useNotes(userId)
-  const { papers, loading: papersLoading, searchPaperByDOI, searchPapersByQuery, createPaper, updatePaper, deletePaper } = usePapers(userId)
+  const { papers, loading: papersLoading, updatePaper, deletePaper } = usePapers(userId)
   const { ideas, loading: ideasLoading, createIdea, updateIdea, deleteIdea } = useIdeas(userId)
-  const {
-    topics,
-    loading: topicsLoading,
-    createTopic,
-    deleteTopic,
-  } = useTopics(userId)
+  const { topics, loading: topicsLoading, createTopic, deleteTopic } = useTopics(userId)
   
   // Determine current loading state
   const loading = useMemo(() => {
@@ -322,6 +324,18 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
     [ideas, normalizedQuery]
   )
 
+  const filteredTopics = useMemo(
+    () =>
+      topics.filter((topic) => {
+        if (!normalizedQuery) {
+          return true
+        }
+
+        return topic.name.toLowerCase().includes(normalizedQuery)
+      }),
+    [topics, normalizedQuery]
+  )
+
   const nextDeadline = upcomingDeadlines[0]
 
   const nextDeadlineBadge = useMemo(() => {
@@ -332,18 +346,117 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
     return formatTimeUntil(nextDeadline.due_date)
   }, [nextDeadline])
 
-  const supportiveMessage = useMemo(() => {
-    if (todayXP > 0) {
-      return `You've already banked ${todayXP} XP today. Celebrate the momentum!`
+  const workspaceStats = useMemo(
+    () => [
+      { key: 'notes', label: 'Notes', count: notes.length, icon: FileText },
+      { key: 'papers', label: 'Papers', count: papers.length, icon: BookOpen },
+      { key: 'ideas', label: 'Ideas', count: ideas.length, icon: Lightbulb },
+      { key: 'topics', label: 'Topics', count: topics.length, icon: Tag },
+    ],
+    [ideas.length, notes.length, papers.length, topics.length]
+  )
+
+  const readingStatusCounts = useMemo(() => {
+    return papers.reduce(
+      (acc, paper) => {
+        acc[paper.status] = (acc[paper.status] ?? 0) + 1
+        return acc
+      },
+      {
+        'To Read': 0,
+        Reading: 0,
+        Read: 0,
+      } as Record<ReadingStatus, number>
+    )
+  }, [papers])
+
+  const ideaStageCounts = useMemo(() => {
+    return ideas.reduce(
+      (acc, idea) => {
+        acc[idea.stage] = (acc[idea.stage] ?? 0) + 1
+        return acc
+      },
+      {
+        Seed: 0,
+        Developing: 0,
+        Supported: 0,
+        Mature: 0,
+      } as Record<IdeaStage, number>
+    )
+  }, [ideas])
+
+  const focusPrompts = useMemo(() => {
+    const prompts: { title: string; detail: string }[] = []
+
+    if (currentView === 'notes' && notes.length > 0) {
+      prompts.push({
+        title: 'Bundle a note',
+        detail: 'Group related notes into a lightweight summary to spot emerging patterns.',
+      })
     }
 
-    if (nextDeadline) {
-      const timePhrase = formatTimeUntil(nextDeadline.due_date)
-      return `Next focus point "${nextDeadline.title}" is ${timePhrase === 'due now' ? 'ready whenever you are' : `coming up in ${timePhrase}`}. Take a calming breath before you dive in.`
+    if (currentView === 'papers' && readingStatusCounts['To Read'] > 0) {
+      prompts.push({
+        title: 'Schedule a skim',
+        detail: 'Choose one “To Read” paper and pencil in a 15-minute skim to unblock progress.',
+      })
     }
 
-    return 'No deadlines within the next week. Feel free to explore, read, or simply rest.'
-  }, [todayXP, nextDeadline])
+    if (currentView === 'ideas' && ideaStageCounts.Seed > 0) {
+      prompts.push({
+        title: 'Nudge a seed forward',
+        detail: 'Pick a seed-stage idea and jot the smallest experiment that would advance it.',
+      })
+    }
+
+    if (currentView === 'topics' && topics.length > 0) {
+      prompts.push({
+        title: 'Tag your wins',
+        detail: 'Attach today’s notes or papers to a topic to keep research strands easy to revisit.',
+      })
+    }
+
+    if (!activeBoost) {
+      prompts.push({
+        title: 'Plan a focus boost',
+        detail: 'Line up a 25-minute boost window so the next deep work block is ready when you are.',
+      })
+    }
+
+    if (todayXP === 0) {
+      prompts.push({
+        title: 'Log a micro-win',
+        detail: 'Capture a two-minute action—like clarifying a task or clipping a quote—to start today’s streak.',
+      })
+    }
+
+    if (prompts.length === 0) {
+      prompts.push(
+        {
+          title: 'Review your workspace',
+          detail: 'Scan the lists below and decide which item deserves your next deliberate step.',
+        },
+        {
+          title: 'Archive the stale',
+          detail: 'Clear out anything that no longer sparks energy so the active work stays visible.',
+        }
+      )
+    }
+
+    return prompts.slice(0, 3)
+  }, [activeBoost, currentView, ideaStageCounts, notes.length, readingStatusCounts, todayXP, topics.length])
+
+  const focusReflection = useMemo(() => {
+    if (todayXP === 0) {
+      return 'No XP logged yet—start with a five-minute capture to open today’s momentum loop.'
+    }
+
+    if (todayXP < 50) {
+      return `Nice warm-up with ${todayXP} XP. Stack another quick win while the energy is light.`
+    }
+
+    return `Great flow today! Bank a short reflection so future-you remembers what unlocked ${todayXP} XP.`
+  }, [todayXP])
   
   return (
     <>
@@ -490,65 +603,83 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
             )}
           </div>
           
-          {/* Gamification Widget */}
+          {/* Focus Studio Widget */}
           <div className="mt-4 p-4 bg-bg-elevated rounded-lg border border-border-subtle space-y-4">
             <div className="flex items-center gap-2 text-text-primary">
-              <Sparkles className="w-4 h-4 text-primary-500" />
-              <h3 className="text-small font-semibold uppercase tracking-wide">Momentum Center</h3>
+              <Compass className="w-4 h-4 text-primary-500" />
+              <h3 className="text-small font-semibold uppercase tracking-wide">Focus Studio</h3>
             </div>
 
-            <div className="flex items-start gap-3">
-              <CalendarCheck className="w-4 h-4 mt-1 text-primary-500" />
-              <div className="flex-1">
-                <p className="text-small font-medium text-text-primary">Upcoming focus</p>
-                {upcomingDeadlines.length > 0 ? (
-                  <ul className="mt-1 space-y-1">
-                    {upcomingDeadlines.slice(0, 3).map((deadline) => (
-                      <li key={deadline.id} className="text-caption text-text-secondary flex items-center gap-2">
-                        <span className="truncate">{deadline.title}</span>
-                        <span className="text-text-tertiary">
-                          {formatDateLabel(deadline.due_date)} • {formatTimeUntil(deadline.due_date)}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-caption text-text-secondary mt-1">
-                    You're clear for the next few days. Use the space for deep work or creative wandering.
-                  </p>
-                )}
+            <div className="grid grid-cols-2 gap-3">
+              {workspaceStats.map(({ key, label, count, icon: StatIcon }) => (
+                <div
+                  key={key}
+                  className="flex items-center gap-3 p-3 bg-bg-base/60 rounded-md border border-border-subtle/60"
+                >
+                  <StatIcon className="w-4 h-4 text-primary-500" />
+                  <div>
+                    <p className="text-lg font-semibold text-text-primary">{count}</p>
+                    <p className="text-caption text-text-secondary uppercase tracking-wide">{label}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-text-primary">
+                <ListChecks className="w-4 h-4 text-primary-500" />
+                <p className="text-small font-medium">Reading pipeline</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {(['To Read', 'Reading', 'Read'] as ReadingStatus[]).map((status) => (
+                  <span
+                    key={status}
+                    className="px-3 py-1 rounded-full border border-border-subtle text-caption text-text-secondary"
+                  >
+                    <span className="font-semibold text-text-primary">{readingStatusCounts[status]}</span> {status}
+                  </span>
+                ))}
               </div>
             </div>
 
-            <div className="flex items-start gap-3">
-              <Sparkles className="w-4 h-4 mt-1 text-primary-500" />
-              <div className="flex-1">
-                <p className="text-small font-medium text-text-primary">Boost status</p>
-                {activeBoost ? (
-                  <p className="text-caption text-text-secondary mt-1">
-                    {activeBoost.label ?? 'Focus boost'} active · {boostCountdown ?? 'counting down'}
-                  </p>
-                ) : (
-                  <p className="text-caption text-text-secondary mt-1">
-                    No boost running. Trigger one when you want an intentional burst of focus.
-                  </p>
-                )}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-text-primary">
+                <Sprout className="w-4 h-4 text-success" />
+                <p className="text-small font-medium">Idea garden</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {(['Seed', 'Developing', 'Supported', 'Mature'] as IdeaStage[]).map((stage) => (
+                  <span
+                    key={stage}
+                    className="px-3 py-1 rounded-full border border-border-subtle text-caption text-text-secondary"
+                  >
+                    <span className="font-semibold text-text-primary">{ideaStageCounts[stage]}</span> {stage}
+                  </span>
+                ))}
               </div>
             </div>
 
-            <div className="flex items-start gap-3">
-              <Snowflake className="w-4 h-4 mt-1 text-primary-400" />
-              <div>
-                <p className="text-small font-medium text-text-primary">Safety net</p>
-                <p className="text-caption text-text-secondary mt-1">
-                  {streakFreezeTokens} freeze token{streakFreezeTokens === 1 ? '' : 's'} · {restDays} rest day{restDays === 1 ? '' : 's'} ready for you.
-                </p>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-text-primary">
+                <Sparkles className="w-4 h-4 text-primary-500" />
+                <p className="text-small font-medium">Focus prompts</p>
               </div>
+              <ul className="space-y-2">
+                {focusPrompts.map((prompt) => (
+                  <li
+                    key={prompt.title}
+                    className="p-3 rounded-md bg-bg-base/60 border border-border-subtle/60"
+                  >
+                    <p className="text-small font-semibold text-text-primary">{prompt.title}</p>
+                    <p className="text-caption text-text-secondary mt-1">{prompt.detail}</p>
+                  </li>
+                ))}
+              </ul>
             </div>
 
             <div className="flex items-start gap-3">
               <Coffee className="w-4 h-4 mt-1 text-success" />
-              <p className="text-caption text-text-secondary leading-relaxed">{supportiveMessage}</p>
+              <p className="text-caption text-text-secondary leading-relaxed">{focusReflection}</p>
             </div>
           </div>
         </div>
