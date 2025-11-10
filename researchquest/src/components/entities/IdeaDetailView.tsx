@@ -3,6 +3,7 @@ import { Lightbulb, Calendar, TrendingUp, Edit2, Save, X } from 'lucide-react'
 import type { Idea, IdeaStage } from '../../types/database'
 import { supabase } from '../../lib/supabase'
 import { toast } from 'sonner'
+import { TopicSelector } from '../topics/TopicSelector'
 
 interface IdeaDetailViewProps {
   idea: Idea
@@ -174,7 +175,11 @@ export function IdeaDetailView({ idea, onUpdate }: IdeaDetailViewProps) {
             </div>
           )}
         </div>
-        
+
+        <div className="p-6 border-b border-border-subtle">
+          <TopicSelector entityId={idea.id} entityType="idea" />
+        </div>
+
         {/* Metadata */}
         <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-1">

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { ThemePreference, UserProfile, Note, Paper, Idea, Topic } from '../types/database'
+import type { ThemePreference, UserProfile, Note, Paper, Idea, TopicWithCounts } from '../types/database'
 
 interface AppState {
   // Theme
@@ -20,11 +20,17 @@ interface AppState {
   selectedNote: Note | null
   selectedPaper: Paper | null
   selectedIdea: Idea | null
-  selectedTopic: Topic | null
+  selectedTopic: TopicWithCounts | null
   setSelectedNote: (note: Note | null) => void
   setSelectedPaper: (paper: Paper | null) => void
   setSelectedIdea: (idea: Idea | null) => void
-  setSelectedTopic: (topic: Topic | null) => void
+  setSelectedTopic: (topic: TopicWithCounts | null) => void
+
+  // Topics collection
+  topics: TopicWithCounts[]
+  setTopics: (topics: TopicWithCounts[]) => void
+  upsertTopic: (topic: TopicWithCounts) => void
+  removeTopic: (topicId: string) => void
   
   // UI state
   isMobileSidebarOpen: boolean
@@ -71,6 +77,22 @@ export const useAppStore = create<AppState>()(
       setSelectedPaper: (selectedPaper) => set({ selectedPaper }),
       setSelectedIdea: (selectedIdea) => set({ selectedIdea }),
       setSelectedTopic: (selectedTopic) => set({ selectedTopic }),
+
+      // Topics collection state
+      topics: [],
+      setTopics: (topics) => set({ topics }),
+      upsertTopic: (topic) =>
+        set((state) => {
+          const existingIndex = state.topics.findIndex(t => t.id === topic.id)
+          if (existingIndex === -1) {
+            return { topics: [topic, ...state.topics] }
+          }
+          const updated = [...state.topics]
+          updated[existingIndex] = topic
+          return { topics: updated }
+        }),
+      removeTopic: (topicId) =>
+        set((state) => ({ topics: state.topics.filter(topic => topic.id !== topicId) })),
       
       // UI state
       isMobileSidebarOpen: false,
