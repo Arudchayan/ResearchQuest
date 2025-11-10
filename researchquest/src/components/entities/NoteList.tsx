@@ -12,21 +12,16 @@ interface NoteCardProps {
 }
 
 const NoteCardComponent = ({ note, onSelect, onDelete, isSelected }: NoteCardProps) => {
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  
   // Extract title from markdown or use first line
   const title = note.title || note.markdown_body.split('\n')[0]?.replace(/^#+ /, '').trim() || 'Untitled Note'
   const preview = note.markdown_body.slice(0, 100) + (note.markdown_body.length > 100 ? '...' : '')
-  
+
   const handleDelete = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
-    if (showDeleteConfirm) {
-      onDelete(note.id)
-    } else {
-      setShowDeleteConfirm(true)
-      setTimeout(() => setShowDeleteConfirm(false), 3000)
+    if (confirm(`Delete "${title}"? This cannot be undone.`)) {
+      void onDelete(note.id)
     }
-  }, [showDeleteConfirm, onDelete, note.id])
+  }, [onDelete, note.id, title])
   
   const handleSelect = useCallback(() => {
     onSelect(note)
@@ -48,10 +43,8 @@ const NoteCardComponent = ({ note, onSelect, onDelete, isSelected }: NoteCardPro
         </div>
         <button
           onClick={handleDelete}
-          className={`p-1 rounded hover:bg-bg-elevated transition-colors flex-shrink-0 ${
-            showDeleteConfirm ? 'text-red-500' : 'text-text-tertiary'
-          }`}
-          title={showDeleteConfirm ? 'Click again to confirm' : 'Delete note'}
+          className="p-1 rounded hover:bg-bg-elevated transition-colors flex-shrink-0 text-text-tertiary"
+          title="Delete note"
         >
           <Trash2 className="w-4 h-4" />
         </button>

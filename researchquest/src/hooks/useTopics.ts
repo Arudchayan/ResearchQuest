@@ -8,6 +8,7 @@ import type {
   TopicEntityType,
   TopicQuestWithTopic,
 } from '../types/database'
+import type { PostgrestError } from '@supabase/supabase-js'
 
 interface TopicRow extends TopicWithCounts {
   topic_notes?: { count: number | null }[]
@@ -22,6 +23,8 @@ interface TopicQuestRow extends TopicQuestWithTopic {
     updated_at: string
   }
 }
+
+const TOPIC_SELECT = '*, topic_notes(count), topic_papers(count), topic_ideas(count)'
 
 const ENTITY_TABLE: Record<TopicEntityType, string> = {
   note: 'topic_notes',
@@ -54,6 +57,22 @@ function mapTopicRow(row: TopicRow): TopicWithCounts {
     paper_count: coerceCount(row.topic_papers),
     idea_count: coerceCount(row.topic_ideas),
   }
+}
+
+function isTopicRow(value: unknown): value is TopicRow {
+  if (!value || typeof value !== 'object') return false
+  const record = value as Record<string, unknown>
+  return (
+    typeof record.id === 'string' &&
+    typeof record.user_id === 'string' &&
+    typeof record.name === 'string' &&
+    typeof record.created_at === 'string' &&
+    typeof record.updated_at === 'string'
+  )
+}
+
+function isTopicRowArray(value: unknown): value is TopicRow[] {
+  return Array.isArray(value) && value.every(isTopicRow)
 }
 
 function mapQuestRow(row: TopicQuestRow): TopicQuestWithTopic {
@@ -97,6 +116,16 @@ export function useTopics(userId: string | undefined) {
   const [quests, setQuests] = useState<TopicQuestWithTopic[]>([])
   const [questsLoading, setQuestsLoading] = useState(false)
   const linkCacheRef = useRef(new Map<string, string[]>())
+  const supportsCountsRef = useRef(true)
+
+  const isRelationshipError = useCallback((err: PostgrestError | null) => {
+    if (!err) return false
+    const match = err.message?.toLowerCase().includes('could not find a relationship')
+    if (match) {
+      supportsCountsRef.current = false
+    }
+    return Boolean(match)
+  }, [])
 
   const fetchTopics = useCallback(async () => {
     if (!userId) {
@@ -106,19 +135,34 @@ export function useTopics(userId: string | undefined) {
     }
 
     setLoading(true)
-    const { data, error: fetchError } = await supabase
+    const selectColumns = supportsCountsRef.current ? TOPIC_SELECT : '*'
+    let { data, error: fetchError } = await supabase
       .from('topics')
-      .select('*, topic_notes(count), topic_papers(count), topic_ideas(count)')
+      .select(selectColumns)
       .eq('user_id', userId)
       .order('updated_at', { ascending: false })
+
+    if (fetchError && isRelationshipError(fetchError)) {
+      const fallback = await supabase
+        .from('topics')
+        .select('*')
+        .eq('user_id', userId)
+        .order('updated_at', { ascending: false })
+      data = fallback.data
+      fetchError = fallback.error
+    }
 
     if (fetchError) {
       console.error('Failed to fetch topics:', fetchError)
       setError(fetchError.message)
       setTopics([])
-    } else {
-      const mapped = (data || []).map((row) => mapTopicRow(row as TopicRow))
+    } else if (isTopicRowArray(data)) {
+      const rows: TopicRow[] = data
+      const mapped = rows.map((row) => mapTopicRow(row))
       setTopics(mapped)
+      setError(null)
+    } else {
+      setTopics([])
       setError(null)
     }
 
@@ -129,20 +173,32 @@ export function useTopics(userId: string | undefined) {
     async (topicId: string) => {
       if (!userId) return
 
-      const { data, error: fetchError } = await supabase
+      const selectColumns = supportsCountsRef.current ? TOPIC_SELECT : '*'
+      let { data, error: fetchError } = await supabase
         .from('topics')
-        .select('*, topic_notes(count), topic_papers(count), topic_ideas(count)')
+        .select(selectColumns)
         .eq('id', topicId)
         .eq('user_id', userId)
         .maybeSingle()
+
+      if (fetchError && isRelationshipError(fetchError)) {
+        const fallback = await supabase
+          .from('topics')
+          .select('*')
+          .eq('id', topicId)
+          .eq('user_id', userId)
+          .maybeSingle()
+        data = fallback.data
+        fetchError = fallback.error
+      }
 
       if (fetchError) {
         console.error('Failed to refresh topic:', fetchError)
         return
       }
 
-      if (data) {
-        const mapped = mapTopicRow(data as TopicRow)
+      if (data && isTopicRow(data)) {
+        const mapped = mapTopicRow(data)
         upsertTopic(mapped)
         const currentSelected = useAppStore.getState().selectedTopic
         if (currentSelected?.id === mapped.id) {
@@ -238,7 +294,6 @@ export function useTopics(userId: string | undefined) {
       const { data, error: insertError } = await supabase
         .from('topics')
         .insert(payload)
-        .select('*, topic_notes(count), topic_papers(count), topic_ideas(count)')
         .single()
 
       if (insertError) {
@@ -253,9 +308,12 @@ export function useTopics(userId: string | undefined) {
       toast.success('Topic created')
       await awardXP(userId, XP_REWARDS.CREATE_TOPIC, 'create_topic')
       void ensureActiveQuest()
+      if (supportsCountsRef.current) {
+        void fetchTopicById(mapped.id)
+      }
       return mapped
     },
-    [ensureActiveQuest, setSelectedTopic, upsertTopic, userId]
+    [ensureActiveQuest, fetchTopicById, setSelectedTopic, upsertTopic, userId]
   )
 
   const adjustCounts = useCallback(

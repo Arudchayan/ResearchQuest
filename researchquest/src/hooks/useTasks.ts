@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { awardXP, XP_REWARDS } from '../utils/gamification'
 import { toast } from 'sonner'
+import { parseDateInput } from '../utils/time'
 
 export interface Task {
   id: string
@@ -24,8 +25,10 @@ export function useTasks(userId: string | undefined) {
 
   const sortTasksByDueDate = useCallback((taskList: Task[]) => {
     return [...taskList].sort((a, b) => {
-      const aDue = a.due_date ? new Date(a.due_date).getTime() : null
-      const bDue = b.due_date ? new Date(b.due_date).getTime() : null
+      const aDueDate = parseDateInput(a.due_date)
+      const bDueDate = parseDateInput(b.due_date)
+      const aDue = aDueDate ? aDueDate.getTime() : null
+      const bDue = bDueDate ? bDueDate.getTime() : null
 
       if (aDue === null && bDue === null) {
         return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
@@ -128,7 +131,10 @@ export function useTasks(userId: string | undefined) {
       cleanData.description = taskData.description.trim()
     }
     if (taskData.due_date && taskData.due_date.trim()) {
-      cleanData.due_date = taskData.due_date.trim()
+      const normalized = parseDateInput(taskData.due_date.trim())
+      cleanData.due_date = normalized
+        ? `${normalized.getFullYear()}-${String(normalized.getMonth() + 1).padStart(2, '0')}-${String(normalized.getDate()).padStart(2, '0')}`
+        : taskData.due_date.trim()
     }
     if (taskData.category && taskData.category.trim()) {
       cleanData.category = taskData.category.trim()
@@ -170,13 +176,21 @@ export function useTasks(userId: string | undefined) {
 
   async function updateTask(taskId: string, updates: Partial<Task>): Promise<boolean> {
     // Optimistic update
-    setTasks(prev => prev.map(task => 
-      task.id === taskId ? { ...task, ...updates, updated_at: new Date().toISOString() } : task
+    const sanitizedUpdates: Partial<Task> = { ...updates }
+    if (typeof sanitizedUpdates.due_date === 'string') {
+      const normalized = parseDateInput(sanitizedUpdates.due_date)
+      sanitizedUpdates.due_date = normalized
+        ? `${normalized.getFullYear()}-${String(normalized.getMonth() + 1).padStart(2, '0')}-${String(normalized.getDate()).padStart(2, '0')}`
+        : sanitizedUpdates.due_date
+    }
+
+    setTasks(prev => prev.map(task =>
+      task.id === taskId ? { ...task, ...sanitizedUpdates, updated_at: new Date().toISOString() } : task
     ))
 
     const { error: updateError } = await supabase
       .from('tasks')
-      .update(updates)
+      .update(sanitizedUpdates)
       .eq('id', taskId)
 
     if (updateError) {
