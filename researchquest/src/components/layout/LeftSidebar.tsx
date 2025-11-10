@@ -31,6 +31,8 @@ interface LeftSidebarProps {
   onNavigate?: () => void
 }
 
+type SidebarSearchState = Record<'notes' | 'papers' | 'ideas' | 'tasks' | 'focus', string>
+
 export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   const {
     currentView,
@@ -43,7 +45,13 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   const activeBoost = useGamificationStore((state) => state.activeBoost)
   const boostCountdown = useGamificationStore((state) => state.boostCountdown)
   const hydrateFromProfile = useGamificationStore((state) => state.hydrateFromProfile)
-  const [searchQuery, setSearchQuery] = useState('')
+  const [searchQueries, setSearchQueries] = useState<SidebarSearchState>({
+    notes: '',
+    papers: '',
+    ideas: '',
+    tasks: '',
+    focus: '',
+  })
   const [userId, setUserId] = useState<string | undefined>(undefined)
   const [todayXP, setTodayXP] = useState(0)
   const [upcomingDeadlines, setUpcomingDeadlines] = useState<DeadlinePreview[]>([])
@@ -78,6 +86,8 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
     if (currentView === 'ideas') return ideasLoading
     return false
   }, [currentView, ideasLoading, notesLoading, papersLoading])
+
+  const showSidebarSearch = currentView !== 'tasks' && currentView !== 'focus'
   
   useEffect(() => {
     let isMounted = true
@@ -259,7 +269,11 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   // Removed handleAddPaper - now handled in AddPaperView
   
   // Filter entities by search query (memoized for performance)
-  const normalizedQuery = useMemo(() => searchQuery.trim().toLowerCase(), [searchQuery])
+  const activeSearchQuery = searchQueries[currentView]
+  const normalizedQuery = useMemo(
+    () => activeSearchQuery.trim().toLowerCase(),
+    [activeSearchQuery]
+  )
 
   const filteredNotes = useMemo(
     () =>
@@ -487,18 +501,24 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
           </nav>
           
           {/* Search Bar */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-tertiary" />
-            <input
-              type="text"
-              placeholder={`Search ${currentView}...`}
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value)
-              }}
-              className="w-full pl-10 pr-4 py-2 bg-bg-base border border-border-subtle rounded-md text-small focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            />
-          </div>
+          {showSidebarSearch && (
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-tertiary" />
+              <input
+                type="text"
+                placeholder={`Search ${currentView}...`}
+                value={activeSearchQuery}
+                onChange={(e) => {
+                  const nextValue = e.target.value
+                  setSearchQueries((prev) => ({
+                    ...prev,
+                    [currentView]: nextValue,
+                  }))
+                }}
+                className="w-full pl-10 pr-4 py-2 bg-bg-base border border-border-subtle rounded-md text-small focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              />
+            </div>
+          )}
           
           {/* Add Button (hide for tasks and focus) */}
           {currentView !== 'tasks' && currentView !== 'focus' && (
