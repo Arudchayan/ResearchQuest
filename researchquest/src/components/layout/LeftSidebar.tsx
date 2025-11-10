@@ -41,6 +41,9 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
     setSelectedNote,
     setSelectedPaper,
     setSelectedIdea,
+    selectedNote,
+    selectedPaper,
+    selectedIdea,
   } = useAppStore()
   const activeBoost = useGamificationStore((state) => state.activeBoost)
   const boostCountdown = useGamificationStore((state) => state.boostCountdown)
@@ -550,7 +553,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
                   window.history.pushState(null, '', `/notes/${note.id}`)
                 }}
                 onDeleteNote={deleteNote}
-                selectedNoteId={undefined}
+                selectedNoteId={selectedNote?.id}
               />
             )}
             
@@ -564,7 +567,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
                 }}
                 onDeletePaper={deletePaper}
                 onStatusChange={(id, status) => updatePaper(id, { status })}
-                selectedPaperId={undefined}
+                selectedPaperId={selectedPaper?.id}
               />
             )}
             
@@ -578,7 +581,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
                 }}
                 onDeleteIdea={deleteIdea}
                 onStageChange={(id, stage, oldStage) => updateIdea(id, { stage }, oldStage)}
-                selectedIdeaId={undefined}
+                selectedIdeaId={selectedIdea?.id}
               />
             )}
             

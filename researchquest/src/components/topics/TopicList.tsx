@@ -11,7 +11,17 @@ interface TopicListProps {
 }
 
 export function TopicList({ topics, loading, onSelectTopic, onDeleteTopic }: TopicListProps) {
-  const { selectedTopic } = useAppStore()
+  const selectedTopic = useAppStore((state) => state.selectedTopic)
+
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>, topic: TopicWithCounts) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault()
+        onSelectTopic(topic)
+      }
+    },
+    [onSelectTopic]
+  )
 
   if (loading) {
     return (
@@ -29,16 +39,6 @@ export function TopicList({ topics, loading, onSelectTopic, onDeleteTopic }: Top
       </div>
     )
   }
-
-  const handleKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLDivElement>, topic: TopicWithCounts) => {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault()
-        onSelectTopic(topic)
-      }
-    },
-    [onSelectTopic]
-  )
 
   return (
     <div className="space-y-2">

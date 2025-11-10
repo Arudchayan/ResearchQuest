@@ -102,7 +102,7 @@ export function useTasks(userId: string | undefined) {
     return () => {
       subscription.unsubscribe()
     }
-  }, [userId, fetchTasks])
+  }, [fetchTasks, sortTasksByDueDate, userId])
 
   async function createTask(taskData: Partial<Task>): Promise<Task | null> {
     if (!userId) {
