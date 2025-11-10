@@ -4,6 +4,18 @@ import { awardXP, XP_REWARDS } from '../utils/gamification'
 import { toast } from 'sonner'
 import type { Paper, CrossrefPaper } from '../types/database'
 
+function getUpdatedAtTimestamp(value: string | null | undefined): number {
+  if (!value) return 0
+  const timestamp = Date.parse(value)
+  return Number.isNaN(timestamp) ? 0 : timestamp
+}
+
+function sortByUpdatedAt<T extends { updated_at: string | null | undefined }>(items: T[]): T[] {
+  return [...items].sort(
+    (a, b) => getUpdatedAtTimestamp(b.updated_at) - getUpdatedAtTimestamp(a.updated_at)
+  )
+}
+
 export function usePapers(userId: string | undefined) {
   const [papers, setPapers] = useState<Paper[]>([])
   const [loading, setLoading] = useState(true)
@@ -22,7 +34,7 @@ export function usePapers(userId: string | undefined) {
     if (fetchError) {
       setError(fetchError.message)
     } else {
-      setPapers(data || [])
+      setPapers(sortByUpdatedAt(data || []))
     }
     setLoading(false)
   }, [userId])
@@ -45,11 +57,13 @@ export function usePapers(userId: string | undefined) {
           console.log('Papers realtime update:', payload)
           // Optimistic UI update based on event type
           if (payload.eventType === 'INSERT') {
-            setPapers(prev => [payload.new as Paper, ...prev])
+            setPapers(prev => sortByUpdatedAt([payload.new as Paper, ...prev]))
           } else if (payload.eventType === 'UPDATE') {
-            setPapers(prev => prev.map(paper => 
-              paper.id === payload.new.id ? payload.new as Paper : paper
-            ))
+            setPapers(prev => {
+              const updatedPaper = payload.new as Paper
+              const remaining = prev.filter(paper => paper.id !== updatedPaper.id)
+              return sortByUpdatedAt([updatedPaper, ...remaining])
+            })
           } else if (payload.eventType === 'DELETE') {
             setPapers(prev => prev.filter(paper => paper.id !== payload.old.id))
           }
@@ -201,7 +215,7 @@ export function usePapers(userId: string | undefined) {
     toast.success('Paper added successfully')
 
     // Optimistic update - add to local state immediately
-    setPapers(prev => [data, ...prev])
+    setPapers(prev => sortByUpdatedAt([data, ...prev]))
 
     // Award XP (don't await to avoid blocking)
     awardXP(userId, XP_REWARDS.CREATE_PAPER, 'create_paper').catch(console.error)
@@ -211,9 +225,12 @@ export function usePapers(userId: string | undefined) {
 
   async function updatePaper(paperId: string, updates: Partial<Paper>): Promise<boolean> {
     // Optimistic update
-    setPapers(prev => prev.map(paper => 
-      paper.id === paperId ? { ...paper, ...updates, updated_at: new Date().toISOString() } : paper
-    ))
+    setPapers(prev => {
+      const updatedPapers = prev.map(paper =>
+        paper.id === paperId ? { ...paper, ...updates, updated_at: new Date().toISOString() } : paper
+      )
+      return sortByUpdatedAt(updatedPapers)
+    })
 
     const { error: updateError } = await supabase
       .from('papers')
@@ -255,7 +272,7 @@ export function usePapers(userId: string | undefined) {
       toast.error('Failed to delete paper')
       // Revert on error
       if (deletedPaper) {
-        setPapers(prev => [...prev, deletedPaper])
+        setPapers(prev => sortByUpdatedAt([...prev, deletedPaper]))
       }
       return false
     }
