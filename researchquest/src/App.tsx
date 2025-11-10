@@ -135,7 +135,16 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [userId, setUserId] = useState<string | undefined>(undefined)
   const [itemNotFound, setItemNotFound] = useState(false)
-  const { setUser: setUserProfile, currentView, setCurrentView, selectedNote, selectedPaper, selectedIdea } = useAppStore()
+  const {
+    setUser: setUserProfile,
+    currentView,
+    setCurrentView,
+    selectedNote,
+    selectedPaper,
+    selectedIdea,
+    selectedTopic,
+    setSelectedTopic,
+  } = useAppStore()
   const hydrateGamification = useGamificationStore(state => state.hydrateFromProfile)
   
   // Get hooks for CRUD operations
