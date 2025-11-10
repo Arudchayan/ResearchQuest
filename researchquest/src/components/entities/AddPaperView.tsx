@@ -2,17 +2,21 @@ import { useState } from 'react'
 import { Search, Plus, Loader, BookOpen, ExternalLink, CheckCircle2 } from 'lucide-react'
 import type { CrossrefPaper } from '../../types/database'
 import { useAppStore } from '../../store/appStore'
+import type { PaperSearchOptions } from '../../hooks/usePapers'
 
 interface AddPaperViewProps {
   onAdd: (paperData: any) => Promise<any>
   searchByDOI: (doi: string) => Promise<CrossrefPaper | null>
-  searchByQuery: (query: string) => Promise<CrossrefPaper[]>
+  searchByQuery: (query: string, options?: PaperSearchOptions) => Promise<CrossrefPaper[]>
 }
 
 export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperViewProps) {
   const [activeTab, setActiveTab] = useState<'doi' | 'search' | 'manual'>('doi')
   const [doiInput, setDoiInput] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
+  const [resultLimit, setResultLimit] = useState('10')
+  const [sortField, setSortField] = useState<'score' | 'published' | 'created' | 'updated'>('score')
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc')
   const [searchResults, setSearchResults] = useState<CrossrefPaper[]>([])
   const [doiResult, setDoiResult] = useState<CrossrefPaper | null>(null)
   const [selectedResult, setSelectedResult] = useState<CrossrefPaper | null>(null)
@@ -75,6 +79,7 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
         setDoiResult(null)
         setSelectedPaper(created)
         window.history.pushState(null, '', `/papers/${created.id}`)
+        window.location.reload()
         setTimeout(() => setSuccessMessage(''), 4000)
       }
     } catch (error) {
@@ -90,7 +95,12 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
     setError('')
     setSuccessMessage('')
 
-    const results = await searchByQuery(searchQuery.trim())
+    const rows = Number.parseInt(resultLimit, 10)
+    const results = await searchByQuery(searchQuery.trim(), {
+      rows: Number.isNaN(rows) ? undefined : rows,
+      sort: sortField,
+      order: sortOrder,
+    })
     setSearchResults(results)
     setSelectedResult(results[0] ?? null)
 
@@ -118,6 +128,7 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
         setSearchQuery('')
         setSearchResults([])
         setSelectedResult(null)
+        window.location.reload()
         setTimeout(() => setSuccessMessage(''), 4000)
       }
     } catch (error) {
@@ -152,6 +163,7 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
         setError('')
         setSelectedPaper(result)
         window.history.pushState(null, '', `/papers/${result.id}`)
+        window.location.reload()
         setTimeout(() => setSuccessMessage(''), 4000)
       }
     } catch (error) {
@@ -334,7 +346,7 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
               <label className="block text-sm font-medium text-text-primary mb-3">
                 Search by Keywords or Title
               </label>
-              <div className="flex gap-3">
+              <div className="flex flex-col gap-3 lg:flex-row">
                 <input
                   type="text"
                   value={searchQuery}
@@ -343,17 +355,58 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
                   placeholder="e.g., CRISPR gene editing, quantum computing"
                   className="flex-1 px-4 py-3 bg-bg-base border border-border-subtle rounded-lg text-body focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 />
-                <button
-                  onClick={handleQuerySearch}
-                  disabled={loading || !searchQuery.trim()}
-                  className="px-6 py-3 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium"
-                >
-                  {loading ? <Loader className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
-                  Search
-                </button>
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleQuerySearch}
+                    disabled={loading || !searchQuery.trim()}
+                    className="px-6 py-3 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium"
+                  >
+                    {loading ? <Loader className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
+                    Search
+                  </button>
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-text-secondary">Results per search</label>
+                  <select
+                    value={resultLimit}
+                    onChange={(event) => setResultLimit(event.target.value)}
+                    className="px-3 py-2 bg-bg-base border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  >
+                    <option value="10">10</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-text-secondary">Sort by</label>
+                  <select
+                    value={sortField}
+                    onChange={(event) => setSortField(event.target.value as typeof sortField)}
+                    className="px-3 py-2 bg-bg-base border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  >
+                    <option value="score">Relevance</option>
+                    <option value="published">Publication Date</option>
+                    <option value="created">Created Date</option>
+                    <option value="updated">Last Updated</option>
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-text-secondary">Order</label>
+                  <select
+                    value={sortOrder}
+                    onChange={(event) => setSortOrder(event.target.value as typeof sortOrder)}
+                    className="px-3 py-2 bg-bg-base border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  >
+                    <option value="desc">Descending</option>
+                    <option value="asc">Ascending</option>
+                  </select>
+                </div>
               </div>
               <p className="text-sm text-text-tertiary mt-2">
-                Search research papers by topic, author, or keywords
+                Search research papers by topic, author, or keywords. Customize your result count and ordering to explore more than the default top entries.
               </p>
             </div>
             
