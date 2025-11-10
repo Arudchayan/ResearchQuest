@@ -39,11 +39,11 @@
 - [x] Enhance "Idea not found" error handling/redirect.
 
 ## Task Manager
-- [ ] Allow toggling task completion on/off.
-- [ ] Add delete confirmation and improve edit discoverability.
-- [ ] Support sorting by due date or priority.
-- [ ] Offer denser/compact list view option.
-- [ ] Differentiate priority colors more clearly.
+- [x] Allow toggling task completion on/off.
+- [x] Add delete confirmation and improve edit discoverability.
+- [x] Support sorting by due date or priority.
+- [x] Offer denser/compact list view option.
+- [x] Differentiate priority colors more clearly.
 
 ## Focus Studio
 - [ ] Reduce cognitive load via collapsible panels/onboarding.
