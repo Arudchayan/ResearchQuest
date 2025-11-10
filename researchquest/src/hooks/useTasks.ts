@@ -22,6 +22,23 @@ export function useTasks(userId: string | undefined) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  const sortTasksByDueDate = useCallback((taskList: Task[]) => {
+    return [...taskList].sort((a, b) => {
+      const aDue = a.due_date ? new Date(a.due_date).getTime() : null
+      const bDue = b.due_date ? new Date(b.due_date).getTime() : null
+
+      if (aDue === null && bDue === null) {
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      }
+      if (aDue === null) return 1
+      if (bDue === null) return -1
+      if (aDue === bDue) {
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      }
+      return aDue - bDue
+    })
+  }, [])
+
   const fetchTasks = useCallback(async () => {
     if (!userId) return
 
@@ -34,10 +51,10 @@ export function useTasks(userId: string | undefined) {
     if (fetchError) {
       setError(fetchError.message)
     } else {
-      setTasks(data || [])
+      setTasks(sortTasksByDueDate(data || []))
     }
     setLoading(false)
-  }, [userId])
+  }, [userId, sortTasksByDueDate])
 
   useEffect(() => {
     if (!userId) {
@@ -64,10 +81,10 @@ export function useTasks(userId: string | undefined) {
                 console.log('Task already exists (from optimistic update), skipping realtime insert')
                 return prev
               }
-              return [payload.new as Task, ...prev]
+              return sortTasksByDueDate([...(prev ?? []), payload.new as Task])
             })
           } else if (payload.eventType === 'UPDATE') {
-            setTasks(prev => prev.map(task => 
+            setTasks(prev => prev.map(task =>
               task.id === payload.new.id ? payload.new as Task : task
             ))
           } else if (payload.eventType === 'DELETE') {
@@ -143,7 +160,7 @@ export function useTasks(userId: string | undefined) {
     toast.success('Task created successfully')
 
     // Optimistic update - add to local state immediately
-    setTasks(prev => [data, ...prev])
+    setTasks(prev => sortTasksByDueDate([...(prev ?? []), data]))
 
     // Award XP (don't await to avoid blocking)
     awardXP(userId, XP_REWARDS.CREATE_TASK, 'create_task').catch(console.error)
