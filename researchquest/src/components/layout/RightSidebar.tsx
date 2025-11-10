@@ -1,14 +1,22 @@
-import { Link2, Clock, Hash, TrendingUp, BookOpen, Lightbulb, Target, Award } from 'lucide-react'
+import { Link2, Clock, Hash, TrendingUp, BookOpen, Lightbulb, Target, Award, Sparkles } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
+import { useTopics } from '../../hooks/useTopics'
 
 export function RightSidebar() {
-  const { selectedNote, selectedPaper, selectedIdea, user } = useAppStore()
+  const { selectedNote, selectedPaper, selectedIdea, user, setCurrentView, setSelectedTopic } = useAppStore()
   const [todayXP, setTodayXP] = useState(0)
   const [weeklyPapers, setWeeklyPapers] = useState(0)
   const [activeIdeas, setActiveIdeas] = useState(0)
   const [userId, setUserId] = useState<string | null>(null)
+
+  const { activeQuest, advanceQuest, topics } = useTopics(userId ?? undefined)
+
+  const questTopic = useMemo(() => {
+    if (!activeQuest) return null
+    return activeQuest.topic || topics.find((topic) => topic.id === activeQuest.topic_id) || null
+  }, [activeQuest, topics])
   
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -89,6 +97,44 @@ export function RightSidebar() {
           </>
         )}
         
+        {/* Topic Quest */}
+        {activeQuest && questTopic && (
+          <div className="p-4 bg-gradient-to-r from-primary-500/10 to-primary-500/5 border border-primary-500/40 rounded-lg space-y-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary-500" />
+              <span className="text-small font-semibold text-text-primary">Topic quest</span>
+            </div>
+            <div>
+              <p className="text-small font-semibold text-text-primary">{questTopic.name}</p>
+              <p className="text-caption text-text-secondary">{activeQuest.objective}</p>
+              {activeQuest.due_date && (
+                <p className="text-caption text-text-tertiary mt-1">Due {new Date(activeQuest.due_date).toLocaleDateString()}</p>
+              )}
+            </div>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => {
+                  const topic = topics.find((t) => t.id === questTopic.id)
+                  if (topic) {
+                    setCurrentView('topics')
+                    setSelectedTopic(topic)
+                    window.history.pushState(null, '', `/topics/${topic.id}`)
+                  }
+                }}
+                className="inline-flex items-center justify-center gap-2 px-3 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors"
+              >
+                Jump in
+              </button>
+              <button
+                onClick={() => void advanceQuest(questTopic.id)}
+                className="inline-flex items-center justify-center gap-2 px-3 py-2 border border-primary-500 text-primary-600 rounded-md hover:bg-primary-500/10 transition-colors"
+              >
+                Mark complete
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Research Quick Stats */}
         <div className="pt-4 border-t border-border-subtle">
           <h3 className="text-small font-semibold text-text-primary mb-3 flex items-center gap-2">
