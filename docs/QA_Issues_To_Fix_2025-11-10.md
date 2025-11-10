@@ -4,7 +4,7 @@
 
 ## Access & Authentication
 - [x] Add "Forgot password" link to login view.
-- [ ] Provide an SSO option (or document unavailability).
+- [x] Provide an SSO option (or document unavailability).
 - [ ] Expose a clear logout control in the UI header.
 
 ## Core Navigation and Dashboard
