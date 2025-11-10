@@ -5,10 +5,10 @@
 ## Access & Authentication
 - [x] Add "Forgot password" link to login view.
 - [x] Provide an SSO option (or document unavailability).
-- [ ] Expose a clear logout control in the UI header.
+- [x] Expose a clear logout control in the UI header.
 
 ## Core Navigation and Dashboard
-- [ ] Improve active section indicator visibility for accessibility.
+- [x] Improve active section indicator visibility for accessibility.
 - [ ] Ensure Focus Studio counts reflect latest notes/papers/ideas.
 
 ## Notes Module
