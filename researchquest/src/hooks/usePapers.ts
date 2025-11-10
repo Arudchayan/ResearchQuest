@@ -45,7 +45,13 @@ export function usePapers(userId: string | undefined) {
           console.log('Papers realtime update:', payload)
           // Optimistic UI update based on event type
           if (payload.eventType === 'INSERT') {
-            setPapers(prev => [payload.new as Paper, ...prev])
+            setPapers(prev => {
+              const newPaper = payload.new as Paper
+              if (prev.some(paper => paper.id === newPaper.id)) {
+                return prev
+              }
+              return [newPaper, ...prev]
+            })
           } else if (payload.eventType === 'UPDATE') {
             setPapers(prev => prev.map(paper => 
               paper.id === payload.new.id ? payload.new as Paper : paper
