@@ -139,14 +139,12 @@ export function useTopics(userId: string | undefined) {
     let { data, error: fetchError } = await supabase
       .from('topics')
       .select(selectColumns)
-      .eq('user_id', userId)
       .order('updated_at', { ascending: false })
 
     if (fetchError && isRelationshipError(fetchError)) {
       const fallback = await supabase
         .from('topics')
         .select('*')
-        .eq('user_id', userId)
         .order('updated_at', { ascending: false })
       data = fallback.data
       fetchError = fallback.error
@@ -159,7 +157,8 @@ export function useTopics(userId: string | undefined) {
     } else if (isTopicRowArray(data)) {
       const rows: TopicRow[] = data
       const mapped = rows.map((row) => mapTopicRow(row))
-      setTopics(mapped)
+      const scoped = userId ? mapped.filter((topic) => topic.user_id === userId) : mapped
+      setTopics(scoped)
       setError(null)
     } else {
       setTopics([])
@@ -167,7 +166,7 @@ export function useTopics(userId: string | undefined) {
     }
 
     setLoading(false)
-  }, [setTopics, userId])
+  }, [isRelationshipError, setTopics, userId])
 
   const fetchTopicById = useCallback(
     async (topicId: string) => {
@@ -178,7 +177,6 @@ export function useTopics(userId: string | undefined) {
         .from('topics')
         .select(selectColumns)
         .eq('id', topicId)
-        .eq('user_id', userId)
         .maybeSingle()
 
       if (fetchError && isRelationshipError(fetchError)) {
@@ -186,7 +184,6 @@ export function useTopics(userId: string | undefined) {
           .from('topics')
           .select('*')
           .eq('id', topicId)
-          .eq('user_id', userId)
           .maybeSingle()
         data = fallback.data
         fetchError = fallback.error
@@ -199,6 +196,9 @@ export function useTopics(userId: string | undefined) {
 
       if (data && isTopicRow(data)) {
         const mapped = mapTopicRow(data)
+        if (userId && mapped.user_id !== userId) {
+          return
+        }
         upsertTopic(mapped)
         const currentSelected = useAppStore.getState().selectedTopic
         if (currentSelected?.id === mapped.id) {
@@ -206,7 +206,7 @@ export function useTopics(userId: string | undefined) {
         }
       }
     },
-    [setSelectedTopic, upsertTopic, userId]
+    [isRelationshipError, setSelectedTopic, upsertTopic, userId]
   )
 
   const fetchQuests = useCallback(async () => {
@@ -218,13 +218,14 @@ export function useTopics(userId: string | undefined) {
     const { data, error: questError } = await supabase
       .from('topic_quests')
       .select('*, topics(id, name, updated_at)')
-      .eq('user_id', userId)
       .order('created_at', { ascending: false })
 
     if (questError) {
       console.error('Failed to fetch topic quests:', questError)
     } else {
-      setQuests((data || []).map((row) => mapQuestRow(row as TopicQuestRow)))
+      const questRows = (data || []).map((row) => mapQuestRow(row as TopicQuestRow))
+      const scoped = userId ? questRows.filter((quest) => quest.user_id === userId) : questRows
+      setQuests(scoped)
     }
     setQuestsLoading(false)
   }, [userId])
@@ -350,7 +351,6 @@ export function useTopics(userId: string | undefined) {
           status: nextStatus,
         })
         .eq('id', active.id)
-        .eq('user_id', userId)
         .select('*, topics(id, name, updated_at)')
         .single()
 
@@ -398,7 +398,6 @@ export function useTopics(userId: string | undefined) {
         .from('topics')
         .update(payload)
         .eq('id', topicId)
-        .eq('user_id', userId)
 
       if (updateError) {
         console.error('Failed to update topic:', updateError)
@@ -426,7 +425,6 @@ export function useTopics(userId: string | undefined) {
         .from('topics')
         .delete()
         .eq('id', topicId)
-        .eq('user_id', userId)
 
       if (deleteError) {
         console.error('Failed to delete topic:', deleteError)
@@ -465,8 +463,8 @@ export function useTopics(userId: string | undefined) {
       const table = ENTITY_TABLE[entityType]
       const column = ENTITY_COLUMN[entityType]
       const payload = {
-        topic_id: topicId,
         user_id: userId,
+        topic_id: topicId,
         [column]: entityId,
       }
 
@@ -508,7 +506,6 @@ export function useTopics(userId: string | undefined) {
         .delete()
         .eq('topic_id', topicId)
         .eq(column, entityId)
-        .eq('user_id', userId)
 
       if (deleteError) {
         console.error('Failed to unlink topic:', deleteError)
@@ -543,7 +540,6 @@ export function useTopics(userId: string | undefined) {
       const { data, error: fetchError } = await supabase
         .from(table)
         .select('topic_id')
-        .eq('user_id', userId)
         .eq(column, entityId)
 
       if (fetchError) {
