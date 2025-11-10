@@ -575,7 +575,7 @@ export function MarkdownEditor() {
           </div>
         </div>
 
-        {viewMode === 'split' && viewMode !== 'preview' && (
+        {viewMode === 'split' && (
           <div className="hidden lg:block w-px bg-border-subtle flex-shrink-0" aria-hidden="true" />
         )}
 
