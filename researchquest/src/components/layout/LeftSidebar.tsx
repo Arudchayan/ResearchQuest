@@ -1,6 +1,7 @@
 import { FileText, BookOpen, Lightbulb, Tag, CheckSquare, Search, Plus } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
 import { useNotes } from '../../hooks/useNotes'
 import { usePapers } from '../../hooks/usePapers'
@@ -27,12 +28,12 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   const [searchQuery, setSearchQuery] = useState('')
   const [userId, setUserId] = useState<string | undefined>(undefined)
   const [todayXP, setTodayXP] = useState(0)
+  const realtimeChannelsRef = useRef<RealtimeChannel[]>([])
   
   // URL-based navigation handler
   const handleTabClick = (tabId: typeof currentView) => {
-    console.log('handleTabClick called with:', tabId)
     setCurrentView(tabId)
-    
+
     // Clear selected items when switching views to show default content
     if (tabId === 'papers') {
       setSelectedPaper(null)
@@ -41,11 +42,10 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
     } else if (tabId === 'notes') {
       setSelectedNote(null)
     }
-    
+
     const newUrl = tabId === 'notes' ? '/' : `/${tabId}`
     window.history.pushState(null, '', newUrl)
     onNavigate?.()
-    console.log('Navigation completed to:', newUrl)
   }
   
   // Get hooks
@@ -62,63 +62,99 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   }, [currentView, notesLoading, papersLoading, ideasLoading])
   
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setUserId(user?.id)
-      
-      // Fetch today's XP
-      if (user?.id) {
-        const today = new Date().toISOString().split('T')[0]
-        supabase
-          .from('daily_logs')
-          .select('xp_earned')
-          .eq('user_id', user.id)
-          .eq('date', today)
-          .maybeSingle()
-          .then(({ data }) => {
-            if (data) {
-              setTodayXP(data.xp_earned)
-            }
-          })
-          
-        // Set up realtime listener for profile updates
-        const profileChannel = supabase
-          .channel('profile_changes')
-          .on('postgres_changes',
-            { event: 'UPDATE', schema: 'public', table: 'user_profiles', filter: `id=eq.${user.id}` },
-            (payload) => {
-              setUserProfile(payload.new as any)
-            }
-          )
-          .subscribe()
-          
-        // Set up realtime listener for daily log updates
-        const logsChannel = supabase
-          .channel('daily_logs_changes')
-          .on('postgres_changes',
-            { event: '*', schema: 'public', table: 'daily_logs', filter: `user_id=eq.${user.id}` },
-            () => {
-              supabase
-                .from('daily_logs')
-                .select('xp_earned')
-                .eq('user_id', user.id)
-                .eq('date', today)
-                .maybeSingle()
-                .then(({ data }) => {
-                  if (data) {
-                    setTodayXP(data.xp_earned)
-                  }
-                })
-            }
-          )
-          .subscribe()
-          
-        return () => {
-          profileChannel.unsubscribe()
-          logsChannel.unsubscribe()
+    let isMounted = true
+
+    const clearRealtimeChannels = () => {
+      realtimeChannelsRef.current.forEach((channel) => {
+        try {
+          channel.unsubscribe()
+        } catch (unsubscribeError) {
+          console.error('Failed to unsubscribe from Supabase channel', unsubscribeError)
         }
+      })
+      realtimeChannelsRef.current = []
+    }
+
+    const fetchTodayXp = async (userId: string) => {
+      const today = new Date().toISOString().split('T')[0]
+      const { data, error } = await supabase
+        .from('daily_logs')
+        .select('xp_earned')
+        .eq('user_id', userId)
+        .eq('date', today)
+        .maybeSingle()
+
+      if (!isMounted) {
+        return
       }
-    })
-  }, [])
+
+      if (error) {
+        console.error('Failed to fetch today\'s XP:', error)
+        return
+      }
+
+      if (data) {
+        setTodayXP(data.xp_earned)
+      } else {
+        setTodayXP(0)
+      }
+    }
+
+    const init = async () => {
+      const { data, error } = await supabase.auth.getUser()
+
+      if (!isMounted) {
+        return
+      }
+
+      if (error) {
+        console.error('Failed to get user:', error)
+        return
+      }
+
+      const user = data.user
+      setUserId(user?.id)
+
+      if (!user?.id) {
+        setTodayXP(0)
+        return
+      }
+
+      clearRealtimeChannels()
+      await fetchTodayXp(user.id)
+
+      const profileChannel = supabase
+        .channel('profile_changes')
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'user_profiles', filter: `id=eq.${user.id}` },
+          (payload) => {
+            setUserProfile(payload.new as any)
+          }
+        )
+        .subscribe()
+
+      const logsChannel = supabase
+        .channel('daily_logs_changes')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'daily_logs', filter: `user_id=eq.${user.id}` },
+          () => {
+            void fetchTodayXp(user.id)
+          }
+        )
+        .subscribe()
+
+      realtimeChannelsRef.current = [profileChannel, logsChannel]
+    }
+
+    void init()
+
+    return () => {
+      isMounted = false
+      clearRealtimeChannels()
+    }
+  }, [setUserProfile])
   
 
   
@@ -151,21 +187,53 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   // Removed handleAddPaper - now handled in AddPaperView
   
   // Filter entities by search query (memoized for performance)
-  const filteredNotes = useMemo(() => notes.filter(note => {
-    const title = note.title || note.markdown_body.split('\n')[0] || ''
-    return title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-           note.markdown_body.toLowerCase().includes(searchQuery.toLowerCase())
-  }), [notes, searchQuery])
-  
-  const filteredPapers = useMemo(() => papers.filter(paper =>
-    paper.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    paper.authors.some(author => author.toLowerCase().includes(searchQuery.toLowerCase()))
-  ), [papers, searchQuery])
-  
-  const filteredIdeas = useMemo(() => ideas.filter(idea =>
-    idea.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (idea.description && idea.description.toLowerCase().includes(searchQuery.toLowerCase()))
-  ), [ideas, searchQuery])
+  const normalizedQuery = useMemo(() => searchQuery.trim().toLowerCase(), [searchQuery])
+
+  const filteredNotes = useMemo(
+    () =>
+      notes.filter((note) => {
+        if (!normalizedQuery) {
+          return true
+        }
+
+        const title = note.title || note.markdown_body.split('\n')[0] || ''
+        return (
+          title.toLowerCase().includes(normalizedQuery) ||
+          note.markdown_body.toLowerCase().includes(normalizedQuery)
+        )
+      }),
+    [notes, normalizedQuery]
+  )
+
+  const filteredPapers = useMemo(
+    () =>
+      papers.filter((paper) => {
+        if (!normalizedQuery) {
+          return true
+        }
+
+        return (
+          paper.title.toLowerCase().includes(normalizedQuery) ||
+          paper.authors.some((author) => author.toLowerCase().includes(normalizedQuery))
+        )
+      }),
+    [papers, normalizedQuery]
+  )
+
+  const filteredIdeas = useMemo(
+    () =>
+      ideas.filter((idea) => {
+        if (!normalizedQuery) {
+          return true
+        }
+
+        return (
+          idea.title.toLowerCase().includes(normalizedQuery) ||
+          (idea.description && idea.description.toLowerCase().includes(normalizedQuery))
+        )
+      }),
+    [ideas, normalizedQuery]
+  )
   
   return (
     <>
@@ -207,7 +275,6 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
               placeholder={`Search ${currentView}...`}
               value={searchQuery}
               onChange={(e) => {
-                console.log('Search input changed:', e.target.value)
                 setSearchQuery(e.target.value)
               }}
               className="w-full pl-10 pr-4 py-2 bg-bg-base border border-border-subtle rounded-md text-small focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
@@ -216,9 +283,8 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
           
           {/* Add Button (hide for tasks and topics) */}
           {currentView !== 'tasks' && currentView !== 'topics' && (
-            <button 
+            <button
               onClick={() => {
-                console.log('Add button clicked for:', currentView)
                 handleAddClick()
               }}
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors font-medium"
