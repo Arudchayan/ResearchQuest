@@ -48,14 +48,6 @@ export function useFocusEntityCounts(
     }))
   }, [localLengths.notes, localLengths.papers, localLengths.ideas])
 
-  useEffect(() => {
-    if (!userId) {
-      return
-    }
-
-    void syncCountsFromServer()
-  }, [localLengths.notes, localLengths.papers, localLengths.ideas, syncCountsFromServer, userId])
-
   const syncCountsFromServer = useCallback(async () => {
     if (!userId) {
       setCounts({ notes: 0, papers: 0, ideas: 0 })
@@ -92,6 +84,14 @@ export function useFocusEntityCounts(
       return next
     })
   }, [userId])
+
+  useEffect(() => {
+    if (!userId) {
+      return
+    }
+
+    void syncCountsFromServer()
+  }, [localLengths.notes, localLengths.papers, localLengths.ideas, syncCountsFromServer, userId])
 
   useEffect(() => {
     void syncCountsFromServer()
