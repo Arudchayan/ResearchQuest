@@ -2,7 +2,6 @@ import { FileText, BookOpen, Lightbulb, Tag, CheckSquare, Search, Plus } from 'l
 import { useAppStore } from '../../store/appStore'
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import type { RealtimeChannel } from '@supabase/supabase-js'
-import type { AuthChangeEvent, Session, User } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
 import { useNotes } from '../../hooks/useNotes'
 import { usePapers } from '../../hooks/usePapers'
@@ -30,7 +29,6 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   const [userId, setUserId] = useState<string | undefined>(undefined)
   const [todayXP, setTodayXP] = useState(0)
   const realtimeChannelsRef = useRef<RealtimeChannel[]>([])
-  const activeUserIdRef = useRef<string | null>(null)
   
   // URL-based navigation handler
   const handleTabClick = (tabId: typeof currentView) => {
@@ -65,7 +63,6 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   
   useEffect(() => {
     let isMounted = true
-    let authSubscription: { unsubscribe: () => void } | null = null
 
     const clearRealtimeChannels = () => {
       realtimeChannelsRef.current.forEach((channel) => {
@@ -103,71 +100,6 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
       }
     }
 
-    const handleUser = async (user: User | null) => {
-      if (!isMounted) {
-        return
-      }
-
-      setUserId(user?.id)
-
-      if (!user?.id) {
-        setTodayXP(0)
-        setUserProfile(null)
-        clearRealtimeChannels()
-        activeUserIdRef.current = null
-        return
-      }
-
-      if (activeUserIdRef.current === user.id) {
-        return
-      }
-
-      activeUserIdRef.current = user.id
-      clearRealtimeChannels()
-      await fetchTodayXp(user.id)
-
-      const profileChannel = supabase
-        .channel('profile_changes')
-        .on(
-          'postgres_changes',
-          { event: 'UPDATE', schema: 'public', table: 'user_profiles', filter: `id=eq.${user.id}` },
-          (payload) => {
-            if (!isMounted) {
-              return
-            }
-            setUserProfile(payload.new as any)
-          }
-        )
-        .subscribe()
-
-      const logsChannel = supabase
-        .channel('daily_logs_changes')
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'daily_logs', filter: `user_id=eq.${user.id}` },
-          (payload) => {
-            if (!isMounted) {
-              return
-            }
-
-            if (payload.eventType === 'DELETE') {
-              setTodayXP(0)
-              return
-            }
-
-            const updatedLog = payload.new as { xp_earned?: number } | null
-            if (updatedLog?.xp_earned !== undefined && updatedLog.xp_earned !== null) {
-              setTodayXP(updatedLog.xp_earned)
-            } else {
-              void fetchTodayXp(user.id)
-            }
-          }
-        )
-        .subscribe()
-
-      realtimeChannelsRef.current = [profileChannel, logsChannel]
-    }
-
     const init = async () => {
       const { data, error } = await supabase.auth.getUser()
 
@@ -180,22 +112,47 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
         return
       }
 
-      await handleUser(data.user)
-    }
+      const user = data.user
+      setUserId(user?.id)
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      (_event: AuthChangeEvent, session: Session | null) => {
-        void handleUser(session?.user ?? null)
+      if (!user?.id) {
+        setTodayXP(0)
+        return
       }
-    )
-    authSubscription = authListener?.subscription ?? null
+
+      clearRealtimeChannels()
+      await fetchTodayXp(user.id)
+
+      const profileChannel = supabase
+        .channel('profile_changes')
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'user_profiles', filter: `id=eq.${user.id}` },
+          (payload) => {
+            setUserProfile(payload.new as any)
+          }
+        )
+        .subscribe()
+
+      const logsChannel = supabase
+        .channel('daily_logs_changes')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'daily_logs', filter: `user_id=eq.${user.id}` },
+          () => {
+            void fetchTodayXp(user.id)
+          }
+        )
+        .subscribe()
+
+      realtimeChannelsRef.current = [profileChannel, logsChannel]
+    }
 
     void init()
 
     return () => {
       isMounted = false
       clearRealtimeChannels()
-      authSubscription?.unsubscribe()
     }
   }, [setUserProfile])
   
