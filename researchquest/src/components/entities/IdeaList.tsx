@@ -120,20 +120,6 @@ export function IdeaList({ ideas, onSelectIdea, onDeleteIdea, onStageChange, sel
   const [searchQuery, setSearchQuery] = useState('')
   const [stageFilter, setStageFilter] = useState<IdeaStage | 'all'>('all')
 
-  if (loading) {
-    return <ListSkeleton count={5} itemType="idea" />
-  }
-
-  if (ideas.length === 0) {
-    return (
-      <div className="text-center py-12 text-text-tertiary">
-        <Lightbulb className="w-12 h-12 mx-auto mb-3 opacity-50" />
-        <p className="text-small">No ideas yet</p>
-        <p className="text-caption mt-1">Create your first idea above</p>
-      </div>
-    )
-  }
-
   const normalizedQuery = searchQuery.trim().toLowerCase()
   const filteredIdeas = useMemo(() => {
     return ideas.filter((idea) => {
@@ -152,6 +138,20 @@ export function IdeaList({ ideas, onSelectIdea, onDeleteIdea, onStageChange, sel
       return titleMatch || descriptionMatch
     })
   }, [ideas, normalizedQuery, stageFilter])
+
+  if (loading) {
+    return <ListSkeleton count={5} itemType="idea" />
+  }
+
+  if (ideas.length === 0) {
+    return (
+      <div className="text-center py-12 text-text-tertiary">
+        <Lightbulb className="w-12 h-12 mx-auto mb-3 opacity-50" />
+        <p className="text-small">No ideas yet</p>
+        <p className="text-caption mt-1">Create your first idea above</p>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-3">
