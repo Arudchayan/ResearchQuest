@@ -79,7 +79,8 @@ describe('LeftSidebar Component', () => {
       renderSidebar()
 
       const papersTab = screen.getByRole('button', { name: /^Papers$/i })
-      expect(papersTab).toHaveClass('bg-bg-elevated')
+      expect(papersTab).toHaveClass('bg-primary-50')
+      expect(papersTab).toHaveAttribute('aria-current', 'page')
     })
 
     it('should switch views when clicking tabs', async () => {
