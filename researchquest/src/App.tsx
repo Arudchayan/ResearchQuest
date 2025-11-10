@@ -16,8 +16,8 @@ import { Toaster } from 'sonner'
 import type { User } from '@supabase/supabase-js'
 import { usePapers } from './hooks/usePapers'
 import { useIdeas } from './hooks/useIdeas'
-import { useTopics } from './hooks/useTopics'
-import { TopicDetailView } from './components/topics/TopicDetailView'
+import { FocusWorkspace } from './components/focus/FocusWorkspace'
+import { IdeasOverview } from './components/ideas/IdeasOverview'
 
 function AuthScreen() {
   const [email, setEmail] = useState('')
@@ -142,20 +142,13 @@ function App() {
     selectedNote,
     selectedPaper,
     selectedIdea,
-    selectedTopic,
-    setSelectedTopic,
+    setSelectedIdea,
   } = useAppStore()
   const hydrateGamification = useGamificationStore(state => state.hydrateFromProfile)
   
   // Get hooks for CRUD operations
   const { papers, loading: papersLoading, searchPaperByDOI, searchPapersByQuery, createPaper, updatePaper } = usePapers(userId)
-  const { ideas, loading: ideasLoading, updateIdea } = useIdeas(userId)
-  const {
-    topics,
-    loading: topicsLoading,
-    updateTopic,
-    deleteTopic,
-  } = useTopics(userId)
+  const { ideas, loading: ideasLoading, createIdea, updateIdea } = useIdeas(userId)
   
   useEffect(() => {
     // Check active sessions
@@ -214,7 +207,7 @@ function App() {
       const itemId = pathParts[1]
       
       // Validate view
-      if (['notes', 'papers', 'ideas', 'tasks', 'topics'].includes(view)) {
+      if (['notes', 'papers', 'ideas', 'tasks', 'focus'].includes(view)) {
         console.log('Setting view to:', view)
         setCurrentView(view)
         
@@ -258,7 +251,6 @@ function App() {
     // Wait for data to load
     if (view === 'papers' && papersLoading) return
     if (view === 'ideas' && ideasLoading) return
-    if (view === 'topics' && topicsLoading) return
     
     // Try to find and select the item based on URL
     if (view === 'papers' && papers.length >= 0) {
@@ -283,18 +275,8 @@ function App() {
         console.log('Idea not found:', itemId)
         setItemNotFound(true)
       }
-    } else if (view === 'topics' && topics.length >= 0) {
-      const topic = topics.find(t => t.id === itemId)
-      if (topic) {
-        console.log('Selecting topic from URL:', itemId)
-        setSelectedTopic(topic)
-        setItemNotFound(false)
-      } else if (!topicsLoading) {
-        console.log('Topic not found:', itemId)
-        setItemNotFound(true)
-      }
     }
-  }, [currentView, ideas, ideasLoading, papers, papersLoading, setSelectedTopic, topics, topicsLoading, userId])
+  }, [currentView, ideas, ideasLoading, papers, papersLoading, userId])
   
   if (loading) {
     return (
@@ -381,44 +363,25 @@ function App() {
                 onUpdate={updateIdea}
               />
             ) : (
-              <div className="p-6">
-                <div className="max-w-4xl mx-auto text-center py-12">
-                  <h2 className="text-title font-semibold text-text-primary mb-4">
-                    Ideas Workspace
-                  </h2>
-                  <p className="text-body text-text-secondary">
-                    Select an idea from the sidebar or create a new one to capture your research ideas.
-                  </p>
-                </div>
-              </div>
-            )
-          ) : currentView === 'topics' ? (
-            itemNotFound ? (
-              <ItemNotFound itemType="topic" />
-            ) : selectedTopic ? (
-              <TopicDetailView
-                topic={selectedTopic}
-                onUpdate={updateTopic}
-                onDelete={deleteTopic}
+              <IdeasOverview
+                ideas={ideas}
+                loading={ideasLoading}
+                onCreate={async (payload) => {
+                  const created = await createIdea(payload)
+                  if (created) {
+                    setSelectedIdea(created)
+                    window.history.pushState(null, '', `/ideas/${created.id}`)
+                  }
+                  return created ?? null
+                }}
+                onSelect={(idea) => {
+                  setSelectedIdea(idea)
+                  window.history.pushState(null, '', `/ideas/${idea.id}`)
+                }}
               />
-            ) : topicsLoading ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center text-text-tertiary">
-                  Loading topics...
-                </div>
-              </div>
-            ) : (
-              <div className="p-6">
-                <div className="max-w-4xl mx-auto text-center py-12">
-                  <h2 className="text-title font-semibold text-text-primary mb-4">
-                    Topics Workspace
-                  </h2>
-                  <p className="text-body text-text-secondary">
-                    Select a topic from the sidebar or create a new one to organize your research themes.
-                  </p>
-                </div>
-              </div>
             )
+          ) : currentView === 'focus' ? (
+            <FocusWorkspace userId={userId} />
           ) : null}
         </main>
         

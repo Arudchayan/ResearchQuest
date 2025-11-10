@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import '../mocks/supabase'
-import { mockSupabaseClient, mockPaper, mockIdea, mockNote, mockTopic } from '../mocks/supabase'
+import { mockSupabaseClient, mockPaper, mockIdea, mockNote } from '../mocks/supabase'
 
 // Mock the hooks
 vi.mock('../../hooks/useNotes', () => ({
@@ -37,15 +37,6 @@ vi.mock('../../hooks/useIdeas', () => ({
   })),
 }))
 
-vi.mock('../../hooks/useTopics', () => ({
-  useTopics: vi.fn(() => ({
-    topics: [mockTopic],
-    loading: false,
-    createTopic: vi.fn().mockResolvedValue(mockTopic),
-    deleteTopic: vi.fn(),
-  })),
-}))
-
 const { LeftSidebar } = await import('../../components/layout/LeftSidebar')
 const { useAppStore } = await import('../../store/appStore')
 
@@ -62,8 +53,6 @@ describe('LeftSidebar Component', () => {
       selectedNote: null,
       selectedPaper: null,
       selectedIdea: null,
-      selectedTopic: null,
-      topics: [mockTopic],
     })
   })
 
@@ -75,7 +64,7 @@ describe('LeftSidebar Component', () => {
       expect(screen.getByText('Papers')).toBeInTheDocument()
       expect(screen.getByText('Ideas')).toBeInTheDocument()
       expect(screen.getByText('Tasks')).toBeInTheDocument()
-      expect(screen.getByText('Topics')).toBeInTheDocument()
+      expect(screen.getByText('Focus')).toBeInTheDocument()
     })
 
     it('should highlight active tab', () => {
@@ -171,15 +160,15 @@ describe('LeftSidebar Component', () => {
       expect(screen.getByText(/new idea/i)).toBeInTheDocument()
     })
 
-    it('should hide add button for tasks but show for topics', () => {
+    it('should hide add button for tasks and focus', () => {
       useAppStore.setState({ currentView: 'tasks' })
       const { rerender } = render(<LeftSidebar />)
 
       expect(screen.queryByRole('button', { name: /new/i })).not.toBeInTheDocument()
 
-      useAppStore.setState({ currentView: 'topics' })
+      useAppStore.setState({ currentView: 'focus' })
       rerender(<LeftSidebar />)
-      expect(screen.getByText(/new topic/i)).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /new/i })).not.toBeInTheDocument()
     })
 
     it('should create new note when clicked in notes view', async () => {
@@ -241,11 +230,12 @@ describe('LeftSidebar Component', () => {
       expect(screen.getByText(mockNote.title)).toBeInTheDocument()
     })
 
-    it('should display topics in topics view', () => {
-      useAppStore.setState({ currentView: 'topics' })
+    it('should display focus helpers in focus view', () => {
+      useAppStore.setState({ currentView: 'focus' })
       render(<LeftSidebar />)
 
-      expect(screen.getByText(mockTopic.name)).toBeInTheDocument()
+      expect(screen.getByText(/set a target in the main panel/i)).toBeInTheDocument()
+      expect(screen.getByText(/upcoming focus candidates/i)).toBeInTheDocument()
     })
 
     it('should show loading state while fetching', async () => {
