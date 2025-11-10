@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { supabase } from '../../lib/supabase'
 import { useTopics } from '../../hooks/useTopics'
 import type { TopicEntityType, TopicWithCounts } from '../../types/database'
+import { useAppStore } from '../../store/appStore'
 
 interface TopicSelectorProps {
   entityId: string | null
@@ -11,17 +12,23 @@ interface TopicSelectorProps {
 }
 
 export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
-  const [userId, setUserId] = useState<string | undefined>(undefined)
+  const storeUserId = useAppStore((state) => state.user?.id)
+  const [userId, setUserId] = useState<string | undefined>(storeUserId)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [loadingLinks, setLoadingLinks] = useState(false)
   const [creating, setCreating] = useState(false)
   const [newTopicName, setNewTopicName] = useState('')
 
   useEffect(() => {
+    if (storeUserId) {
+      setUserId(storeUserId)
+      return
+    }
+
     supabase.auth.getUser().then(({ data }) => {
       setUserId(data.user?.id)
     })
-  }, [])
+  }, [storeUserId])
 
   const {
     topics,

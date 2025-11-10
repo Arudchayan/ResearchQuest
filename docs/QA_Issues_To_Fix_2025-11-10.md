@@ -30,13 +30,13 @@
 - [x] Explain XP/gamification context in UI.
 
 ## Ideas Module
-- [ ] Prevent title/description concatenation when creating ideas.
-- [ ] Resolve mixed success/error when saving idea edits.
-- [ ] Fix topic linking error for ideas.
-- [ ] Add search/filtering for ideas list.
-- [ ] Improve Kanban empty state guidance.
-- [ ] Enlarge stage dropdown affordance in recent list.
-- [ ] Enhance "Idea not found" error handling/redirect.
+- [x] Prevent title/description concatenation when creating ideas.
+- [x] Resolve mixed success/error when saving idea edits.
+- [x] Fix topic linking error for ideas.
+- [x] Add search/filtering for ideas list.
+- [x] Improve Kanban empty state guidance.
+- [x] Enlarge stage dropdown affordance in recent list.
+- [x] Enhance "Idea not found" error handling/redirect.
 
 ## Task Manager
 - [ ] Allow toggling task completion on/off.
