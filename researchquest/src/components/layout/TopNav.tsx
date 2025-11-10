@@ -23,8 +23,8 @@ export function TopNav() {
   const xpInLevel = user ? user.total_xp % 500 : 0
   
   return (
-    <nav className="fixed top-0 left-0 right-0 h-16 bg-bg-surface/80 backdrop-blur-lg border-b border-border-subtle shadow-sm z-50">
-      <div className="h-full px-4 sm:px-6 flex items-center justify-between">
+    <nav className="fixed top-0 left-0 right-0 h-16 bg-bg-surface/80 backdrop-blur-lg border-b border-border-subtle shadow-sm z-50 px-0">
+      <div className="h-full w-full flex items-center justify-between pr-4 sm:pr-6">
         {/* Logo & Title */}
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-primary-500 rounded-md flex items-center justify-center text-white font-bold">

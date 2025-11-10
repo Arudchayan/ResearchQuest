@@ -10,6 +10,7 @@ import { TaskManager } from './components/tasks/TaskManager'
 import { NoteList } from './components/entities/NoteList'
 import { PaperList } from './components/entities/PaperList'
 import { IdeaList } from './components/entities/IdeaList'
+import { FocusWorkspace } from './components/focus/FocusWorkspace'
 import { useNotes } from './hooks/useNotes'
 import { usePapers } from './hooks/usePapers'
 import { useIdeas } from './hooks/useIdeas'
@@ -178,7 +179,7 @@ function App() {
     const handlePopState = () => {
       const path = window.location.pathname
       const view = path.slice(1) as typeof currentView
-      if (['notes', 'papers', 'ideas', 'tasks', 'topics'].includes(view)) {
+      if (['notes', 'papers', 'ideas', 'tasks', 'focus'].includes(view)) {
         setCurrentView(view)
       }
     }
@@ -340,17 +341,8 @@ function App() {
                 )}
               </div>
             </div>
-          ) : currentView === 'topics' ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <h2 className="text-title font-semibold text-text-primary mb-4">
-                  Topics Feature Coming Soon
-                </h2>
-                <p className="text-body text-text-secondary">
-                  We're working on adding topic management to help you organize your research.
-                </p>
-              </div>
-            </div>
+          ) : currentView === 'focus' ? (
+            <FocusWorkspace userId={userId} />
           ) : null}
         </main>
         
