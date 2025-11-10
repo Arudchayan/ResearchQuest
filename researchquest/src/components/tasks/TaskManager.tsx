@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import { CheckCircle2, Circle, Clock, AlertCircle, Trash2, Plus, Calendar, Filter } from 'lucide-react'
+import { CheckCircle2, Circle, Clock, AlertCircle, Trash2, Plus, Calendar, Search as SearchIcon } from 'lucide-react'
 import { useTasks } from '../../hooks/useTasks'
 import type { Task } from '../../hooks/useTasks'
 import { supabase } from '../../lib/supabase'
+import { parseDateInput } from '../../utils/time'
 
 type TaskFilter = 'all' | 'pending' | 'completed' | 'overdue'
 type TaskPriority = 'high' | 'medium' | 'low'
@@ -24,16 +25,22 @@ function getPriorityColor(priority: TaskPriority): string {
 
 function isOverdue(dueDate: string | undefined): boolean {
   if (!dueDate) return false
-  return new Date(dueDate) < new Date()
+  const parsed = parseDateInput(dueDate)
+  if (!parsed) return false
+  const now = new Date()
+  // Treat tasks as overdue only after the day has passed
+  parsed.setHours(23, 59, 59, 999)
+  return parsed.getTime() < now.getTime()
 }
 
 export function TaskManager() {
   const [userId, setUserId] = useState<string | undefined>(undefined)
   const { tasks, loading, createTask, updateTask, completeTask, deleteTask } = useTasks(userId)
-  
+
   const [filter, setFilter] = useState<TaskFilter>('all')
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
   
   // Form state
   const [formTitle, setFormTitle] = useState('')
@@ -49,11 +56,32 @@ export function TaskManager() {
   }, [])
   
   // Filter tasks
+  const normalizedQuery = searchQuery.trim().toLowerCase()
+
   const filteredTasks = tasks.filter(task => {
-    if (filter === 'pending') return !task.completed
-    if (filter === 'completed') return task.completed
-    if (filter === 'overdue') return !task.completed && isOverdue(task.due_date)
-    return true
+    const matchesFilter =
+      filter === 'all' ||
+      (filter === 'pending' && !task.completed) ||
+      (filter === 'completed' && task.completed) ||
+      (filter === 'overdue' && !task.completed && isOverdue(task.due_date))
+
+    if (!matchesFilter) {
+      return false
+    }
+
+    if (!normalizedQuery) {
+      return true
+    }
+
+    const haystack = [
+      task.title,
+      task.description ?? '',
+      task.category ?? '',
+    ]
+      .join(' ')
+      .toLowerCase()
+
+    return haystack.includes(normalizedQuery)
   })
   
   // Calculate progress
@@ -170,21 +198,34 @@ export function TaskManager() {
           </div>
         )}
         
-        {/* Filters */}
-        <div className="flex gap-2">
-          {(['all', 'pending', 'completed', 'overdue'] as TaskFilter[]).map(f => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`px-3 py-1.5 rounded-md text-caption font-medium transition-colors capitalize ${
-                filter === f
-                  ? 'bg-primary-500 text-white'
-                  : 'bg-bg-elevated text-text-secondary hover:text-text-primary'
-              }`}
-            >
-              {f}
-            </button>
-          ))}
+        {/* Filters & search */}
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="flex gap-2 flex-wrap">
+            {(['all', 'pending', 'completed', 'overdue'] as TaskFilter[]).map(f => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`px-3 py-1.5 rounded-md text-caption font-medium transition-colors capitalize ${
+                  filter === f
+                    ? 'bg-primary-500 text-white'
+                    : 'bg-bg-elevated text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+
+          <div className="relative w-full md:w-64">
+            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-tertiary" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search tasks..."
+              className="w-full pl-9 pr-3 py-2 bg-bg-base border border-border-subtle rounded-md text-small focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
         </div>
       </div>
       
@@ -337,8 +378,9 @@ interface TaskCardProps {
 function TaskCard({ task, onToggleComplete, onEdit, onDelete }: TaskCardProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isCompleting, setIsCompleting] = useState(false)
-  
+
   const overdue = isOverdue(task.due_date)
+  const dueDate = task.due_date ? parseDateInput(task.due_date) : null
   
   const handleToggle = async () => {
     if (!task.completed) {
@@ -437,7 +479,7 @@ function TaskCard({ task, onToggleComplete, onEdit, onDelete }: TaskCardProps) {
             )}
             
             {/* Due Date */}
-            {task.due_date && (
+            {dueDate && (
               <div className={`flex items-center gap-1 text-caption ${
                 overdue && !task.completed
                   ? 'text-red-600 dark:text-red-400 font-semibold'
@@ -449,7 +491,7 @@ function TaskCard({ task, onToggleComplete, onEdit, onDelete }: TaskCardProps) {
                   <Clock className="w-3 h-3" />
                 )}
                 <span>
-                  {new Date(task.due_date).toLocaleDateString('en-US', {
+                  {dueDate.toLocaleDateString('en-US', {
                     month: 'short',
                     day: 'numeric',
                     year: 'numeric'
