@@ -37,17 +37,6 @@ export function MarkdownEditor() {
     }
   }, [selectedNote])
   
-  // Auto-save with debounce
-  useEffect(() => {
-    if (!selectedNote || !userId) return
-    
-    const timer = setTimeout(() => {
-      void saveNote()
-    }, 1000)
-    
-    return () => clearTimeout(timer)
-  }, [content, title, selectedNote, userId, saveNote])
-  
   const saveNote = useCallback(async () => {
     if (!selectedNote || !userId) return
 
@@ -92,6 +81,17 @@ export function MarkdownEditor() {
       setSaving(false)
     }
   }, [selectedNote, userId, content, title, setSelectedNote])
+
+  // Auto-save with debounce
+  useEffect(() => {
+    if (!selectedNote || !userId) return
+
+    const timer = setTimeout(() => {
+      void saveNote()
+    }, 1000)
+
+    return () => clearTimeout(timer)
+  }, [content, title, selectedNote, userId, saveNote])
   
   if (!selectedNote) {
     return (
