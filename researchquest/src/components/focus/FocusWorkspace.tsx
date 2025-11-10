@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Clock, Play, Pause, RotateCcw, Target, BookOpen, FileText, CheckSquare, Sparkles } from 'lucide-react'
-import { useNotes } from '../../hooks/useNotes'
-import { usePapers } from '../../hooks/usePapers'
 import { useTasks } from '../../hooks/useTasks'
 import { useAppStore } from '../../store/appStore'
 import type { Note, Paper } from '../../types/database'
 import type { Task } from '../../hooks/useTasks'
+import { useWorkspaceData } from '../../context/WorkspaceDataContext'
 
 interface FocusWorkspaceProps {
   userId: string | undefined
@@ -49,8 +48,7 @@ function extractTaskPreview(task: Task) {
 }
 
 export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
-  const { notes, loading: notesLoading } = useNotes(userId)
-  const { papers, loading: papersLoading } = usePapers(userId)
+  const { notes, notesLoading, papers, papersLoading } = useWorkspaceData()
   const { tasks, loading: tasksLoading } = useTasks(userId)
 
   const setCurrentView = useAppStore((state) => state.setCurrentView)

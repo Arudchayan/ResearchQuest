@@ -3,15 +3,13 @@ import { useAppStore } from '../../store/appStore'
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
-import { useNotes } from '../../hooks/useNotes'
-import { usePapers } from '../../hooks/usePapers'
-import { useIdeas } from '../../hooks/useIdeas'
 import { NoteList } from '../entities/NoteList'
 import { PaperList } from '../entities/PaperList'
 import { IdeaList } from '../entities/IdeaList'
 import type { ReadingStatus, IdeaStage } from '../../types/database'
 import { useGamificationStore } from '../../store/gamificationStore'
 import { formatTimeUntil } from '../../utils/time'
+import { useWorkspaceData } from '../../context/WorkspaceDataContext'
 
 const TABS = [
   { id: 'notes' as const, label: 'Notes', icon: FileText },
@@ -79,9 +77,22 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   }
   
   // Get hooks
-  const { notes, loading: notesLoading, createNote, updateNote, deleteNote } = useNotes(userId)
-  const { papers, loading: papersLoading, updatePaper, deletePaper } = usePapers(userId)
-  const { ideas, loading: ideasLoading, createIdea, updateIdea, deleteIdea } = useIdeas(userId)
+  const {
+    notes,
+    notesLoading,
+    createNote,
+    updateNote,
+    deleteNote,
+    papers,
+    papersLoading,
+    updatePaper,
+    deletePaper,
+    ideas,
+    ideasLoading,
+    createIdea,
+    updateIdea,
+    deleteIdea,
+  } = useWorkspaceData()
   // Determine current loading state
   const loading = useMemo(() => {
     if (currentView === 'notes') return notesLoading
@@ -465,6 +476,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
               const isActive = currentView === tab.id
               let badgeText: string | null = null
               let badgeStyle = ''
+              const badgeAlignment = isActive ? 'ml-2' : 'ml-auto'
 
               if (tab.id === 'tasks' && nextDeadlineBadge) {
                 badgeText = nextDeadlineBadge
@@ -478,22 +490,34 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
                 <button
                   key={tab.id}
                   onClick={() => handleTabClick(tab.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-md transition-all duration-200 relative ${
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-md transition-all duration-200 relative focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 ${
                     isActive
-                      ? 'bg-bg-elevated text-text-primary'
+                      ? 'bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-100 font-semibold shadow-sm'
                       : 'text-text-secondary hover:bg-bg-elevated hover:text-text-primary'
                   }`}
+                  aria-current={isActive ? 'page' : undefined}
                 >
                   <div
-                    className={`absolute left-0 top-0 bottom-0 w-1 bg-primary-500 rounded-r-full transition-opacity duration-200 ${
-                      isActive ? 'opacity-100' : 'opacity-0'
+                    className={`absolute left-2 top-1 bottom-1 w-1.5 bg-primary-500 rounded-full transition-all duration-200 ${
+                      isActive ? 'opacity-100 scale-y-100' : 'opacity-0 scale-y-0'
                     }`}
+                    aria-hidden="true"
                   />
-                  <Icon className="w-5 h-5" />
-                  <span className="font-medium">{tab.label}</span>
+                  <Icon
+                    className={`w-5 h-5 ${
+                      isActive ? 'text-primary-600 dark:text-primary-200' : 'text-text-secondary'
+                    }`}
+                    aria-hidden="true"
+                  />
+                  <span className={`text-small ${isActive ? 'font-semibold' : 'font-medium'}`}>{tab.label}</span>
+                  {isActive && (
+                    <span className="ml-auto text-caption font-semibold text-primary-500 dark:text-primary-200" aria-hidden="true">
+                      Active
+                    </span>
+                  )}
                   {badgeText && (
                     <span
-                      className={`ml-auto text-caption px-2 py-0.5 rounded-full font-semibold ${badgeStyle}`}
+                      className={`${badgeAlignment} text-caption px-2 py-0.5 rounded-full font-semibold ${badgeStyle}`}
                     >
                       {badgeText}
                     </span>

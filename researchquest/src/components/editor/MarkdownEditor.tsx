@@ -9,22 +9,15 @@ import rehypeSanitize from 'rehype-sanitize'
 import rehypeHighlight from 'rehype-highlight'
 import { Bold, Italic, Code, List, Link2, Save } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
-import { supabase } from '../../lib/supabase'
-import { awardXP, XP_REWARDS } from '../../utils/gamification'
 import { TopicSelector } from '../topics/TopicSelector'
+import { useWorkspaceData } from '../../context/WorkspaceDataContext'
 
 export function MarkdownEditor() {
   const { selectedNote, setSelectedNote, effectiveTheme } = useAppStore()
+  const { updateNote } = useWorkspaceData()
   const [content, setContent] = useState('')
   const [title, setTitle] = useState('')
   const [saving, setSaving] = useState(false)
-  const [userId, setUserId] = useState<string | null>(null)
-  
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setUserId(user?.id || null)
-    })
-  }, [])
   
   // Load selected note
   useEffect(() => {
@@ -38,60 +31,50 @@ export function MarkdownEditor() {
   }, [selectedNote])
   
   const saveNote = useCallback(async () => {
-    if (!selectedNote || !userId) return
+    if (!selectedNote) return
 
     setSaving(true)
 
     try {
-      // Extract tags from content (words starting with #)
       const tagMatches = content.match(/#(\w+)/g)
       const tags = tagMatches ? [...new Set(tagMatches.map(tag => tag.slice(1)))] : []
 
       const trimmedTitle = title.trim()
       const persistedTitle = trimmedTitle.length > 0 ? trimmedTitle : null
 
-      const updatedData = {
+      const updates = {
         title: persistedTitle,
         markdown_body: content,
         tags,
       }
 
-      const { data, error } = await supabase
-        .from('notes')
-        .update(updatedData)
-        .eq('id', selectedNote.id)
-        .select()
-        .single()
+      const success = await updateNote(selectedNote.id, updates)
 
-      if (!error && data) {
-        const persisted = data as typeof selectedNote
-        // Optimistically update the selected note in store with server values
+      if (success) {
         setSelectedNote({
           ...selectedNote,
-          ...persisted,
-          title: persisted.title,
+          ...updates,
+          title: persistedTitle,
+          updated_at: new Date().toISOString(),
         })
-
-        // Award XP for updating (don't await to avoid blocking)
-        awardXP(userId, XP_REWARDS.UPDATE_NOTE, 'update_note').catch(console.error)
       }
     } catch (err) {
       console.error('Error saving note:', err)
     } finally {
       setSaving(false)
     }
-  }, [selectedNote, userId, content, title, setSelectedNote])
+  }, [selectedNote, content, title, updateNote, setSelectedNote])
 
   // Auto-save with debounce
   useEffect(() => {
-    if (!selectedNote || !userId) return
+    if (!selectedNote) return
 
     const timer = setTimeout(() => {
       void saveNote()
     }, 1000)
 
     return () => clearTimeout(timer)
-  }, [content, title, selectedNote, userId, saveNote])
+  }, [content, title, selectedNote, saveNote])
   
   if (!selectedNote) {
     return (

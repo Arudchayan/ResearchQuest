@@ -3,82 +3,57 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import '../mocks/supabase'
 import { mockSupabaseClient, mockPaper, mockIdea, mockNote } from '../mocks/supabase'
+import { LeftSidebar } from '../../components/layout/LeftSidebar'
+import { useAppStore } from '../../store/appStore'
+import { WorkspaceDataProvider, type WorkspaceDataContextValue } from '../../context/WorkspaceDataContext'
 
-// Mock the hooks
-vi.mock('../../hooks/useNotes', () => ({
-  useNotes: vi.fn(() => ({
-    notes: [mockNote],
-    loading: false,
-    createNote: vi.fn().mockResolvedValue(mockNote),
-    updateNote: vi.fn(),
-    deleteNote: vi.fn(),
-  })),
-}))
-
-vi.mock('../../hooks/usePapers', () => ({
-  usePapers: vi.fn(() => ({
-    papers: [mockPaper],
-    loading: false,
-    createPaper: vi.fn().mockResolvedValue(mockPaper),
-    updatePaper: vi.fn(),
-    deletePaper: vi.fn(),
-    searchPaperByDOI: vi.fn(),
-    searchPapersByQuery: vi.fn(),
-  })),
-}))
-
-vi.mock('../../hooks/useIdeas', () => ({
-  useIdeas: vi.fn(() => ({
-    ideas: [mockIdea],
-    loading: false,
-    createIdea: vi.fn().mockResolvedValue(mockIdea),
-    updateIdea: vi.fn(),
-    deleteIdea: vi.fn(),
-  })),
-}))
-
-const { LeftSidebar } = await import('../../components/layout/LeftSidebar')
-const { useAppStore } = await import('../../store/appStore')
-const { useNotes } = await import('../../hooks/useNotes')
-const { usePapers } = await import('../../hooks/usePapers')
-const { useIdeas } = await import('../../hooks/useIdeas')
-
-const buildNotesMock = () => ({
+const buildWorkspaceValue = (): WorkspaceDataContextValue => ({
   notes: [mockNote],
-  loading: false,
+  notesLoading: false,
   createNote: vi.fn().mockResolvedValue(mockNote),
-  updateNote: vi.fn(),
-  deleteNote: vi.fn(),
-})
-
-const buildPapersMock = () => ({
+  updateNote: vi.fn().mockResolvedValue(true),
+  deleteNote: vi.fn().mockResolvedValue(true),
+  refreshNotes: vi.fn(),
   papers: [mockPaper],
-  loading: false,
+  papersLoading: false,
   createPaper: vi.fn().mockResolvedValue(mockPaper),
-  updatePaper: vi.fn(),
-  deletePaper: vi.fn(),
+  updatePaper: vi.fn().mockResolvedValue(true),
+  deletePaper: vi.fn().mockResolvedValue(true),
+  refreshPapers: vi.fn(),
   searchPaperByDOI: vi.fn(),
-  searchPapersByQuery: vi.fn(),
-})
-
-const buildIdeasMock = () => ({
+  searchPapersByQuery: vi.fn().mockResolvedValue([]),
   ideas: [mockIdea],
-  loading: false,
+  ideasLoading: false,
   createIdea: vi.fn().mockResolvedValue(mockIdea),
-  updateIdea: vi.fn(),
-  deleteIdea: vi.fn(),
+  updateIdea: vi.fn().mockResolvedValue(true),
+  deleteIdea: vi.fn().mockResolvedValue(true),
+  refreshIdeas: vi.fn(),
 })
 
 describe('LeftSidebar Component', () => {
+  let workspaceValue: WorkspaceDataContextValue
+
+  const renderSidebar = () =>
+    render(
+      <WorkspaceDataProvider value={workspaceValue}>
+        <LeftSidebar />
+      </WorkspaceDataProvider>
+    )
+
+  const rerenderSidebar = (rerenderFn: (ui: JSX.Element) => void) =>
+    rerenderFn(
+      <WorkspaceDataProvider value={workspaceValue}>
+        <LeftSidebar />
+      </WorkspaceDataProvider>
+    )
+
   beforeEach(() => {
     vi.clearAllMocks()
     mockSupabaseClient.auth.getUser.mockResolvedValue({
       data: { user: { id: 'test-user-id' } },
       error: null,
     })
-    vi.mocked(useNotes).mockReturnValue(buildNotesMock() as any)
-    vi.mocked(usePapers).mockReturnValue(buildPapersMock() as any)
-    vi.mocked(useIdeas).mockReturnValue(buildIdeasMock() as any)
+    workspaceValue = buildWorkspaceValue()
     // Reset store state
     useAppStore.setState({
       currentView: 'notes',
@@ -90,7 +65,7 @@ describe('LeftSidebar Component', () => {
 
   describe('Navigation Tabs', () => {
     it('should render all navigation tabs', () => {
-      render(<LeftSidebar />)
+      renderSidebar()
 
       expect(screen.getByRole('button', { name: /^Notes$/i })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: /^Papers$/i })).toBeInTheDocument()
@@ -101,14 +76,14 @@ describe('LeftSidebar Component', () => {
 
     it('should highlight active tab', () => {
       useAppStore.setState({ currentView: 'papers' })
-      render(<LeftSidebar />)
+      renderSidebar()
 
       const papersTab = screen.getByRole('button', { name: /^Papers$/i })
       expect(papersTab).toHaveClass('bg-bg-elevated')
     })
 
     it('should switch views when clicking tabs', async () => {
-      render(<LeftSidebar />)
+      renderSidebar()
 
       const papersTab = screen.getByRole('button', { name: /^Papers$/i })
       await userEvent.click(papersTab)
@@ -120,7 +95,7 @@ describe('LeftSidebar Component', () => {
 
     it('should update URL when switching tabs', async () => {
       const pushStateSpy = vi.spyOn(window.history, 'pushState')
-      render(<LeftSidebar />)
+      renderSidebar()
 
       const papersTab = screen.getByRole('button', { name: /^Papers$/i })
       await userEvent.click(papersTab)
@@ -134,7 +109,7 @@ describe('LeftSidebar Component', () => {
         selectedPaper: mockPaper 
       })
       
-      render(<LeftSidebar />)
+      renderSidebar()
 
       const notesTab = screen.getByRole('button', { name: /^Notes$/i })
       await userEvent.click(notesTab)
@@ -147,14 +122,14 @@ describe('LeftSidebar Component', () => {
 
   describe('Search Functionality', () => {
     it('should render search input', () => {
-      render(<LeftSidebar />)
+      renderSidebar()
 
       const searchInput = screen.getByPlaceholderText(/search notes/i)
       expect(searchInput).toBeInTheDocument()
     })
 
     it('should update search query on input', async () => {
-      render(<LeftSidebar />)
+      renderSidebar()
 
       const searchInput = screen.getByPlaceholderText(/search notes/i)
       await userEvent.type(searchInput, 'test query')
@@ -163,7 +138,7 @@ describe('LeftSidebar Component', () => {
     })
 
     it('should update placeholder based on current view', async () => {
-      render(<LeftSidebar />)
+      renderSidebar()
 
       // Switch to papers
       const papersTab = screen.getByRole('button', { name: /^Papers$/i })
@@ -179,42 +154,40 @@ describe('LeftSidebar Component', () => {
   describe('Add Button', () => {
     it('should show add button for notes, papers, and ideas', () => {
       useAppStore.setState({ currentView: 'notes' })
-      const { rerender } = render(<LeftSidebar />)
+      const { rerender } = renderSidebar()
 
       expect(screen.getByRole('button', { name: /new note/i })).toBeInTheDocument()
 
       useAppStore.setState({ currentView: 'papers' })
-      rerender(<LeftSidebar />)
+      rerenderSidebar(rerender)
       expect(screen.getByRole('button', { name: /new paper/i })).toBeInTheDocument()
 
       useAppStore.setState({ currentView: 'ideas' })
-      rerender(<LeftSidebar />)
+      rerenderSidebar(rerender)
       expect(screen.getByRole('button', { name: /new idea/i })).toBeInTheDocument()
     })
 
     it('should hide add button for tasks and focus', () => {
       useAppStore.setState({ currentView: 'tasks' })
-      const { rerender } = render(<LeftSidebar />)
+      const { rerender } = renderSidebar()
 
       expect(screen.queryByRole('button', { name: /new/i })).not.toBeInTheDocument()
 
       useAppStore.setState({ currentView: 'focus' })
-      rerender(<LeftSidebar />)
+      rerenderSidebar(rerender)
       expect(screen.queryByRole('button', { name: /new/i })).not.toBeInTheDocument()
     })
 
     it('should create new note when clicked in notes view', async () => {
       const createNoteMock = vi.fn().mockResolvedValue(mockNote)
-      vi.mocked(useNotes).mockReturnValue({
+      workspaceValue = {
+        ...workspaceValue,
         notes: [],
-        loading: false,
         createNote: createNoteMock,
-        updateNote: vi.fn(),
-        deleteNote: vi.fn(),
-      } as any)
+      }
 
       useAppStore.setState({ currentView: 'notes' })
-      render(<LeftSidebar />)
+      renderSidebar()
 
       const addButton = screen.getByRole('button', { name: /new note/i })
       await userEvent.click(addButton)
@@ -230,7 +203,7 @@ describe('LeftSidebar Component', () => {
         selectedPaper: mockPaper 
       })
       
-      render(<LeftSidebar />)
+      renderSidebar()
 
       const addButton = screen.getByRole('button', { name: /new paper/i })
       await userEvent.click(addButton)
@@ -242,21 +215,21 @@ describe('LeftSidebar Component', () => {
   describe('Entity Lists', () => {
     it('should display papers in papers view', () => {
       useAppStore.setState({ currentView: 'papers' })
-      render(<LeftSidebar />)
+      renderSidebar()
 
       expect(screen.getByText(mockPaper.title)).toBeInTheDocument()
     })
 
     it('should display ideas in ideas view', () => {
       useAppStore.setState({ currentView: 'ideas' })
-      render(<LeftSidebar />)
+      renderSidebar()
 
       expect(screen.getByText(mockIdea.title)).toBeInTheDocument()
     })
 
     it('should display notes in notes view', async () => {
       useAppStore.setState({ currentView: 'notes' })
-      render(<LeftSidebar />)
+      renderSidebar()
 
       const note = await screen.findByText(mockNote.title)
       expect(note).toBeInTheDocument()
@@ -264,25 +237,21 @@ describe('LeftSidebar Component', () => {
 
     it('should display focus helpers in focus view', () => {
       useAppStore.setState({ currentView: 'focus' })
-      render(<LeftSidebar />)
+      renderSidebar()
 
       expect(screen.getByText(/set a target in the main panel/i)).toBeInTheDocument()
       expect(screen.getByText(/upcoming focus candidates/i)).toBeInTheDocument()
     })
 
     it('should show loading state while fetching', async () => {
-      vi.mocked(usePapers).mockReturnValue({
+      workspaceValue = {
+        ...workspaceValue,
         papers: [],
-        loading: true,
-        createPaper: vi.fn(),
-        updatePaper: vi.fn(),
-        deletePaper: vi.fn(),
-        searchPaperByDOI: vi.fn(),
-        searchPapersByQuery: vi.fn(),
-      })
+        papersLoading: true,
+      }
 
       useAppStore.setState({ currentView: 'papers' })
-      render(<LeftSidebar />)
+      renderSidebar()
 
       // Should show loading skeleton
       expect(screen.queryByText(mockPaper.title)).not.toBeInTheDocument()
@@ -303,7 +272,7 @@ describe('LeftSidebar Component', () => {
         },
       })
 
-      render(<LeftSidebar />)
+      renderSidebar()
 
       await waitFor(() => {
         expect(screen.getByText(/Focus Studio/i)).toBeInTheDocument()
@@ -318,14 +287,14 @@ describe('LeftSidebar Component', () => {
 
   describe('Accessibility', () => {
     it('should have proper ARIA labels for navigation', () => {
-      render(<LeftSidebar />)
+      renderSidebar()
 
       const nav = screen.getByRole('navigation', { hidden: true })
       expect(nav).toBeInTheDocument()
     })
 
     it('should support keyboard navigation', async () => {
-      render(<LeftSidebar />)
+      renderSidebar()
 
       const papersTabButton = screen.getByRole('button', { name: /^Papers$/i })
       papersTabButton.focus()
@@ -345,18 +314,13 @@ describe('LeftSidebar Component', () => {
       const paper1 = { ...mockPaper, id: '1', title: 'Quantum Computing' }
       const paper2 = { ...mockPaper, id: '2', title: 'Machine Learning' }
 
-      vi.mocked(usePapers).mockReturnValue({
+      workspaceValue = {
+        ...workspaceValue,
         papers: [paper1, paper2],
-        loading: false,
-        createPaper: vi.fn(),
-        updatePaper: vi.fn(),
-        deletePaper: vi.fn(),
-        searchPaperByDOI: vi.fn(),
-        searchPapersByQuery: vi.fn(),
-      } as any)
+      }
 
       useAppStore.setState({ currentView: 'papers' })
-      render(<LeftSidebar />)
+      renderSidebar()
 
       const searchInput = screen.getByPlaceholderText(/search papers/i)
       await userEvent.type(searchInput, 'Quantum')

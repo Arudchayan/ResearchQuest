@@ -1,6 +1,9 @@
-import { Sun, Moon, Flame, User, Sparkles, Snowflake, Coffee } from 'lucide-react'
+import { useState } from 'react'
+import { Sun, Moon, Flame, User, Sparkles, Snowflake, Coffee, LogOut } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { useGamificationStore } from '../../store/gamificationStore'
+import { supabase } from '../../lib/supabase'
+import { toast } from 'sonner'
 
 export function TopNav() {
   const { theme, setTheme, user, effectiveTheme } = useAppStore()
@@ -8,7 +11,8 @@ export function TopNav() {
   const boostCountdown = useGamificationStore((state) => state.boostCountdown)
   const streakFreezeTokens = useGamificationStore((state) => state.streakFreezeTokens)
   const restDays = useGamificationStore((state) => state.restDays)
-  
+  const [signingOut, setSigningOut] = useState(false)
+
   const toggleTheme = () => {
     const newTheme = effectiveTheme === 'light' ? 'dark' : 'light'
     document.body.classList.add('theme-transitioning')
@@ -17,11 +21,27 @@ export function TopNav() {
       document.body.classList.remove('theme-transitioning')
     }, 300)
   }
-  
+
+  const handleSignOut = async () => {
+    if (signingOut) return
+
+    setSigningOut(true)
+    try {
+      const { error } = await supabase.auth.signOut()
+      if (error) throw error
+      toast.success('Signed out')
+    } catch (error: any) {
+      console.error('Failed to sign out', error)
+      toast.error(error?.message ?? 'Could not sign out. Please try again.')
+    } finally {
+      setSigningOut(false)
+    }
+  }
+
   const xpProgress = user ? (user.total_xp % 500) / 500 * 100 : 0
   const currentLevel = user?.current_level || 1
   const xpInLevel = user ? user.total_xp % 500 : 0
-  
+
   return (
     <nav className="fixed top-0 left-0 right-0 h-16 bg-bg-surface/80 backdrop-blur-lg border-b border-border-subtle shadow-sm z-50 px-0">
       <div className="h-full w-full flex items-center justify-between pr-4 sm:pr-6">
@@ -87,13 +107,23 @@ export function TopNav() {
               <Sun className="w-5 h-5 text-text-secondary" />
             )}
           </button>
-          
+
           {/* User Avatar */}
           <button
             className="w-8 h-8 rounded-full bg-primary-500 flex items-center justify-center text-white hover:bg-primary-600 transition-colors"
             aria-label="User profile"
           >
             <User className="w-5 h-5" />
+          </button>
+
+          <button
+            onClick={handleSignOut}
+            disabled={signingOut}
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-md border border-border-subtle text-small font-medium text-text-secondary hover:bg-bg-elevated hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 disabled:opacity-60"
+            aria-label="Sign out"
+          >
+            <LogOut className="w-4 h-4" aria-hidden="true" />
+            <span>{signingOut ? 'Signing out…' : 'Sign out'}</span>
           </button>
         </div>
       </div>

@@ -462,8 +462,7 @@ export function useTopics(userId: string | undefined) {
 
       const table = ENTITY_TABLE[entityType]
       const column = ENTITY_COLUMN[entityType]
-      const payload = {
-        user_id: userId,
+      const payload: Record<string, string> = {
         topic_id: topicId,
         [column]: entityId,
       }
