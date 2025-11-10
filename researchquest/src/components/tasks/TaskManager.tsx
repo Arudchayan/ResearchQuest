@@ -77,6 +77,9 @@ export function TaskManager() {
       task.title,
       task.description ?? '',
       task.category ?? '',
+      task.priority,
+      task.completed ? 'completed done' : 'pending active',
+      task.due_date ?? '',
     ]
       .join(' ')
       .toLowerCase()

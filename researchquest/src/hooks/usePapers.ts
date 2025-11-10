@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { awardXP, XP_REWARDS } from '../utils/gamification'
 import { toast } from 'sonner'
 import type { Paper, CrossrefPaper } from '../types/database'
+import { useAppStore } from '../store/appStore'
 
 export interface PaperSearchOptions {
   rows?: number
@@ -80,6 +81,15 @@ export function usePapers(userId: string | undefined) {
   const [papers, setPapers] = useState<Paper[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const setSelectedPaper = useAppStore((state) => state.setSelectedPaper)
+
+  const syncSelectedPaper = useCallback((updated: Paper | null) => {
+    if (!updated) return
+    const current = useAppStore.getState().selectedPaper
+    if (current?.id === updated.id) {
+      setSelectedPaper(updated)
+    }
+  }, [setSelectedPaper])
 
   const fetchPapers = useCallback(async () => {
     if (!userId) return
@@ -94,10 +104,18 @@ export function usePapers(userId: string | undefined) {
     if (fetchError) {
       setError(fetchError.message)
     } else {
-      setPapers(sortByUpdatedAt(data || []))
+      const sorted = sortByUpdatedAt(data || [])
+      setPapers(sorted)
+      const selected = useAppStore.getState().selectedPaper
+      if (selected) {
+        const fresh = sorted.find((paper) => paper.id === selected.id)
+        if (fresh) {
+          setSelectedPaper(fresh)
+        }
+      }
     }
     setLoading(false)
-  }, [userId])
+  }, [setSelectedPaper, userId])
 
   useEffect(() => {
     if (!userId) {
@@ -118,14 +136,21 @@ export function usePapers(userId: string | undefined) {
           // Optimistic UI update based on event type
           if (payload.eventType === 'INSERT') {
             setPapers(prev => sortByUpdatedAt([payload.new as Paper, ...prev]))
+            syncSelectedPaper(payload.new as Paper)
           } else if (payload.eventType === 'UPDATE') {
             setPapers(prev => {
               const updatedPaper = payload.new as Paper
               const remaining = prev.filter(paper => paper.id !== updatedPaper.id)
-              return sortByUpdatedAt([updatedPaper, ...remaining])
+              const merged = sortByUpdatedAt([updatedPaper, ...remaining])
+              return merged
             })
+            syncSelectedPaper(payload.new as Paper)
           } else if (payload.eventType === 'DELETE') {
             setPapers(prev => prev.filter(paper => paper.id !== payload.old.id))
+            const current = useAppStore.getState().selectedPaper
+            if (current?.id === payload.old.id) {
+              setSelectedPaper(null)
+            }
           }
         }
       )
@@ -136,7 +161,7 @@ export function usePapers(userId: string | undefined) {
     return () => {
       subscription.unsubscribe()
     }
-  }, [userId, fetchPapers])
+  }, [fetchPapers, setSelectedPaper, syncSelectedPaper, userId])
 
   async function searchPaperByDOI(doi: string): Promise<CrossrefPaper | null> {
     if (!doi.trim()) {
@@ -304,24 +329,57 @@ export function usePapers(userId: string | undefined) {
 
   async function updatePaper(paperId: string, updates: Partial<Paper>): Promise<boolean> {
     // Optimistic update
+    let optimisticSnapshot: Paper | null = null
     setPapers(prev => {
-      const updatedPapers = prev.map(paper =>
-        paper.id === paperId ? { ...paper, ...updates, updated_at: new Date().toISOString() } : paper
-      )
+      const updatedPapers = prev.map(paper => {
+        if (paper.id === paperId) {
+          optimisticSnapshot = paper
+          const optimistic: Paper = {
+            ...paper,
+            ...updates,
+            updated_at: new Date().toISOString(),
+          }
+          syncSelectedPaper(optimistic)
+          return optimistic
+        }
+        return paper
+      })
       return sortByUpdatedAt(updatedPapers)
     })
 
-    const { error: updateError } = await supabase
+    const { data, error: updateError } = await supabase
       .from('papers')
       .update(updates)
       .eq('id', paperId)
+      .select()
+      .single()
 
     if (updateError) {
       setError(updateError.message)
       toast.error('Failed to update paper')
       // Revert on error
-      fetchPapers()
+      if (optimisticSnapshot) {
+        setPapers(prev => {
+          const reverted = prev.map(paper =>
+            paper.id === paperId ? optimisticSnapshot as Paper : paper
+          )
+          return sortByUpdatedAt(reverted)
+        })
+        syncSelectedPaper(optimisticSnapshot)
+      } else {
+        void fetchPapers()
+      }
       return false
+    }
+
+    if (data) {
+      setPapers(prev => {
+        const updated = prev.map(paper =>
+          paper.id === data.id ? data : paper
+        )
+        return sortByUpdatedAt(updated)
+      })
+      syncSelectedPaper(data as Paper)
     }
 
     if (updates.status) {
@@ -340,6 +398,10 @@ export function usePapers(userId: string | undefined) {
     // Optimistic delete
     const deletedPaper = papers.find(p => p.id === paperId)
     setPapers(prev => prev.filter(paper => paper.id !== paperId))
+    const current = useAppStore.getState().selectedPaper
+    if (current?.id === paperId) {
+      setSelectedPaper(null)
+    }
 
     const { error: deleteError } = await supabase
       .from('papers')
@@ -352,6 +414,7 @@ export function usePapers(userId: string | undefined) {
       // Revert on error
       if (deletedPaper) {
         setPapers(prev => sortByUpdatedAt([...prev, deletedPaper]))
+        syncSelectedPaper(deletedPaper)
       }
       return false
     }

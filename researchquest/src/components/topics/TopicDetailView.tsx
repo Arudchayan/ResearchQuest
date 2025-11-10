@@ -55,7 +55,6 @@ export function TopicDetailView({ topic, onUpdate, onDelete }: TopicDetailViewPr
         .from(table)
         .select(column)
         .eq('topic_id', topic.id)
-        .eq('user_id', userId)
 
       if (error) {
         console.error(`Failed to load ${table}:`, error)

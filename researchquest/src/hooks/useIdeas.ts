@@ -3,11 +3,21 @@ import { supabase } from '../lib/supabase'
 import { awardXP, XP_REWARDS } from '../utils/gamification'
 import { toast } from 'sonner'
 import type { Idea, IdeaStage } from '../types/database'
+import { useAppStore } from '../store/appStore'
 
 export function useIdeas(userId: string | undefined) {
   const [ideas, setIdeas] = useState<Idea[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const setSelectedIdea = useAppStore((state) => state.setSelectedIdea)
+
+  const syncSelectedIdea = useCallback((updated: Idea | null) => {
+    if (!updated) return
+    const current = useAppStore.getState().selectedIdea
+    if (current?.id === updated.id) {
+      setSelectedIdea(updated)
+    }
+  }, [setSelectedIdea])
 
   const fetchIdeas = useCallback(async () => {
     if (!userId) return
@@ -22,10 +32,18 @@ export function useIdeas(userId: string | undefined) {
     if (fetchError) {
       setError(fetchError.message)
     } else {
-      setIdeas(data || [])
+      const rows = data || []
+      setIdeas(rows)
+      const selected = useAppStore.getState().selectedIdea
+      if (selected) {
+        const fresh = rows.find((idea) => idea.id === selected.id)
+        if (fresh) {
+          setSelectedIdea(fresh)
+        }
+      }
     }
     setLoading(false)
-  }, [userId])
+  }, [setSelectedIdea, userId])
 
   useEffect(() => {
     if (!userId) {
@@ -52,14 +70,21 @@ export function useIdeas(userId: string | undefined) {
                 console.log('Idea already exists (from optimistic update), skipping realtime insert')
                 return prev
               }
-              return [payload.new as Idea, ...prev]
+              const next = [payload.new as Idea, ...prev]
+              syncSelectedIdea(payload.new as Idea)
+              return next
             })
           } else if (payload.eventType === 'UPDATE') {
-            setIdeas(prev => prev.map(idea => 
+            setIdeas(prev => prev.map(idea =>
               idea.id === payload.new.id ? payload.new as Idea : idea
             ))
+            syncSelectedIdea(payload.new as Idea)
           } else if (payload.eventType === 'DELETE') {
             setIdeas(prev => prev.filter(idea => idea.id !== payload.old.id))
+            const current = useAppStore.getState().selectedIdea
+            if (current?.id === payload.old.id) {
+              setSelectedIdea(null)
+            }
           }
         }
       )
@@ -70,7 +95,7 @@ export function useIdeas(userId: string | undefined) {
     return () => {
       subscription.unsubscribe()
     }
-  }, [userId, fetchIdeas])
+  }, [fetchIdeas, setSelectedIdea, syncSelectedIdea, userId])
 
   async function createIdea(ideaData: Partial<Idea>): Promise<Idea | null> {
     if (!userId) {
@@ -137,25 +162,52 @@ export function useIdeas(userId: string | undefined) {
 
   async function updateIdea(ideaId: string, updates: Partial<Idea>, oldStage?: IdeaStage): Promise<boolean> {
     // Optimistic update
-    setIdeas(prev => prev.map(idea => 
-      idea.id === ideaId ? { ...idea, ...updates, updated_at: new Date().toISOString() } : idea
-    ))
+    let optimisticSnapshot: Idea | null = null
+    setIdeas(prev => prev.map(idea => {
+      if (idea.id === ideaId) {
+        optimisticSnapshot = idea
+        const optimistic: Idea = {
+          ...idea,
+          ...updates,
+          updated_at: new Date().toISOString(),
+        }
+        syncSelectedIdea(optimistic)
+        return optimistic
+      }
+      return idea
+    }))
 
-    const { error: updateError } = await supabase
+    const { data, error: updateError } = await supabase
       .from('ideas')
       .update(updates)
       .eq('id', ideaId)
+      .select()
+      .single()
 
     if (updateError) {
       console.error('Failed to update idea:', updateError)
       console.error('Error details:', JSON.stringify(updateError, null, 2))
-      
+
       const errorMessage = updateError.message || updateError.details || updateError.hint || 'Unknown error occurred'
       setError(`Failed to update idea: ${errorMessage}`)
       toast.error(`Failed to update idea: ${errorMessage}`)
       // Revert on error
-      fetchIdeas()
+      if (optimisticSnapshot) {
+        setIdeas(prev => prev.map(idea =>
+          idea.id === ideaId ? optimisticSnapshot as Idea : idea
+        ))
+        syncSelectedIdea(optimisticSnapshot)
+      } else {
+        void fetchIdeas()
+      }
       return false
+    }
+
+    if (data) {
+      setIdeas(prev => prev.map(idea =>
+        idea.id === data.id ? data : idea
+      ))
+      syncSelectedIdea(data as Idea)
     }
 
     if (updates.stage) {
@@ -180,6 +232,10 @@ export function useIdeas(userId: string | undefined) {
     // Optimistic delete
     const deletedIdea = ideas.find(i => i.id === ideaId)
     setIdeas(prev => prev.filter(idea => idea.id !== ideaId))
+    const current = useAppStore.getState().selectedIdea
+    if (current?.id === ideaId) {
+      setSelectedIdea(null)
+    }
 
     const { error: deleteError } = await supabase
       .from('ideas')
@@ -189,13 +245,14 @@ export function useIdeas(userId: string | undefined) {
     if (deleteError) {
       console.error('Failed to delete idea:', deleteError)
       console.error('Error details:', JSON.stringify(deleteError, null, 2))
-      
+
       const errorMessage = deleteError.message || deleteError.details || deleteError.hint || 'Unknown error occurred'
       setError(`Failed to delete idea: ${errorMessage}`)
       toast.error(`Failed to delete idea: ${errorMessage}`)
       // Revert on error
       if (deletedIdea) {
         setIdeas(prev => [...prev, deletedIdea])
+        syncSelectedIdea(deletedIdea)
       }
       return false
     }
