@@ -367,6 +367,7 @@ function App() {
       } else if (!ideasLoading) {
         // Idea not found and data is loaded
         console.log('Idea not found:', itemId)
+        useAppStore.getState().setSelectedIdea(null)
         setItemNotFound(true)
       }
     }
@@ -450,7 +451,15 @@ function App() {
             )
           ) : currentView === 'ideas' ? (
             itemNotFound ? (
-              <ItemNotFound itemType="idea" />
+              <ItemNotFound
+                itemType="idea"
+                description="We couldn't find that idea. It may have been deleted or moved to another account."
+                onReturn={() => {
+                  setItemNotFound(false)
+                  setSelectedIdea(null)
+                  window.history.replaceState(null, '', '/ideas')
+                }}
+              />
             ) : selectedIdea ? (
               <IdeaDetailView
                 idea={selectedIdea}
