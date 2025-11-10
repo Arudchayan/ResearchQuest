@@ -3,6 +3,13 @@ export type IdeaStage = 'Seed' | 'Developing' | 'Supported' | 'Mature'
 export type EntityType = 'note' | 'idea' | 'paper' | 'topic'
 export type ThemePreference = 'light' | 'dark' | 'auto'
 
+export interface ActiveBoost {
+  type: string
+  label?: string
+  multiplier?: number
+  expires_at: string
+}
+
 export interface Topic {
   id: string
   user_id: string
@@ -104,6 +111,9 @@ export interface UserProfile {
   current_streak: number
   longest_streak: number
   last_activity_date?: string
+  streak_freeze_tokens: number
+  active_boost?: ActiveBoost | null
+  rest_days: number
   theme_preference: ThemePreference
   created_at: string
   updated_at: string
