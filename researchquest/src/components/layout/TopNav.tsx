@@ -1,10 +1,13 @@
-import { Sun, Moon, Flame, User } from 'lucide-react'
+import { Sun, Moon, Flame, User, Sparkles, Snowflake, Coffee } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
-import { supabase } from '../../lib/supabase'
-import { useEffect } from 'react'
+import { useGamificationStore } from '../../store/gamificationStore'
 
 export function TopNav() {
   const { theme, setTheme, user, effectiveTheme } = useAppStore()
+  const activeBoost = useGamificationStore((state) => state.activeBoost)
+  const boostCountdown = useGamificationStore((state) => state.boostCountdown)
+  const streakFreezeTokens = useGamificationStore((state) => state.streakFreezeTokens)
+  const restDays = useGamificationStore((state) => state.restDays)
   
   const toggleTheme = () => {
     const newTheme = effectiveTheme === 'light' ? 'dark' : 'light'
@@ -54,7 +57,24 @@ export function TopNav() {
               {user?.current_streak || 0} days
             </span>
           </div>
-          
+
+          {activeBoost && (
+            <span className="hidden md:inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-primary-100 text-primary-700 dark:bg-primary-900/40 dark:text-primary-200 text-caption font-semibold">
+              <Sparkles className="w-3 h-3" />
+              {activeBoost.label ?? 'Boost'}
+              {boostCountdown && <span>{boostCountdown}</span>}
+            </span>
+          )}
+
+          {(streakFreezeTokens > 0 || restDays > 0) && (
+            <span className="hidden md:inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-bg-elevated border border-border-subtle text-caption text-text-secondary">
+              <Snowflake className="w-3 h-3 text-primary-400" />
+              <span>{streakFreezeTokens} freeze</span>
+              <Coffee className="w-3 h-3 text-success" />
+              <span>{restDays} rest</span>
+            </span>
+          )}
+
           {/* Theme Toggle */}
           <button
             onClick={toggleTheme}
