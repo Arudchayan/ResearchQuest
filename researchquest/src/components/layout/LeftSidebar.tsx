@@ -6,10 +6,12 @@ import { supabase } from '../../lib/supabase'
 import { useNotes } from '../../hooks/useNotes'
 import { usePapers } from '../../hooks/usePapers'
 import { useIdeas } from '../../hooks/useIdeas'
+import { useTopics } from '../../hooks/useTopics'
 import { NoteList } from '../entities/NoteList'
 import { PaperList } from '../entities/PaperList'
 import { IdeaList } from '../entities/IdeaList'
 import type { ReadingStatus, IdeaStage } from '../../types/database'
+import { TopicList } from '../topics/TopicList'
 
 const TABS = [
   { id: 'notes' as const, label: 'Notes', icon: FileText },
@@ -24,7 +26,16 @@ interface LeftSidebarProps {
 }
 
 export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
-  const { currentView, setCurrentView, user, setUser: setUserProfile, setSelectedNote, setSelectedPaper, setSelectedIdea } = useAppStore()
+  const {
+    currentView,
+    setCurrentView,
+    user,
+    setUser: setUserProfile,
+    setSelectedNote,
+    setSelectedPaper,
+    setSelectedIdea,
+    setSelectedTopic,
+  } = useAppStore()
   const [searchQuery, setSearchQuery] = useState('')
   const [userId, setUserId] = useState<string | undefined>(undefined)
   const [todayXP, setTodayXP] = useState(0)
@@ -41,6 +52,8 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
       setSelectedIdea(null)
     } else if (tabId === 'notes') {
       setSelectedNote(null)
+    } else if (tabId === 'topics') {
+      setSelectedTopic(null)
     }
 
     const newUrl = tabId === 'notes' ? '/' : `/${tabId}`
@@ -52,14 +65,21 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   const { notes, loading: notesLoading, createNote, updateNote, deleteNote } = useNotes(userId)
   const { papers, loading: papersLoading, searchPaperByDOI, searchPapersByQuery, createPaper, updatePaper, deletePaper } = usePapers(userId)
   const { ideas, loading: ideasLoading, createIdea, updateIdea, deleteIdea } = useIdeas(userId)
+  const {
+    topics,
+    loading: topicsLoading,
+    createTopic,
+    deleteTopic,
+  } = useTopics(userId)
   
   // Determine current loading state
   const loading = useMemo(() => {
     if (currentView === 'notes') return notesLoading
     if (currentView === 'papers') return papersLoading
     if (currentView === 'ideas') return ideasLoading
+    if (currentView === 'topics') return topicsLoading
     return false
-  }, [currentView, notesLoading, papersLoading, ideasLoading])
+  }, [currentView, ideasLoading, notesLoading, papersLoading, topicsLoading])
   
   useEffect(() => {
     let isMounted = true
@@ -166,6 +186,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
       })
       if (newNote) {
         setSelectedNote(newNote)
+        window.history.pushState(null, '', `/notes/${newNote.id}`)
       }
     } else if (currentView === 'papers') {
       // Clear selected paper to show the AddPaperView in main content
@@ -179,10 +200,20 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
         })
         if (newIdea) {
           setSelectedIdea(newIdea)
+          window.history.pushState(null, '', `/ideas/${newIdea.id}`)
+        }
+      }
+    } else if (currentView === 'topics') {
+      const name = prompt('Name your topic:')
+      if (name && name.trim()) {
+        const topic = await createTopic({ name })
+        if (topic) {
+          setSelectedTopic(topic)
+          window.history.pushState(null, '', `/topics/${topic.id}`)
         }
       }
     }
-  }, [currentView, createNote, setSelectedNote, createIdea, setSelectedIdea, setSelectedPaper])
+  }, [createIdea, createNote, createTopic, currentView, setSelectedIdea, setSelectedNote, setSelectedPaper, setSelectedTopic])
   
   // Removed handleAddPaper - now handled in AddPaperView
   
@@ -234,6 +265,21 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
       }),
     [ideas, normalizedQuery]
   )
+
+  const filteredTopics = useMemo(
+    () =>
+      topics.filter((topic) => {
+        if (!normalizedQuery) {
+          return true
+        }
+
+        return (
+          topic.name.toLowerCase().includes(normalizedQuery) ||
+          (topic.description && topic.description.toLowerCase().includes(normalizedQuery))
+        )
+      }),
+    [normalizedQuery, topics]
+  )
   
   return (
     <>
@@ -281,8 +327,8 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
             />
           </div>
           
-          {/* Add Button (hide for tasks and topics) */}
-          {currentView !== 'tasks' && currentView !== 'topics' && (
+          {/* Add Button (hide for tasks) */}
+          {currentView !== 'tasks' && (
             <button
               onClick={() => {
                 handleAddClick()
@@ -290,7 +336,9 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors font-medium"
             >
               <Plus className="w-5 h-5" />
-              <span>New {currentView.slice(0, -1)}</span>
+              <span>
+                {currentView === 'topics' ? 'New Topic' : `New ${currentView.slice(0, -1)}`}
+              </span>
             </button>
           )}
           
@@ -349,10 +397,15 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
             )}
             
             {currentView === 'topics' && (
-              <div className="text-center py-12 text-text-tertiary">
-                <Tag className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p className="text-small">Topics coming soon</p>
-              </div>
+              <TopicList
+                topics={filteredTopics}
+                loading={loading}
+                onSelectTopic={(topic) => {
+                  setSelectedTopic(topic)
+                  window.history.pushState(null, '', `/topics/${topic.id}`)
+                }}
+                onDeleteTopic={deleteTopic}
+              />
             )}
           </div>
           
