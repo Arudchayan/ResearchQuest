@@ -86,6 +86,14 @@ export function useFocusEntityCounts(
   }, [userId])
 
   useEffect(() => {
+    if (!userId) {
+      return
+    }
+
+    void syncCountsFromServer()
+  }, [localLengths.notes, localLengths.papers, localLengths.ideas, syncCountsFromServer, userId])
+
+  useEffect(() => {
     void syncCountsFromServer()
 
     if (!userId) {

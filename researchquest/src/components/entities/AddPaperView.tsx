@@ -434,89 +434,124 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
                           key={key}
                           type="button"
                           onClick={() => handlePreviewResult(result)}
-                          className={`w-full text-left p-4 border rounded-lg transition-all bg-bg-base ${
+                          className={`w-full text-left p-4 border rounded-xl transition-all bg-bg-base/90 backdrop-blur-sm shadow-sm hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 ${
                             isActive
-                              ? 'border-primary-500 shadow-lg shadow-primary-500/10'
-                              : 'border-border-subtle hover:border-primary-400 hover:shadow-md'
+                              ? 'border-primary-500 ring-1 ring-primary-200/70 dark:ring-primary-500/40 shadow-primary-500/10'
+                              : 'border-border-subtle hover:border-primary-400/80'
                           }`}
                         >
-                          <span className="inline-flex items-center gap-2 text-caption font-semibold uppercase tracking-wide text-primary-500">
-                            {result.publicationDate || '—'}
-                          </span>
-                          <h4 className="font-semibold text-text-primary mt-1 mb-2 line-clamp-2">
+                          <div className="flex items-start justify-between gap-3">
+                            <span className="inline-flex items-center gap-2 text-caption font-semibold uppercase tracking-wide text-primary-500">
+                              {result.publicationDate || '—'}
+                            </span>
+                            <span className="text-caption text-text-tertiary">
+                              {index + 1} of {searchResults.length}
+                            </span>
+                          </div>
+                          <h4 className="font-semibold text-text-primary mt-2 mb-2 leading-snug line-clamp-2">
                             {result.title}
                           </h4>
-                          <p className="text-sm text-text-secondary line-clamp-2">
+                          <p className="text-sm text-text-secondary leading-relaxed line-clamp-2">
                             {result.authors.slice(0, 3).join(', ')}
                             {result.authors.length > 3 ? ', et al.' : ''}
                           </p>
-                          <div className="flex flex-wrap gap-3 text-xs text-text-tertiary mt-3">
-                            {result.doi && <span className="font-medium">DOI: {result.doi}</span>}
-                            {result.containerTitle && <span>{result.containerTitle}</span>}
+                          <div className="mt-3 flex flex-wrap gap-3 text-xs text-text-tertiary">
+                            {result.doi && (
+                              <a
+                                href={`https://doi.org/${result.doi}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(event) => event.stopPropagation()}
+                                className="font-medium text-primary-500 hover:text-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded-sm"
+                              >
+                                DOI: {result.doi}
+                              </a>
+                            )}
+                            {result.containerTitle && <span className="font-medium text-text-secondary/80">{result.containerTitle}</span>}
                           </div>
                         </button>
                       )
                     })}
                   </div>
-                  <div className="bg-bg-base border border-border-subtle rounded-xl p-5 shadow-sm flex flex-col gap-4">
+                  <div className="bg-bg-base border border-border-subtle rounded-xl p-5 shadow-sm flex flex-col gap-4 h-full">
                     {selectedResult ? (
                       <>
-                        <div className="flex items-start gap-3">
-                          <div className="p-2 rounded-md bg-primary-500/10 text-primary-600 dark:text-primary-300">
-                            <BookOpen className="w-5 h-5" />
+                        <div className="flex flex-col gap-4">
+                          <div className="flex flex-wrap items-start justify-between gap-4">
+                            <div className="flex items-start gap-3 flex-1 min-w-0">
+                              <div className="p-2 rounded-md bg-primary-500/10 text-primary-600 dark:text-primary-300">
+                                <BookOpen className="w-5 h-5" />
+                              </div>
+                              <div className="space-y-2 min-w-0">
+                                <div className="space-y-1">
+                                  <p className="text-caption font-medium text-primary-500 uppercase tracking-wider">
+                                    {selectedResult.type?.replace(/_/g, ' ') || 'Research'}
+                                  </p>
+                                  <h3 className="text-xl font-semibold text-text-primary leading-snug">
+                                    {selectedResult.title}
+                                  </h3>
+                                </div>
+                                <p className="text-sm text-text-secondary leading-relaxed">
+                                  {selectedResult.authors.join(', ')}
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={handleAddSelectedResult}
+                              disabled={loading}
+                              className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-500 text-white rounded-lg font-semibold hover:bg-primary-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed w-full sm:w-auto"
+                            >
+                              <Plus className="w-4 h-4" />
+                              Add to library
+                            </button>
                           </div>
-                          <div className="space-y-2">
-                            <div className="space-y-1">
-                              <p className="text-caption font-medium text-primary-500 uppercase tracking-wider">
-                                {selectedResult.type?.replace(/_/g, ' ') || 'Research'}
-                              </p>
-                              <h3 className="text-xl font-semibold text-text-primary leading-snug">
-                                {selectedResult.title}
-                              </h3>
-                            </div>
-                            <p className="text-sm text-text-secondary">
-                              {selectedResult.authors.join(', ')}
-                            </p>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-text-tertiary">
-                              {selectedResult.doi && (
-                                <div className="flex flex-col">
-                                  <span className="font-medium text-text-secondary">DOI</span>
-                                  <span className="truncate" title={selectedResult.doi}>{selectedResult.doi}</span>
-                                </div>
-                              )}
-                              {selectedResult.publicationDate && (
-                                <div>
-                                  <span className="font-medium text-text-secondary block">Year</span>
-                                  <span>{selectedResult.publicationDate}</span>
-                                </div>
-                              )}
-                              {selectedResult.containerTitle && (
-                                <div>
-                                  <span className="font-medium text-text-secondary block">Journal / Venue</span>
-                                  <span>{selectedResult.containerTitle}</span>
-                                </div>
-                              )}
-                              {selectedResult.publisher && (
-                                <div>
-                                  <span className="font-medium text-text-secondary block">Publisher</span>
-                                  <span>{selectedResult.publisher}</span>
-                                </div>
-                              )}
-                            </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-text-tertiary">
+                            {selectedResult.doi && (
+                              <div className="flex flex-col gap-1">
+                                <span className="font-medium text-text-secondary">DOI</span>
+                                <a
+                                  href={`https://doi.org/${selectedResult.doi}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="truncate text-primary-500 hover:text-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded-sm"
+                                  title={selectedResult.doi}
+                                >
+                                  {selectedResult.doi}
+                                </a>
+                              </div>
+                            )}
+                            {selectedResult.publicationDate && (
+                              <div>
+                                <span className="font-medium text-text-secondary block">Year</span>
+                                <span>{selectedResult.publicationDate}</span>
+                              </div>
+                            )}
+                            {selectedResult.containerTitle && (
+                              <div>
+                                <span className="font-medium text-text-secondary block">Journal / Venue</span>
+                                <span>{selectedResult.containerTitle}</span>
+                              </div>
+                            )}
+                            {selectedResult.publisher && (
+                              <div>
+                                <span className="font-medium text-text-secondary block">Publisher</span>
+                                <span>{selectedResult.publisher}</span>
+                              </div>
+                            )}
                           </div>
                         </div>
-                        <div className="bg-bg-elevated border border-border-subtle rounded-lg p-4 max-h-52 overflow-y-auto">
+                        <div className="bg-bg-elevated/80 border border-border-subtle rounded-lg p-4 max-h-52 overflow-y-auto">
                           <p className="text-sm text-text-secondary whitespace-pre-line">
                             {selectedResult.abstract || 'No abstract available for this entry.'}
                           </p>
                         </div>
-                        <div className="flex items-center justify-between gap-3 flex-wrap">
+                        <div className="flex items-center justify-between gap-3 flex-wrap border-t border-border-subtle pt-4 mt-auto">
                           {selectedResult.sourceUrl ? (
                             <a
                               href={selectedResult.sourceUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-primary-500 hover:text-primary-600 text-sm font-medium"
+                              className="inline-flex items-center gap-1 text-primary-500 hover:text-primary-600 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded-sm"
                             >
                               <ExternalLink className="w-4 h-4" />
                               View original source
@@ -524,14 +559,9 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
                           ) : (
                             <span className="text-caption text-text-tertiary">No external link available</span>
                           )}
-                          <button
-                            onClick={handleAddSelectedResult}
-                            disabled={loading}
-                            className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-500 text-white rounded-lg font-semibold hover:bg-primary-600 transition-colors disabled:opacity-60"
-                          >
-                            <Plus className="w-4 h-4" />
-                            Add to library
-                          </button>
+                          <span className="text-caption text-text-tertiary">
+                            Tip: add now, organize topics later.
+                          </span>
                         </div>
                       </>
                     ) : (
