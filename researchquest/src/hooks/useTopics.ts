@@ -481,7 +481,9 @@ export function useTopics(userId: string | undefined) {
         .upsert(payload, { onConflict: `topic_id,${column}` })
 
       if (upsertError) {
-        const missingUserId = upsertError.message?.toLowerCase().includes('column "user_id"')
+        const normalizedMessage = `${upsertError.message ?? ''} ${upsertError.details ?? ''}`.toLowerCase()
+        const missingUserId =
+          normalizedMessage.includes('user_id') && normalizedMessage.includes('does not exist')
         if (missingUserId && linkSupportsUserIdRef.current[entityType]) {
           linkSupportsUserIdRef.current[entityType] = false
           return attachTopicToEntity(topicId, entityId, entityType)

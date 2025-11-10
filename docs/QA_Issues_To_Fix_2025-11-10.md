@@ -21,13 +21,13 @@
 - [x] Add keyboard shortcuts/accessibility improvements.
 
 ## Papers Module
-- [ ] Make "Add to library" button visible without extra scrolling.
-- [ ] Sync Focus Studio counts after paper changes.
-- [ ] Ensure DOI links open correctly in new tab.
-- [ ] Fix topic linking error for papers.
-- [ ] Improve readability of search results (spacing/typography).
-- [ ] Add progress indicator (e.g., progress bar/page count) for reading status.
-- [ ] Explain XP/gamification context in UI.
+- [x] Make "Add to library" button visible without extra scrolling.
+- [x] Sync Focus Studio counts after paper changes.
+- [x] Ensure DOI links open correctly in new tab.
+- [x] Fix topic linking error for papers.
+- [x] Improve readability of search results (spacing/typography).
+- [x] Add progress indicator (e.g., progress bar/page count) for reading status.
+- [x] Explain XP/gamification context in UI.
 
 ## Ideas Module
 - [ ] Prevent title/description concatenation when creating ideas.
