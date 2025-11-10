@@ -27,10 +27,13 @@ export const mockSupabaseClient = {
     builder.upsert = vi.fn().mockReturnValue(builder)
     builder.delete = vi.fn().mockReturnValue(builder)
     builder.eq = vi.fn().mockReturnValue(builder)
+    builder.neq = vi.fn().mockReturnValue(builder)
     builder.in = vi.fn().mockReturnValue(builder)
     builder.order = vi.fn().mockReturnValue(builder)
     builder.gte = vi.fn().mockReturnValue(builder)
     builder.lte = vi.fn().mockReturnValue(builder)
+    builder.not = vi.fn().mockReturnValue(builder)
+    builder.limit = vi.fn().mockReturnValue(builder)
     builder.single = vi.fn().mockResolvedValue({ data: null, error: null })
     builder.maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null })
     builder.then = ((onFulfilled?: (value: any) => any) => {

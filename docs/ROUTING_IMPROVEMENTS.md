@@ -20,7 +20,7 @@
 ```typescript
 // Before: Basic route handling
 const view = path.slice(1) as typeof currentView
-if (['notes', 'papers', 'ideas', 'tasks', 'topics'].includes(view)) {
+if (['notes', 'papers', 'ideas', 'tasks', 'focus'].includes(view)) {
   setCurrentView(view)
 }
 
@@ -39,7 +39,7 @@ const handleRouteChange = () => {
   const view = pathParts[0] as typeof currentView
   
   // Validate view
-  if (['notes', 'papers', 'ideas', 'tasks', 'topics'].includes(view)) {
+  if (['notes', 'papers', 'ideas', 'tasks', 'focus'].includes(view)) {
     setCurrentView(view)
   } else {
     // Invalid route - redirect to notes
