@@ -4,6 +4,18 @@ import { awardXP, XP_REWARDS } from '../utils/gamification'
 import { toast } from 'sonner'
 import type { Note } from '../types/database'
 
+function getUpdatedAtTimestamp(value: string | null | undefined): number {
+  if (!value) return 0
+  const timestamp = Date.parse(value)
+  return Number.isNaN(timestamp) ? 0 : timestamp
+}
+
+function sortByUpdatedAt<T extends { updated_at: string | null | undefined }>(items: T[]): T[] {
+  return [...items].sort(
+    (a, b) => getUpdatedAtTimestamp(b.updated_at) - getUpdatedAtTimestamp(a.updated_at)
+  )
+}
+
 export function useNotes(userId: string | undefined) {
   const [notes, setNotes] = useState<Note[]>([])
   const [loading, setLoading] = useState(true)
@@ -22,7 +34,7 @@ export function useNotes(userId: string | undefined) {
     if (fetchError) {
       setError(fetchError.message)
     } else {
-      setNotes(data || [])
+      setNotes(sortByUpdatedAt(data || []))
     }
     setLoading(false)
   }, [userId])
@@ -50,14 +62,16 @@ export function useNotes(userId: string | undefined) {
               const exists = prev.some(n => n.id === (payload.new as Note).id)
               if (exists) {
                 console.log('Note already exists (from optimistic update), skipping realtime insert')
-                return prev
+                return sortByUpdatedAt(prev)
               }
-              return [payload.new as Note, ...prev]
+              return sortByUpdatedAt([payload.new as Note, ...prev])
             })
           } else if (payload.eventType === 'UPDATE') {
-            setNotes(prev => prev.map(note => 
-              note.id === payload.new.id ? payload.new as Note : note
-            ))
+            setNotes(prev => {
+              const updatedNote = payload.new as Note
+              const remaining = prev.filter(note => note.id !== updatedNote.id)
+              return sortByUpdatedAt([updatedNote, ...remaining])
+            })
           } else if (payload.eventType === 'DELETE') {
             setNotes(prev => prev.filter(note => note.id !== payload.old.id))
           }
@@ -124,7 +138,7 @@ export function useNotes(userId: string | undefined) {
     toast.success('Note created successfully')
 
     // Optimistic update - add to local state immediately
-    setNotes(prev => [data, ...prev])
+    setNotes(prev => sortByUpdatedAt([data, ...prev]))
 
     // Award XP (don't await to avoid blocking)
     awardXP(userId, XP_REWARDS.CREATE_NOTE, 'create_note').catch(console.error)
@@ -134,9 +148,12 @@ export function useNotes(userId: string | undefined) {
 
   async function updateNote(noteId: string, updates: Partial<Note>): Promise<boolean> {
     // Optimistic update
-    setNotes(prev => prev.map(note => 
-      note.id === noteId ? { ...note, ...updates, updated_at: new Date().toISOString() } : note
-    ))
+    setNotes(prev => {
+      const updatedNotes = prev.map(note =>
+        note.id === noteId ? { ...note, ...updates, updated_at: new Date().toISOString() } : note
+      )
+      return sortByUpdatedAt(updatedNotes)
+    })
 
     const { error: updateError } = await supabase
       .from('notes')
@@ -182,7 +199,7 @@ export function useNotes(userId: string | undefined) {
       toast.error(`Failed to delete note: ${errorMessage}`)
       // Revert on error
       if (deletedNote) {
-        setNotes(prev => [...prev, deletedNote])
+        setNotes(prev => sortByUpdatedAt([...prev, deletedNote]))
       }
       return false
     }
