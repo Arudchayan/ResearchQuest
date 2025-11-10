@@ -181,9 +181,10 @@ export function useNotes(userId: string | undefined) {
   }
 
   async function deleteNote(noteId: string): Promise<boolean> {
+    const deletedNote = notes.find((n) => n.id === noteId)
+
     // Optimistic delete
-    const deletedNote = notes.find(n => n.id === noteId)
-    setNotes(prev => prev.filter(note => note.id !== noteId))
+    setNotes((prev) => prev.filter((note) => note.id !== noteId))
 
     const { error: deleteError } = await supabase
       .from('notes')
@@ -193,19 +194,48 @@ export function useNotes(userId: string | undefined) {
     if (deleteError) {
       console.error('Failed to delete note:', deleteError)
       console.error('Error details:', JSON.stringify(deleteError, null, 2))
-      
+
       const errorMessage = deleteError.message || deleteError.details || deleteError.hint || 'Unknown error occurred'
       setError(`Failed to delete note: ${errorMessage}`)
       toast.error(`Failed to delete note: ${errorMessage}`)
+
       // Revert on error
       if (deletedNote) {
-        setNotes(prev => sortByUpdatedAt([...prev, deletedNote]))
+        setNotes((prev) => sortByUpdatedAt([...prev, deletedNote]))
       }
       return false
     }
 
-    toast.success('Note deleted')
     return true
+  }
+
+  async function restoreNote(note: Note): Promise<Note | null> {
+    const payload = {
+      ...note,
+      updated_at: new Date().toISOString(),
+    }
+
+    const { data, error: restoreError } = await supabase
+      .from('notes')
+      .upsert(payload, { onConflict: 'id' })
+      .select()
+      .single()
+
+    if (restoreError) {
+      console.error('Failed to restore note:', restoreError)
+      const errorMessage = restoreError.message || restoreError.details || restoreError.hint || 'Unknown error occurred'
+      toast.error(`Failed to restore note: ${errorMessage}`)
+      return null
+    }
+
+    const restoredNote = data as Note
+    setNotes((prev) => {
+      const remaining = prev.filter((existing) => existing.id !== restoredNote.id)
+      return sortByUpdatedAt([restoredNote, ...remaining])
+    })
+
+    toast.success('Note restored')
+    return restoredNote
   }
 
   return {
@@ -215,6 +245,7 @@ export function useNotes(userId: string | undefined) {
     createNote,
     updateNote,
     deleteNote,
+    restoreNote,
     refreshNotes: fetchNotes,
   }
 }
