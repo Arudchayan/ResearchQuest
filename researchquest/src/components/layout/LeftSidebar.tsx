@@ -13,6 +13,7 @@ import { IdeaList } from '../entities/IdeaList'
 import type { ReadingStatus, IdeaStage, Note } from '../../types/database'
 import { useGamificationStore } from '../../store/gamificationStore'
 import { formatTimeUntil } from '../../utils/time'
+import { toast } from 'sonner'
 
 const TABS = [
   { id: 'notes' as const, label: 'Notes', icon: FileText },
@@ -33,6 +34,37 @@ interface LeftSidebarProps {
 }
 
 type SidebarSearchState = Record<'notes' | 'papers' | 'ideas' | 'tasks' | 'focus', string>
+
+function parseQuickIdeaInput(input: string): { title: string; description?: string } | null {
+  const normalized = input.trim()
+  if (!normalized) {
+    return null
+  }
+
+  const lineSplit = normalized.split(/\n+/)
+  if (lineSplit.length > 1) {
+    const [firstLine, ...rest] = lineSplit
+    const description = rest.join(' ').trim()
+    return {
+      title: firstLine.trim(),
+      description: description || undefined,
+    }
+  }
+
+  const delimiters = [' — ', ' – ', ' - ', ': ']
+  for (const delimiter of delimiters) {
+    if (normalized.includes(delimiter)) {
+      const [maybeTitle, maybeDescription] = normalized.split(delimiter)
+      const title = maybeTitle.trim()
+      const description = maybeDescription.trim()
+      if (title && description) {
+        return { title, description }
+      }
+    }
+  }
+
+  return { title: normalized }
+}
 
 export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   const {
@@ -256,16 +288,25 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
       // Clear selected paper to show the AddPaperView in main content
       setSelectedPaper(null)
     } else if (currentView === 'ideas') {
-      const title = prompt('Enter idea title:')
-      if (title) {
-        const newIdea = await createIdea({
-          title,
-          stage: 'Seed',
-        })
-        if (newIdea) {
-          setSelectedIdea(newIdea)
-          window.history.pushState(null, '', `/ideas/${newIdea.id}`)
-        }
+      const input = prompt('Enter idea title (you can add a description on a new line):')
+      if (!input) {
+        return
+      }
+
+      const parsed = parseQuickIdeaInput(input)
+      if (!parsed || !parsed.title) {
+        toast.error('Idea title is required')
+        return
+      }
+
+      const newIdea = await createIdea({
+        title: parsed.title,
+        description: parsed.description,
+        stage: 'Seed',
+      })
+      if (newIdea) {
+        setSelectedIdea(newIdea)
+        window.history.pushState(null, '', `/ideas/${newIdea.id}`)
       }
     }
   }, [createIdea, createNote, currentView, setSelectedIdea, setSelectedNote, setSelectedPaper])

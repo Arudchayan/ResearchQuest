@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Clock, Lightbulb, Trash2, TrendingUp } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Clock, Lightbulb, Trash2, TrendingUp, Search } from 'lucide-react'
 import type { Idea, IdeaStage } from '../../types/database'
 import { ListSkeleton } from '../ui/Skeleton'
 
@@ -10,6 +10,14 @@ interface IdeaCardProps {
   onStageChange: (id: string, stage: IdeaStage, oldStage: IdeaStage) => void
   isSelected: boolean
 }
+
+const STAGE_FILTER_OPTIONS: { value: IdeaStage | 'all'; label: string }[] = [
+  { value: 'all', label: 'All stages' },
+  { value: 'Seed', label: 'Seed' },
+  { value: 'Developing', label: 'Developing' },
+  { value: 'Supported', label: 'Supported' },
+  { value: 'Mature', label: 'Mature' },
+]
 
 export function IdeaCard({ idea, onSelect, onDelete, onStageChange, isSelected }: IdeaCardProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -73,8 +81,9 @@ export function IdeaCard({ idea, onSelect, onDelete, onStageChange, isSelected }
             e.stopPropagation()
             onStageChange(idea.id, e.target.value as IdeaStage, idea.stage)
           }}
-          className={`px-2 py-1 text-caption rounded-md border ${getStageColor(idea.stage)} transition-colors font-medium`}
+          className={`px-3 py-1.5 text-small rounded-md border ${getStageColor(idea.stage)} transition-colors font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 min-w-[120px]`}
           onClick={(e) => e.stopPropagation()}
+          aria-label={`Update stage for ${idea.title}`}
         >
           <option value="Seed">Seed</option>
           <option value="Developing">Developing</option>
@@ -108,10 +117,13 @@ interface IdeaListProps {
 }
 
 export function IdeaList({ ideas, onSelectIdea, onDeleteIdea, onStageChange, selectedIdeaId, loading = false }: IdeaListProps) {
+  const [searchQuery, setSearchQuery] = useState('')
+  const [stageFilter, setStageFilter] = useState<IdeaStage | 'all'>('all')
+
   if (loading) {
     return <ListSkeleton count={5} itemType="idea" />
   }
-  
+
   if (ideas.length === 0) {
     return (
       <div className="text-center py-12 text-text-tertiary">
@@ -121,19 +133,75 @@ export function IdeaList({ ideas, onSelectIdea, onDeleteIdea, onStageChange, sel
       </div>
     )
   }
-  
+
+  const normalizedQuery = searchQuery.trim().toLowerCase()
+  const filteredIdeas = useMemo(() => {
+    return ideas.filter((idea) => {
+      const matchesStage = stageFilter === 'all' || idea.stage === stageFilter
+      if (!matchesStage) {
+        return false
+      }
+
+      if (!normalizedQuery) {
+        return true
+      }
+
+      const titleMatch = idea.title.toLowerCase().includes(normalizedQuery)
+      const descriptionMatch = idea.description?.toLowerCase().includes(normalizedQuery) ?? false
+
+      return titleMatch || descriptionMatch
+    })
+  }, [ideas, normalizedQuery, stageFilter])
+
   return (
-    <div className="space-y-2">
-      {ideas.map((idea) => (
-        <IdeaCard
-          key={idea.id}
-          idea={idea}
-          onSelect={onSelectIdea}
-          onDelete={onDeleteIdea}
-          onStageChange={onStageChange}
-          isSelected={idea.id === selectedIdeaId}
-        />
-      ))}
+    <div className="space-y-3">
+      <div className="space-y-2">
+        <div className="relative">
+          <Search className="w-4 h-4 text-text-tertiary absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Filter ideas by keyword..."
+            className="w-full pl-10 pr-3 py-2 border border-border-subtle rounded-md bg-bg-base text-small focus:outline-none focus:ring-2 focus:ring-primary-500"
+            aria-label="Filter ideas"
+          />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {STAGE_FILTER_OPTIONS.map(({ value, label }) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setStageFilter(value)}
+              className={`px-3 py-1.5 rounded-full border text-caption font-medium transition-colors ${
+                stageFilter === value
+                  ? 'bg-primary-500/10 border-primary-500 text-primary-600'
+                  : 'bg-bg-base border-border-subtle text-text-secondary hover:border-border-moderate'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {filteredIdeas.length === 0 ? (
+        <div className="text-center py-10 border border-dashed border-border-subtle rounded-md text-caption text-text-tertiary">
+          No ideas match your filters yet.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {filteredIdeas.map((idea) => (
+            <IdeaCard
+              key={idea.id}
+              idea={idea}
+              onSelect={onSelectIdea}
+              onDelete={onDeleteIdea}
+              onStageChange={onStageChange}
+              isSelected={idea.id === selectedIdeaId}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
