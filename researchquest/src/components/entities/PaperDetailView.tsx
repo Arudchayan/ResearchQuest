@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { BookOpen, Calendar, ExternalLink, Edit2, Save, X, Link as LinkIcon } from 'lucide-react'
+import { BookOpen, Calendar, ExternalLink, Edit2, Save, X, Link as LinkIcon, Sparkles } from 'lucide-react'
 import type { Paper, ReadingStatus } from '../../types/database'
 import { toast } from 'sonner'
 import { TopicSelector } from '../topics/TopicSelector'
@@ -57,7 +57,27 @@ export function PaperDetailView({ paper, onUpdate }: PaperDetailViewProps) {
         return 'bg-gray-100 dark:bg-gray-900/20 text-gray-700 dark:text-gray-400 border-gray-300 dark:border-gray-700'
     }
   }
-  
+
+  const statusCopy: Record<ReadingStatus, { title: string; helper: string }> = {
+    'To Read': {
+      title: 'Queue it up',
+      helper: 'Skim the abstract and block a quick focus session to unlock your first XP for this paper.',
+    },
+    'Reading': {
+      title: 'Stay in flow',
+      helper: 'Log highlights or open questions while you read—updating progress keeps Focus Studio in sync.',
+    },
+    'Read': {
+      title: 'Wrap and reflect',
+      helper: 'Capture a short summary or next action. Marking papers as read awards bonus XP streak credit.',
+    },
+  }
+
+  const statusOrder: ReadingStatus[] = ['To Read', 'Reading', 'Read']
+  const statusForProgress = isEditing ? editedStatus : paper.status
+  const statusIndex = Math.max(0, statusOrder.indexOf(statusForProgress))
+  const progressPercent = Math.round(((statusIndex + 1) / statusOrder.length) * 100)
+
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <div className="bg-bg-surface rounded-lg border border-border-subtle shadow-sm">
@@ -152,9 +172,30 @@ export function PaperDetailView({ paper, onUpdate }: PaperDetailViewProps) {
                 <span className="ml-2">{paper.status}</span>
               </div>
             )}
+            <div className="mt-4 space-y-3">
+              <div className="flex items-center justify-between text-caption text-text-tertiary uppercase tracking-wide">
+                <span>{statusCopy[statusForProgress].title}</span>
+                <span>{progressPercent}% complete</span>
+              </div>
+              <div className="h-2 bg-bg-base rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-primary-500 via-primary-500 to-primary-600 transition-all"
+                  style={{ width: `${progressPercent}%` }}
+                  aria-hidden
+                />
+              </div>
+              <p className="text-sm text-text-secondary leading-relaxed">{statusCopy[statusForProgress].helper}</p>
+              <div className="flex items-start gap-3 rounded-lg border border-border-subtle bg-bg-elevated/60 p-3">
+                <Sparkles className="w-4 h-4 text-primary-500 mt-0.5" />
+                <p className="text-sm text-text-secondary leading-relaxed">
+                  Updating statuses, linking topics, or finishing summaries all grant XP. Every change is reflected instantly in
+                  Focus Studio so you can track your research momentum.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
-        
+
         {/* Abstract */}
         {(paper.abstract || isEditing) && (
           <div className="p-6 border-b border-border-subtle">
