@@ -19,16 +19,26 @@ export const mockSupabaseClient = {
     signUp: vi.fn(),
     signOut: vi.fn(),
   },
-  from: vi.fn((table) => ({
-    select: vi.fn().mockReturnThis(),
-    insert: vi.fn().mockReturnThis(),
-    update: vi.fn().mockReturnThis(),
-    delete: vi.fn().mockReturnThis(),
-    eq: vi.fn().mockReturnThis(),
-    order: vi.fn().mockReturnThis(),
-    single: vi.fn().mockResolvedValue({ data: null, error: null }),
-    maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
-  })),
+  from: vi.fn(() => {
+    const builder: any = {}
+    builder.select = vi.fn().mockReturnValue(builder)
+    builder.insert = vi.fn().mockReturnValue(builder)
+    builder.update = vi.fn().mockReturnValue(builder)
+    builder.upsert = vi.fn().mockReturnValue(builder)
+    builder.delete = vi.fn().mockReturnValue(builder)
+    builder.eq = vi.fn().mockReturnValue(builder)
+    builder.in = vi.fn().mockReturnValue(builder)
+    builder.order = vi.fn().mockReturnValue(builder)
+    builder.gte = vi.fn().mockReturnValue(builder)
+    builder.lte = vi.fn().mockReturnValue(builder)
+    builder.single = vi.fn().mockResolvedValue({ data: null, error: null })
+    builder.maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null })
+    builder.then = ((onFulfilled?: (value: any) => any) => {
+      const result = { data: null, error: null }
+      return Promise.resolve(result).then(onFulfilled)
+    }) as any
+    return builder
+  }),
   channel: vi.fn((channelName) => ({
     on: vi.fn().mockReturnThis(),
     subscribe: vi.fn((callback) => {
@@ -82,6 +92,18 @@ export const mockNote = {
   title: 'Test Note',
   markdown_body: '# Test Note\n\nThis is a test note',
   tags: ['test'],
+  created_at: '2024-01-01T00:00:00Z',
+  updated_at: '2024-01-01T00:00:00Z',
+}
+
+export const mockTopic = {
+  id: 'test-topic-id',
+  user_id: 'test-user-id',
+  name: 'Test Topic',
+  description: 'Test topic description',
+  note_count: 1,
+  paper_count: 0,
+  idea_count: 0,
   created_at: '2024-01-01T00:00:00Z',
   updated_at: '2024-01-01T00:00:00Z',
 }
