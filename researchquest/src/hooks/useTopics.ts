@@ -117,6 +117,11 @@ export function useTopics(userId: string | undefined) {
   const [questsLoading, setQuestsLoading] = useState(false)
   const linkCacheRef = useRef(new Map<string, string[]>())
   const supportsCountsRef = useRef(true)
+  const linkSupportsUserIdRef = useRef<Record<TopicEntityType, boolean>>({
+    note: false,
+    paper: true,
+    idea: true,
+  })
 
   const isRelationshipError = useCallback((err: PostgrestError | null) => {
     if (!err) return false
@@ -462,10 +467,13 @@ export function useTopics(userId: string | undefined) {
 
       const table = ENTITY_TABLE[entityType]
       const column = ENTITY_COLUMN[entityType]
-      const payload = {
-        user_id: userId,
+      const payload: Record<string, unknown> = {
         topic_id: topicId,
         [column]: entityId,
+      }
+
+      if (linkSupportsUserIdRef.current[entityType]) {
+        payload.user_id = userId
       }
 
       const { error: upsertError } = await supabase
@@ -473,6 +481,11 @@ export function useTopics(userId: string | undefined) {
         .upsert(payload, { onConflict: `topic_id,${column}` })
 
       if (upsertError) {
+        const missingUserId = upsertError.message?.toLowerCase().includes('column "user_id"')
+        if (missingUserId && linkSupportsUserIdRef.current[entityType]) {
+          linkSupportsUserIdRef.current[entityType] = false
+          return attachTopicToEntity(topicId, entityId, entityType)
+        }
         console.error('Failed to link topic:', upsertError)
         toast.error(upsertError.message)
         return false

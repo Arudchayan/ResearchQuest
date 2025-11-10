@@ -6,10 +6,11 @@ import { supabase } from '../../lib/supabase'
 import { useNotes } from '../../hooks/useNotes'
 import { usePapers } from '../../hooks/usePapers'
 import { useIdeas } from '../../hooks/useIdeas'
+import { useFocusEntityCounts } from '../../hooks/useFocusEntityCounts'
 import { NoteList } from '../entities/NoteList'
 import { PaperList } from '../entities/PaperList'
 import { IdeaList } from '../entities/IdeaList'
-import type { ReadingStatus, IdeaStage } from '../../types/database'
+import type { ReadingStatus, IdeaStage, Note } from '../../types/database'
 import { useGamificationStore } from '../../store/gamificationStore'
 import { formatTimeUntil } from '../../utils/time'
 
@@ -79,7 +80,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   }
   
   // Get hooks
-  const { notes, loading: notesLoading, createNote, updateNote, deleteNote } = useNotes(userId)
+  const { notes, loading: notesLoading, createNote, updateNote, deleteNote, restoreNote } = useNotes(userId)
   const { papers, loading: papersLoading, updatePaper, deletePaper } = usePapers(userId)
   const { ideas, loading: ideasLoading, createIdea, updateIdea, deleteIdea } = useIdeas(userId)
   // Determine current loading state
@@ -286,12 +287,36 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
         }
 
         const title = note.title || note.markdown_body.split('\n')[0] || ''
+        const tags = (note.tags || []).join(' ')
         return (
           title.toLowerCase().includes(normalizedQuery) ||
-          note.markdown_body.toLowerCase().includes(normalizedQuery)
+          note.markdown_body.toLowerCase().includes(normalizedQuery) ||
+          tags.toLowerCase().includes(normalizedQuery)
         )
       }),
     [notes, normalizedQuery]
+  )
+
+  const handleDeleteNote = useCallback(
+    async (note: Note) => {
+      const success = await deleteNote(note.id)
+      if (success && selectedNote?.id === note.id) {
+        setSelectedNote(null)
+      }
+      return success
+    },
+    [deleteNote, selectedNote?.id, setSelectedNote]
+  )
+
+  const handleRestoreNote = useCallback(
+    async (note: Note) => {
+      const restored = await restoreNote(note)
+      if (restored) {
+        setSelectedNote(restored)
+      }
+      return restored
+    },
+    [restoreNote, setSelectedNote]
   )
 
   const filteredPapers = useMemo(
@@ -334,14 +359,20 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
     return formatTimeUntil(nextDeadline.due_date)
   }, [nextDeadline])
 
+  const entityCounts = useFocusEntityCounts(userId, {
+    notes: notes.length,
+    papers: papers.length,
+    ideas: ideas.length,
+  })
+
   const workspaceStats = useMemo(
     () => [
-      { key: 'notes', label: 'Notes', count: notes.length, icon: FileText },
-      { key: 'papers', label: 'Papers', count: papers.length, icon: BookOpen },
-      { key: 'ideas', label: 'Ideas', count: ideas.length, icon: Lightbulb },
+      { key: 'notes', label: 'Notes', count: entityCounts.notes, icon: FileText },
+      { key: 'papers', label: 'Papers', count: entityCounts.papers, icon: BookOpen },
+      { key: 'ideas', label: 'Ideas', count: entityCounts.ideas, icon: Lightbulb },
       { key: 'focus', label: 'Focus queue', count: upcomingDeadlines.length, icon: Target },
     ],
-    [ideas.length, notes.length, papers.length, upcomingDeadlines.length]
+    [entityCounts.ideas, entityCounts.notes, entityCounts.papers, upcomingDeadlines.length]
   )
 
   const readingStatusCounts = useMemo(() => {
@@ -565,8 +596,11 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
                   setSelectedNote(note)
                   window.history.pushState(null, '', `/notes/${note.id}`)
                 }}
-                onDeleteNote={deleteNote}
+                onDeleteNote={handleDeleteNote}
+                onRestoreNote={handleRestoreNote}
                 selectedNoteId={selectedNote?.id}
+                selectedNote={selectedNote}
+                searchQuery={activeSearchQuery}
               />
             )}
             
