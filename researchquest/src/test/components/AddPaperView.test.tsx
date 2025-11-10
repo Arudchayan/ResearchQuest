@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AddPaperView } from '../../components/entities/AddPaperView'
 import type { CrossrefPaper } from '../../types/database'
+import { useAppStore } from '../../store/appStore'
 
 describe('AddPaperView Component', () => {
   const mockOnAdd = vi.fn()
@@ -21,6 +22,7 @@ describe('AddPaperView Component', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockOnAdd.mockResolvedValue({ id: 'new-paper-id', ...mockCrossrefPaper })
+    useAppStore.setState({ selectedPaper: null })
   })
 
   describe('Tab Navigation', () => {
@@ -73,8 +75,8 @@ describe('AddPaperView Component', () => {
       const doiInput = screen.getByPlaceholderText(/e.g., 10.1038/i)
       await userEvent.type(doiInput, '10.1234/notfound')
       
-      const searchButtons = screen.getAllByRole('button', { name: /search/i })
-      await userEvent.click(searchButtons[0])
+      const searchButton = screen.getByRole('button', { name: /^search$/i })
+      await userEvent.click(searchButton)
 
       await waitFor(() => {
         expect(screen.getByText(/paper not found/i)).toBeInTheDocument()
@@ -105,7 +107,7 @@ describe('AddPaperView Component', () => {
       const doiInput = screen.getByPlaceholderText(/e.g., 10.1038/i)
       await userEvent.type(doiInput, '10.1234/test.doi')
 
-      const searchButton = screen.getByRole('button', { name: /search/i })
+      const searchButton = screen.getByRole('button', { name: /^search$/i })
       await userEvent.click(searchButton)
 
       await waitFor(() => {
@@ -147,7 +149,7 @@ describe('AddPaperView Component', () => {
       const doiInput = screen.getByPlaceholderText(/e.g., 10.1038/i)
       await userEvent.type(doiInput, '10.1234/test.doi')
 
-      const searchButton = screen.getByRole('button', { name: /search/i })
+      const searchButton = screen.getByRole('button', { name: /^search$/i })
       await userEvent.click(searchButton)
 
       await waitFor(() => {
@@ -164,7 +166,7 @@ describe('AddPaperView Component', () => {
           doi: mockCrossrefPaper.doi,
           source_url: mockCrossrefPaper.sourceUrl,
           abstract: mockCrossrefPaper.abstract,
-          publication_date: mockCrossrefPaper.publicationDate?.toString(),
+          publication_date: '2024-01-01',
         })
       })
     })
@@ -183,7 +185,7 @@ describe('AddPaperView Component', () => {
       const doiInput = screen.getByPlaceholderText(/e.g., 10.1038/i)
       await userEvent.type(doiInput, '10.1234/test.doi')
 
-      const searchButton = screen.getByRole('button', { name: /search/i })
+      const searchButton = screen.getByRole('button', { name: /^search$/i })
       await userEvent.click(searchButton)
 
       await waitFor(() => {
@@ -212,7 +214,7 @@ describe('AddPaperView Component', () => {
       const doiInput = screen.getByPlaceholderText(/e.g., 10.1038/i)
       await userEvent.type(doiInput, '10.1234/notfound')
 
-      const searchButton = screen.getByRole('button', { name: /search/i })
+      const searchButton = screen.getByRole('button', { name: /^search$/i })
       await userEvent.click(searchButton)
 
       await waitFor(() => {
@@ -240,12 +242,15 @@ describe('AddPaperView Component', () => {
       const searchInput = screen.getByPlaceholderText(/e.g., CRISPR gene editing/i)
       await userEvent.type(searchInput, 'quantum computing')
 
-      const searchButton = screen.getByRole('button', { name: /search/i })
+      const searchButton = screen.getByRole('button', { name: /^search$/i })
       await userEvent.click(searchButton)
 
       await waitFor(() => {
         expect(mockSearchByQuery).toHaveBeenCalledWith('quantum computing')
-        expect(screen.getByText(mockCrossrefPaper.title)).toBeInTheDocument()
+        expect(screen.getAllByText(mockCrossrefPaper.title)).not.toHaveLength(0)
+        expect(screen.getByRole('button', { name: /add to library/i })).toBeInTheDocument()
+        expect(screen.getByText(/view original source/i)).toBeInTheDocument()
+        expect(screen.getByText(mockCrossrefPaper.abstract!)).toBeInTheDocument()
       })
     })
 
@@ -267,18 +272,25 @@ describe('AddPaperView Component', () => {
       const searchInput = screen.getByPlaceholderText(/e.g., CRISPR gene editing/i)
       await userEvent.type(searchInput, 'quantum computing')
 
-      const searchButton = screen.getByRole('button', { name: /search/i })
+      const searchButton = screen.getByRole('button', { name: /^search$/i })
       await userEvent.click(searchButton)
 
       await waitFor(() => {
-        expect(screen.getByText(mockCrossrefPaper.title)).toBeInTheDocument()
+        expect(screen.getAllByText(mockCrossrefPaper.title)).not.toHaveLength(0)
       })
 
-      const paperCard = screen.getByText(mockCrossrefPaper.title)
-      await userEvent.click(paperCard)
+      const addToLibrary = screen.getByRole('button', { name: /add to library/i })
+      await userEvent.click(addToLibrary)
 
       await waitFor(() => {
-        expect(mockOnAdd).toHaveBeenCalled()
+        expect(mockOnAdd).toHaveBeenCalledWith({
+          title: mockCrossrefPaper.title,
+          authors: mockCrossrefPaper.authors,
+          doi: mockCrossrefPaper.doi,
+          source_url: mockCrossrefPaper.sourceUrl,
+          abstract: mockCrossrefPaper.abstract,
+          publication_date: '2024-01-01',
+        })
       })
     })
 
@@ -299,7 +311,7 @@ describe('AddPaperView Component', () => {
       const searchInput = screen.getByPlaceholderText(/e.g., CRISPR gene editing/i)
       await userEvent.type(searchInput, 'nonexistent query')
 
-      const searchButton = screen.getByRole('button', { name: /search/i })
+      const searchButton = screen.getByRole('button', { name: /^search$/i })
       await userEvent.click(searchButton)
 
       await waitFor(() => {
@@ -334,8 +346,6 @@ describe('AddPaperView Component', () => {
         expect(mockOnAdd).toHaveBeenCalledWith({
           title: 'Manual Test Paper',
           authors: ['Author One', 'Author Two'],
-          doi: undefined,
-          source_url: undefined,
         })
       })
     })
@@ -410,7 +420,7 @@ describe('AddPaperView Component', () => {
       const doiInput = screen.getByPlaceholderText(/e.g., 10.1038/i)
       await userEvent.type(doiInput, '10.1234/test.doi')
 
-      const searchButton = screen.getByRole('button', { name: /search/i })
+      const searchButton = screen.getByRole('button', { name: /^search$/i })
       await userEvent.click(searchButton)
 
       // Should show loading spinner
@@ -432,7 +442,7 @@ describe('AddPaperView Component', () => {
         />
       )
 
-      const searchButton = screen.getByRole('button', { name: /search/i })
+      const searchButton = screen.getByRole('button', { name: /^search$/i })
       expect(searchButton).toBeDisabled()
     })
   })
@@ -452,7 +462,7 @@ describe('AddPaperView Component', () => {
       const doiInput = screen.getByPlaceholderText(/e.g., 10.1038/i)
       await userEvent.type(doiInput, '10.1234/test.doi')
 
-      const searchButton = screen.getByRole('button', { name: /search/i })
+      const searchButton = screen.getByRole('button', { name: /^search$/i })
       await userEvent.click(searchButton)
 
       await waitFor(() => {
@@ -474,7 +484,7 @@ describe('AddPaperView Component', () => {
       const doiInput = screen.getByPlaceholderText(/e.g., 10.1038/i)
       await userEvent.type(doiInput, '10.1234/test.doi')
 
-      const searchButton = screen.getByRole('button', { name: /search/i })
+      const searchButton = screen.getByRole('button', { name: /^search$/i })
       await userEvent.click(searchButton)
 
       await waitFor(() => {
@@ -500,7 +510,7 @@ describe('AddPaperView Component', () => {
       const doiInput = screen.getByPlaceholderText(/e.g., 10.1038/i)
       await userEvent.type(doiInput, '10.1234/test.doi')
 
-      const searchButton = screen.getByRole('button', { name: /search/i })
+      const searchButton = screen.getByRole('button', { name: /^search$/i })
       await userEvent.click(searchButton)
 
       await waitFor(() => {

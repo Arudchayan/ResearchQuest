@@ -13,8 +13,8 @@ interface AppState {
   setUser: (user: UserProfile | null) => void
   
   // Current view
-  currentView: 'notes' | 'papers' | 'ideas' | 'tasks' | 'topics'
-  setCurrentView: (view: 'notes' | 'papers' | 'ideas' | 'tasks' | 'topics') => void
+  currentView: 'notes' | 'papers' | 'ideas' | 'tasks' | 'focus'
+  setCurrentView: (view: 'notes' | 'papers' | 'ideas' | 'tasks' | 'focus') => void
   
   // Selected entity
   selectedNote: Note | null

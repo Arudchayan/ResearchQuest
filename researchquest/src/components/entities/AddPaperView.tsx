@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Search, Plus, Loader, BookOpen, ExternalLink, CheckCircle2 } from 'lucide-react'
 import type { CrossrefPaper } from '../../types/database'
+import { useAppStore } from '../../store/appStore'
 
 interface AddPaperViewProps {
   onAdd: (paperData: any) => Promise<any>
@@ -14,6 +15,7 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<CrossrefPaper[]>([])
   const [doiResult, setDoiResult] = useState<CrossrefPaper | null>(null)
+  const [selectedResult, setSelectedResult] = useState<CrossrefPaper | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
@@ -23,50 +25,56 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
   const [manualAuthors, setManualAuthors] = useState('')
   const [manualDoi, setManualDoi] = useState('')
   const [manualUrl, setManualUrl] = useState('')
+  const setSelectedPaper = useAppStore((state) => state.setSelectedPaper)
+
+  const buildPaperPayload = (paper: CrossrefPaper) => {
+    const paperData: any = {
+      title: paper.title,
+      authors: Array.isArray(paper.authors) ? paper.authors : [],
+    }
+
+    if (paper.doi && paper.doi.trim()) paperData.doi = paper.doi.trim()
+    if (paper.sourceUrl && paper.sourceUrl.trim()) paperData.source_url = paper.sourceUrl.trim()
+    if (paper.abstract && paper.abstract.trim()) paperData.abstract = paper.abstract.trim()
+    if (paper.publicationDate) {
+      const year = paper.publicationDate.toString()
+      paperData.publication_date = /^\d{4}$/.test(year) ? `${year}-01-01` : year
+    }
+
+    return paperData
+  }
   
   const handleDOISearch = async () => {
     if (!doiInput.trim()) return
-    
+
     setLoading(true)
     setError('')
     setDoiResult(null)
+    setSelectedResult(null)
     setSuccessMessage('')
-    
+
     const result = await searchByDOI(doiInput.trim())
-    
+
     if (result) {
       setDoiResult(result)
     } else {
       setError('Paper not found. Try manual entry or search by keywords.')
     }
-    
+
     setLoading(false)
   }
-  
+
   const handleAddDoiResult = async () => {
     if (!doiResult) return
-    
-    const paperData: any = {
-      title: doiResult.title,
-      authors: Array.isArray(doiResult.authors) ? doiResult.authors : [],
-    }
-    
-    // Only add optional fields if they have valid values
-    if (doiResult.doi && doiResult.doi.trim()) paperData.doi = doiResult.doi.trim()
-    if (doiResult.sourceUrl && doiResult.sourceUrl.trim()) paperData.source_url = doiResult.sourceUrl.trim()
-    if (doiResult.abstract && doiResult.abstract.trim()) paperData.abstract = doiResult.abstract.trim()
-    if (doiResult.publicationDate) {
-      const year = doiResult.publicationDate.toString()
-      // If it's just a year, format as YYYY-01-01
-      paperData.publication_date = /^\d{4}$/.test(year) ? `${year}-01-01` : year
-    }
-    
+
     try {
-      const result = await onAdd(paperData)
-      if (result) {
+      const created = await onAdd(buildPaperPayload(doiResult))
+      if (created) {
         setSuccessMessage('Paper added successfully! ✨ Check the sidebar to view it.')
         setDoiInput('')
         setDoiResult(null)
+        setSelectedPaper(created)
+        window.history.pushState(null, '', `/papers/${created.id}`)
         setTimeout(() => setSuccessMessage(''), 4000)
       }
     } catch (error) {
@@ -81,39 +89,35 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
     setLoading(true)
     setError('')
     setSuccessMessage('')
-    
+
     const results = await searchByQuery(searchQuery.trim())
     setSearchResults(results)
-    
+    setSelectedResult(results[0] ?? null)
+
     if (results.length === 0) {
       setError('No papers found. Try different keywords or use manual entry.')
     }
-    
+
     setLoading(false)
   }
-  
-  const handleSelectResult = async (result: CrossrefPaper) => {
-    const paperData: any = {
-      title: result.title,
-      authors: Array.isArray(result.authors) ? result.authors : [],
-    }
-    
-    // Only add optional fields if they have valid values
-    if (result.doi && result.doi.trim()) paperData.doi = result.doi.trim()
-    if (result.sourceUrl && result.sourceUrl.trim()) paperData.source_url = result.sourceUrl.trim()
-    if (result.abstract && result.abstract.trim()) paperData.abstract = result.abstract.trim()
-    if (result.publicationDate) {
-      const year = result.publicationDate.toString()
-      // If it's just a year, format as YYYY-01-01
-      paperData.publication_date = /^\d{4}$/.test(year) ? `${year}-01-01` : year
-    }
-    
+
+  const handlePreviewResult = (result: CrossrefPaper) => {
+    setSelectedResult(result)
+    setError('')
+  }
+
+  const handleAddSelectedResult = async () => {
+    if (!selectedResult) return
+
     try {
-      const result = await onAdd(paperData)
-      if (result) {
+      const created = await onAdd(buildPaperPayload(selectedResult))
+      if (created) {
         setSuccessMessage('Paper added successfully! ✨ Check the sidebar to view it.')
+        setSelectedPaper(created)
+        window.history.pushState(null, '', `/papers/${created.id}`)
         setSearchQuery('')
         setSearchResults([])
+        setSelectedResult(null)
         setTimeout(() => setSuccessMessage(''), 4000)
       }
     } catch (error) {
@@ -121,7 +125,7 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
       setError(`Failed to add paper: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
-  
+
   const handleManualAdd = async () => {
     if (!manualTitle.trim()) {
       setError('Title is required')
@@ -136,7 +140,7 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
     // Only add optional fields if they have valid values
     if (manualDoi && manualDoi.trim()) paperData.doi = manualDoi.trim()
     if (manualUrl && manualUrl.trim()) paperData.source_url = manualUrl.trim()
-    
+
     try {
       const result = await onAdd(paperData)
       if (result) {
@@ -146,6 +150,8 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
         setManualDoi('')
         setManualUrl('')
         setError('')
+        setSelectedPaper(result)
+        window.history.pushState(null, '', `/papers/${result.id}`)
         setTimeout(() => setSuccessMessage(''), 4000)
       }
     } catch (error) {
@@ -358,30 +364,133 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
             )}
             
             {searchResults.length > 0 && (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <p className="text-sm font-medium text-text-secondary">
-                  Found {searchResults.length} papers - Click to add
+                  Found {searchResults.length} papers — preview the details before adding them to your library
                 </p>
-                <div className="space-y-3 max-h-[500px] overflow-y-auto">
-                  {searchResults.map((result, index) => (
-                    <div
-                      key={index}
-                      onClick={() => handleSelectResult(result)}
-                      className="p-4 border border-border-subtle rounded-lg hover:border-primary-500 hover:shadow-md cursor-pointer transition-all bg-bg-base"
-                    >
-                      <h4 className="font-semibold text-text-primary mb-2 hover:text-primary-600">
-                        {result.title}
-                      </h4>
-                      <p className="text-sm text-text-secondary mb-2">
-                        {result.authors.slice(0, 3).join(', ')}
-                        {result.authors.length > 3 ? ', et al.' : ''}
-                      </p>
-                      <div className="flex gap-3 text-xs text-text-tertiary">
-                        {result.doi && <span>DOI: {result.doi}</span>}
-                        {result.publicationDate && <span>Year: {result.publicationDate}</span>}
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,320px)_1fr]">
+                  <div className="space-y-3 max-h-[520px] overflow-y-auto pr-1">
+                    {searchResults.map((result, index) => {
+                      const key = result.doi || `${result.title}-${index}`
+                      const isActive = selectedResult
+                        ? (selectedResult.doi && result.doi && selectedResult.doi === result.doi)
+                          || selectedResult.title === result.title
+                        : false
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => handlePreviewResult(result)}
+                          className={`w-full text-left p-4 border rounded-lg transition-all bg-bg-base ${
+                            isActive
+                              ? 'border-primary-500 shadow-lg shadow-primary-500/10'
+                              : 'border-border-subtle hover:border-primary-400 hover:shadow-md'
+                          }`}
+                        >
+                          <span className="inline-flex items-center gap-2 text-caption font-semibold uppercase tracking-wide text-primary-500">
+                            {result.publicationDate || '—'}
+                          </span>
+                          <h4 className="font-semibold text-text-primary mt-1 mb-2 line-clamp-2">
+                            {result.title}
+                          </h4>
+                          <p className="text-sm text-text-secondary line-clamp-2">
+                            {result.authors.slice(0, 3).join(', ')}
+                            {result.authors.length > 3 ? ', et al.' : ''}
+                          </p>
+                          <div className="flex flex-wrap gap-3 text-xs text-text-tertiary mt-3">
+                            {result.doi && <span className="font-medium">DOI: {result.doi}</span>}
+                            {result.containerTitle && <span>{result.containerTitle}</span>}
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <div className="bg-bg-base border border-border-subtle rounded-xl p-5 shadow-sm flex flex-col gap-4">
+                    {selectedResult ? (
+                      <>
+                        <div className="flex items-start gap-3">
+                          <div className="p-2 rounded-md bg-primary-500/10 text-primary-600 dark:text-primary-300">
+                            <BookOpen className="w-5 h-5" />
+                          </div>
+                          <div className="space-y-2">
+                            <div className="space-y-1">
+                              <p className="text-caption font-medium text-primary-500 uppercase tracking-wider">
+                                {selectedResult.type?.replace(/_/g, ' ') || 'Research'}
+                              </p>
+                              <h3 className="text-xl font-semibold text-text-primary leading-snug">
+                                {selectedResult.title}
+                              </h3>
+                            </div>
+                            <p className="text-sm text-text-secondary">
+                              {selectedResult.authors.join(', ')}
+                            </p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-text-tertiary">
+                              {selectedResult.doi && (
+                                <div className="flex flex-col">
+                                  <span className="font-medium text-text-secondary">DOI</span>
+                                  <span className="truncate" title={selectedResult.doi}>{selectedResult.doi}</span>
+                                </div>
+                              )}
+                              {selectedResult.publicationDate && (
+                                <div>
+                                  <span className="font-medium text-text-secondary block">Year</span>
+                                  <span>{selectedResult.publicationDate}</span>
+                                </div>
+                              )}
+                              {selectedResult.containerTitle && (
+                                <div>
+                                  <span className="font-medium text-text-secondary block">Journal / Venue</span>
+                                  <span>{selectedResult.containerTitle}</span>
+                                </div>
+                              )}
+                              {selectedResult.publisher && (
+                                <div>
+                                  <span className="font-medium text-text-secondary block">Publisher</span>
+                                  <span>{selectedResult.publisher}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="bg-bg-elevated border border-border-subtle rounded-lg p-4 max-h-52 overflow-y-auto">
+                          <p className="text-sm text-text-secondary whitespace-pre-line">
+                            {selectedResult.abstract || 'No abstract available for this entry.'}
+                          </p>
+                        </div>
+                        <div className="flex items-center justify-between gap-3 flex-wrap">
+                          {selectedResult.sourceUrl ? (
+                            <a
+                              href={selectedResult.sourceUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-primary-500 hover:text-primary-600 text-sm font-medium"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                              View original source
+                            </a>
+                          ) : (
+                            <span className="text-caption text-text-tertiary">No external link available</span>
+                          )}
+                          <button
+                            onClick={handleAddSelectedResult}
+                            disabled={loading}
+                            className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-500 text-white rounded-lg font-semibold hover:bg-primary-600 transition-colors disabled:opacity-60"
+                          >
+                            <Plus className="w-4 h-4" />
+                            Add to library
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="h-full flex flex-col items-center justify-center text-center text-text-secondary">
+                        <BookOpen className="w-10 h-10 mb-4 text-text-tertiary" />
+                        <p className="font-medium">Select a paper on the left to see its full details.</p>
+                        <p className="text-sm mt-2">
+                          You can review the abstract, venue, and metadata before adding it to your workspace.
+                        </p>
                       </div>
-                    </div>
-                  ))}
+                    )}
+                  </div>
                 </div>
               </div>
             )}

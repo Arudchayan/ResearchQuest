@@ -1,4 +1,4 @@
-import { FileText, BookOpen, Lightbulb, Tag, CheckSquare, Search, Plus, Sparkles, Coffee, Compass, ListChecks, Sprout } from 'lucide-react'
+import { FileText, BookOpen, Lightbulb, Target, CheckSquare, Search, Plus, Sparkles, Coffee, Compass, ListChecks, Sprout } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import type { RealtimeChannel } from '@supabase/supabase-js'
@@ -6,11 +6,9 @@ import { supabase } from '../../lib/supabase'
 import { useNotes } from '../../hooks/useNotes'
 import { usePapers } from '../../hooks/usePapers'
 import { useIdeas } from '../../hooks/useIdeas'
-import { useTopics } from '../../hooks/useTopics'
 import { NoteList } from '../entities/NoteList'
 import { PaperList } from '../entities/PaperList'
 import { IdeaList } from '../entities/IdeaList'
-import { TopicList } from '../topics/TopicList'
 import type { ReadingStatus, IdeaStage } from '../../types/database'
 import { useGamificationStore } from '../../store/gamificationStore'
 import { formatTimeUntil } from '../../utils/time'
@@ -20,7 +18,7 @@ const TABS = [
   { id: 'papers' as const, label: 'Papers', icon: BookOpen },
   { id: 'ideas' as const, label: 'Ideas', icon: Lightbulb },
   { id: 'tasks' as const, label: 'Tasks', icon: CheckSquare },
-  { id: 'topics' as const, label: 'Topics', icon: Tag },
+  { id: 'focus' as const, label: 'Focus', icon: Target },
 ]
 
 interface DeadlinePreview {
@@ -41,7 +39,6 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
     setSelectedNote,
     setSelectedPaper,
     setSelectedIdea,
-    setSelectedTopic,
   } = useAppStore()
   const activeBoost = useGamificationStore((state) => state.activeBoost)
   const boostCountdown = useGamificationStore((state) => state.boostCountdown)
@@ -63,8 +60,6 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
       setSelectedIdea(null)
     } else if (tabId === 'notes') {
       setSelectedNote(null)
-    } else if (tabId === 'topics') {
-      setSelectedTopic(null)
     }
 
     const newUrl = tabId === 'notes' ? '/' : `/${tabId}`
@@ -76,16 +71,13 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   const { notes, loading: notesLoading, createNote, updateNote, deleteNote } = useNotes(userId)
   const { papers, loading: papersLoading, updatePaper, deletePaper } = usePapers(userId)
   const { ideas, loading: ideasLoading, createIdea, updateIdea, deleteIdea } = useIdeas(userId)
-  const { topics, loading: topicsLoading, createTopic, deleteTopic } = useTopics(userId)
-  
   // Determine current loading state
   const loading = useMemo(() => {
     if (currentView === 'notes') return notesLoading
     if (currentView === 'papers') return papersLoading
     if (currentView === 'ideas') return ideasLoading
-    if (currentView === 'topics') return topicsLoading
     return false
-  }, [currentView, ideasLoading, notesLoading, papersLoading, topicsLoading])
+  }, [currentView, ideasLoading, notesLoading, papersLoading])
   
   useEffect(() => {
     let isMounted = true
@@ -261,17 +253,8 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
           window.history.pushState(null, '', `/ideas/${newIdea.id}`)
         }
       }
-    } else if (currentView === 'topics') {
-      const name = prompt('Name your topic:')
-      if (name && name.trim()) {
-        const topic = await createTopic({ name })
-        if (topic) {
-          setSelectedTopic(topic)
-          window.history.pushState(null, '', `/topics/${topic.id}`)
-        }
-      }
     }
-  }, [createIdea, createNote, createTopic, currentView, setSelectedIdea, setSelectedNote, setSelectedPaper, setSelectedTopic])
+  }, [createIdea, createNote, currentView, setSelectedIdea, setSelectedNote, setSelectedPaper])
   
   // Removed handleAddPaper - now handled in AddPaperView
   
@@ -324,18 +307,6 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
     [ideas, normalizedQuery]
   )
 
-  const filteredTopics = useMemo(
-    () =>
-      topics.filter((topic) => {
-        if (!normalizedQuery) {
-          return true
-        }
-
-        return topic.name.toLowerCase().includes(normalizedQuery)
-      }),
-    [topics, normalizedQuery]
-  )
-
   const nextDeadline = upcomingDeadlines[0]
 
   const nextDeadlineBadge = useMemo(() => {
@@ -351,9 +322,9 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
       { key: 'notes', label: 'Notes', count: notes.length, icon: FileText },
       { key: 'papers', label: 'Papers', count: papers.length, icon: BookOpen },
       { key: 'ideas', label: 'Ideas', count: ideas.length, icon: Lightbulb },
-      { key: 'topics', label: 'Topics', count: topics.length, icon: Tag },
+      { key: 'focus', label: 'Focus queue', count: upcomingDeadlines.length, icon: Target },
     ],
-    [ideas.length, notes.length, papers.length, topics.length]
+    [ideas.length, notes.length, papers.length, upcomingDeadlines.length]
   )
 
   const readingStatusCounts = useMemo(() => {
@@ -409,10 +380,18 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
       })
     }
 
-    if (currentView === 'topics' && topics.length > 0) {
+    if (currentView === 'focus') {
+      if (upcomingDeadlines.length > 0) {
+        const deadline = upcomingDeadlines[0]
+        prompts.push({
+          title: 'Tackle your nearest deadline',
+          detail: `Use a timer to make progress on “${deadline.title}” due ${formatTimeUntil(deadline.due_date)}.`,
+        })
+      }
+
       prompts.push({
-        title: 'Tag your wins',
-        detail: 'Attach today’s notes or papers to a topic to keep research strands easy to revisit.',
+        title: 'Pick a single target',
+        detail: 'Choose one note, paper, or task in the Focus tab and commit to a 25-minute deep work sprint.',
       })
     }
 
@@ -444,7 +423,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
     }
 
     return prompts.slice(0, 3)
-  }, [activeBoost, currentView, ideaStageCounts, notes.length, readingStatusCounts, todayXP, topics.length])
+  }, [activeBoost, currentView, ideaStageCounts, notes.length, readingStatusCounts, todayXP, upcomingDeadlines])
 
   const focusReflection = useMemo(() => {
     if (todayXP === 0) {
@@ -521,8 +500,8 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
             />
           </div>
           
-          {/* Add Button (hide for tasks) */}
-          {currentView !== 'tasks' && (
+          {/* Add Button (hide for tasks and focus) */}
+          {currentView !== 'tasks' && currentView !== 'focus' && (
             <button
               onClick={() => {
                 handleAddClick()
@@ -531,7 +510,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
             >
               <Plus className="w-5 h-5" />
               <span>
-                {currentView === 'topics' ? 'New Topic' : `New ${currentView.slice(0, -1)}`}
+                {`New ${currentView.slice(0, -1)}`}
               </span>
             </button>
           )}
@@ -590,16 +569,39 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
               </div>
             )}
             
-            {currentView === 'topics' && (
-              <TopicList
-                topics={filteredTopics}
-                loading={loading}
-                onSelectTopic={(topic) => {
-                  setSelectedTopic(topic)
-                  window.history.pushState(null, '', `/topics/${topic.id}`)
-                }}
-                onDeleteTopic={deleteTopic}
-              />
+            {currentView === 'focus' && (
+              <div className="space-y-3">
+                <div className="p-4 border border-border-subtle rounded-lg bg-bg-base/60 text-sm text-text-secondary">
+                  Set a target in the main panel, choose a timer preset, and block distractions while you work through a single thread.
+                </div>
+                <div className="space-y-2">
+                  <h4 className="text-small font-semibold text-text-secondary px-2 flex items-center gap-2">
+                    <Target className="w-4 h-4 text-primary-500" />
+                    Upcoming focus candidates
+                  </h4>
+                  {upcomingDeadlines.length > 0 ? (
+                    <ul className="space-y-2">
+                      {upcomingDeadlines.slice(0, 4).map((deadline) => (
+                        <li
+                          key={deadline.id}
+                          className="p-3 rounded-md border border-border-subtle bg-bg-base/80"
+                        >
+                          <p className="text-small font-semibold text-text-primary line-clamp-2">
+                            {deadline.title}
+                          </p>
+                          <p className="text-caption text-text-tertiary mt-1">
+                            Due {new Date(deadline.due_date).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="text-caption text-text-tertiary px-2">
+                      No deadlines this week—pick a note or paper you’ve been meaning to revisit.
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
           </div>
           
