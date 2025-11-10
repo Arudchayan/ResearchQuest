@@ -55,24 +55,34 @@ export function NotFound({
   )
 }
 
-export function ItemNotFound({ itemType = "item" }: { itemType?: string }) {
+interface ItemNotFoundProps {
+  itemType?: string
+  onReturn?: () => void
+  description?: string
+}
+
+export function ItemNotFound({ itemType = "item", onReturn, description }: ItemNotFoundProps) {
   return (
     <div className="flex items-center justify-center h-full min-h-[400px] p-6">
       <div className="text-center max-w-md">
         <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-yellow-100 dark:bg-yellow-900/20 mb-4">
           <AlertCircle className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
         </div>
-        
+
         <h3 className="text-lg font-semibold text-text-primary mb-2">
           {itemType.charAt(0).toUpperCase() + itemType.slice(1)} Not Found
         </h3>
-        
+
         <p className="text-small text-text-secondary mb-4">
-          This {itemType} may have been deleted or you may not have access to it.
+          {description || `This ${itemType} may have been deleted or you may not have access to it.`}
         </p>
-        
+
         <button
           onClick={() => {
+            if (onReturn) {
+              onReturn()
+              return
+            }
             // Clear the URL and go back to the list view
             const view = window.location.pathname.split('/')[1]
             window.history.replaceState(null, '', `/${view}`)
