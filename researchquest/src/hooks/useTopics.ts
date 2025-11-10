@@ -59,6 +59,22 @@ function mapTopicRow(row: TopicRow): TopicWithCounts {
   }
 }
 
+function isTopicRow(value: unknown): value is TopicRow {
+  if (!value || typeof value !== 'object') return false
+  const record = value as Record<string, unknown>
+  return (
+    typeof record.id === 'string' &&
+    typeof record.user_id === 'string' &&
+    typeof record.name === 'string' &&
+    typeof record.created_at === 'string' &&
+    typeof record.updated_at === 'string'
+  )
+}
+
+function isTopicRowArray(value: unknown): value is TopicRow[] {
+  return Array.isArray(value) && value.every(isTopicRow)
+}
+
 function mapQuestRow(row: TopicQuestRow): TopicQuestWithTopic {
   return {
     id: row.id,
@@ -140,9 +156,13 @@ export function useTopics(userId: string | undefined) {
       console.error('Failed to fetch topics:', fetchError)
       setError(fetchError.message)
       setTopics([])
-    } else {
-      const mapped = (data || []).map((row) => mapTopicRow(row as TopicRow))
+    } else if (isTopicRowArray(data)) {
+      const rows: TopicRow[] = data
+      const mapped = rows.map((row) => mapTopicRow(row))
       setTopics(mapped)
+      setError(null)
+    } else {
+      setTopics([])
       setError(null)
     }
 
@@ -177,8 +197,8 @@ export function useTopics(userId: string | undefined) {
         return
       }
 
-      if (data) {
-        const mapped = mapTopicRow(data as TopicRow)
+      if (data && isTopicRow(data)) {
+        const mapped = mapTopicRow(data)
         upsertTopic(mapped)
         const currentSelected = useAppStore.getState().selectedTopic
         if (currentSelected?.id === mapped.id) {
