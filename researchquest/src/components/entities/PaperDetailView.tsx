@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { BookOpen, Calendar, ExternalLink, Edit2, Save, X, Link as LinkIcon } from 'lucide-react'
 import type { Paper, ReadingStatus } from '../../types/database'
 import { toast } from 'sonner'
+import { TopicSelector } from '../topics/TopicSelector'
 
 interface PaperDetailViewProps {
   paper: Paper
@@ -178,6 +179,8 @@ export function PaperDetailView({ paper, onUpdate }: PaperDetailViewProps) {
         
         {/* Metadata & Links */}
         <div className="p-6 space-y-4">
+          <TopicSelector entityId={paper.id} entityType="paper" />
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {paper.publication_date && (
               <div className="space-y-1">

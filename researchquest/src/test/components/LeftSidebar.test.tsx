@@ -1,9 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { LeftSidebar } from '../../components/layout/LeftSidebar'
-import { useAppStore } from '../../store/appStore'
-import { mockSupabaseClient, mockPaper, mockIdea, mockNote } from '../mocks/supabase'
+import '../mocks/supabase'
+import { mockSupabaseClient, mockPaper, mockIdea, mockNote, mockTopic } from '../mocks/supabase'
 
 // Mock the hooks
 vi.mock('../../hooks/useNotes', () => ({
@@ -38,15 +37,33 @@ vi.mock('../../hooks/useIdeas', () => ({
   })),
 }))
 
+vi.mock('../../hooks/useTopics', () => ({
+  useTopics: vi.fn(() => ({
+    topics: [mockTopic],
+    loading: false,
+    createTopic: vi.fn().mockResolvedValue(mockTopic),
+    deleteTopic: vi.fn(),
+  })),
+}))
+
+const { LeftSidebar } = await import('../../components/layout/LeftSidebar')
+const { useAppStore } = await import('../../store/appStore')
+
 describe('LeftSidebar Component', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockSupabaseClient.auth.getUser.mockResolvedValue({
+      data: { user: { id: 'test-user-id' } },
+      error: null,
+    })
     // Reset store state
     useAppStore.setState({
       currentView: 'notes',
       selectedNote: null,
       selectedPaper: null,
       selectedIdea: null,
+      selectedTopic: null,
+      topics: [mockTopic],
     })
   })
 
@@ -154,7 +171,7 @@ describe('LeftSidebar Component', () => {
       expect(screen.getByText(/new idea/i)).toBeInTheDocument()
     })
 
-    it('should not show add button for tasks and topics', () => {
+    it('should hide add button for tasks but show for topics', () => {
       useAppStore.setState({ currentView: 'tasks' })
       const { rerender } = render(<LeftSidebar />)
 
@@ -162,7 +179,7 @@ describe('LeftSidebar Component', () => {
 
       useAppStore.setState({ currentView: 'topics' })
       rerender(<LeftSidebar />)
-      expect(screen.queryByRole('button', { name: /new/i })).not.toBeInTheDocument()
+      expect(screen.getByText(/new topic/i)).toBeInTheDocument()
     })
 
     it('should create new note when clicked in notes view', async () => {
@@ -224,8 +241,15 @@ describe('LeftSidebar Component', () => {
       expect(screen.getByText(mockNote.title)).toBeInTheDocument()
     })
 
-    it('should show loading state while fetching', () => {
-      const { usePapers } = require('../../hooks/usePapers')
+    it('should display topics in topics view', () => {
+      useAppStore.setState({ currentView: 'topics' })
+      render(<LeftSidebar />)
+
+      expect(screen.getByText(mockTopic.name)).toBeInTheDocument()
+    })
+
+    it('should show loading state while fetching', async () => {
+      const { usePapers } = await import('../../hooks/usePapers')
       vi.mocked(usePapers).mockReturnValue({
         papers: [],
         loading: true,
@@ -277,12 +301,15 @@ describe('LeftSidebar Component', () => {
     it('should support keyboard navigation', async () => {
       render(<LeftSidebar />)
 
-      const papersTab = screen.getByText('Papers')
-      papersTab.focus()
-      
-      expect(papersTab).toHaveFocus()
+      const papersTabText = screen.getByText('Papers')
+      const papersTabButton = papersTabText.closest('button')
+      papersTabButton?.focus()
 
-      fireEvent.keyDown(papersTab, { key: 'Enter' })
+      expect(papersTabButton).toHaveFocus()
+
+      if (papersTabButton) {
+        fireEvent.keyDown(papersTabButton, { key: 'Enter' })
+      }
       
       await waitFor(() => {
         expect(useAppStore.getState().currentView).toBe('papers')

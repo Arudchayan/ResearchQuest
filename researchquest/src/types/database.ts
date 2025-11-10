@@ -12,10 +12,36 @@ export interface ActiveBoost {
 
 export interface Topic {
   id: string
+  user_id: string
   name: string
   description?: string
   created_at: string
   updated_at: string
+}
+
+export interface TopicWithCounts extends Topic {
+  note_count: number
+  paper_count: number
+  idea_count: number
+}
+
+export type TopicEntityType = 'note' | 'paper' | 'idea'
+
+export interface TopicQuest {
+  id: string
+  user_id: string
+  topic_id: string
+  objective: string
+  target_count: number
+  progress_count: number
+  due_date?: string
+  status: 'active' | 'completed' | 'expired'
+  created_at: string
+  updated_at: string
+}
+
+export interface TopicQuestWithTopic extends TopicQuest {
+  topic?: Pick<Topic, 'id' | 'name' | 'updated_at'>
 }
 
 export interface Paper {

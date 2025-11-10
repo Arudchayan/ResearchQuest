@@ -11,6 +11,7 @@ import { Bold, Italic, Code, List, Link2, Save } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { supabase } from '../../lib/supabase'
 import { awardXP, XP_REWARDS } from '../../utils/gamification'
+import { TopicSelector } from '../topics/TopicSelector'
 
 export function MarkdownEditor() {
   const { selectedNote, setSelectedNote, effectiveTheme } = useAppStore()
@@ -133,6 +134,10 @@ export function MarkdownEditor() {
         <button className="p-2 hover:bg-bg-surface rounded-md transition-colors" title="Link">
           <Link2 className="w-4 h-4 text-text-secondary" />
         </button>
+      </div>
+
+      <div className="px-6 py-4 border-b border-border-subtle bg-bg-surface">
+        <TopicSelector entityId={selectedNote.id} entityType="note" />
       </div>
       
       {/* Split View - 60/40 ratio */}

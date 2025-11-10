@@ -1,6 +1,6 @@
 import { Link2, Hash, Sparkles, CalendarCheck, Snowflake, Coffee, Flame, Heart } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useGamificationStore } from '../../store/gamificationStore'
 import { formatTimeUntil, formatDateLabel } from '../../utils/time'

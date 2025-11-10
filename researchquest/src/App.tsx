@@ -16,6 +16,8 @@ import { Toaster } from 'sonner'
 import type { User } from '@supabase/supabase-js'
 import { usePapers } from './hooks/usePapers'
 import { useIdeas } from './hooks/useIdeas'
+import { useTopics } from './hooks/useTopics'
+import { TopicDetailView } from './components/topics/TopicDetailView'
 
 function AuthScreen() {
   const [email, setEmail] = useState('')
@@ -139,6 +141,12 @@ function App() {
   // Get hooks for CRUD operations
   const { papers, loading: papersLoading, searchPaperByDOI, searchPapersByQuery, createPaper, updatePaper } = usePapers(userId)
   const { ideas, loading: ideasLoading, updateIdea } = useIdeas(userId)
+  const {
+    topics,
+    loading: topicsLoading,
+    updateTopic,
+    deleteTopic,
+  } = useTopics(userId)
   
   useEffect(() => {
     // Check active sessions
@@ -241,6 +249,7 @@ function App() {
     // Wait for data to load
     if (view === 'papers' && papersLoading) return
     if (view === 'ideas' && ideasLoading) return
+    if (view === 'topics' && topicsLoading) return
     
     // Try to find and select the item based on URL
     if (view === 'papers' && papers.length >= 0) {
@@ -265,8 +274,18 @@ function App() {
         console.log('Idea not found:', itemId)
         setItemNotFound(true)
       }
+    } else if (view === 'topics' && topics.length >= 0) {
+      const topic = topics.find(t => t.id === itemId)
+      if (topic) {
+        console.log('Selecting topic from URL:', itemId)
+        setSelectedTopic(topic)
+        setItemNotFound(false)
+      } else if (!topicsLoading) {
+        console.log('Topic not found:', itemId)
+        setItemNotFound(true)
+      }
     }
-  }, [userId, papers, ideas, papersLoading, ideasLoading, currentView])
+  }, [currentView, ideas, ideasLoading, papers, papersLoading, setSelectedTopic, topics, topicsLoading, userId])
   
   if (loading) {
     return (
@@ -365,16 +384,32 @@ function App() {
               </div>
             )
           ) : currentView === 'topics' ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <h2 className="text-title font-semibold text-text-primary mb-4">
-                  Topics Feature Coming Soon
-                </h2>
-                <p className="text-body text-text-secondary">
-                  We're working on adding topic management to help you organize your research.
-                </p>
+            itemNotFound ? (
+              <ItemNotFound itemType="topic" />
+            ) : selectedTopic ? (
+              <TopicDetailView
+                topic={selectedTopic}
+                onUpdate={updateTopic}
+                onDelete={deleteTopic}
+              />
+            ) : topicsLoading ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center text-text-tertiary">
+                  Loading topics...
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="p-6">
+                <div className="max-w-4xl mx-auto text-center py-12">
+                  <h2 className="text-title font-semibold text-text-primary mb-4">
+                    Topics Workspace
+                  </h2>
+                  <p className="text-body text-text-secondary">
+                    Select a topic from the sidebar or create a new one to organize your research themes.
+                  </p>
+                </div>
+              </div>
+            )
           ) : null}
         </main>
         
