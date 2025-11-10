@@ -24,13 +24,14 @@ function AuthScreen() {
   const [password, setPassword] = useState('')
   const [isSignUp, setIsSignUp] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [resetting, setResetting] = useState(false)
   const [message, setMessage] = useState('')
   
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setMessage('')
-    
+
     try {
       if (isSignUp) {
         const { error } = await supabase.auth.signUp({
@@ -50,6 +51,30 @@ function AuthScreen() {
       setMessage(error.message || 'An error occurred')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handlePasswordReset = async () => {
+    if (!email) {
+      setMessage('Enter your email address to receive a reset link.')
+      return
+    }
+
+    setResetting(true)
+    setMessage('')
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      })
+
+      if (error) throw error
+
+      setMessage('Password reset link sent! Check your email to continue.')
+    } catch (error: any) {
+      setMessage(error.message || 'Unable to send password reset email. Please try again.')
+    } finally {
+      setResetting(false)
     }
   }
   
@@ -93,8 +118,16 @@ function AuthScreen() {
               className="w-full px-4 py-3 bg-bg-base border border-border-subtle rounded-md text-body focus:outline-none focus:ring-2 focus:ring-primary-500"
               placeholder="••••••••"
             />
+            <button
+              type="button"
+              onClick={handlePasswordReset}
+              disabled={resetting}
+              className="mt-2 text-small text-primary-500 hover:text-primary-600 disabled:opacity-60"
+            >
+              {resetting ? 'Sending reset link…' : 'Forgot password?'}
+            </button>
           </div>
-          
+
           {message && (
             <div className={`p-3 rounded-md text-small ${
               message.includes('error') || message.includes('Error')
