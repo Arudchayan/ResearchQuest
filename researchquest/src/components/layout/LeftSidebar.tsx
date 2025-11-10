@@ -1,6 +1,7 @@
 import { FileText, BookOpen, Lightbulb, Tag, CheckSquare, Search, Plus } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
 import { useNotes } from '../../hooks/useNotes'
 import { usePapers } from '../../hooks/usePapers'
@@ -62,63 +63,87 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   }, [currentView, notesLoading, papersLoading, ideasLoading])
   
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setUserId(user?.id)
-      
-      // Fetch today's XP
-      if (user?.id) {
-        const today = new Date().toISOString().split('T')[0]
-        supabase
-          .from('daily_logs')
-          .select('xp_earned')
-          .eq('user_id', user.id)
-          .eq('date', today)
-          .maybeSingle()
-          .then(({ data }) => {
-            if (data) {
-              setTodayXP(data.xp_earned)
-            }
-          })
-          
-        // Set up realtime listener for profile updates
-        const profileChannel = supabase
-          .channel('profile_changes')
-          .on('postgres_changes',
-            { event: 'UPDATE', schema: 'public', table: 'user_profiles', filter: `id=eq.${user.id}` },
-            (payload) => {
-              setUserProfile(payload.new as any)
-            }
-          )
-          .subscribe()
-          
-        // Set up realtime listener for daily log updates
-        const logsChannel = supabase
-          .channel('daily_logs_changes')
-          .on('postgres_changes',
-            { event: '*', schema: 'public', table: 'daily_logs', filter: `user_id=eq.${user.id}` },
-            () => {
-              supabase
-                .from('daily_logs')
-                .select('xp_earned')
-                .eq('user_id', user.id)
-                .eq('date', today)
-                .maybeSingle()
-                .then(({ data }) => {
-                  if (data) {
-                    setTodayXP(data.xp_earned)
-                  }
-                })
-            }
-          )
-          .subscribe()
-          
-        return () => {
-          profileChannel.unsubscribe()
-          logsChannel.unsubscribe()
-        }
+    let isMounted = true
+    let profileChannel: RealtimeChannel | null = null
+    let logsChannel: RealtimeChannel | null = null
+
+    const fetchTodayXp = async (userId: string, today: string) => {
+      const { data, error } = await supabase
+        .from('daily_logs')
+        .select('xp_earned')
+        .eq('user_id', userId)
+        .eq('date', today)
+        .maybeSingle()
+
+      if (!isMounted) {
+        return
       }
-    })
-  }, [])
+
+      if (error) {
+        console.error('Failed to fetch today\'s XP:', error)
+        return
+      }
+
+      if (data) {
+        setTodayXP(data.xp_earned)
+      } else {
+        setTodayXP(0)
+      }
+    }
+
+    const init = async () => {
+      const { data, error } = await supabase.auth.getUser()
+
+      if (!isMounted) {
+        return
+      }
+
+      if (error) {
+        console.error('Failed to get user:', error)
+        return
+      }
+
+      const user = data.user
+      setUserId(user?.id)
+
+      if (!user?.id) {
+        return
+      }
+
+      const today = new Date().toISOString().split('T')[0]
+      await fetchTodayXp(user.id, today)
+
+      profileChannel = supabase
+        .channel('profile_changes')
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'user_profiles', filter: `id=eq.${user.id}` },
+          (payload) => {
+            setUserProfile(payload.new as any)
+          }
+        )
+        .subscribe()
+
+      logsChannel = supabase
+        .channel('daily_logs_changes')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'daily_logs', filter: `user_id=eq.${user.id}` },
+          () => {
+            void fetchTodayXp(user.id, today)
+          }
+        )
+        .subscribe()
+    }
+
+    void init()
+
+    return () => {
+      isMounted = false
+      profileChannel?.unsubscribe()
+      logsChannel?.unsubscribe()
+    }
+  }, [setUserProfile])
   
 
   
