@@ -105,6 +105,7 @@ describe('Paper Workflow Integration Tests', () => {
       let insertCalled = false
       mockSupabaseClient.from.mockImplementation((table: string) => {
         if (table === 'papers' && !insertCalled) {
+          insertCalled = true
           return {
             insert: vi.fn().mockReturnThis(),
             select: vi.fn().mockReturnThis(),

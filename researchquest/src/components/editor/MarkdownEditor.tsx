@@ -37,46 +37,41 @@ export function MarkdownEditor() {
     }
   }, [selectedNote])
   
-  // Auto-save with debounce
-  useEffect(() => {
-    if (!selectedNote || !userId) return
-    
-    const timer = setTimeout(() => {
-      void saveNote()
-    }, 1000)
-    
-    return () => clearTimeout(timer)
-  }, [content, title, selectedNote, userId])
-  
   const saveNote = useCallback(async () => {
     if (!selectedNote || !userId) return
-    
+
     setSaving(true)
-    
+
     try {
       // Extract tags from content (words starting with #)
       const tagMatches = content.match(/#(\w+)/g)
       const tags = tagMatches ? [...new Set(tagMatches.map(tag => tag.slice(1)))] : []
-      
+
+      const trimmedTitle = title.trim()
+      const persistedTitle = trimmedTitle.length > 0 ? trimmedTitle : null
+
       const updatedData = {
-        title: title || content.split('\n')[0]?.replace(/^#+ /, '').trim() || 'Untitled Note',
+        title: persistedTitle,
         markdown_body: content,
         tags,
       }
-      
-      const { error } = await supabase
+
+      const { data, error } = await supabase
         .from('notes')
         .update(updatedData)
         .eq('id', selectedNote.id)
-      
-      if (!error) {
-        // Optimistically update the selected note in store
+        .select()
+        .single()
+
+      if (!error && data) {
+        const persisted = data as typeof selectedNote
+        // Optimistically update the selected note in store with server values
         setSelectedNote({
           ...selectedNote,
-          ...updatedData,
-          updated_at: new Date().toISOString(),
+          ...persisted,
+          title: persisted.title,
         })
-        
+
         // Award XP for updating (don't await to avoid blocking)
         awardXP(userId, XP_REWARDS.UPDATE_NOTE, 'update_note').catch(console.error)
       }
@@ -86,6 +81,17 @@ export function MarkdownEditor() {
       setSaving(false)
     }
   }, [selectedNote, userId, content, title, setSelectedNote])
+
+  // Auto-save with debounce
+  useEffect(() => {
+    if (!selectedNote || !userId) return
+
+    const timer = setTimeout(() => {
+      void saveNote()
+    }, 1000)
+
+    return () => clearTimeout(timer)
+  }, [content, title, selectedNote, userId, saveNote])
   
   if (!selectedNote) {
     return (
