@@ -25,6 +25,7 @@ function AuthScreen() {
   const [isSignUp, setIsSignUp] = useState(false)
   const [loading, setLoading] = useState(false)
   const [resetting, setResetting] = useState(false)
+  const [oauthLoading, setOauthLoading] = useState(false)
   const [message, setMessage] = useState('')
   
   const handleAuth = async (e: React.FormEvent) => {
@@ -77,6 +78,29 @@ function AuthScreen() {
       setResetting(false)
     }
   }
+
+  const handleOAuthLogin = async () => {
+    setOauthLoading(true)
+    setMessage('')
+
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
+
+      if (error) throw error
+    } catch (error: any) {
+      setMessage(
+        error?.message ||
+          'Unable to start Google sign-in. Please try again or use email/password.',
+      )
+    } finally {
+      setOauthLoading(false)
+    }
+  }
   
   return (
     <div className="min-h-screen flex items-center justify-center bg-bg-base">
@@ -92,6 +116,45 @@ function AuthScreen() {
         </div>
         
         <form onSubmit={handleAuth} className="space-y-4">
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={handleOAuthLogin}
+              disabled={oauthLoading}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-border-subtle rounded-md text-body font-medium text-text-primary hover:border-primary-500 hover:text-primary-600 transition-colors disabled:opacity-60"
+            >
+              <svg
+                className="w-5 h-5"
+                viewBox="0 0 533.5 544.3"
+                aria-hidden="true"
+              >
+                <path
+                  fill="#4285f4"
+                  d="M533.5 278.4c0-17.4-1.6-34.1-4.6-50.3H272v95.2h147.5c-6.4 34.7-25.7 64-54.7 83.6v69.4h88.5c51.8-47.8 80.2-118.2 80.2-197.9z"
+                />
+                <path
+                  fill="#34a853"
+                  d="M272 544.3c73.8 0 135.8-24.5 181.1-66.6l-88.5-69.4c-24.6 16.5-56.1 26-92.6 26-71.2 0-131.5-48-153.1-112.5H27.6v70.7c45 89.1 137.5 151.8 244.4 151.8z"
+                />
+                <path
+                  fill="#fbbc05"
+                  d="M118.9 322.8c-10.9-32.6-10.9-67.6 0-100.2V151.9H27.6c-46.5 92-46.5 201.1 0 293.1l91.3-70.2z"
+                />
+                <path
+                  fill="#ea4335"
+                  d="M272 107.7c39.9-.6 78.2 14.9 107.3 42.9l80-80C405.8 24.2 344.1-1.3 272 0 165.1 0 72.6 62.7 27.6 151.9l91.3 70.7C140.5 155.7 200.8 107.7 272 107.7z"
+                />
+              </svg>
+              {oauthLoading ? 'Contacting Google…' : 'Continue with Google'}
+            </button>
+
+            <div className="flex items-center gap-3 text-small text-text-secondary">
+              <span className="h-px flex-1 bg-border-subtle" aria-hidden="true" />
+              <span>or use email</span>
+              <span className="h-px flex-1 bg-border-subtle" aria-hidden="true" />
+            </div>
+          </div>
+
           <div>
             <label className="block text-small font-medium text-text-primary mb-2">
               Email
