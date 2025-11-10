@@ -15,33 +15,68 @@ export function IdeaDetailView({ idea, onUpdate }: IdeaDetailViewProps) {
   const [editedTitle, setEditedTitle] = useState(idea.title)
   const [editedDescription, setEditedDescription] = useState(idea.description || '')
   const [editedStage, setEditedStage] = useState(idea.stage)
-  
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
+
   useEffect(() => {
     setEditedTitle(idea.title)
     setEditedDescription(idea.description || '')
     setEditedStage(idea.stage)
     setIsEditing(false)
+    setSaveError('')
   }, [idea.id, idea.title, idea.description, idea.stage])
-  
+
   const handleSave = async () => {
-    const updates: Partial<Idea> = {
-      title: editedTitle,
-      description: editedDescription,
-      stage: editedStage,
+    const nextTitle = editedTitle.trim()
+    const nextDescription = editedDescription.trim()
+
+    if (!nextTitle) {
+      setSaveError('Title is required to save changes.')
+      return
     }
-    
+
+    const updates: Partial<Idea> = {}
+    if (nextTitle !== idea.title) {
+      updates.title = nextTitle
+    }
+
+    const currentDescription = (idea.description || '').trim()
+    if (nextDescription !== currentDescription) {
+      updates.description = nextDescription
+    }
+
+    if (editedStage !== idea.stage) {
+      updates.stage = editedStage
+    }
+
+    if (Object.keys(updates).length === 0) {
+      setSaveError('No changes to save yet.')
+      return
+    }
+
+    setSaving(true)
+    setSaveError('')
     const success = await onUpdate(idea.id, updates, idea.stage)
+    setSaving(false)
+
     if (success) {
+      const stageChanged = updates.stage && updates.stage !== idea.stage
+      const hasContentUpdates = Object.keys(updates).some((key) => key !== 'stage')
       setIsEditing(false)
-      toast.success('Idea updated successfully')
+      if (hasContentUpdates || !stageChanged) {
+        toast.success('Idea updated successfully')
+      }
+    } else {
+      setSaveError('Unable to save changes. Please try again.')
     }
   }
-  
+
   const handleCancel = () => {
     setEditedTitle(idea.title)
     setEditedDescription(idea.description || '')
     setEditedStage(idea.stage)
     setIsEditing(false)
+    setSaveError('')
   }
   
   const getStageColor = (stage: IdeaStage) => {
@@ -98,7 +133,8 @@ export function IdeaDetailView({ idea, onUpdate }: IdeaDetailViewProps) {
                 <>
                   <button
                     onClick={handleSave}
-                    className="p-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors"
+                    disabled={saving}
+                    className="p-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                     title="Save changes"
                   >
                     <Save className="w-5 h-5" />
@@ -150,6 +186,9 @@ export function IdeaDetailView({ idea, onUpdate }: IdeaDetailViewProps) {
                 </div>
                 <p className="text-sm text-text-tertiary mt-2">{getStageDescription(idea.stage)}</p>
               </div>
+            )}
+            {saveError && isEditing && (
+              <p className="text-sm text-destructive">{saveError}</p>
             )}
           </div>
         </div>

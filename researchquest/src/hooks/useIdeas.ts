@@ -111,17 +111,47 @@ export function useIdeas(userId: string | undefined) {
       return null
     }
 
+    const trimmedTitle = ideaData.title.trim()
+    let normalizedTitle = trimmedTitle
+    let inferredDescription = ideaData.description?.trim() || ''
+
+    if (!inferredDescription) {
+      const lineSplit = trimmedTitle.split(/\n+/)
+      if (lineSplit.length > 1) {
+        const [firstLine, ...rest] = lineSplit
+        if (firstLine.trim()) {
+          inferredDescription = rest.join(' ').trim()
+          normalizedTitle = firstLine.trim()
+        }
+      }
+    }
+
+    if (!inferredDescription) {
+      const delimiters = [' — ', ' – ', ' - ', ': ']
+      for (const delimiter of delimiters) {
+        if (trimmedTitle.includes(delimiter)) {
+          const [maybeTitle, maybeDescription] = trimmedTitle.split(delimiter)
+          if (maybeTitle.trim() && maybeDescription.trim()) {
+            normalizedTitle = maybeTitle.trim()
+            inferredDescription = maybeDescription.trim()
+            break
+          }
+        }
+      }
+    }
+
     // Clean and prepare the data - only include defined fields
     const cleanData: any = {
       user_id: userId,
-      title: ideaData.title.trim(),
+      title: normalizedTitle,
       stage: ideaData.stage || 'Seed',
     }
 
-    // Only add optional fields if they have values (and trim strings)
-    if (ideaData.description && ideaData.description.trim()) {
-      cleanData.description = ideaData.description.trim()
+    if (inferredDescription) {
+      cleanData.description = inferredDescription
     }
+
+    // Only add optional fields if they have values (and trim strings)
     if (ideaData.linked_note_ids && Array.isArray(ideaData.linked_note_ids) && ideaData.linked_note_ids.length > 0) {
       cleanData.linked_note_ids = ideaData.linked_note_ids
     }
