@@ -38,6 +38,21 @@ const ENTITY_COLUMN: Record<TopicEntityType, string> = {
   idea: 'idea_id',
 }
 
+async function tableSupportsUserId(table: string): Promise<boolean> {
+  const { error } = await supabase.from(table).select('user_id').limit(1)
+  if (!error) {
+    return true
+  }
+
+  const normalized = `${error.message ?? ''} ${error.details ?? ''}`.toLowerCase()
+  if (normalized.includes('column') && normalized.includes('user_id')) {
+    return false
+  }
+
+  // Assume support unless explicitly missing
+  return true
+}
+
 function coerceCount(value?: { count: number | null }[]): number {
   if (!value || value.length === 0) return 0
   const first = value[0]
@@ -144,12 +159,14 @@ export function useTopics(userId: string | undefined) {
     let { data, error: fetchError } = await supabase
       .from('topics')
       .select(selectColumns)
+      .eq('user_id', userId)
       .order('updated_at', { ascending: false })
 
     if (fetchError && isRelationshipError(fetchError)) {
       const fallback = await supabase
         .from('topics')
         .select('*')
+        .eq('user_id', userId)
         .order('updated_at', { ascending: false })
       data = fallback.data
       fetchError = fallback.error
@@ -162,8 +179,7 @@ export function useTopics(userId: string | undefined) {
     } else if (isTopicRowArray(data)) {
       const rows: TopicRow[] = data
       const mapped = rows.map((row) => mapTopicRow(row))
-      const scoped = userId ? mapped.filter((topic) => topic.user_id === userId) : mapped
-      setTopics(scoped)
+      setTopics(mapped)
       setError(null)
     } else {
       setTopics([])
@@ -181,6 +197,7 @@ export function useTopics(userId: string | undefined) {
       let { data, error: fetchError } = await supabase
         .from('topics')
         .select(selectColumns)
+        .eq('user_id', userId)
         .eq('id', topicId)
         .maybeSingle()
 
@@ -188,6 +205,7 @@ export function useTopics(userId: string | undefined) {
         const fallback = await supabase
           .from('topics')
           .select('*')
+          .eq('user_id', userId)
           .eq('id', topicId)
           .maybeSingle()
         data = fallback.data
@@ -201,9 +219,6 @@ export function useTopics(userId: string | undefined) {
 
       if (data && isTopicRow(data)) {
         const mapped = mapTopicRow(data)
-        if (userId && mapped.user_id !== userId) {
-          return
-        }
         upsertTopic(mapped)
         const currentSelected = useAppStore.getState().selectedTopic
         if (currentSelected?.id === mapped.id) {
@@ -223,14 +238,14 @@ export function useTopics(userId: string | undefined) {
     const { data, error: questError } = await supabase
       .from('topic_quests')
       .select('*, topics(id, name, updated_at)')
+      .eq('user_id', userId)
       .order('created_at', { ascending: false })
 
     if (questError) {
       console.error('Failed to fetch topic quests:', questError)
     } else {
       const questRows = (data || []).map((row) => mapQuestRow(row as TopicQuestRow))
-      const scoped = userId ? questRows.filter((quest) => quest.user_id === userId) : questRows
-      setQuests(scoped)
+      setQuests(questRows)
     }
     setQuestsLoading(false)
   }, [userId])
@@ -270,6 +285,42 @@ export function useTopics(userId: string | undefined) {
 
   useEffect(() => {
     linkCacheRef.current.clear()
+  }, [userId])
+
+  useEffect(() => {
+    if (!userId) {
+      linkSupportsUserIdRef.current = { note: false, paper: true, idea: true }
+      return
+    }
+
+    let cancelled = false
+
+    const detect = async () => {
+      const entries = await Promise.all(
+        (['note', 'paper', 'idea'] as const).map(async (type) => {
+          const table = ENTITY_TABLE[type]
+          try {
+            const supports = await tableSupportsUserId(table)
+            return { type, supports }
+          } catch (error) {
+            console.error(`Failed to detect user_id support for ${table}`, error)
+            return { type, supports: linkSupportsUserIdRef.current[type] }
+          }
+        })
+      )
+
+      if (cancelled) return
+
+      entries.forEach(({ type, supports }) => {
+        linkSupportsUserIdRef.current[type] = supports
+      })
+    }
+
+    void detect()
+
+    return () => {
+      cancelled = true
+    }
   }, [userId])
 
   useEffect(() => {
@@ -516,11 +567,17 @@ export function useTopics(userId: string | undefined) {
       const table = ENTITY_TABLE[entityType]
       const column = ENTITY_COLUMN[entityType]
 
-      const { error: deleteError } = await supabase
+      let query = supabase
         .from(table)
         .delete()
         .eq('topic_id', topicId)
         .eq(column, entityId)
+
+      if (linkSupportsUserIdRef.current[entityType]) {
+        query = query.eq('user_id', userId)
+      }
+
+      const { error: deleteError } = await query
 
       if (deleteError) {
         console.error('Failed to unlink topic:', deleteError)
@@ -552,10 +609,16 @@ export function useTopics(userId: string | undefined) {
       }
       const table = ENTITY_TABLE[entityType]
       const column = ENTITY_COLUMN[entityType]
-      const { data, error: fetchError } = await supabase
+      let query = supabase
         .from(table)
         .select('topic_id')
         .eq(column, entityId)
+
+      if (linkSupportsUserIdRef.current[entityType]) {
+        query = query.eq('user_id', userId)
+      }
+
+      const { data, error: fetchError } = await query
 
       if (fetchError) {
         console.error('Failed to fetch topic links:', fetchError)

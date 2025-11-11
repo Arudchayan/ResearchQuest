@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Sun, Moon, Flame, User, Sparkles, Snowflake, Coffee, LogOut } from 'lucide-react'
+import { Sun, Moon, Flame, User, Sparkles, Snowflake, Coffee, LogOut, HelpCircle } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { useGamificationStore } from '../../store/gamificationStore'
 import { supabase } from '../../lib/supabase'
 import { toast } from 'sonner'
+import { XPExplainer } from './XPExplainer'
 
 export function TopNav() {
   const { theme, setTheme, user, effectiveTheme } = useAppStore()
@@ -12,6 +13,7 @@ export function TopNav() {
   const streakFreezeTokens = useGamificationStore((state) => state.streakFreezeTokens)
   const restDays = useGamificationStore((state) => state.restDays)
   const [signingOut, setSigningOut] = useState(false)
+  const [showXpGuide, setShowXpGuide] = useState(false)
 
   const toggleTheme = () => {
     const newTheme = effectiveTheme === 'light' ? 'dark' : 'light'
@@ -60,12 +62,21 @@ export function TopNav() {
               Lvl {currentLevel} • {xpInLevel}/500 XP
             </span>
             <div className="w-48 h-2.5 bg-bg-elevated rounded-full overflow-hidden shadow-sm">
-              <div 
+              <div
                 className="h-full bg-gradient-to-r from-primary-500 to-primary-600 transition-all duration-600 ease-in-out"
                 style={{ width: `${xpProgress}%` }}
               />
             </div>
           </div>
+          <button
+            type="button"
+            onClick={() => setShowXpGuide(true)}
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-border-subtle text-caption text-text-secondary hover:text-text-primary hover:border-primary-400 transition-colors"
+            aria-label="Learn how XP levels work"
+          >
+            <HelpCircle className="w-3.5 h-3.5" aria-hidden="true" />
+            XP guide
+          </button>
         </div>
         
         {/* Right - Streak & Theme Toggle */}
@@ -127,6 +138,13 @@ export function TopNav() {
           </button>
         </div>
       </div>
+
+      <XPExplainer
+        open={showXpGuide}
+        onClose={() => setShowXpGuide(false)}
+        currentLevel={currentLevel}
+        totalXP={user?.total_xp || 0}
+      />
     </nav>
   )
 }

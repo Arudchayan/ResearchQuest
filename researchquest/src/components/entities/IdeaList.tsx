@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Clock, Lightbulb, Trash2, TrendingUp, Search } from 'lucide-react'
 import type { Idea, IdeaStage } from '../../types/database'
 import { ListSkeleton } from '../ui/Skeleton'
+import { highlightMatch } from '../../utils/highlight'
 
 interface IdeaCardProps {
   idea: Idea
@@ -9,6 +10,7 @@ interface IdeaCardProps {
   onDelete: (id: string) => void
   onStageChange: (id: string, stage: IdeaStage, oldStage: IdeaStage) => void
   isSelected: boolean
+  searchQuery?: string
 }
 
 const STAGE_FILTER_OPTIONS: { value: IdeaStage | 'all'; label: string }[] = [
@@ -19,7 +21,7 @@ const STAGE_FILTER_OPTIONS: { value: IdeaStage | 'all'; label: string }[] = [
   { value: 'Mature', label: 'Mature' },
 ]
 
-export function IdeaCard({ idea, onSelect, onDelete, onStageChange, isSelected }: IdeaCardProps) {
+export function IdeaCard({ idea, onSelect, onDelete, onStageChange, isSelected, searchQuery = '' }: IdeaCardProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   
   const handleDelete = (e: React.MouseEvent) => {
@@ -57,7 +59,9 @@ export function IdeaCard({ idea, onSelect, onDelete, onStageChange, isSelected }
       <div className="flex items-start justify-between gap-2 mb-1.5">
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <Lightbulb className="w-4 h-4 text-text-tertiary flex-shrink-0" />
-          <h4 className="text-small font-semibold text-text-primary line-clamp-2">{idea.title}</h4>
+          <h4 className="text-small font-semibold text-text-primary line-clamp-2">
+            {highlightMatch(idea.title, searchQuery)}
+          </h4>
         </div>
         <button
           onClick={handleDelete}
@@ -65,13 +69,16 @@ export function IdeaCard({ idea, onSelect, onDelete, onStageChange, isSelected }
             showDeleteConfirm ? 'text-red-500' : 'text-text-tertiary'
           }`}
           title={showDeleteConfirm ? 'Click again to confirm' : 'Delete idea'}
+          aria-label="Delete idea"
         >
           <Trash2 className="w-4 h-4" />
         </button>
       </div>
       
       {idea.description && (
-        <p className="text-caption text-text-secondary line-clamp-2 mb-2">{idea.description}</p>
+        <p className="text-caption text-text-secondary line-clamp-2 mb-2">
+          {highlightMatch(idea.description, searchQuery)}
+        </p>
       )}
       
       <div className="flex items-center gap-2 flex-wrap">
@@ -198,6 +205,7 @@ export function IdeaList({ ideas, onSelectIdea, onDeleteIdea, onStageChange, sel
               onDelete={onDeleteIdea}
               onStageChange={onStageChange}
               isSelected={idea.id === selectedIdeaId}
+              searchQuery={searchQuery}
             />
           ))}
         </div>

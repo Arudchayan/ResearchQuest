@@ -186,6 +186,7 @@ export function useIdeas(userId: string | undefined) {
 
     // Award XP (don't await to avoid blocking)
     awardXP(userId, XP_REWARDS.CREATE_IDEA, 'create_idea').catch(console.error)
+    void fetchIdeas()
 
     return data
   }
@@ -249,12 +250,13 @@ export function useIdeas(userId: string | undefined) {
       const stages: IdeaStage[] = ['Seed', 'Developing', 'Supported', 'Mature']
       const oldIndex = stages.indexOf(oldStage)
       const newIndex = stages.indexOf(updates.stage)
-      
+
       if (newIndex > oldIndex) {
         awardXP(userId, XP_REWARDS.ADVANCE_IDEA_STAGE, 'advance_idea_stage').catch(console.error)
       }
     }
 
+    void fetchIdeas()
     return true
   }
 
@@ -288,6 +290,7 @@ export function useIdeas(userId: string | undefined) {
     }
 
     toast.success('Idea deleted')
+    void fetchIdeas()
     return true
   }
 

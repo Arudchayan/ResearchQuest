@@ -18,6 +18,7 @@ import { usePapers } from './hooks/usePapers'
 import { useIdeas } from './hooks/useIdeas'
 import { FocusWorkspace } from './components/focus/FocusWorkspace'
 import { IdeasOverview } from './components/ideas/IdeasOverview'
+import { OnboardingGuide } from './components/layout/OnboardingGuide'
 
 function AuthScreen() {
   const [email, setEmail] = useState('')
@@ -388,13 +389,16 @@ function App() {
   return (
     <div className="min-h-screen-dynamic bg-bg-base">
       {/* Toast Notifications */}
-      <Toaster 
+      <Toaster
         position="top-right"
         richColors
         expand={false}
         duration={3000}
+        offset={72}
+        visibleToasts={3}
         theme={useAppStore.getState().effectiveTheme}
         closeButton
+        toastOptions={{ duration: 3200 }}
       />
       
       {/* Mobile Navigation */}
@@ -413,14 +417,16 @@ function App() {
         {/* Main Content Area - Takes remaining space */}
         <main className="flex-1 overflow-auto">
           {currentView === 'tasks' ? (
-            <div className="p-6">
+            <div className="p-6 space-y-6">
+              <OnboardingGuide />
               <TaskManager />
             </div>
           ) : currentView === 'notes' ? (
             selectedNote ? (
               <MarkdownEditor />
             ) : (
-              <div className="p-6">
+              <div className="p-6 space-y-6">
+                <OnboardingGuide />
                 <div className="max-w-4xl mx-auto text-center py-12">
                   <h2 className="text-title font-semibold text-text-primary mb-4">
                     Welcome to ResearchQuest
@@ -433,58 +439,79 @@ function App() {
             )
           ) : currentView === 'papers' ? (
             itemNotFound ? (
-              <ItemNotFound itemType="paper" />
+              <div className="p-6 space-y-6">
+                <OnboardingGuide />
+                <ItemNotFound itemType="paper" />
+              </div>
             ) : selectedPaper ? (
-              <PaperDetailView
-                paper={selectedPaper}
-                onUpdate={updatePaper}
-              />
+              <div className="p-6 space-y-6">
+                <OnboardingGuide />
+                <PaperDetailView
+                  paper={selectedPaper}
+                  onUpdate={updatePaper}
+                />
+              </div>
             ) : (
-              <AddPaperView
-                onAdd={async (paperData) => {
-                  const newPaper = await createPaper(paperData)
-                  return newPaper
-                }}
-                searchByDOI={searchPaperByDOI}
-                searchByQuery={searchPapersByQuery}
-              />
+              <div className="p-6 space-y-6">
+                <OnboardingGuide />
+                <AddPaperView
+                  onAdd={async (paperData) => {
+                    const newPaper = await createPaper(paperData)
+                    return newPaper
+                  }}
+                  searchByDOI={searchPaperByDOI}
+                  searchByQuery={searchPapersByQuery}
+                />
+              </div>
             )
           ) : currentView === 'ideas' ? (
             itemNotFound ? (
-              <ItemNotFound
-                itemType="idea"
-                description="We couldn't find that idea. It may have been deleted or moved to another account."
-                onReturn={() => {
-                  setItemNotFound(false)
-                  setSelectedIdea(null)
-                  window.history.replaceState(null, '', '/ideas')
-                }}
-              />
+              <div className="p-6 space-y-6">
+                <OnboardingGuide />
+                <ItemNotFound
+                  itemType="idea"
+                  description="We couldn't find that idea. It may have been deleted or moved to another account."
+                  onReturn={() => {
+                    setItemNotFound(false)
+                    setSelectedIdea(null)
+                    window.history.replaceState(null, '', '/ideas')
+                  }}
+                />
+              </div>
             ) : selectedIdea ? (
-              <IdeaDetailView
-                idea={selectedIdea}
-                onUpdate={updateIdea}
-              />
+              <div className="p-6 space-y-6">
+                <OnboardingGuide />
+                <IdeaDetailView
+                  idea={selectedIdea}
+                  onUpdate={updateIdea}
+                />
+              </div>
             ) : (
-              <IdeasOverview
-                ideas={ideas}
-                loading={ideasLoading}
-                onCreate={async (payload) => {
-                  const created = await createIdea(payload)
-                  if (created) {
-                    setSelectedIdea(created)
-                    window.history.pushState(null, '', `/ideas/${created.id}`)
-                  }
-                  return created ?? null
-                }}
-                onSelect={(idea) => {
-                  setSelectedIdea(idea)
-                  window.history.pushState(null, '', `/ideas/${idea.id}`)
-                }}
-              />
+              <div className="p-6 space-y-6">
+                <OnboardingGuide />
+                <IdeasOverview
+                  ideas={ideas}
+                  loading={ideasLoading}
+                  onCreate={async (payload) => {
+                    const created = await createIdea(payload)
+                    if (created) {
+                      setSelectedIdea(created)
+                      window.history.pushState(null, '', `/ideas/${created.id}`)
+                    }
+                    return created ?? null
+                  }}
+                  onSelect={(idea) => {
+                    setSelectedIdea(idea)
+                    window.history.pushState(null, '', `/ideas/${idea.id}`)
+                  }}
+                />
+              </div>
             )
           ) : currentView === 'focus' ? (
-            <FocusWorkspace userId={userId} />
+            <div className="p-4 sm:p-6 space-y-6">
+              <OnboardingGuide storageKey="rq_focus_onboarding_bridge" />
+              <FocusWorkspace userId={userId} />
+            </div>
           ) : null}
         </main>
         

@@ -171,6 +171,8 @@ export function useTasks(userId: string | undefined) {
     // Award XP (don't await to avoid blocking)
     awardXP(userId, XP_REWARDS.CREATE_TASK, 'create_task').catch(console.error)
 
+    void fetchTasks()
+
     return data
   }
 
@@ -196,7 +198,7 @@ export function useTasks(userId: string | undefined) {
     if (updateError) {
       console.error('Failed to update task:', updateError)
       console.error('Error details:', JSON.stringify(updateError, null, 2))
-      
+
       const errorMessage = updateError.message || updateError.details || updateError.hint || 'Unknown error occurred'
       setError(`Failed to update task: ${errorMessage}`)
       toast.error(`Failed to update task: ${errorMessage}`)
@@ -205,6 +207,7 @@ export function useTasks(userId: string | undefined) {
       return false
     }
 
+    void fetchTasks()
     return true
   }
 
@@ -246,6 +249,7 @@ export function useTasks(userId: string | undefined) {
       awardXP(userId, XP_REWARDS.COMPLETE_TASK, 'complete_task').catch(console.error)
     }
 
+    void fetchTasks()
     return true
   }
 
@@ -274,6 +278,7 @@ export function useTasks(userId: string | undefined) {
     }
 
     toast.success('Task deleted')
+    void fetchTasks()
     return true
   }
 

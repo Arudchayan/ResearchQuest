@@ -4,15 +4,17 @@ import type { Note } from '../../types/database'
 import { ListSkeleton } from '../ui/Skeleton'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { toast } from 'sonner'
+import { highlightMatch } from '../../utils/highlight'
 
 interface NoteCardProps {
   note: Note
   onSelect: (note: Note) => void
   onDelete: (note: Note) => void
   isSelected: boolean
+  searchQuery?: string
 }
 
-const NoteCardComponent = ({ note, onSelect, onDelete, isSelected }: NoteCardProps) => {
+const NoteCardComponent = ({ note, onSelect, onDelete, isSelected, searchQuery = '' }: NoteCardProps) => {
   // Extract title from markdown or use first line
   const title = note.title || note.markdown_body.split('\n')[0]?.replace(/^#+ /, '').trim() || 'Untitled Note'
   const preview = note.markdown_body.slice(0, 100) + (note.markdown_body.length > 100 ? '...' : '')
@@ -38,18 +40,23 @@ const NoteCardComponent = ({ note, onSelect, onDelete, isSelected }: NoteCardPro
       <div className="flex items-start justify-between gap-2 mb-1.5">
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <FileText className="w-4 h-4 text-text-tertiary flex-shrink-0" />
-          <h4 className="text-small font-semibold text-text-primary truncate">{title}</h4>
+          <h4 className="text-small font-semibold text-text-primary truncate">
+            {highlightMatch(title, searchQuery)}
+          </h4>
         </div>
         <button
           onClick={handleDelete}
           className="p-1 rounded hover:bg-bg-elevated transition-colors flex-shrink-0 text-text-tertiary"
           title="Delete note"
+          aria-label="Delete note"
         >
           <Trash2 className="w-4 h-4" />
         </button>
       </div>
-      
-      <p className="text-caption text-text-secondary line-clamp-2 mb-2">{preview}</p>
+
+      <p className="text-caption text-text-secondary line-clamp-2 mb-2">
+        {highlightMatch(preview, searchQuery)}
+      </p>
       
       <div className="flex items-center gap-3 text-caption text-text-tertiary">
         {note.tags && note.tags.length > 0 && (
@@ -205,6 +212,7 @@ export function NoteList({
               setNoteToDelete(candidate)
             }}
             isSelected={note.id === selectedNoteId}
+            searchQuery={searchQuery}
           />
         ))}
       </div>
