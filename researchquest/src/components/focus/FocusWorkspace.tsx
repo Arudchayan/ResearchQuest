@@ -1,11 +1,25 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Clock, Play, Pause, RotateCcw, Target, BookOpen, FileText, CheckSquare, Sparkles } from 'lucide-react'
+import {
+  Clock,
+  Play,
+  Pause,
+  RotateCcw,
+  Target,
+  BookOpen,
+  FileText,
+  CheckSquare,
+  Sparkles,
+  ChevronDown,
+  ChevronRight,
+  Info,
+} from 'lucide-react'
 import { useNotes } from '../../hooks/useNotes'
 import { usePapers } from '../../hooks/usePapers'
 import { useTasks } from '../../hooks/useTasks'
 import { useAppStore } from '../../store/appStore'
 import type { Note, Paper } from '../../types/database'
 import type { Task } from '../../hooks/useTasks'
+import { ListSkeleton, Skeleton } from '../ui/Skeleton'
 
 interface FocusWorkspaceProps {
   userId: string | undefined
@@ -17,6 +31,10 @@ interface SelectedTarget {
   type: FocusTargetType
   id: string
 }
+
+type CollapsedGroups = Record<FocusTargetType, boolean>
+
+type CollapsiblePanel = 'suggestions'
 
 function formatTime(seconds: number) {
   const mins = Math.floor(seconds / 60)
@@ -63,6 +81,20 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   const [isRunning, setIsRunning] = useState(false)
   const [customMinutes, setCustomMinutes] = useState('')
   const [hasCompletedSession, setHasCompletedSession] = useState(false)
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    if (typeof window === 'undefined') {
+      return true
+    }
+    return window.localStorage.getItem('rq_focus_onboarding_dismissed') !== 'true'
+  })
+  const [collapsedGroups, setCollapsedGroups] = useState<CollapsedGroups>({
+    note: false,
+    paper: false,
+    task: false,
+  })
+  const [collapsedPanels, setCollapsedPanels] = useState<Record<CollapsiblePanel, boolean>>({
+    suggestions: false,
+  })
 
   useEffect(() => {
     setTimeLeft(sessionLength)
@@ -144,7 +176,9 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
           .map((task) => ({
             id: task.id,
             title: task.title,
-            meta: task.due_date ? new Date(task.due_date).toLocaleString(undefined, { month: 'short', day: 'numeric' }) : 'No due date',
+            meta: task.due_date
+              ? new Date(task.due_date).toLocaleString(undefined, { month: 'short', day: 'numeric' })
+              : 'No due date',
           })),
       },
     ]
@@ -198,6 +232,27 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     setCustomMinutes('')
   }
 
+  const toggleGroup = (type: FocusTargetType) => {
+    setCollapsedGroups((prev) => ({
+      ...prev,
+      [type]: !prev[type],
+    }))
+  }
+
+  const togglePanel = (panel: CollapsiblePanel) => {
+    setCollapsedPanels((prev) => ({
+      ...prev,
+      [panel]: !prev[panel],
+    }))
+  }
+
+  const dismissOnboarding = () => {
+    setShowOnboarding(false)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('rq_focus_onboarding_dismissed', 'true')
+    }
+  }
+
   const handleTargetSelection = (target: SelectedTarget) => {
     setSelectedTarget(target)
     setHasCompletedSession(false)
@@ -230,7 +285,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   ]
 
   return (
-    <div className="p-6 md:p-8 max-w-6xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 md:p-8 max-w-6xl mx-auto space-y-6">
       <div className="flex flex-col gap-3">
         <div className="inline-flex items-center gap-2 text-primary-500 text-sm font-semibold uppercase tracking-wide">
           <Target className="w-4 h-4" />
@@ -241,6 +296,36 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
           Choose one target, set a timer, and stay in flow. Your notes, papers, and tasks update automatically when the session ends.
         </p>
       </div>
+
+      {showOnboarding && (
+        <div className="bg-primary-500/10 border border-primary-200 dark:border-primary-500/40 rounded-2xl p-5 sm:p-6 flex flex-col gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary-500 text-white flex items-center justify-center shadow-inner">
+              <Info className="w-5 h-5" aria-hidden="true" />
+            </div>
+            <div className="space-y-2 text-sm sm:text-base">
+              <h2 className="text-lg font-semibold text-text-primary">How to settle into a Focus Studio sprint</h2>
+              <ul className="list-disc pl-5 space-y-1 text-text-secondary">
+                <li>Pick one item on the right and set a meaningful session length.</li>
+                <li>Capture what you learn in the preview panel or jump straight into the full workspace.</li>
+                <li>Log a takeaway at the end—completing the sprint earns streak-protecting XP.</li>
+              </ul>
+            </div>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-caption text-text-tertiary">
+              You can reopen this guide from the session menu at any time.
+            </p>
+            <button
+              type="button"
+              onClick={dismissOnboarding}
+              className="self-start sm:self-auto inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 transition-colors"
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_1fr]">
         <div className="space-y-6">
@@ -275,55 +360,92 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
               )}
             </div>
 
-            <div className="flex flex-col items-center gap-4">
+            <div className="flex flex-col items-center gap-5">
               <div className="text-6xl md:text-7xl font-mono font-bold text-text-primary">
                 {formatTime(effectiveTimeLeft)}
               </div>
-              <div className="w-full h-3 bg-bg-base rounded-full overflow-hidden">
+
+              <div className="w-full space-y-2">
+                <div className="flex items-center justify-between text-caption text-text-tertiary">
+                  <span>Time remaining</span>
+                  <span>{Math.round(progress * 100)}% complete</span>
+                </div>
                 <div
-                  className="h-full bg-gradient-to-r from-primary-500 to-primary-600 transition-all"
-                  style={{ width: `${Math.min(100, Math.max(0, progress * 100))}%` }}
-                />
+                  className="w-full h-3 md:h-3.5 bg-bg-base rounded-full overflow-hidden shadow-inner"
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={Math.min(100, Math.max(0, Math.round(progress * 100)))}
+                  aria-label="Focus session progress"
+                >
+                  <div
+                    className="h-full bg-gradient-to-r from-primary-500 via-primary-500/90 to-primary-600 transition-all duration-500 ease-out"
+                    style={{ width: `${Math.min(100, Math.max(0, progress * 100))}%` }}
+                  />
+                </div>
               </div>
 
-              <div className="flex flex-wrap items-center justify-center gap-2">
+              <div className="grid gap-2 w-full sm:grid-cols-2" aria-label="Session length presets">
                 {presets.map((preset) => (
                   <button
                     key={preset.value}
+                    type="button"
                     onClick={() => setSessionLength(preset.value)}
-                    className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                    className={`px-3 py-2 rounded-full text-sm font-medium border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 ${
                       sessionLength === preset.value
-                        ? 'bg-primary-500 text-white border-primary-500'
+                        ? 'bg-primary-500 text-white border-primary-500 shadow-sm'
                         : 'border-border-subtle text-text-secondary hover:border-primary-400 hover:text-text-primary'
                     }`}
                   >
                     {preset.label}
                   </button>
                 ))}
-                <div className="flex items-center gap-2 border border-border-subtle rounded-full px-3 py-1.5 text-sm">
-                  <input
-                    value={customMinutes}
-                    onChange={(event) => setCustomMinutes(event.target.value.replace(/[^0-9]/g, ''))}
-                    placeholder="Custom"
-                    inputMode="numeric"
-                    className="w-16 bg-transparent text-center outline-none"
-                  />
-                  <span className="text-text-tertiary">min</span>
-                  <button
-                    onClick={applyCustomDuration}
-                    className="text-primary-500 font-semibold"
-                    disabled={!customMinutes}
-                  >
-                    Set
-                  </button>
-                </div>
               </div>
 
-              <div className="flex items-center justify-center gap-3">
+              <form
+                className="flex flex-col sm:flex-row sm:items-center gap-2 w-full bg-bg-base border border-border-subtle rounded-xl px-4 py-3"
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  applyCustomDuration()
+                }}
+                aria-labelledby="custom-duration-label"
+              >
+                <div className="flex flex-col flex-1">
+                  <label
+                    id="custom-duration-label"
+                    htmlFor="custom-duration-input"
+                    className="text-caption font-medium text-text-secondary"
+                  >
+                    Custom duration
+                  </label>
+                  <input
+                    id="custom-duration-input"
+                    value={customMinutes}
+                    onChange={(event) => setCustomMinutes(event.target.value.replace(/[^0-9]/g, ''))}
+                    placeholder="e.g. 35"
+                    inputMode="numeric"
+                    aria-describedby="custom-duration-hint"
+                    className="mt-1 w-full bg-transparent text-base text-text-primary outline-none"
+                  />
+                </div>
+                <div className="flex items-center gap-2 text-sm text-text-tertiary">
+                  <span id="custom-duration-hint">minutes</span>
+                  <button
+                    type="submit"
+                    className="inline-flex items-center px-3 py-1.5 rounded-full bg-primary-500 text-white font-semibold disabled:opacity-50"
+                    disabled={!customMinutes}
+                  >
+                    Apply
+                  </button>
+                </div>
+              </form>
+
+              <div className="flex flex-wrap items-center justify-center gap-3">
                 <button
                   onClick={() => setIsRunning((prev) => !prev)}
                   disabled={!selectedItem || sessionLength === 0}
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary-500 text-white font-semibold hover:bg-primary-600 transition-colors disabled:opacity-50"
+                  type="button"
                 >
                   {isRunning ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
                   {isRunning ? 'Pause' : 'Start focus'}
@@ -335,8 +457,16 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                     setHasCompletedSession(false)
                   }}
                   className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-border-subtle text-text-secondary hover:border-primary-400 hover:text-primary-500 transition-colors"
+                  type="button"
                 >
                   <RotateCcw className="w-4 h-4" /> Reset
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowOnboarding(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-border-subtle text-text-secondary hover:border-primary-400 hover:text-primary-500 transition-colors"
+                >
+                  <Info className="w-4 h-4" /> Session tips
                 </button>
               </div>
             </div>
@@ -391,6 +521,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                   <button
                     onClick={handleOpenInWorkspace}
                     className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-500 text-white font-medium hover:bg-primary-600 transition-colors"
+                    type="button"
                   >
                     Open in workspace
                   </button>
@@ -406,16 +537,38 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
 
         <aside className="space-y-6">
           {isLoading ? (
-            <div className="p-6 border border-border-subtle rounded-2xl bg-bg-surface shadow-sm text-center text-text-secondary">
-              Loading your workspace…
+            <div className="space-y-4">
+              {([
+                { key: 'note' as const, label: 'Notes' },
+                { key: 'paper' as const, label: 'Papers' },
+                { key: 'task' as const, label: 'Tasks' },
+              ]).map(({ key, label }) => (
+                <div key={key} className="bg-bg-surface border border-border-subtle rounded-2xl shadow-sm p-5 space-y-4">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-text-secondary">
+                    <Skeleton className="w-4 h-4 rounded-full" />
+                    <span>{label}</span>
+                  </div>
+                  <ListSkeleton
+                    count={3}
+                    itemType={key === 'task' ? 'task' : key === 'paper' ? 'paper' : 'note'}
+                  />
+                </div>
+              ))}
             </div>
           ) : (
             quickTargets.map((group) => {
               const Icon = group.icon
               const items = group.items
+              const isCollapsed = collapsedGroups[group.type]
               return (
                 <div key={group.type} className="bg-bg-surface border border-border-subtle rounded-2xl shadow-sm">
-                  <div className="flex items-start justify-between gap-3 p-5">
+                  <button
+                    type="button"
+                    onClick={() => toggleGroup(group.type)}
+                    className="w-full flex items-start justify-between gap-3 p-5 text-left"
+                    aria-expanded={!isCollapsed}
+                    aria-controls={`focus-group-${group.type}`}
+                  >
                     <div>
                       <div className="flex items-center gap-2 text-sm font-semibold text-text-secondary">
                         <Icon className="w-4 h-4 text-primary-500" />
@@ -423,8 +576,49 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                       </div>
                       <p className="text-caption text-text-tertiary mt-1">{group.description}</p>
                     </div>
-                   <button
-                      className="text-caption text-primary-500 hover:text-primary-600"
+                    {isCollapsed ? (
+                      <ChevronRight className="w-4 h-4 text-text-tertiary" aria-hidden="true" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-text-tertiary" aria-hidden="true" />
+                    )}
+                  </button>
+                  {!isCollapsed && (
+                    <div id={`focus-group-${group.type}`} className="border-t border-border-subtle">
+                      {items.length > 0 ? (
+                        <ul className="divide-y divide-border-subtle/60">
+                          {items.map((item) => {
+                            const isActive = selectedTarget?.type === group.type && selectedTarget.id === item.id
+                            return (
+                              <li key={item.id}>
+                                <button
+                                  onClick={() => handleTargetSelection({ type: group.type, id: item.id })}
+                                  className={`w-full text-left px-5 py-3 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 ${
+                                    isActive ? 'bg-primary-500/10 text-primary-600' : 'hover:bg-bg-base'
+                                  }`}
+                                  type="button"
+                                  aria-pressed={isActive}
+                                  title={`Focus on ${item.title}`}
+                                >
+                                  <p className="text-sm font-semibold text-text-primary line-clamp-2">{item.title}</p>
+                                  <p className="text-caption text-text-tertiary mt-1">{item.meta}</p>
+                                </button>
+                              </li>
+                            )
+                          })}
+                        </ul>
+                      ) : (
+                        <div className="px-5 py-6 text-sm text-text-tertiary">
+                          {group.type === 'note' && 'No notes yet. Create one to capture your thinking.'}
+                          {group.type === 'paper' && 'No papers are marked for reading. Add one from the Papers tab.'}
+                          {group.type === 'task' && 'No active tasks. Create a task to anchor your next focus sprint.'}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between px-5 py-3 border-t border-border-subtle/60 text-caption">
+                    <span className="text-text-tertiary">{items.length} suggested {group.title.toLowerCase()}</span>
+                    <button
+                      className="text-primary-500 hover:text-primary-600"
                       onClick={() => {
                         const targetView = group.type === 'task' ? 'tasks' : group.type === 'paper' ? 'papers' : 'notes'
                         setCurrentView(targetView)
@@ -434,56 +628,45 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                           targetView === 'notes' ? '/' : `/${targetView}`
                         )
                       }}
+                      type="button"
+                      title={`Open all ${group.title.toLowerCase()}`}
+                      aria-label={`Open the full ${group.title.toLowerCase()} view`}
                     >
                       View all
                     </button>
-                  </div>
-                  <div className="border-t border-border-subtle">
-                    {items.length > 0 ? (
-                      <ul className="divide-y divide-border-subtle/60">
-                        {items.map((item) => {
-                          const isActive = selectedTarget?.type === group.type && selectedTarget.id === item.id
-                          return (
-                            <li key={item.id}>
-                              <button
-                                onClick={() => handleTargetSelection({ type: group.type, id: item.id })}
-                                className={`w-full text-left px-5 py-3 transition-colors ${
-                                  isActive ? 'bg-primary-500/10 text-primary-600' : 'hover:bg-bg-base'
-                                }`}
-                              >
-                                <p className="text-sm font-semibold text-text-primary line-clamp-2">{item.title}</p>
-                                <p className="text-caption text-text-tertiary mt-1">{item.meta}</p>
-                              </button>
-                            </li>
-                          )
-                        })}
-                      </ul>
-                    ) : (
-                      <div className="px-5 py-6 text-sm text-text-tertiary">
-                        {group.type === 'note' && 'No notes yet. Create one to capture your thinking.'}
-                        {group.type === 'paper' && 'No papers are marked for reading. Add one from the Papers tab.'}
-                        {group.type === 'task' && 'No active tasks. Create a task to anchor your next focus sprint.'}
-                      </div>
-                    )}
                   </div>
                 </div>
               )
             })
           )}
 
-          <div className="bg-bg-surface border border-border-subtle rounded-2xl shadow-sm p-5 space-y-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-text-secondary">
-              <Sparkles className="w-4 h-4 text-primary-500" />
-              Suggested moves
-            </div>
-            <ul className="space-y-2">
-              {focusInsights.map((insight) => (
-                <li key={insight.title} className="p-3 rounded-lg bg-bg-base/60 border border-border-subtle/60">
-                  <p className="text-sm font-semibold text-text-primary">{insight.title}</p>
-                  <p className="text-caption text-text-secondary mt-1">{insight.detail}</p>
-                </li>
-              ))}
-            </ul>
+          <div className="bg-bg-surface border border-border-subtle rounded-2xl shadow-sm">
+            <button
+              type="button"
+              onClick={() => togglePanel('suggestions')}
+              className="w-full flex items-center justify-between gap-2 p-5 text-sm font-semibold text-text-secondary hover:text-text-primary"
+              aria-expanded={!collapsedPanels.suggestions}
+            >
+              <span className="inline-flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-primary-500" />
+                Suggested moves
+              </span>
+              {collapsedPanels.suggestions ? (
+                <ChevronRight className="w-4 h-4" aria-hidden="true" />
+              ) : (
+                <ChevronDown className="w-4 h-4" aria-hidden="true" />
+              )}
+            </button>
+            {!collapsedPanels.suggestions && (
+              <ul className="p-5 pt-0 space-y-2">
+                {focusInsights.map((insight) => (
+                  <li key={insight.title} className="p-3 rounded-lg bg-bg-base/60 border border-border-subtle/60">
+                    <p className="text-sm font-semibold text-text-primary">{insight.title}</p>
+                    <p className="text-caption text-text-secondary mt-1">{insight.detail}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </aside>
       </div>

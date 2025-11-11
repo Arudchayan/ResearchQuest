@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Sun, Moon, Flame, User, Sparkles, Snowflake, Coffee, LogOut } from 'lucide-react'
+import { Sun, Moon, Flame, User, Sparkles, Snowflake, Coffee, LogOut, HelpCircle } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { useGamificationStore } from '../../store/gamificationStore'
 import { supabase } from '../../lib/supabase'
 import { toast } from 'sonner'
+import { XPExplainer } from './XPExplainer'
 
 export function TopNav() {
   const { theme, setTheme, user, effectiveTheme } = useAppStore()
@@ -12,6 +13,7 @@ export function TopNav() {
   const streakFreezeTokens = useGamificationStore((state) => state.streakFreezeTokens)
   const restDays = useGamificationStore((state) => state.restDays)
   const [signingOut, setSigningOut] = useState(false)
+  const [showXpGuide, setShowXpGuide] = useState(false)
 
   const toggleTheme = () => {
     const newTheme = effectiveTheme === 'light' ? 'dark' : 'light'
@@ -43,8 +45,8 @@ export function TopNav() {
   const xpInLevel = user ? user.total_xp % 500 : 0
 
   return (
-    <nav className="fixed top-0 left-0 right-0 h-16 bg-bg-surface/80 backdrop-blur-lg border-b border-border-subtle shadow-sm z-50 px-0">
-      <div className="h-full w-full flex items-center justify-between pr-4 sm:pr-6">
+    <nav className="fixed top-0 left-0 right-0 h-16 bg-bg-surface/80 backdrop-blur-lg border-b border-border-subtle shadow-sm z-50 px-4 sm:px-6">
+      <div className="h-full w-full flex items-center justify-between">
         {/* Logo & Title */}
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-primary-500 rounded-md flex items-center justify-center text-white font-bold">
@@ -52,7 +54,7 @@ export function TopNav() {
           </div>
           <h1 className="text-lg font-semibold text-text-primary">ResearchQuest</h1>
         </div>
-        
+
         {/* Center - XP Progress (hidden on mobile) */}
         <div className="hidden md:flex items-center gap-4">
           <div className="flex flex-col items-end gap-1">
@@ -60,16 +62,31 @@ export function TopNav() {
               Lvl {currentLevel} • {xpInLevel}/500 XP
             </span>
             <div className="w-48 h-2.5 bg-bg-elevated rounded-full overflow-hidden shadow-sm">
-              <div 
+              <div
                 className="h-full bg-gradient-to-r from-primary-500 to-primary-600 transition-all duration-600 ease-in-out"
                 style={{ width: `${xpProgress}%` }}
               />
             </div>
           </div>
+          <button
+            type="button"
+            onClick={() => setShowXpGuide(true)}
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-border-subtle text-caption text-text-secondary hover:text-text-primary hover:border-primary-400 transition-colors"
+            aria-label="Learn how XP levels work"
+          >
+            <HelpCircle className="w-3.5 h-3.5" aria-hidden="true" />
+            XP guide
+          </button>
         </div>
-        
+
+        {/* Mobile XP summary */}
+        <div className="md:hidden flex items-center gap-2 text-caption text-text-secondary">
+          <span className="font-semibold text-text-primary">Lvl {currentLevel}</span>
+          <span>• {xpInLevel}/500 XP</span>
+        </div>
+
         {/* Right - Streak & Theme Toggle */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
           {/* Streak Counter */}
           <div className="flex items-center gap-2 px-3 py-1.5 bg-success-bg border border-success rounded-full">
             <Flame className="w-4 h-4 text-success" />
@@ -119,14 +136,21 @@ export function TopNav() {
           <button
             onClick={handleSignOut}
             disabled={signingOut}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-md border border-border-subtle text-small font-medium text-text-secondary hover:bg-bg-elevated hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 disabled:opacity-60"
+            className="inline-flex items-center gap-2 px-2.5 sm:px-3 py-2 rounded-md border border-border-subtle text-small font-medium text-text-secondary hover:bg-bg-elevated hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 disabled:opacity-60"
             aria-label="Sign out"
           >
             <LogOut className="w-4 h-4" aria-hidden="true" />
-            <span>{signingOut ? 'Signing out…' : 'Sign out'}</span>
+            <span className="hidden sm:inline">{signingOut ? 'Signing out…' : 'Sign out'}</span>
           </button>
         </div>
       </div>
+
+      <XPExplainer
+        open={showXpGuide}
+        onClose={() => setShowXpGuide(false)}
+        currentLevel={currentLevel}
+        totalXP={user?.total_xp || 0}
+      />
     </nav>
   )
 }

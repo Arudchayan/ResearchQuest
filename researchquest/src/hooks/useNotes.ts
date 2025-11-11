@@ -142,7 +142,9 @@ export function useNotes(userId: string | undefined) {
 
     // Award XP (don't await to avoid blocking)
     awardXP(userId, XP_REWARDS.CREATE_NOTE, 'create_note').catch(console.error)
-    
+
+    void fetchNotes()
+
     return data
   }
 
@@ -163,7 +165,7 @@ export function useNotes(userId: string | undefined) {
     if (updateError) {
       console.error('Failed to update note:', updateError)
       console.error('Error details:', JSON.stringify(updateError, null, 2))
-      
+
       const errorMessage = updateError.message || updateError.details || updateError.hint || 'Unknown error occurred'
       setError(`Failed to update note: ${errorMessage}`)
       toast.error(`Failed to update note: ${errorMessage}`)
@@ -176,7 +178,9 @@ export function useNotes(userId: string | undefined) {
     if (userId) {
       awardXP(userId, XP_REWARDS.UPDATE_NOTE, 'update_note').catch(console.error)
     }
-    
+
+    void fetchNotes()
+
     return true
   }
 
@@ -205,6 +209,8 @@ export function useNotes(userId: string | undefined) {
       }
       return false
     }
+
+    void fetchNotes()
 
     return true
   }
@@ -235,6 +241,7 @@ export function useNotes(userId: string | undefined) {
     })
 
     toast.success('Note restored')
+    void fetchNotes()
     return restoredNote
   }
 

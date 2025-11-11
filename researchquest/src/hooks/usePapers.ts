@@ -323,6 +323,7 @@ export function usePapers(userId: string | undefined) {
 
     // Award XP (don't await to avoid blocking)
     awardXP(userId, XP_REWARDS.CREATE_PAPER, 'create_paper').catch(console.error)
+    void fetchPapers()
 
     return data
   }
@@ -391,6 +392,7 @@ export function usePapers(userId: string | undefined) {
       awardXP(userId, XP_REWARDS.UPDATE_PAPER_STATUS, 'update_paper_status').catch(console.error)
     }
 
+    void fetchPapers()
     return true
   }
 
@@ -420,6 +422,7 @@ export function usePapers(userId: string | undefined) {
     }
 
     toast.success('Paper deleted')
+    void fetchPapers()
     return true
   }
 
