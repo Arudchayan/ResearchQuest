@@ -202,7 +202,7 @@ export function TaskManager() {
   
   if (loading) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <ListSkeleton count={6} itemType="task" />
       </div>
     )
@@ -211,7 +211,7 @@ export function TaskManager() {
   return (
     <div className="h-full flex flex-col bg-bg-base">
       {/* Header */}
-      <div className="p-6 border-b border-border-subtle bg-bg-surface">
+      <div className="p-4 sm:p-6 border-b border-border-subtle bg-bg-surface">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-title font-bold text-text-primary">Task Manager</h2>
           <button
@@ -304,7 +304,7 @@ export function TaskManager() {
       </div>
       
       {/* Task List */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6">
         {sortedTasks.length === 0 ? (
           <div className="text-center py-16">
             <CheckCircle2 className="w-16 h-16 mx-auto mb-4 text-text-tertiary opacity-50" />
@@ -341,7 +341,7 @@ export function TaskManager() {
           setShowAddModal(false)
           handleCancelEdit()
         }}>
-          <div className="bg-bg-surface rounded-lg shadow-xl w-full max-w-md p-6 m-4" onClick={e => e.stopPropagation()}>
+          <div className="bg-bg-surface rounded-lg shadow-xl w-full max-w-md p-4 sm:p-6 m-4" onClick={e => e.stopPropagation()}>
             <h3 className="text-body font-bold text-text-primary mb-4">
               {editingTask ? 'Edit Task' : 'New Task'}
             </h3>

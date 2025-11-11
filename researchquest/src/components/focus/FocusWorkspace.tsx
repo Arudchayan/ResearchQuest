@@ -19,6 +19,7 @@ import { useTasks } from '../../hooks/useTasks'
 import { useAppStore } from '../../store/appStore'
 import type { Note, Paper } from '../../types/database'
 import type { Task } from '../../hooks/useTasks'
+import { ListSkeleton, Skeleton } from '../ui/Skeleton'
 
 interface FocusWorkspaceProps {
   userId: string | undefined
@@ -536,8 +537,23 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
 
         <aside className="space-y-6">
           {isLoading ? (
-            <div className="p-6 border border-border-subtle rounded-2xl bg-bg-surface shadow-sm text-center text-text-secondary">
-              Loading your workspace…
+            <div className="space-y-4">
+              {([
+                { key: 'note' as const, label: 'Notes' },
+                { key: 'paper' as const, label: 'Papers' },
+                { key: 'task' as const, label: 'Tasks' },
+              ]).map(({ key, label }) => (
+                <div key={key} className="bg-bg-surface border border-border-subtle rounded-2xl shadow-sm p-5 space-y-4">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-text-secondary">
+                    <Skeleton className="w-4 h-4 rounded-full" />
+                    <span>{label}</span>
+                  </div>
+                  <ListSkeleton
+                    count={3}
+                    itemType={key === 'task' ? 'task' : key === 'paper' ? 'paper' : 'note'}
+                  />
+                </div>
+              ))}
             </div>
           ) : (
             quickTargets.map((group) => {

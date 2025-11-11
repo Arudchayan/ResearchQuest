@@ -57,9 +57,9 @@
 ## General
 - [x] Resolve topics schema `user_id` column issue globally.
 - [x] Ensure data consistency across modules (counts & statuses).
-- [ ] Improve transactional integrity for idea saves.
+- [x] Improve transactional integrity for idea saves.
 - [x] Enhance search highlighting across modules.
 - [x] Standardize icon styles and tooltips, add ARIA labels.
 - [x] Create onboarding/tutorial for new users.
-- [ ] Ensure responsive layouts for smaller screens.
-- [ ] Improve perceived performance with preloading/skeletons.
+- [x] Ensure responsive layouts for smaller screens.
+- [x] Improve perceived performance with preloading/skeletons.

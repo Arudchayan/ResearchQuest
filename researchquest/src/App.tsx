@@ -12,6 +12,7 @@ import { IdeaDetailView } from './components/entities/IdeaDetailView'
 import { AddPaperView } from './components/entities/AddPaperView'
 import { PaperDetailView } from './components/entities/PaperDetailView'
 import { ItemNotFound } from './components/ui/NotFound'
+import { AppLoadingSkeleton } from './components/ui/Skeleton'
 import { Toaster } from 'sonner'
 import type { User } from '@supabase/supabase-js'
 import { usePapers } from './hooks/usePapers'
@@ -375,11 +376,7 @@ function App() {
   }, [currentView, ideas, ideasLoading, papers, papersLoading, userId])
   
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-bg-base">
-        <div className="text-text-primary">Loading...</div>
-      </div>
-    )
+    return <AppLoadingSkeleton />
   }
   
   if (!user) {
@@ -408,16 +405,16 @@ function App() {
       <TopNav />
       
       {/* Main Layout Container */}
-      <div className="pt-16 flex min-h-screen-dynamic">
+      <div className="pt-16 flex min-h-screen-dynamic flex-col lg:flex-row">
         {/* Left Sidebar - Hidden on mobile, 280px on desktop */}
-        <aside className="hidden lg:flex lg:flex-col lg:w-70 bg-bg-surface border-r border-border-subtle">
+        <aside className="hidden lg:flex lg:flex-col lg:w-70 bg-bg-surface border-r border-border-subtle order-2 lg:order-1">
           <LeftSidebar />
         </aside>
-        
+
         {/* Main Content Area - Takes remaining space */}
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-auto order-1 lg:order-2 min-h-[calc(100dvh-4rem)]">
           {currentView === 'tasks' ? (
-            <div className="p-6 space-y-6">
+            <div className="p-4 sm:p-6 space-y-6">
               <OnboardingGuide />
               <TaskManager />
             </div>
@@ -425,7 +422,7 @@ function App() {
             selectedNote ? (
               <MarkdownEditor />
             ) : (
-              <div className="p-6 space-y-6">
+              <div className="p-4 sm:p-6 space-y-6">
                 <OnboardingGuide />
                 <div className="max-w-4xl mx-auto text-center py-12">
                   <h2 className="text-title font-semibold text-text-primary mb-4">
@@ -439,12 +436,12 @@ function App() {
             )
           ) : currentView === 'papers' ? (
             itemNotFound ? (
-              <div className="p-6 space-y-6">
+              <div className="p-4 sm:p-6 space-y-6">
                 <OnboardingGuide />
                 <ItemNotFound itemType="paper" />
               </div>
             ) : selectedPaper ? (
-              <div className="p-6 space-y-6">
+              <div className="p-4 sm:p-6 space-y-6">
                 <OnboardingGuide />
                 <PaperDetailView
                   paper={selectedPaper}
@@ -452,7 +449,7 @@ function App() {
                 />
               </div>
             ) : (
-              <div className="p-6 space-y-6">
+              <div className="p-4 sm:p-6 space-y-6">
                 <OnboardingGuide />
                 <AddPaperView
                   onAdd={async (paperData) => {
@@ -466,7 +463,7 @@ function App() {
             )
           ) : currentView === 'ideas' ? (
             itemNotFound ? (
-              <div className="p-6 space-y-6">
+              <div className="p-4 sm:p-6 space-y-6">
                 <OnboardingGuide />
                 <ItemNotFound
                   itemType="idea"
@@ -479,7 +476,7 @@ function App() {
                 />
               </div>
             ) : selectedIdea ? (
-              <div className="p-6 space-y-6">
+              <div className="p-4 sm:p-6 space-y-6">
                 <OnboardingGuide />
                 <IdeaDetailView
                   idea={selectedIdea}
@@ -487,7 +484,7 @@ function App() {
                 />
               </div>
             ) : (
-              <div className="p-6 space-y-6">
+              <div className="p-4 sm:p-6 space-y-6">
                 <OnboardingGuide />
                 <IdeasOverview
                   ideas={ideas}
@@ -516,7 +513,7 @@ function App() {
         </main>
         
         {/* Right Sidebar - Hidden on tablet and below, 320px on desktop */}
-        <aside className="hidden xl:flex xl:flex-col xl:w-80 bg-bg-surface border-l border-border-subtle">
+        <aside className="hidden xl:flex xl:flex-col xl:w-80 bg-bg-surface border-l border-border-subtle order-3">
           <RightSidebar />
         </aside>
       </div>
