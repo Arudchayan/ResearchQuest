@@ -46,20 +46,20 @@
 - [x] Differentiate priority colors more clearly.
 
 ## Focus Studio
-- [ ] Reduce cognitive load via collapsible panels/onboarding.
-- [ ] Improve custom duration input affordance.
-- [ ] Enhance session progress indicator visibility.
+- [x] Reduce cognitive load via collapsible panels/onboarding.
+- [x] Improve custom duration input affordance.
+- [x] Enhance session progress indicator visibility.
 
 ## Gamification & Feedback
-- [ ] Explain XP levels, thresholds, and rewards in app.
-- [ ] Prevent toast overlap and ensure timely dismissal.
+- [x] Explain XP levels, thresholds, and rewards in app.
+- [x] Prevent toast overlap and ensure timely dismissal.
 
 ## General
-- [ ] Resolve topics schema `user_id` column issue globally.
-- [ ] Ensure data consistency across modules (counts & statuses).
+- [x] Resolve topics schema `user_id` column issue globally.
+- [x] Ensure data consistency across modules (counts & statuses).
 - [ ] Improve transactional integrity for idea saves.
-- [ ] Enhance search highlighting across modules.
-- [ ] Standardize icon styles and tooltips, add ARIA labels.
-- [ ] Create onboarding/tutorial for new users.
+- [x] Enhance search highlighting across modules.
+- [x] Standardize icon styles and tooltips, add ARIA labels.
+- [x] Create onboarding/tutorial for new users.
 - [ ] Ensure responsive layouts for smaller screens.
 - [ ] Improve perceived performance with preloading/skeletons.
