@@ -167,30 +167,40 @@ export function useIdeas(userId: string | undefined) {
           : null,
     }
 
-    const { data, error: createError } = await supabase.rpc<Idea>(IDEA_TRANSACTION_RPC, transactionPayload)
+    const { data, error: createError } = await supabase.rpc(IDEA_TRANSACTION_RPC, transactionPayload)
 
     if (createError) {
       console.error('Failed to create idea:', createError)
       console.error('Error details:', JSON.stringify(createError, null, 2))
       console.error('Idea data that failed:', transactionPayload)
-      
+
       const errorMessage = createError.message || createError.details || createError.hint || 'Unknown error occurred'
       setError(`Failed to create idea: ${errorMessage}`)
       toast.error(`Failed to create idea: ${errorMessage}`)
       return null
     }
 
-    console.log('Idea created successfully:', data)
+    const createdIdea = (data as Idea | null) ?? null
+
+    if (!createdIdea) {
+      console.error('Idea RPC did not return a record. Payload:', transactionPayload)
+      setError('Idea could not be created. Please try again.')
+      toast.error('Idea could not be created. Please try again.')
+      void fetchIdeas()
+      return null
+    }
+
+    console.log('Idea created successfully:', createdIdea)
     toast.success('Idea created successfully')
 
     // Optimistic update - add to local state immediately
-    setIdeas(prev => [data, ...prev])
+    setIdeas(prev => [createdIdea, ...prev])
 
     // Award XP (don't await to avoid blocking)
     awardXP(userId, XP_REWARDS.CREATE_IDEA, 'create_idea').catch(console.error)
     void fetchIdeas()
 
-    return data
+    return createdIdea
   }
 
   async function updateIdea(ideaId: string, updates: Partial<Idea>, oldStage?: IdeaStage): Promise<boolean> {
@@ -256,7 +266,7 @@ export function useIdeas(userId: string | undefined) {
       return false
     }
 
-    const { data, error: updateError } = await supabase.rpc<Idea>(IDEA_TRANSACTION_RPC, {
+    const { data, error: updateError } = await supabase.rpc(IDEA_TRANSACTION_RPC, {
       p_user_id: userId,
       p_idea_id: ideaId,
       p_title: candidate.title.trim(),
@@ -285,11 +295,13 @@ export function useIdeas(userId: string | undefined) {
       return false
     }
 
-    if (data) {
+    const updatedIdea = (data as Idea | null) ?? null
+
+    if (updatedIdea) {
       setIdeas(prev => prev.map(idea =>
-        idea.id === data.id ? data : idea
+        idea.id === updatedIdea.id ? updatedIdea : idea
       ))
-      syncSelectedIdea(data as Idea)
+      syncSelectedIdea(updatedIdea)
     }
 
     if (updates.stage && updates.stage !== oldStage) {
