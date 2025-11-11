@@ -106,12 +106,12 @@ export function IdeaDetailView({ idea, onUpdate }: IdeaDetailViewProps) {
   }
   
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-4xl mx-auto">
       <div className="bg-bg-surface rounded-lg border border-border-subtle shadow-sm">
         {/* Header */}
-        <div className="p-6 border-b border-border-subtle">
-          <div className="flex items-start justify-between gap-4 mb-4">
-            <div className="flex items-center gap-3 flex-1">
+        <div className="p-4 sm:p-6 border-b border-border-subtle">
+          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-4">
+            <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 flex-1">
               <div className="p-3 bg-bg-elevated rounded-lg">
                 <Lightbulb className="w-6 h-6 text-primary-500" />
               </div>
@@ -128,7 +128,7 @@ export function IdeaDetailView({ idea, onUpdate }: IdeaDetailViewProps) {
               )}
             </div>
             
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 md:self-start">
               {isEditing ? (
                 <>
                   <button
@@ -194,7 +194,7 @@ export function IdeaDetailView({ idea, onUpdate }: IdeaDetailViewProps) {
         </div>
         
         {/* Description */}
-        <div className="p-6 border-b border-border-subtle">
+        <div className="p-4 sm:p-6 border-b border-border-subtle">
           <h2 className="text-lg font-semibold text-text-primary mb-3">Description</h2>
           {isEditing ? (
             <textarea
@@ -215,12 +215,12 @@ export function IdeaDetailView({ idea, onUpdate }: IdeaDetailViewProps) {
           )}
         </div>
 
-        <div className="p-6 border-b border-border-subtle">
+        <div className="p-4 sm:p-6 border-b border-border-subtle">
           <TopicSelector entityId={idea.id} entityType="idea" />
         </div>
 
         {/* Metadata */}
-        <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-text-tertiary">
               <Calendar className="w-4 h-4" />

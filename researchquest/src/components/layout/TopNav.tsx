@@ -45,8 +45,8 @@ export function TopNav() {
   const xpInLevel = user ? user.total_xp % 500 : 0
 
   return (
-    <nav className="fixed top-0 left-0 right-0 h-16 bg-bg-surface/80 backdrop-blur-lg border-b border-border-subtle shadow-sm z-50 px-0">
-      <div className="h-full w-full flex items-center justify-between pr-4 sm:pr-6">
+    <nav className="fixed top-0 left-0 right-0 h-16 bg-bg-surface/80 backdrop-blur-lg border-b border-border-subtle shadow-sm z-50 px-4 sm:px-6">
+      <div className="h-full w-full flex items-center justify-between">
         {/* Logo & Title */}
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-primary-500 rounded-md flex items-center justify-center text-white font-bold">
@@ -54,7 +54,7 @@ export function TopNav() {
           </div>
           <h1 className="text-lg font-semibold text-text-primary">ResearchQuest</h1>
         </div>
-        
+
         {/* Center - XP Progress (hidden on mobile) */}
         <div className="hidden md:flex items-center gap-4">
           <div className="flex flex-col items-end gap-1">
@@ -78,9 +78,15 @@ export function TopNav() {
             XP guide
           </button>
         </div>
-        
+
+        {/* Mobile XP summary */}
+        <div className="md:hidden flex items-center gap-2 text-caption text-text-secondary">
+          <span className="font-semibold text-text-primary">Lvl {currentLevel}</span>
+          <span>• {xpInLevel}/500 XP</span>
+        </div>
+
         {/* Right - Streak & Theme Toggle */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
           {/* Streak Counter */}
           <div className="flex items-center gap-2 px-3 py-1.5 bg-success-bg border border-success rounded-full">
             <Flame className="w-4 h-4 text-success" />
@@ -130,11 +136,11 @@ export function TopNav() {
           <button
             onClick={handleSignOut}
             disabled={signingOut}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-md border border-border-subtle text-small font-medium text-text-secondary hover:bg-bg-elevated hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 disabled:opacity-60"
+            className="inline-flex items-center gap-2 px-2.5 sm:px-3 py-2 rounded-md border border-border-subtle text-small font-medium text-text-secondary hover:bg-bg-elevated hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 disabled:opacity-60"
             aria-label="Sign out"
           >
             <LogOut className="w-4 h-4" aria-hidden="true" />
-            <span>{signingOut ? 'Signing out…' : 'Sign out'}</span>
+            <span className="hidden sm:inline">{signingOut ? 'Signing out…' : 'Sign out'}</span>
           </button>
         </div>
       </div>
