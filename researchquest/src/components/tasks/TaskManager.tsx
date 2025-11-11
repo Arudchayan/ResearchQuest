@@ -5,6 +5,8 @@ import { useTasks } from '../../hooks/useTasks'
 import type { Task } from '../../hooks/useTasks'
 import { supabase } from '../../lib/supabase'
 import { parseDateInput } from '../../utils/time'
+import { ListSkeleton } from '../ui/Skeleton'
+import { highlightMatch } from '../../utils/highlight'
 
 type TaskFilter = 'all' | 'pending' | 'completed' | 'overdue'
 type TaskPriority = 'high' | 'medium' | 'low'
@@ -200,8 +202,8 @@ export function TaskManager() {
   
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-text-secondary">Loading tasks...</div>
+      <div className="p-4 sm:p-6">
+        <ListSkeleton count={6} itemType="task" />
       </div>
     )
   }
@@ -209,7 +211,7 @@ export function TaskManager() {
   return (
     <div className="h-full flex flex-col bg-bg-base">
       {/* Header */}
-      <div className="p-6 border-b border-border-subtle bg-bg-surface">
+      <div className="p-4 sm:p-6 border-b border-border-subtle bg-bg-surface">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-title font-bold text-text-primary">Task Manager</h2>
           <button
@@ -302,7 +304,7 @@ export function TaskManager() {
       </div>
       
       {/* Task List */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6">
         {sortedTasks.length === 0 ? (
           <div className="text-center py-16">
             <CheckCircle2 className="w-16 h-16 mx-auto mb-4 text-text-tertiary opacity-50" />
@@ -326,6 +328,7 @@ export function TaskManager() {
                 onEdit={handleEditClick}
                 onDelete={deleteTask}
                 compact={compactView}
+                highlightQuery={searchQuery}
               />
             ))}
           </div>
@@ -338,7 +341,7 @@ export function TaskManager() {
           setShowAddModal(false)
           handleCancelEdit()
         }}>
-          <div className="bg-bg-surface rounded-lg shadow-xl w-full max-w-md p-6 m-4" onClick={e => e.stopPropagation()}>
+          <div className="bg-bg-surface rounded-lg shadow-xl w-full max-w-md p-4 sm:p-6 m-4" onClick={e => e.stopPropagation()}>
             <h3 className="text-body font-bold text-text-primary mb-4">
               {editingTask ? 'Edit Task' : 'New Task'}
             </h3>
@@ -454,9 +457,10 @@ interface TaskCardProps {
   onEdit: (task: Task) => void
   onDelete: (id: string) => void
   compact?: boolean
+  highlightQuery?: string
 }
 
-function TaskCard({ task, onToggleComplete, onEdit, onDelete, compact = false }: TaskCardProps) {
+function TaskCard({ task, onToggleComplete, onEdit, onDelete, compact = false, highlightQuery = '' }: TaskCardProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isCompleting, setIsCompleting] = useState(false)
 
@@ -523,7 +527,7 @@ function TaskCard({ task, onToggleComplete, onEdit, onDelete, compact = false }:
                 task.completed ? 'text-text-tertiary line-through' : 'text-text-primary'
               }`}
             >
-              {task.title}
+              {highlightMatch(task.title, highlightQuery)}
             </h4>
 
             <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -539,15 +543,16 @@ function TaskCard({ task, onToggleComplete, onEdit, onDelete, compact = false }:
                 Edit
               </button>
               <div className="relative">
-                <button
-                  onClick={handleDelete}
-                  className={`p-1.5 rounded transition-colors ${
-                    showDeleteConfirm ? 'text-red-500' : 'text-text-tertiary hover:text-red-500'
-                  }`}
-                  title="Delete task"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+        <button
+          onClick={handleDelete}
+          className={`p-1.5 rounded transition-colors ${
+            showDeleteConfirm ? 'text-red-500' : 'text-text-tertiary hover:text-red-500'
+          }`}
+          title="Delete task"
+          aria-label="Delete task"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
 
                 {showDeleteConfirm && (
                   <div className="absolute right-0 top-8 z-10 w-48 rounded-md border border-border-subtle bg-bg-surface shadow-lg p-3 text-left">
@@ -574,7 +579,7 @@ function TaskCard({ task, onToggleComplete, onEdit, onDelete, compact = false }:
 
           {task.description && (
             <p className={`${compact ? 'text-caption mb-2' : 'text-small mb-3'} text-text-secondary`}>
-              {task.description}
+              {highlightMatch(task.description, highlightQuery)}
             </p>
           )}
 

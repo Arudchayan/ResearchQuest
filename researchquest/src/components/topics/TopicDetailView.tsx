@@ -136,9 +136,9 @@ export function TopicDetailView({ topic, onUpdate, onDelete }: TopicDetailViewPr
   )
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
-      <div className="bg-bg-surface border border-border-subtle rounded-xl shadow-sm p-6 space-y-4">
-        <div className="flex items-start justify-between gap-4">
+    <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-6">
+      <div className="bg-bg-surface border border-border-subtle rounded-xl shadow-sm p-4 sm:p-6 space-y-4">
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
           <div className="flex-1 space-y-2">
             {isEditing ? (
               <input
@@ -163,7 +163,7 @@ export function TopicDetailView({ topic, onUpdate, onDelete }: TopicDetailViewPr
               </p>
             )}
           </div>
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 md:w-auto">
             {isEditing ? (
               <div className="flex gap-2">
                 <button

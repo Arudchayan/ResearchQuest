@@ -5,6 +5,8 @@ import { toast } from 'sonner'
 import type { Idea, IdeaStage } from '../types/database'
 import { useAppStore } from '../store/appStore'
 
+const IDEA_TRANSACTION_RPC = 'save_idea_with_links' as const
+
 export function useIdeas(userId: string | undefined) {
   const [ideas, setIdeas] = useState<Idea[]>([])
   const [loading, setLoading] = useState(true)
@@ -141,78 +143,138 @@ export function useIdeas(userId: string | undefined) {
     }
 
     // Clean and prepare the data - only include defined fields
-    const cleanData: any = {
-      user_id: userId,
+    console.log('Creating idea with cleaned data:', {
       title: normalizedTitle,
+      hasDescription: Boolean(inferredDescription),
       stage: ideaData.stage || 'Seed',
+      linked_note_ids: ideaData.linked_note_ids?.length ?? 0,
+      linked_paper_ids: ideaData.linked_paper_ids?.length ?? 0,
+    })
+
+    const transactionPayload = {
+      p_user_id: userId,
+      p_idea_id: null,
+      p_title: normalizedTitle,
+      p_description: inferredDescription || null,
+      p_stage: ideaData.stage || 'Seed',
+      p_linked_note_ids:
+        ideaData.linked_note_ids && Array.isArray(ideaData.linked_note_ids)
+          ? ideaData.linked_note_ids
+          : null,
+      p_linked_paper_ids:
+        ideaData.linked_paper_ids && Array.isArray(ideaData.linked_paper_ids)
+          ? ideaData.linked_paper_ids
+          : null,
     }
 
-    if (inferredDescription) {
-      cleanData.description = inferredDescription
-    }
-
-    // Only add optional fields if they have values (and trim strings)
-    if (ideaData.linked_note_ids && Array.isArray(ideaData.linked_note_ids) && ideaData.linked_note_ids.length > 0) {
-      cleanData.linked_note_ids = ideaData.linked_note_ids
-    }
-    if (ideaData.linked_paper_ids && Array.isArray(ideaData.linked_paper_ids) && ideaData.linked_paper_ids.length > 0) {
-      cleanData.linked_paper_ids = ideaData.linked_paper_ids
-    }
-
-    console.log('Creating idea with cleaned data:', cleanData)
-
-    const { data, error: createError } = await supabase
-      .from('ideas')
-      .insert(cleanData)
-      .select()
-      .single()
+    const { data, error: createError } = await supabase.rpc(IDEA_TRANSACTION_RPC, transactionPayload)
 
     if (createError) {
       console.error('Failed to create idea:', createError)
       console.error('Error details:', JSON.stringify(createError, null, 2))
-      console.error('Idea data that failed:', cleanData)
-      
+      console.error('Idea data that failed:', transactionPayload)
+
       const errorMessage = createError.message || createError.details || createError.hint || 'Unknown error occurred'
       setError(`Failed to create idea: ${errorMessage}`)
       toast.error(`Failed to create idea: ${errorMessage}`)
       return null
     }
 
-    console.log('Idea created successfully:', data)
+    const createdIdea = (data as Idea | null) ?? null
+
+    if (!createdIdea) {
+      console.error('Idea RPC did not return a record. Payload:', transactionPayload)
+      setError('Idea could not be created. Please try again.')
+      toast.error('Idea could not be created. Please try again.')
+      void fetchIdeas()
+      return null
+    }
+
+    console.log('Idea created successfully:', createdIdea)
     toast.success('Idea created successfully')
 
     // Optimistic update - add to local state immediately
-    setIdeas(prev => [data, ...prev])
+    setIdeas(prev => [createdIdea, ...prev])
 
     // Award XP (don't await to avoid blocking)
     awardXP(userId, XP_REWARDS.CREATE_IDEA, 'create_idea').catch(console.error)
+    void fetchIdeas()
 
-    return data
+    return createdIdea
   }
 
   async function updateIdea(ideaId: string, updates: Partial<Idea>, oldStage?: IdeaStage): Promise<boolean> {
     // Optimistic update
     let optimisticSnapshot: Idea | null = null
+    let optimisticDraft: Idea | null = null
     setIdeas(prev => prev.map(idea => {
       if (idea.id === ideaId) {
         optimisticSnapshot = idea
-        const optimistic: Idea = {
+        const rawDescription = Object.prototype.hasOwnProperty.call(updates, 'description')
+          ? (updates.description ?? '').toString().trim()
+          : (idea.description ?? '')
+        const mergedDescription = rawDescription ? rawDescription : undefined
+        const merged: Idea = {
           ...idea,
           ...updates,
+          title: (updates.title ?? idea.title).trim(),
+          description: mergedDescription,
+          stage: updates.stage ?? idea.stage,
+          linked_note_ids: updates.linked_note_ids ?? idea.linked_note_ids ?? [],
+          linked_paper_ids: updates.linked_paper_ids ?? idea.linked_paper_ids ?? [],
           updated_at: new Date().toISOString(),
         }
-        syncSelectedIdea(optimistic)
-        return optimistic
+        optimisticDraft = merged
+        syncSelectedIdea(merged)
+        return merged
       }
       return idea
     }))
 
-    const { data, error: updateError } = await supabase
-      .from('ideas')
-      .update(updates)
-      .eq('id', ideaId)
-      .select()
-      .single()
+    const candidate = optimisticDraft ?? optimisticSnapshot ?? ideas.find((idea) => idea.id === ideaId) ?? null
+
+    if (!candidate) {
+      console.error('Unable to locate idea locally before updating. Refetching.')
+      void fetchIdeas()
+      toast.error('Unable to update idea right now. Please try again.')
+      return false
+    }
+
+    if (!candidate.title.trim()) {
+      const message = 'Idea title is required'
+      setError(message)
+      toast.error(message)
+      if (optimisticSnapshot) {
+        setIdeas(prev => prev.map(idea =>
+          idea.id === ideaId ? optimisticSnapshot as Idea : idea
+        ))
+        syncSelectedIdea(optimisticSnapshot)
+      }
+      return false
+    }
+
+    if (!userId) {
+      const message = 'User not authenticated'
+      setError(message)
+      toast.error('You must be logged in to update ideas')
+      if (optimisticSnapshot) {
+        setIdeas(prev => prev.map(idea =>
+          idea.id === ideaId ? optimisticSnapshot as Idea : idea
+        ))
+        syncSelectedIdea(optimisticSnapshot)
+      }
+      return false
+    }
+
+    const { data, error: updateError } = await supabase.rpc(IDEA_TRANSACTION_RPC, {
+      p_user_id: userId,
+      p_idea_id: ideaId,
+      p_title: candidate.title.trim(),
+      p_description: candidate.description ?? null,
+      p_stage: candidate.stage,
+      p_linked_note_ids: candidate.linked_note_ids ?? [],
+      p_linked_paper_ids: candidate.linked_paper_ids ?? [],
+    })
 
     if (updateError) {
       console.error('Failed to update idea:', updateError)
@@ -233,14 +295,16 @@ export function useIdeas(userId: string | undefined) {
       return false
     }
 
-    if (data) {
+    const updatedIdea = (data as Idea | null) ?? null
+
+    if (updatedIdea) {
       setIdeas(prev => prev.map(idea =>
-        idea.id === data.id ? data : idea
+        idea.id === updatedIdea.id ? updatedIdea : idea
       ))
-      syncSelectedIdea(data as Idea)
+      syncSelectedIdea(updatedIdea)
     }
 
-    if (updates.stage) {
+    if (updates.stage && updates.stage !== oldStage) {
       toast.success(`Idea stage updated to ${updates.stage}`)
     }
 
@@ -249,16 +313,22 @@ export function useIdeas(userId: string | undefined) {
       const stages: IdeaStage[] = ['Seed', 'Developing', 'Supported', 'Mature']
       const oldIndex = stages.indexOf(oldStage)
       const newIndex = stages.indexOf(updates.stage)
-      
+
       if (newIndex > oldIndex) {
         awardXP(userId, XP_REWARDS.ADVANCE_IDEA_STAGE, 'advance_idea_stage').catch(console.error)
       }
     }
 
+    void fetchIdeas()
     return true
   }
 
   async function deleteIdea(ideaId: string): Promise<boolean> {
+    if (!userId) {
+      setError('User not authenticated')
+      toast.error('You must be logged in to delete ideas')
+      return false
+    }
     // Optimistic delete
     const deletedIdea = ideas.find(i => i.id === ideaId)
     setIdeas(prev => prev.filter(idea => idea.id !== ideaId))
@@ -271,6 +341,7 @@ export function useIdeas(userId: string | undefined) {
       .from('ideas')
       .delete()
       .eq('id', ideaId)
+      .eq('user_id', userId)
 
     if (deleteError) {
       console.error('Failed to delete idea:', deleteError)
@@ -288,6 +359,7 @@ export function useIdeas(userId: string | undefined) {
     }
 
     toast.success('Idea deleted')
+    void fetchIdeas()
     return true
   }
 
