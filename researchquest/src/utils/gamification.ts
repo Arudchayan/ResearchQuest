@@ -212,18 +212,22 @@ async function awardAchievement(userId: string, achievement: typeof ACHIEVEMENTS
     return
   }
   
-  // Award XP for achievement
+  // Award XP for achievement (simplified to avoid double-counting)
   const { data: profile } = await supabase
     .from('user_profiles')
-    .select('total_xp')
+    .select('total_xp, current_level')
     .eq('id', userId)
     .single()
   
   if (profile) {
+    const newTotalXP = profile.total_xp + achievement.xp
+    const newLevel = getLevelFromXP(newTotalXP)
+    
     const { error: xpError } = await supabase
       .from('user_profiles')
       .update({
-        total_xp: profile.total_xp + achievement.xp,
+        total_xp: newTotalXP,
+        current_level: newLevel,
       })
       .eq('id', userId)
     

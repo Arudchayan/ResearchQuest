@@ -390,12 +390,12 @@ function App() {
         position="top-right"
         richColors
         expand={false}
-        duration={3000}
-        offset={72}
+        duration={2500}
+        offset={16}
         visibleToasts={3}
         theme={useAppStore.getState().effectiveTheme}
         closeButton
-        toastOptions={{ duration: 3200 }}
+        toastOptions={{ duration: 2500 }}
       />
       
       {/* Mobile Navigation */}
