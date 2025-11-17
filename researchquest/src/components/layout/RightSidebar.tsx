@@ -229,46 +229,61 @@ export function RightSidebar() {
     if (itemType === 'note') {
       setCurrentView('notes')
       // We need to fetch the note first
-      supabase
-        .from('notes')
-        .select('*')
-        .eq('id', itemId)
-        .single()
-        .then(({ data }) => {
+      const fetchNote = async () => {
+        try {
+          const { data } = await supabase
+            .from('notes')
+            .select('*')
+            .eq('id', itemId)
+            .single()
+          
           if (data) {
             setSelectedNote(data)
             window.history.pushState(null, '', `/notes/${itemId}`)
           }
-        })
-        .catch(console.error)
+        } catch (error) {
+          console.error('Error navigating to note:', error)
+        }
+      }
+      void fetchNote()
     } else if (itemType === 'paper') {
       setCurrentView('papers')
-      supabase
-        .from('papers')
-        .select('*')
-        .eq('id', itemId)
-        .single()
-        .then(({ data }) => {
+      const fetchPaper = async () => {
+        try {
+          const { data } = await supabase
+            .from('papers')
+            .select('*')
+            .eq('id', itemId)
+            .single()
+          
           if (data) {
             setSelectedPaper(data)
             window.history.pushState(null, '', `/papers/${itemId}`)
           }
-        })
-        .catch(console.error)
+        } catch (error) {
+          console.error('Error navigating to paper:', error)
+        }
+      }
+      void fetchPaper()
     } else if (itemType === 'idea') {
       setCurrentView('ideas')
-      supabase
-        .from('ideas')
-        .select('*')
-        .eq('id', itemId)
-        .single()
-        .then(({ data }) => {
+      const fetchIdea = async () => {
+        try {
+          const { data } = await supabase
+            .from('ideas')
+            .select('*')
+            .eq('id', itemId)
+            .single()
+          
           if (data) {
             setSelectedIdea(data)
             window.history.pushState(null, '', `/ideas/${itemId}`)
           }
-        })
-        .catch(console.error)
+        } catch (error) {
+          console.error('Error navigating to idea:', error)
+        }
+      }
+      void fetchIdea()
     }
   }
 
