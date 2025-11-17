@@ -5,6 +5,63 @@ import { toast } from 'sonner'
 import type { Paper, CrossrefPaper } from '../types/database'
 import { useAppStore } from '../store/appStore'
 
+// Helper function to create a reading task for a newly added paper
+async function createReadingTaskForPaper(userId: string, paper: Paper): Promise<void> {
+  try {
+    // Check if user has auto-task creation enabled
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('auto_create_reading_tasks')
+      .eq('id', userId)
+      .single()
+
+    // Default to true if preference not set
+    const autoCreateEnabled = profile?.auto_create_reading_tasks !== false
+
+    if (!autoCreateEnabled) {
+      console.log('Auto-task creation disabled for user')
+      return
+    }
+
+    // Set due date to 7 days from now
+    const dueDate = new Date()
+    dueDate.setDate(dueDate.getDate() + 7)
+    const dueDateString = dueDate.toISOString().split('T')[0]
+
+    // Truncate title if too long
+    const paperTitle = paper.title.length > 50 
+      ? `${paper.title.substring(0, 47)}...` 
+      : paper.title
+
+    const { error } = await supabase
+      .from('tasks')
+      .insert({
+        user_id: userId,
+        title: `Read: ${paperTitle}`,
+        description: `Review and take notes on this paper. ${paper.authors.length > 0 ? `Authors: ${paper.authors.slice(0, 3).join(', ')}${paper.authors.length > 3 ? ', et al.' : ''}` : ''}`,
+        priority: 'medium',
+        category: 'Reading',
+        due_date: dueDateString,
+        completed: false,
+      })
+
+    if (error) {
+      console.error('Failed to create reading task:', error)
+      // Don't show error to user - this is a nice-to-have feature
+    } else {
+      console.log('Reading task created for paper:', paper.title)
+      // Show subtle notification that task was created
+      toast.success('Reading task created', {
+        description: `Due in 7 days - check your Tasks`,
+        duration: 2000,
+      })
+    }
+  } catch (error) {
+    console.error('Error creating reading task:', error)
+    // Silent fail - don't interrupt the paper creation flow
+  }
+}
+
 export interface PaperSearchOptions {
   rows?: number
   sort?: 'score' | 'published' | 'created' | 'updated' | 'indexed'
@@ -323,6 +380,10 @@ export function usePapers(userId: string | undefined) {
 
     // Award XP (don't await to avoid blocking)
     awardXP(userId, XP_REWARDS.CREATE_PAPER, 'create_paper').catch(console.error)
+    
+    // Auto-create a task to read the paper (7 days from now)
+    void createReadingTaskForPaper(userId, data)
+    
     void fetchPapers()
 
     return data
