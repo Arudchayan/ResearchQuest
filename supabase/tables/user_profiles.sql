@@ -9,6 +9,7 @@ CREATE TABLE user_profiles (
     streak_freeze_tokens INTEGER DEFAULT 0,
     active_boost JSONB,
     rest_days INTEGER DEFAULT 0,
+    auto_create_reading_tasks BOOLEAN DEFAULT true,
     theme_preference VARCHAR(20) DEFAULT 'light',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
