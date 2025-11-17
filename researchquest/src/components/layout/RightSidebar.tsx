@@ -1,13 +1,15 @@
-import { Link2, Hash, Sparkles, CalendarCheck, Snowflake, Coffee, Flame, Heart } from 'lucide-react'
+import { Link2, Hash, Sparkles, CalendarCheck, Snowflake, Coffee, Flame, Heart, FileText, BookOpen, Lightbulb } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
 import { useGamificationStore } from '../../store/gamificationStore'
 import { formatTimeUntil, formatDateLabel } from '../../utils/time'
+import { useBacklinks } from '../../hooks/useBacklinks'
+import { useRelatedItems } from '../../hooks/useRelatedItems'
 
 export function RightSidebar() {
-  const { selectedNote, selectedPaper, selectedIdea, user } = useAppStore()
+  const { selectedNote, selectedPaper, selectedIdea, user, setSelectedNote, setSelectedPaper, setSelectedIdea, setCurrentView } = useAppStore()
   const activeBoost = useGamificationStore((state) => state.activeBoost)
   const boostCountdown = useGamificationStore((state) => state.boostCountdown)
   const streakFreezeTokens = useGamificationStore((state) => state.streakFreezeTokens)
@@ -17,6 +19,15 @@ export function RightSidebar() {
   const [activeIdeas, setActiveIdeas] = useState(0)
   const [upcomingDeadlines, setUpcomingDeadlines] = useState<{ id: string; title: string; due_date: string }[]>([])
   const realtimeChannelsRef = useRef<RealtimeChannel[]>([])
+
+  // Determine current entity
+  const currentEntity = selectedNote || selectedPaper || selectedIdea
+  const currentEntityId = currentEntity?.id || null
+  const currentEntityType = selectedNote ? 'note' : selectedPaper ? 'paper' : selectedIdea ? 'idea' : null
+
+  // Fetch backlinks and related items
+  const { backlinks, loading: backlinksLoading } = useBacklinks(currentEntityId, currentEntityType, user?.id)
+  const { relatedItems, loading: relatedLoading } = useRelatedItems(currentEntityId, currentEntityType, user?.id)
 
   useEffect(() => {
     let isMounted = true
@@ -214,6 +225,75 @@ export function RightSidebar() {
   const hasSelection = selectedNote || selectedPaper || selectedIdea
   const nextDeadline = upcomingDeadlines[0]
 
+  const handleNavigateToItem = (itemId: string, itemType: 'note' | 'paper' | 'idea') => {
+    if (itemType === 'note') {
+      setCurrentView('notes')
+      // We need to fetch the note first
+      supabase
+        .from('notes')
+        .select('*')
+        .eq('id', itemId)
+        .single()
+        .then(({ data }) => {
+          if (data) {
+            setSelectedNote(data)
+            window.history.pushState(null, '', `/notes/${itemId}`)
+          }
+        })
+        .catch(console.error)
+    } else if (itemType === 'paper') {
+      setCurrentView('papers')
+      supabase
+        .from('papers')
+        .select('*')
+        .eq('id', itemId)
+        .single()
+        .then(({ data }) => {
+          if (data) {
+            setSelectedPaper(data)
+            window.history.pushState(null, '', `/papers/${itemId}`)
+          }
+        })
+        .catch(console.error)
+    } else if (itemType === 'idea') {
+      setCurrentView('ideas')
+      supabase
+        .from('ideas')
+        .select('*')
+        .eq('id', itemId)
+        .single()
+        .then(({ data }) => {
+          if (data) {
+            setSelectedIdea(data)
+            window.history.pushState(null, '', `/ideas/${itemId}`)
+          }
+        })
+        .catch(console.error)
+    }
+  }
+
+  const getItemIcon = (type: 'note' | 'paper' | 'idea') => {
+    switch (type) {
+      case 'note':
+        return <FileText className="w-4 h-4" />
+      case 'paper':
+        return <BookOpen className="w-4 h-4" />
+      case 'idea':
+        return <Lightbulb className="w-4 h-4" />
+    }
+  }
+
+  const getItemTypeLabel = (type: 'note' | 'paper' | 'idea') => {
+    switch (type) {
+      case 'note':
+        return 'Note'
+      case 'paper':
+        return 'Paper'
+      case 'idea':
+        return 'Idea'
+    }
+  }
+
   const gentleReminder = (() => {
     if (restDays > 0) {
       return `You still have ${restDays} rest day${restDays === 1 ? '' : 's'} to lean on. Listen to your energy and take one whenever you need it.`
@@ -244,25 +324,106 @@ export function RightSidebar() {
         ) : (
           <>
             {/* Backlinks Panel */}
-            <div>
+            <div className="bg-bg-elevated rounded-lg border border-border-subtle p-3">
               <h3 className="text-small font-semibold text-text-primary mb-2 flex items-center gap-2">
                 <Link2 className="w-4 h-4" />
                 Backlinks
+                {backlinks.length > 0 && (
+                  <span className="ml-auto text-xs bg-primary-500/20 text-primary-600 dark:text-primary-400 px-2 py-0.5 rounded-full">
+                    {backlinks.length}
+                  </span>
+                )}
               </h3>
-              <div className="text-caption text-text-tertiary">
-                No backlinks yet
-              </div>
+              {backlinksLoading ? (
+                <div className="text-caption text-text-tertiary">Loading...</div>
+              ) : backlinks.length === 0 ? (
+                <div className="text-caption text-text-tertiary">
+                  No items link to this yet. Link from notes or ideas to create connections.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {backlinks.slice(0, 5).map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => handleNavigateToItem(item.id, item.type)}
+                      className="w-full text-left p-2 rounded-md bg-bg-base hover:bg-primary-500/10 border border-border-subtle hover:border-primary-400 transition-colors"
+                    >
+                      <div className="flex items-start gap-2">
+                        <div className="text-text-tertiary mt-0.5">
+                          {getItemIcon(item.type)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-caption font-medium text-text-primary line-clamp-2">
+                            {item.title}
+                          </div>
+                          <div className="text-xs text-text-tertiary mt-0.5">
+                            {getItemTypeLabel(item.type)}
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                  {backlinks.length > 5 && (
+                    <div className="text-xs text-text-tertiary text-center pt-1">
+                      +{backlinks.length - 5} more
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             
             {/* Related Entities */}
-            <div>
+            <div className="bg-bg-elevated rounded-lg border border-border-subtle p-3">
               <h3 className="text-small font-semibold text-text-primary mb-2 flex items-center gap-2">
                 <Hash className="w-4 h-4" />
                 Related
+                {relatedItems.length > 0 && (
+                  <span className="ml-auto text-xs bg-primary-500/20 text-primary-600 dark:text-primary-400 px-2 py-0.5 rounded-full">
+                    {relatedItems.length}
+                  </span>
+                )}
               </h3>
-              <div className="text-caption text-text-tertiary">
-                No related items yet
-              </div>
+              {relatedLoading ? (
+                <div className="text-caption text-text-tertiary">Loading...</div>
+              ) : relatedItems.length === 0 ? (
+                <div className="text-caption text-text-tertiary">
+                  No related items found. Add topics to discover connections.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {relatedItems.slice(0, 5).map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => handleNavigateToItem(item.id, item.type)}
+                      className="w-full text-left p-2 rounded-md bg-bg-base hover:bg-primary-500/10 border border-border-subtle hover:border-primary-400 transition-colors"
+                    >
+                      <div className="flex items-start gap-2">
+                        <div className="text-text-tertiary mt-0.5">
+                          {getItemIcon(item.type)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-caption font-medium text-text-primary line-clamp-2">
+                            {item.title}
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-xs text-text-tertiary">
+                              {getItemTypeLabel(item.type)}
+                            </span>
+                            <span className="text-xs text-primary-600 dark:text-primary-400">
+                              {item.sharedTopics} topic{item.sharedTopics === 1 ? '' : 's'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                  {relatedItems.length > 5 && (
+                    <div className="text-xs text-text-tertiary text-center pt-1">
+                      +{relatedItems.length - 5} more
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </>
         )}
