@@ -32,7 +32,7 @@ export function useBacklinks(entityId: string | null, entityType: 'note' | 'pape
         .contains('linked_entity_ids', [entityId])
 
       if (!notesError && notesData) {
-        results.push(...notesData.map((note: Note) => ({
+        results.push(...notesData.map((note) => ({
           id: note.id,
           title: note.title || note.markdown_body.split('\n')[0]?.replace(/^#+ /, '').trim() || 'Untitled Note',
           type: 'note' as const,
@@ -49,7 +49,7 @@ export function useBacklinks(entityId: string | null, entityType: 'note' | 'pape
           .contains('linked_note_ids', [entityId])
 
         if (!ideasError && ideasData) {
-          results.push(...ideasData.map((idea: Idea) => ({
+          results.push(...ideasData.map((idea) => ({
             id: idea.id,
             title: idea.title,
             type: 'idea' as const,
@@ -64,7 +64,7 @@ export function useBacklinks(entityId: string | null, entityType: 'note' | 'pape
           .contains('linked_paper_ids', [entityId])
 
         if (!ideasError && ideasData) {
-          results.push(...ideasData.map((idea: Idea) => ({
+          results.push(...ideasData.map((idea) => ({
             id: idea.id,
             title: idea.title,
             type: 'idea' as const,

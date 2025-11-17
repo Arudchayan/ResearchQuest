@@ -187,8 +187,7 @@ export function TaskManager() {
     setFormDueDate(task.due_date || '')
   }
   
-  const handleToggleComplete = async (task: Task, event: React.MouseEvent) => {
-    event.stopPropagation()
+  const handleToggleComplete = async (task: Task) => {
     await completeTask(task.id)
   }
   
@@ -454,7 +453,7 @@ export function TaskManager() {
 
 interface TaskCardProps {
   task: Task
-  onToggleComplete: (task: Task) => void
+  onToggleComplete: (task: Task) => Promise<void>
   onEdit: (task: Task) => void
   onDelete: (id: string) => void
   compact?: boolean
@@ -474,7 +473,7 @@ function TaskCard({ task, onToggleComplete, onEdit, onDelete, compact = false, h
       setIsCompleting(true)
       setTimeout(() => setIsCompleting(false), 600)
     }
-    await onToggleComplete(task, e)
+    await onToggleComplete(task)
   }
 
   const handleDelete = (e: MouseEvent) => {
