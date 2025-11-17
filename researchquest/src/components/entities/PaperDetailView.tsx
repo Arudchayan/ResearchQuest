@@ -165,11 +165,29 @@ export function PaperDetailView({ paper, onUpdate }: PaperDetailViewProps) {
                 <option value="Read">✅ Read</option>
               </select>
             ) : (
-              <div className={`inline-flex items-center px-4 py-2 rounded-md border text-sm font-medium ${getStatusColor(paper.status)}`}>
-                {paper.status === 'To Read' && '📚'}
-                {paper.status === 'Reading' && '📖'}
-                {paper.status === 'Read' && '✅'}
-                <span className="ml-2">{paper.status}</span>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className={`inline-flex items-center px-4 py-2 rounded-md border text-sm font-medium transition-all ${getStatusColor(paper.status)} hover:ring-2 hover:ring-primary-500`}
+                  title="Click to change status"
+                >
+                  {paper.status === 'To Read' && '📚'}
+                  {paper.status === 'Reading' && '📖'}
+                  {paper.status === 'Read' && '✅'}
+                  <span className="ml-2">{paper.status}</span>
+                </button>
+                <button
+                  onClick={async () => {
+                    // Cycle through statuses
+                    const statusOrder: ReadingStatus[] = ['To Read', 'Reading', 'Read']
+                    const currentIndex = statusOrder.indexOf(paper.status)
+                    const nextStatus = statusOrder[(currentIndex + 1) % statusOrder.length]
+                    await onUpdate(paper.id, { status: nextStatus })
+                  }}
+                  className="px-3 py-2 text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 font-medium transition-colors"
+                >
+                  Next →
+                </button>
               </div>
             )}
             <div className="mt-4 space-y-3">

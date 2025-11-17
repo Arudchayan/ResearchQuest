@@ -114,6 +114,7 @@ export interface UserProfile {
   streak_freeze_tokens: number
   active_boost?: ActiveBoost | null
   rest_days: number
+  auto_create_reading_tasks?: boolean
   theme_preference: ThemePreference
   created_at: string
   updated_at: string

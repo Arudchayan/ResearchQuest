@@ -79,7 +79,6 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
         setDoiResult(null)
         setSelectedPaper(created)
         window.history.pushState(null, '', `/papers/${created.id}`)
-        window.location.reload()
         setTimeout(() => setSuccessMessage(''), 4000)
       }
     } catch (error) {
@@ -128,7 +127,6 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
         setSearchQuery('')
         setSearchResults([])
         setSelectedResult(null)
-        window.location.reload()
         setTimeout(() => setSuccessMessage(''), 4000)
       }
     } catch (error) {
@@ -163,7 +161,6 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
         setError('')
         setSelectedPaper(result)
         window.history.pushState(null, '', `/papers/${result.id}`)
-        window.location.reload()
         setTimeout(() => setSuccessMessage(''), 4000)
       }
     } catch (error) {

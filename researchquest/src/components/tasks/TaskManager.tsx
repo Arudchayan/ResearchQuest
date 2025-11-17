@@ -453,7 +453,7 @@ export function TaskManager() {
 
 interface TaskCardProps {
   task: Task
-  onToggleComplete: (task: Task) => void
+  onToggleComplete: (task: Task) => Promise<void>
   onEdit: (task: Task) => void
   onDelete: (id: string) => void
   compact?: boolean
@@ -467,7 +467,8 @@ function TaskCard({ task, onToggleComplete, onEdit, onDelete, compact = false, h
   const overdue = isOverdue(task.due_date)
   const dueDate = task.due_date ? parseDateInput(task.due_date) : null
 
-  const handleToggle = async () => {
+  const handleToggle = async (e: MouseEvent) => {
+    e.stopPropagation()
     if (!task.completed) {
       setIsCompleting(true)
       setTimeout(() => setIsCompleting(false), 600)
@@ -533,12 +534,7 @@ function TaskCard({ task, onToggleComplete, onEdit, onDelete, compact = false, h
             <div className="flex items-center gap-1.5 flex-shrink-0">
               <button
                 onClick={() => onEdit(task)}
-                className={`px-2 py-1 rounded-md border text-caption font-medium transition-colors ${
-                  task.completed
-                    ? 'text-text-tertiary border-border-subtle cursor-not-allowed'
-                    : 'text-text-secondary border-border-subtle hover:border-primary-400 hover:text-primary-600'
-                }`}
-                disabled={task.completed}
+                className="px-2 py-1 rounded-md border text-caption font-medium transition-colors text-text-secondary border-border-subtle hover:border-primary-400 hover:text-primary-600"
               >
                 Edit
               </button>
