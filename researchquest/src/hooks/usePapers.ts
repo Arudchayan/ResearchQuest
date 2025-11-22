@@ -19,7 +19,6 @@ async function createReadingTaskForPaper(userId: string, paper: Paper): Promise<
     const autoCreateEnabled = profile?.auto_create_reading_tasks !== false
 
     if (!autoCreateEnabled) {
-      console.log('Auto-task creation disabled for user')
       return
     }
 
@@ -49,7 +48,6 @@ async function createReadingTaskForPaper(userId: string, paper: Paper): Promise<
       console.error('Failed to create reading task:', error)
       // Don't show error to user - this is a nice-to-have feature
     } else {
-      console.log('Reading task created for paper:', paper.title)
       // Show subtle notification that task was created
       toast.success('Reading task created', {
         description: `Due in 7 days - check your Tasks`,
@@ -189,7 +187,6 @@ export function usePapers(userId: string | undefined) {
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'papers', filter: `user_id=eq.${userId}` },
         (payload) => {
-          console.log('Papers realtime update:', payload)
           // Optimistic UI update based on event type
           if (payload.eventType === 'INSERT') {
             setPapers(prev => sortByUpdatedAt([payload.new as Paper, ...prev]))
@@ -211,9 +208,7 @@ export function usePapers(userId: string | undefined) {
           }
         }
       )
-      .subscribe((status) => {
-        console.log('Papers subscription status:', status)
-      })
+      .subscribe()
 
     return () => {
       subscription.unsubscribe()
@@ -334,9 +329,6 @@ export function usePapers(userId: string | undefined) {
     if (paperData.topic_ids && Array.isArray(paperData.topic_ids) && paperData.topic_ids.length > 0) {
       cleanData.topic_ids = paperData.topic_ids
     }
-
-    console.log('Creating paper with cleaned data:', cleanData)
-    console.log('User ID:', userId)
     
     const { data, error: createError } = await supabase
       .from('papers')
@@ -372,7 +364,6 @@ export function usePapers(userId: string | undefined) {
       return null
     }
 
-    console.log('Paper created successfully:', data)
     toast.success('Paper added successfully')
 
     // Optimistic update - add to local state immediately

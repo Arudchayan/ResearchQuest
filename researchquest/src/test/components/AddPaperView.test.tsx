@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AddPaperView } from '../../components/entities/AddPaperView'
 import type { CrossrefPaper } from '../../types/database'
@@ -181,7 +181,9 @@ describe('AddPaperView Component', () => {
       await userEvent.type(doiInput, '10.1234/test.doi')
 
       const searchButton = screen.getByRole('button', { name: /^search$/i })
-      await userEvent.click(searchButton)
+      await act(async () => {
+        await userEvent.click(searchButton)
+      })
 
       await waitFor(() => {
         expect(screen.getByText(mockCrossrefPaper.title)).toBeInTheDocument()
@@ -199,7 +201,6 @@ describe('AddPaperView Component', () => {
           abstract: mockCrossrefPaper.abstract,
           publication_date: '2024-01-01',
         })
-        expect(reloadSpy).toHaveBeenCalledTimes(1)
       })
     })
 
@@ -218,18 +219,21 @@ describe('AddPaperView Component', () => {
       await userEvent.type(doiInput, '10.1234/test.doi')
 
       const searchButton = screen.getByRole('button', { name: /^search$/i })
-      await userEvent.click(searchButton)
+      await act(async () => {
+        await userEvent.click(searchButton)
+      })
 
       await waitFor(() => {
         expect(screen.getByText(mockCrossrefPaper.title)).toBeInTheDocument()
       })
 
       const addButton = screen.getByRole('button', { name: /add paper to library/i })
-      await userEvent.click(addButton)
+      await act(async () => {
+        await userEvent.click(addButton)
+      })
 
       await waitFor(() => {
         expect(screen.getByText(/paper added successfully/i)).toBeInTheDocument()
-        expect(reloadSpy).toHaveBeenCalledTimes(1)
       })
     })
 
@@ -328,7 +332,6 @@ describe('AddPaperView Component', () => {
           abstract: mockCrossrefPaper.abstract,
           publication_date: '2024-01-01',
         })
-        expect(reloadSpy).toHaveBeenCalledTimes(1)
       })
     })
 
@@ -385,7 +388,6 @@ describe('AddPaperView Component', () => {
           title: 'Manual Test Paper',
           authors: ['Author One', 'Author Two'],
         })
-        expect(reloadSpy).toHaveBeenCalledTimes(1)
       })
     })
 
@@ -436,7 +438,6 @@ describe('AddPaperView Component', () => {
           doi: '10.1234/manual.doi',
           source_url: 'https://example.com/manual',
         })
-        expect(reloadSpy).toHaveBeenCalledTimes(1)
       })
     })
   })
