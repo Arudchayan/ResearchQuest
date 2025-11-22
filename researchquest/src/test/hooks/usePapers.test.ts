@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
+import { renderHook, waitFor, act } from '@testing-library/react'
 import { usePapers } from '../../hooks/usePapers'
 import { mockSupabaseClient, mockPaper } from '../mocks/supabase'
 import type { Paper } from '../../types/database'
@@ -22,6 +22,38 @@ vi.mock('../../utils/gamification', () => ({
   },
 }))
 
+// Helper to create a complete mock builder that supports chaining
+const createMockBuilder = (overrides: any = {}) => {
+  const builder: any = {
+    ...overrides,
+    then: ((onFulfilled?: (value: any) => any) => {
+      const result = { data: null, error: null }
+      return Promise.resolve(result).then(onFulfilled)
+    }) as any,
+  }
+
+  // Define chaining methods that return the builder itself (if not overridden)
+  if (!builder.select) builder.select = vi.fn().mockReturnValue(builder)
+  if (!builder.insert) builder.insert = vi.fn().mockReturnValue(builder)
+  if (!builder.update) builder.update = vi.fn().mockReturnValue(builder)
+  if (!builder.upsert) builder.upsert = vi.fn().mockReturnValue(builder)
+  if (!builder.delete) builder.delete = vi.fn().mockReturnValue(builder)
+  if (!builder.eq) builder.eq = vi.fn().mockReturnValue(builder)
+  if (!builder.neq) builder.neq = vi.fn().mockReturnValue(builder)
+  if (!builder.in) builder.in = vi.fn().mockReturnValue(builder)
+  if (!builder.order) builder.order = vi.fn().mockReturnValue(builder)
+  if (!builder.gte) builder.gte = vi.fn().mockReturnValue(builder)
+  if (!builder.lte) builder.lte = vi.fn().mockReturnValue(builder)
+  if (!builder.not) builder.not = vi.fn().mockReturnValue(builder)
+  if (!builder.limit) builder.limit = vi.fn().mockReturnValue(builder)
+
+  // Define terminal methods if not overridden
+  if (!builder.single) builder.single = vi.fn().mockResolvedValue({ data: null, error: null })
+  if (!builder.maybeSingle) builder.maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null })
+
+  return builder
+}
+
 describe('usePapers Hook', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -29,11 +61,9 @@ describe('usePapers Hook', () => {
 
   describe('Paper Loading', () => {
     it('should initialize with loading state', async () => {
-      mockSupabaseClient.from.mockReturnValue({
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
+      mockSupabaseClient.from.mockImplementation(() => createMockBuilder({
         order: vi.fn().mockResolvedValue({ data: [], error: null }),
-      })
+      }))
 
       const { result } = renderHook(() => usePapers('test-user-id'))
 
@@ -47,11 +77,9 @@ describe('usePapers Hook', () => {
     it('should fetch papers on mount with userId', async () => {
       const mockPapers: Paper[] = [mockPaper]
       
-      mockSupabaseClient.from.mockReturnValue({
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
+      mockSupabaseClient.from.mockImplementation(() => createMockBuilder({
         order: vi.fn().mockResolvedValue({ data: mockPapers, error: null }),
-      })
+      }))
 
       const { result } = renderHook(() => usePapers('test-user-id'))
 
@@ -62,14 +90,12 @@ describe('usePapers Hook', () => {
     })
 
     it('should handle fetch errors gracefully', async () => {
-      mockSupabaseClient.from.mockReturnValue({
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
+      mockSupabaseClient.from.mockImplementation(() => createMockBuilder({
         order: vi.fn().mockResolvedValue({ 
           data: null, 
           error: { message: 'Fetch error' } 
         }),
-      })
+      }))
 
       const { result } = renderHook(() => usePapers('test-user-id'))
 
@@ -93,11 +119,9 @@ describe('usePapers Hook', () => {
     it('should create a paper successfully', async () => {
       const newPaper: Paper = { ...mockPaper, id: 'new-paper-id' }
       
-      mockSupabaseClient.from.mockReturnValue({
-        insert: vi.fn().mockReturnThis(),
-        select: vi.fn().mockReturnThis(),
+      mockSupabaseClient.from.mockImplementation(() => createMockBuilder({
         single: vi.fn().mockResolvedValue({ data: newPaper, error: null }),
-      })
+      }))
 
       const { result } = renderHook(() => usePapers('test-user-id'))
 
@@ -117,13 +141,29 @@ describe('usePapers Hook', () => {
 
     it('should optimistically update UI after creating paper', async () => {
       const newPaper: Paper = { ...mockPaper, id: 'new-paper-id' }
-      
-      mockSupabaseClient.from.mockReturnValue({
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        order: vi.fn().mockResolvedValue({ data: [], error: null }),
-        insert: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({ data: newPaper, error: null }),
+      let papersDB: Paper[] = []
+
+      mockSupabaseClient.from.mockImplementation(() => {
+        return createMockBuilder({
+          // Fetch (order)
+          order: vi.fn().mockImplementation(() => {
+              console.log('TEST: Fetching papers. DB size:', papersDB.length)
+              return Promise.resolve({ data: [...papersDB], error: null })
+          }),
+          // Create (insert -> select -> single)
+          insert: vi.fn().mockImplementation((data) => {
+             console.log('TEST: Insert called')
+             return createMockBuilder({
+                 select: vi.fn().mockReturnValue(createMockBuilder({
+                     single: vi.fn().mockImplementation(() => {
+                         console.log('TEST: Single called. Adding paper to DB.')
+                         papersDB = [newPaper] // Simulate DB update
+                         return Promise.resolve({ data: newPaper, error: null })
+                     })
+                 }))
+             })
+          })
+        })
       })
 
       const { result } = renderHook(() => usePapers('test-user-id'))
@@ -135,7 +175,9 @@ describe('usePapers Hook', () => {
         authors: ['Author'],
       }
 
-      await result.current.createPaper(paperData)
+      await act(async () => {
+        await result.current.createPaper(paperData)
+      })
 
       await waitFor(() => {
         expect(result.current.papers).toHaveLength(1)
@@ -144,14 +186,12 @@ describe('usePapers Hook', () => {
     })
 
     it('should handle create errors', async () => {
-      mockSupabaseClient.from.mockReturnValue({
-        insert: vi.fn().mockReturnThis(),
-        select: vi.fn().mockReturnThis(),
+      mockSupabaseClient.from.mockImplementation(() => createMockBuilder({
         single: vi.fn().mockResolvedValue({ 
           data: null, 
           error: { message: 'Create failed' } 
         }),
-      })
+      }))
 
       const { result } = renderHook(() => usePapers('test-user-id'))
 
@@ -181,21 +221,39 @@ describe('usePapers Hook', () => {
 
   describe('Update Paper', () => {
     it('should update paper status successfully', async () => {
-      const initialPaper: Paper = mockPaper
+      const initialPaper: Paper = { ...mockPaper, status: 'To Read' }
       const updatedPaper: Paper = { ...mockPaper, status: 'Read' }
+      let papersDB: Paper[] = [initialPaper]
 
-      mockSupabaseClient.from.mockImplementation(() => ({
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        order: vi.fn().mockResolvedValue({ data: [initialPaper], error: null }),
-        update: vi.fn().mockReturnThis(),
+      mockSupabaseClient.from.mockImplementation(() => createMockBuilder({
+        // Fetch
+        order: vi.fn().mockImplementation(() => {
+            console.log('TEST: Fetching. DB:', papersDB)
+            return Promise.resolve({ data: [...papersDB], error: null })
+        }),
+        // Update (update -> eq -> select -> single)
+        update: vi.fn().mockImplementation((updates) => {
+            console.log('TEST: Update called', updates)
+            papersDB = papersDB.map(p => ({...p, ...updates}))
+            return createMockBuilder({
+                eq: vi.fn().mockReturnValue(createMockBuilder({
+                    select: vi.fn().mockReturnValue(createMockBuilder({
+                        single: vi.fn().mockImplementation(() => {
+                            return Promise.resolve({ data: papersDB[0], error: null })
+                        })
+                    }))
+                }))
+            })
+        })
       }))
 
       const { result } = renderHook(() => usePapers('test-user-id'))
 
       await waitFor(() => expect(result.current.papers).toHaveLength(1))
 
-      await result.current.updatePaper(mockPaper.id, { status: 'Read' })
+      await act(async () => {
+        await result.current.updatePaper(mockPaper.id, { status: 'Read' })
+      })
 
       await waitFor(() => {
         const updated = result.current.papers.find(p => p.id === mockPaper.id)
@@ -206,24 +264,17 @@ describe('usePapers Hook', () => {
     it('should handle update errors and revert optimistic update', async () => {
       const initialPaper: Paper = mockPaper
 
-      mockSupabaseClient.from.mockImplementation(() => ({
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
+      // Force a failure
+      mockSupabaseClient.from.mockImplementation(() => createMockBuilder({
         order: vi.fn().mockResolvedValue({ data: [initialPaper], error: null }),
-        update: vi.fn().mockReturnThis(),
+        update: vi.fn().mockReturnValue(createMockBuilder({
+            eq: vi.fn().mockReturnValue(createMockBuilder({
+                select: vi.fn().mockReturnValue(createMockBuilder({
+                    single: vi.fn().mockResolvedValue({ error: { message: 'Update failed' } })
+                }))
+            }))
+        }))
       }))
-
-      // Mock update to fail
-      mockSupabaseClient.from.mockReturnValueOnce({
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        order: vi.fn().mockResolvedValue({ data: [initialPaper], error: null }),
-      }).mockReturnValueOnce({
-        update: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockResolvedValue({ 
-          error: { message: 'Update failed' } 
-        }),
-      })
 
       const { result } = renderHook(() => usePapers('test-user-id'))
 
@@ -238,19 +289,25 @@ describe('usePapers Hook', () => {
   describe('Delete Paper', () => {
     it('should delete paper successfully', async () => {
       const initialPaper: Paper = mockPaper
+      let papersDB: Paper[] = [initialPaper]
 
-      mockSupabaseClient.from.mockImplementation(() => ({
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        order: vi.fn().mockResolvedValue({ data: [initialPaper], error: null }),
-        delete: vi.fn().mockReturnThis(),
+      mockSupabaseClient.from.mockImplementation(() => createMockBuilder({
+        order: vi.fn().mockImplementation(() => Promise.resolve({ data: [...papersDB], error: null })),
+        delete: vi.fn().mockReturnValue(createMockBuilder({
+            eq: vi.fn().mockImplementation(() => {
+                papersDB = [] // Simulate delete
+                return Promise.resolve({ data: null, error: null })
+            })
+        }))
       }))
 
       const { result } = renderHook(() => usePapers('test-user-id'))
 
       await waitFor(() => expect(result.current.papers).toHaveLength(1))
 
-      await result.current.deletePaper(mockPaper.id)
+      await act(async () => {
+        await result.current.deletePaper(mockPaper.id)
+      })
 
       await waitFor(() => {
         expect(result.current.papers).toHaveLength(0)
@@ -260,24 +317,16 @@ describe('usePapers Hook', () => {
     it('should handle delete errors and revert optimistic delete', async () => {
       const initialPaper: Paper = mockPaper
 
-      mockSupabaseClient.from.mockImplementation(() => ({
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
+      mockSupabaseClient.from.mockImplementation(() => createMockBuilder({
         order: vi.fn().mockResolvedValue({ data: [initialPaper], error: null }),
-        delete: vi.fn().mockReturnThis(),
+        delete: vi.fn().mockReturnValue(createMockBuilder({
+            eq: vi.fn().mockResolvedValue({ error: { message: 'Delete failed' } })
+        }))
       }))
 
       const { result } = renderHook(() => usePapers('test-user-id'))
 
       await waitFor(() => expect(result.current.papers).toHaveLength(1))
-
-      // Mock delete to fail
-      mockSupabaseClient.from.mockReturnValueOnce({
-        delete: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockResolvedValue({ 
-          error: { message: 'Delete failed' } 
-        }),
-      })
 
       const success = await result.current.deletePaper(mockPaper.id)
 
@@ -291,11 +340,9 @@ describe('usePapers Hook', () => {
 
   describe('Realtime Updates', () => {
     it('should set up realtime subscription for papers', async () => {
-      mockSupabaseClient.from.mockReturnValue({
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
+      mockSupabaseClient.from.mockImplementation(() => createMockBuilder({
         order: vi.fn().mockResolvedValue({ data: [], error: null }),
-      })
+      }))
 
       const { result } = renderHook(() => usePapers('test-user-id'))
 
@@ -308,14 +355,19 @@ describe('usePapers Hook', () => {
 
     it('should avoid duplicate papers from realtime when optimistic update exists', async () => {
       const newPaper: Paper = { ...mockPaper, id: 'new-paper-id' }
+      let papersDB: Paper[] = []
       
-      mockSupabaseClient.from.mockReturnValue({
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        order: vi.fn().mockResolvedValue({ data: [], error: null }),
-        insert: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({ data: newPaper, error: null }),
-      })
+      mockSupabaseClient.from.mockImplementation(() => createMockBuilder({
+        order: vi.fn().mockImplementation(() => Promise.resolve({ data: [...papersDB], error: null })),
+        insert: vi.fn().mockReturnValue(createMockBuilder({
+            select: vi.fn().mockReturnValue(createMockBuilder({
+                single: vi.fn().mockImplementation(() => {
+                    papersDB = [newPaper]
+                    return Promise.resolve({ data: newPaper, error: null })
+                })
+            }))
+        }))
+      }))
 
       const { result } = renderHook(() => usePapers('test-user-id'))
 
