@@ -276,13 +276,13 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
             </div>
             
             {error && (
-              <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg">
+              <div data-testid="error-message" className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg">
                 {error}
               </div>
             )}
             
             {doiResult && (
-              <div className="space-y-4">
+              <div className="space-y-4" data-testid="doi-result">
                 <div className="p-6 border-2 border-primary-500 rounded-lg bg-bg-elevated">
                   <div className="flex items-start gap-3 mb-3">
                     <BookOpen className="w-6 h-6 text-primary-500 flex-shrink-0 mt-1" />

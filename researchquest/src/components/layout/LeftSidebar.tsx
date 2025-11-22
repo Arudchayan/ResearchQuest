@@ -1,4 +1,4 @@
-import { FileText, BookOpen, Lightbulb, Target, CheckSquare, Search, Plus, Sparkles, Coffee, Compass, ListChecks, Sprout } from 'lucide-react'
+import { FileText, BookOpen, Lightbulb, Target, CheckSquare, Search, Plus } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import type { RealtimeChannel } from '@supabase/supabase-js'
@@ -10,10 +10,11 @@ import { useFocusEntityCounts } from '../../hooks/useFocusEntityCounts'
 import { NoteList } from '../entities/NoteList'
 import { PaperList } from '../entities/PaperList'
 import { IdeaList } from '../entities/IdeaList'
-import type { ReadingStatus, IdeaStage, Note } from '../../types/database'
+import type { ReadingStatus, IdeaStage, Note, Paper, Idea } from '../../types/database'
 import { useGamificationStore } from '../../store/gamificationStore'
 import { formatTimeUntil } from '../../utils/time'
 import { toast } from 'sonner'
+import { FocusStudioWidget } from './FocusStudioWidget'
 
 const TABS = [
   { id: 'notes' as const, label: 'Notes', icon: FileText },
@@ -311,7 +312,52 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
     }
   }, [createIdea, createNote, currentView, setSelectedIdea, setSelectedNote, setSelectedPaper])
   
-  // Removed handleAddPaper - now handled in AddPaperView
+  // Handlers for list items (memoized)
+  const handleSelectNote = useCallback((note: Note) => {
+    setSelectedNote(note)
+    window.history.pushState(null, '', `/notes/${note.id}`)
+  }, [setSelectedNote])
+
+  const handleDeleteNote = useCallback(
+    async (note: Note) => {
+      const success = await deleteNote(note.id)
+      if (success && selectedNote?.id === note.id) {
+        setSelectedNote(null)
+      }
+      return success
+    },
+    [deleteNote, selectedNote?.id, setSelectedNote]
+  )
+
+  const handleRestoreNote = useCallback(
+    async (note: Note) => {
+      const restored = await restoreNote(note)
+      if (restored) {
+        setSelectedNote(restored)
+      }
+      return restored
+    },
+    [restoreNote, setSelectedNote]
+  )
+
+  const handleSelectPaper = useCallback((paper: Paper) => {
+    setSelectedPaper(paper)
+    window.history.pushState(null, '', `/papers/${paper.id}`)
+  }, [setSelectedPaper])
+
+  const handlePaperStatusChange = useCallback((id: string, status: ReadingStatus) => {
+    updatePaper(id, { status })
+  }, [updatePaper])
+
+  const handleSelectIdea = useCallback((idea: Idea) => {
+    setSelectedIdea(idea)
+    window.history.pushState(null, '', `/ideas/${idea.id}`)
+  }, [setSelectedIdea])
+
+  const handleIdeaStageChange = useCallback((id: string, stage: IdeaStage, oldStage: IdeaStage) => {
+    updateIdea(id, { stage }, oldStage)
+  }, [updateIdea])
+
   
   // Filter entities by search query (memoized for performance)
   const activeSearchQuery = searchQueries[currentView]
@@ -336,28 +382,6 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
         )
       }),
     [notes, normalizedQuery]
-  )
-
-  const handleDeleteNote = useCallback(
-    async (note: Note) => {
-      const success = await deleteNote(note.id)
-      if (success && selectedNote?.id === note.id) {
-        setSelectedNote(null)
-      }
-      return success
-    },
-    [deleteNote, selectedNote?.id, setSelectedNote]
-  )
-
-  const handleRestoreNote = useCallback(
-    async (note: Note) => {
-      const restored = await restoreNote(note)
-      if (restored) {
-        setSelectedNote(restored)
-      }
-      return restored
-    },
-    [restoreNote, setSelectedNote]
   )
 
   const filteredPapers = useMemo(
@@ -633,10 +657,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
               <NoteList
                 notes={filteredNotes}
                 loading={loading}
-                onSelectNote={(note) => {
-                  setSelectedNote(note)
-                  window.history.pushState(null, '', `/notes/${note.id}`)
-                }}
+                onSelectNote={handleSelectNote}
                 onDeleteNote={handleDeleteNote}
                 onRestoreNote={handleRestoreNote}
                 selectedNoteId={selectedNote?.id}
@@ -649,12 +670,9 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
               <PaperList
                 papers={filteredPapers}
                 loading={loading}
-                onSelectPaper={(paper) => {
-                  setSelectedPaper(paper)
-                  window.history.pushState(null, '', `/papers/${paper.id}`)
-                }}
+                onSelectPaper={handleSelectPaper}
                 onDeletePaper={deletePaper}
-                onStatusChange={(id, status) => updatePaper(id, { status })}
+                onStatusChange={handlePaperStatusChange}
                 selectedPaperId={selectedPaper?.id}
               />
             )}
@@ -663,12 +681,9 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
               <IdeaList
                 ideas={filteredIdeas}
                 loading={loading}
-                onSelectIdea={(idea) => {
-                  setSelectedIdea(idea)
-                  window.history.pushState(null, '', `/ideas/${idea.id}`)
-                }}
+                onSelectIdea={handleSelectIdea}
                 onDeleteIdea={deleteIdea}
-                onStageChange={(id, stage, oldStage) => updateIdea(id, { stage }, oldStage)}
+                onStageChange={handleIdeaStageChange}
                 selectedIdeaId={selectedIdea?.id}
               />
             )}
@@ -717,84 +732,13 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
           </div>
           
           {/* Focus Studio Widget */}
-          <div className="mt-4 p-4 bg-bg-elevated rounded-lg border border-border-subtle space-y-4">
-            <div className="flex items-center gap-2 text-text-primary">
-              <Compass className="w-4 h-4 text-primary-500" />
-              <h3 className="text-small font-semibold uppercase tracking-wide">Focus Studio</h3>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              {workspaceStats.map(({ key, label, count, icon: StatIcon }) => (
-                <div
-                  key={key}
-                  className="flex items-center gap-3 p-3 bg-bg-base/60 rounded-md border border-border-subtle/60"
-                >
-                  <StatIcon className="w-4 h-4 text-primary-500" />
-                  <div>
-                    <p className="text-lg font-semibold text-text-primary">{count}</p>
-                    <p className="text-caption text-text-secondary uppercase tracking-wide">{label}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-text-primary">
-                <ListChecks className="w-4 h-4 text-primary-500" />
-                <p className="text-small font-medium">Reading pipeline</p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {(['To Read', 'Reading', 'Read'] as ReadingStatus[]).map((status) => (
-                  <span
-                    key={status}
-                    className="px-3 py-1 rounded-full border border-border-subtle text-caption text-text-secondary"
-                  >
-                    <span className="font-semibold text-text-primary">{readingStatusCounts[status]}</span> {status}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-text-primary">
-                <Sprout className="w-4 h-4 text-success" />
-                <p className="text-small font-medium">Idea garden</p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {(['Seed', 'Developing', 'Supported', 'Mature'] as IdeaStage[]).map((stage) => (
-                  <span
-                    key={stage}
-                    className="px-3 py-1 rounded-full border border-border-subtle text-caption text-text-secondary"
-                  >
-                    <span className="font-semibold text-text-primary">{ideaStageCounts[stage]}</span> {stage}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-text-primary">
-                <Sparkles className="w-4 h-4 text-primary-500" />
-                <p className="text-small font-medium">Focus prompts</p>
-              </div>
-              <ul className="space-y-2">
-                {focusPrompts.map((prompt) => (
-                  <li
-                    key={prompt.title}
-                    className="p-3 rounded-md bg-bg-base/60 border border-border-subtle/60"
-                  >
-                    <p className="text-small font-semibold text-text-primary">{prompt.title}</p>
-                    <p className="text-caption text-text-secondary mt-1">{prompt.detail}</p>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="flex items-start gap-3">
-              <Coffee className="w-4 h-4 mt-1 text-success" />
-              <p className="text-caption text-text-secondary leading-relaxed">{focusReflection}</p>
-            </div>
-          </div>
+          <FocusStudioWidget
+            workspaceStats={workspaceStats}
+            readingStatusCounts={readingStatusCounts}
+            ideaStageCounts={ideaStageCounts}
+            focusPrompts={focusPrompts}
+            focusReflection={focusReflection}
+          />
         </div>
       </div>
 
