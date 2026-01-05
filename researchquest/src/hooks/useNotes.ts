@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { awardXP, XP_REWARDS } from '../utils/gamification'
 import { toast } from 'sonner'
 import type { Note } from '../types/database'
+import { dedupeById } from '../utils/collections'
 
 function getUpdatedAtTimestamp(value: string | null | undefined): number {
   if (!value) return 0
@@ -59,12 +60,12 @@ export function useNotes(userId: string | undefined) {
           if (payload.eventType === 'INSERT') {
             // Check if note already exists (from optimistic update) to avoid duplicates
             setNotes(prev => {
-              const exists = prev.some(n => n.id === (payload.new as Note).id)
-              if (exists) {
+              const nextNotes = dedupeById([payload.new as Note, ...prev])
+              if (nextNotes.length === prev.length) {
                 console.log('Note already exists (from optimistic update), skipping realtime insert')
                 return sortByUpdatedAt(prev)
               }
-              return sortByUpdatedAt([payload.new as Note, ...prev])
+              return sortByUpdatedAt(nextNotes)
             })
           } else if (payload.eventType === 'UPDATE') {
             setNotes(prev => {
