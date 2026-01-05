@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { awardXP, XP_REWARDS } from '../utils/gamification'
+import { sortByUpdatedAt } from '../utils/sort'
 import { toast } from 'sonner'
 import type { Paper, CrossrefPaper } from '../types/database'
 import { useAppStore } from '../store/appStore'
@@ -118,18 +119,6 @@ function extractFunctionErrorMessage(error: any, fallback: string): string {
   }
 
   return fallback
-}
-
-function getUpdatedAtTimestamp(value: string | null | undefined): number {
-  if (!value) return 0
-  const timestamp = Date.parse(value)
-  return Number.isNaN(timestamp) ? 0 : timestamp
-}
-
-function sortByUpdatedAt<T extends { updated_at: string | null | undefined }>(items: T[]): T[] {
-  return [...items].sort(
-    (a, b) => getUpdatedAtTimestamp(b.updated_at) - getUpdatedAtTimestamp(a.updated_at)
-  )
 }
 
 export function usePapers(userId: string | undefined) {
