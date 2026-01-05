@@ -366,53 +366,56 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
     [activeSearchQuery]
   )
 
-  const filteredNotes = useMemo(
-    () =>
-      notes.filter((note) => {
-        if (!normalizedQuery) {
-          return true
-        }
+  const filteredNotes = useMemo(() => {
+    // Optimization: Don't filter if not viewing notes
+    if (currentView !== 'notes') return []
 
-        const title = note.title || note.markdown_body.split('\n')[0] || ''
-        const tags = (note.tags || []).join(' ')
-        return (
-          title.toLowerCase().includes(normalizedQuery) ||
-          note.markdown_body.toLowerCase().includes(normalizedQuery) ||
-          tags.toLowerCase().includes(normalizedQuery)
-        )
-      }),
-    [notes, normalizedQuery]
-  )
+    return notes.filter((note) => {
+      if (!normalizedQuery) {
+        return true
+      }
 
-  const filteredPapers = useMemo(
-    () =>
-      papers.filter((paper) => {
-        if (!normalizedQuery) {
-          return true
-        }
+      const title = note.title || note.markdown_body.split('\n')[0] || ''
+      const tags = (note.tags || []).join(' ')
+      return (
+        title.toLowerCase().includes(normalizedQuery) ||
+        note.markdown_body.toLowerCase().includes(normalizedQuery) ||
+        tags.toLowerCase().includes(normalizedQuery)
+      )
+    })
+  }, [notes, normalizedQuery, currentView])
 
-        return (
-          paper.title.toLowerCase().includes(normalizedQuery) ||
-          paper.authors.some((author) => author.toLowerCase().includes(normalizedQuery))
-        )
-      }),
-    [papers, normalizedQuery]
-  )
+  const filteredPapers = useMemo(() => {
+    // Optimization: Don't filter if not viewing papers
+    if (currentView !== 'papers') return []
 
-  const filteredIdeas = useMemo(
-    () =>
-      ideas.filter((idea) => {
-        if (!normalizedQuery) {
-          return true
-        }
+    return papers.filter((paper) => {
+      if (!normalizedQuery) {
+        return true
+      }
 
-        return (
-          idea.title.toLowerCase().includes(normalizedQuery) ||
-          (idea.description && idea.description.toLowerCase().includes(normalizedQuery))
-        )
-      }),
-    [ideas, normalizedQuery]
-  )
+      return (
+        paper.title.toLowerCase().includes(normalizedQuery) ||
+        paper.authors.some((author) => author.toLowerCase().includes(normalizedQuery))
+      )
+    })
+  }, [papers, normalizedQuery, currentView])
+
+  const filteredIdeas = useMemo(() => {
+    // Optimization: Don't filter if not viewing ideas
+    if (currentView !== 'ideas') return []
+
+    return ideas.filter((idea) => {
+      if (!normalizedQuery) {
+        return true
+      }
+
+      return (
+        idea.title.toLowerCase().includes(normalizedQuery) ||
+        (idea.description && idea.description.toLowerCase().includes(normalizedQuery))
+      )
+    })
+  }, [ideas, normalizedQuery, currentView])
 
   const nextDeadline = upcomingDeadlines[0]
 
