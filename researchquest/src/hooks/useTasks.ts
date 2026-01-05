@@ -104,6 +104,37 @@ export function useTasks(userId: string | undefined) {
     }
   }, [fetchTasks, sortTasksByDueDate, userId])
 
+  async function runOptimisticTaskMutation(options: {
+    optimisticUpdate: () => void
+    mutation: () => Promise<{ error: unknown }>
+    onError: () => void
+    errorMessagePrefix: string
+    logLabel: string
+  }): Promise<boolean> {
+    const { optimisticUpdate, mutation, onError, errorMessagePrefix, logLabel } = options
+
+    optimisticUpdate()
+
+    const { error: mutationError } = await mutation()
+
+    if (mutationError) {
+      console.error(logLabel, mutationError)
+      console.error('Error details:', JSON.stringify(mutationError, null, 2))
+
+      const errorMessage =
+        (mutationError as { message?: string; details?: string; hint?: string }).message ||
+        (mutationError as { details?: string }).details ||
+        (mutationError as { hint?: string }).hint ||
+        'Unknown error occurred'
+      setError(`${errorMessagePrefix}: ${errorMessage}`)
+      toast.error(`${errorMessagePrefix}: ${errorMessage}`)
+      onError()
+      return false
+    }
+
+    return true
+  }
+
   async function createTask(taskData: Partial<Task>): Promise<Task | null> {
     if (!userId) {
       setError('User not authenticated')
@@ -186,24 +217,25 @@ export function useTasks(userId: string | undefined) {
         : sanitizedUpdates.due_date
     }
 
-    setTasks(prev => prev.map(task =>
-      task.id === taskId ? { ...task, ...sanitizedUpdates, updated_at: new Date().toISOString() } : task
-    ))
+    const updateSucceeded = await runOptimisticTaskMutation({
+      optimisticUpdate: () => {
+        setTasks(prev => prev.map(task =>
+          task.id === taskId ? { ...task, ...sanitizedUpdates, updated_at: new Date().toISOString() } : task
+        ))
+      },
+      mutation: () => supabase
+        .from('tasks')
+        .update(sanitizedUpdates)
+        .eq('id', taskId),
+      onError: () => {
+        // Revert on error
+        fetchTasks()
+      },
+      errorMessagePrefix: 'Failed to update task',
+      logLabel: 'Failed to update task:',
+    })
 
-    const { error: updateError } = await supabase
-      .from('tasks')
-      .update(sanitizedUpdates)
-      .eq('id', taskId)
-
-    if (updateError) {
-      console.error('Failed to update task:', updateError)
-      console.error('Error details:', JSON.stringify(updateError, null, 2))
-
-      const errorMessage = updateError.message || updateError.details || updateError.hint || 'Unknown error occurred'
-      setError(`Failed to update task: ${errorMessage}`)
-      toast.error(`Failed to update task: ${errorMessage}`)
-      // Revert on error
-      fetchTasks()
+    if (!updateSucceeded) {
       return false
     }
 
@@ -218,25 +250,25 @@ export function useTasks(userId: string | undefined) {
     // Toggle completion status
     const newCompletedStatus = !task.completed
     
-    // Optimistic update
-    setTasks(prev => prev.map(t => 
-      t.id === taskId ? { ...t, completed: newCompletedStatus, updated_at: new Date().toISOString() } : t
-    ))
+    const updateSucceeded = await runOptimisticTaskMutation({
+      optimisticUpdate: () => {
+        setTasks(prev => prev.map(t => 
+          t.id === taskId ? { ...t, completed: newCompletedStatus, updated_at: new Date().toISOString() } : t
+        ))
+      },
+      mutation: () => supabase
+        .from('tasks')
+        .update({ completed: newCompletedStatus })
+        .eq('id', taskId),
+      onError: () => {
+        // Revert on error
+        fetchTasks()
+      },
+      errorMessagePrefix: 'Failed to update task',
+      logLabel: 'Failed to complete/uncomplete task:',
+    })
 
-    const { error: updateError } = await supabase
-      .from('tasks')
-      .update({ completed: newCompletedStatus })
-      .eq('id', taskId)
-
-    if (updateError) {
-      console.error('Failed to complete/uncomplete task:', updateError)
-      console.error('Error details:', JSON.stringify(updateError, null, 2))
-      
-      const errorMessage = updateError.message || updateError.details || updateError.hint || 'Unknown error occurred'
-      setError(`Failed to update task: ${errorMessage}`)
-      toast.error(`Failed to update task: ${errorMessage}`)
-      // Revert on error
-      fetchTasks()
+    if (!updateSucceeded) {
       return false
     }
 
@@ -256,24 +288,25 @@ export function useTasks(userId: string | undefined) {
   async function deleteTask(taskId: string): Promise<boolean> {
     // Optimistic delete
     const deletedTask = tasks.find(t => t.id === taskId)
-    setTasks(prev => prev.filter(task => task.id !== taskId))
+    const deleteSucceeded = await runOptimisticTaskMutation({
+      optimisticUpdate: () => {
+        setTasks(prev => prev.filter(task => task.id !== taskId))
+      },
+      mutation: () => supabase
+        .from('tasks')
+        .delete()
+        .eq('id', taskId),
+      onError: () => {
+        // Revert on error
+        if (deletedTask) {
+          setTasks(prev => [...prev, deletedTask])
+        }
+      },
+      errorMessagePrefix: 'Failed to delete task',
+      logLabel: 'Failed to delete task:',
+    })
 
-    const { error: deleteError } = await supabase
-      .from('tasks')
-      .delete()
-      .eq('id', taskId)
-
-    if (deleteError) {
-      console.error('Failed to delete task:', deleteError)
-      console.error('Error details:', JSON.stringify(deleteError, null, 2))
-      
-      const errorMessage = deleteError.message || deleteError.details || deleteError.hint || 'Unknown error occurred'
-      setError(`Failed to delete task: ${errorMessage}`)
-      toast.error(`Failed to delete task: ${errorMessage}`)
-      // Revert on error
-      if (deletedTask) {
-        setTasks(prev => [...prev, deletedTask])
-      }
+    if (!deleteSucceeded) {
       return false
     }
 
