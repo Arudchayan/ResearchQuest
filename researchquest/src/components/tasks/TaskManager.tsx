@@ -267,6 +267,7 @@ export function TaskManager() {
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder="Search tasks..."
+                aria-label="Search tasks"
                 className="w-full pl-9 pr-3 py-2 bg-bg-base border border-border-subtle rounded-md text-small focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
@@ -349,10 +350,11 @@ export function TaskManager() {
             <div className="space-y-4">
               {/* Title */}
               <div>
-                <label className="block text-small font-medium text-text-primary mb-2">
+                <label htmlFor="task-title" className="block text-small font-medium text-text-primary mb-2">
                   Title *
                 </label>
                 <input
+                  id="task-title"
                   type="text"
                   value={formTitle}
                   onChange={e => setFormTitle(e.target.value)}
@@ -364,10 +366,11 @@ export function TaskManager() {
               
               {/* Description */}
               <div>
-                <label className="block text-small font-medium text-text-primary mb-2">
+                <label htmlFor="task-description" className="block text-small font-medium text-text-primary mb-2">
                   Description
                 </label>
                 <textarea
+                  id="task-description"
                   value={formDescription}
                   onChange={e => setFormDescription(e.target.value)}
                   placeholder="Optional task details"
@@ -380,10 +383,11 @@ export function TaskManager() {
               <div className="grid grid-cols-2 gap-3">
                 {/* Priority */}
                 <div>
-                  <label className="block text-small font-medium text-text-primary mb-2">
+                  <label htmlFor="task-priority" className="block text-small font-medium text-text-primary mb-2">
                     Priority
                   </label>
                   <select
+                    id="task-priority"
                     value={formPriority}
                     onChange={e => setFormPriority(e.target.value as TaskPriority)}
                     className="w-full px-3 py-2 bg-bg-base border border-border-subtle rounded-md text-small focus:outline-none focus:ring-2 focus:ring-primary-500 capitalize"
@@ -396,10 +400,11 @@ export function TaskManager() {
                 
                 {/* Category */}
                 <div>
-                  <label className="block text-small font-medium text-text-primary mb-2">
+                  <label htmlFor="task-category" className="block text-small font-medium text-text-primary mb-2">
                     Category
                   </label>
                   <select
+                    id="task-category"
                     value={formCategory}
                     onChange={e => setFormCategory(e.target.value as TaskCategory)}
                     className="w-full px-3 py-2 bg-bg-base border border-border-subtle rounded-md text-small focus:outline-none focus:ring-2 focus:ring-primary-500"
@@ -413,10 +418,11 @@ export function TaskManager() {
               
               {/* Due Date */}
               <div>
-                <label className="block text-small font-medium text-text-primary mb-2">
+                <label htmlFor="task-due-date" className="block text-small font-medium text-text-primary mb-2">
                   Due Date
                 </label>
                 <input
+                  id="task-due-date"
                   type="date"
                   value={formDueDate}
                   onChange={e => setFormDueDate(e.target.value)}
