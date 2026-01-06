@@ -622,6 +622,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
               <input
                 type="text"
                 placeholder={`Search ${currentView}...`}
+                aria-label={`Search ${currentView}`}
                 value={activeSearchQuery}
                 onChange={(e) => {
                   const nextValue = e.target.value
