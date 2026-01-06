@@ -427,6 +427,7 @@ export function MarkdownEditor() {
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
+          maxLength={255}
           className="flex-1 text-title font-semibold bg-transparent border-none outline-none text-text-primary placeholder-text-tertiary"
           placeholder="Enter title..."
         />
@@ -650,6 +651,7 @@ export function MarkdownEditor() {
                     }
                   }}
                   required
+                  maxLength={2048}
                   className="w-full px-3 py-2 rounded-md border border-border-subtle bg-bg-base text-small focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="https://example.com"
                 />

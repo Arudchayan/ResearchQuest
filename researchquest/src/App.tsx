@@ -21,7 +21,7 @@ import { FocusWorkspace } from './components/focus/FocusWorkspace'
 import { IdeasOverview } from './components/ideas/IdeasOverview'
 import { OnboardingGuide } from './components/layout/OnboardingGuide'
 
-function AuthScreen() {
+export function AuthScreen() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isSignUp, setIsSignUp] = useState(false)
@@ -164,6 +164,7 @@ function AuthScreen() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              maxLength={254}
               className="w-full px-4 py-3 bg-bg-base border border-border-subtle rounded-md text-body focus:outline-none focus:ring-2 focus:ring-primary-500"
               placeholder="researcher@example.com"
             />
@@ -178,6 +179,7 @@ function AuthScreen() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              maxLength={100}
               className="w-full px-4 py-3 bg-bg-base border border-border-subtle rounded-md text-body focus:outline-none focus:ring-2 focus:ring-primary-500"
               placeholder="••••••••"
             />
