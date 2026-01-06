@@ -93,6 +93,7 @@ export function PaperDetailView({ paper, onUpdate }: PaperDetailViewProps) {
                   type="text"
                   value={editedTitle}
                   onChange={(e) => setEditedTitle(e.target.value)}
+                  maxLength={255}
                   className="flex-1 text-2xl font-bold text-text-primary bg-bg-base border border-border-subtle rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="Paper title..."
                 />
@@ -141,6 +142,7 @@ export function PaperDetailView({ paper, onUpdate }: PaperDetailViewProps) {
                 type="text"
                 value={editedAuthors}
                 onChange={(e) => setEditedAuthors(e.target.value)}
+                maxLength={1000}
                 className="w-full px-4 py-2 bg-bg-base border border-border-subtle rounded-md text-body text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
                 placeholder="Author 1, Author 2, et al."
               />
@@ -223,6 +225,7 @@ export function PaperDetailView({ paper, onUpdate }: PaperDetailViewProps) {
                 value={editedAbstract}
                 onChange={(e) => setEditedAbstract(e.target.value)}
                 rows={8}
+                maxLength={10000}
                 className="w-full px-4 py-3 bg-bg-base border border-border-subtle rounded-md text-body text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
                 placeholder="Enter or paste the paper's abstract..."
               />
