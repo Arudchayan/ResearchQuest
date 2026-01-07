@@ -1,0 +1,45 @@
+/**
+ * Security utilities for input validation and sanitization.
+ */
+
+/**
+ * Validates if a string is a safe URL (http, https, mailto).
+ * Prevents javascript: and other dangerous schemes.
+ */
+export function isValidUrl(url: string): boolean {
+  if (!url || typeof url !== "string") return false;
+
+  const trimmed = url.trim();
+  if (!trimmed) return false;
+
+  // Allow relative URLs (often safe in context of app navigation, but be careful)
+  // For external links, we usually want http/https.
+  // If it starts with /, it's relative.
+  if (trimmed.startsWith("/")) return true;
+
+  try {
+    const parsed = new URL(trimmed);
+    return ["http:", "https:", "mailto:"].includes(parsed.protocol);
+  } catch (e) {
+    // If URL parsing fails, it might be a relative URL or invalid.
+    // If we want to enforce full URLs for external links:
+    return false;
+  }
+}
+
+/**
+ * Checks if a password meets minimum security requirements.
+ * - At least 8 characters
+ */
+export function isStrongPassword(password: string): {
+  valid: boolean;
+  message?: string;
+} {
+  if (!password || password.length < 8) {
+    return {
+      valid: false,
+      message: "Password must be at least 8 characters long.",
+    };
+  }
+  return { valid: true };
+}
