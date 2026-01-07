@@ -259,6 +259,7 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
                   onChange={(e) => setDoiInput(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleDOISearch()}
                   placeholder="e.g., 10.1038/nature12373"
+                  maxLength={255}
                   className="flex-1 px-4 py-3 bg-bg-base border border-border-subtle rounded-lg text-body focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 />
                 <button
@@ -350,6 +351,7 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleQuerySearch()}
                   placeholder="e.g., CRISPR gene editing, quantum computing"
+                  maxLength={255}
                   className="flex-1 px-4 py-3 bg-bg-base border border-border-subtle rounded-lg text-body focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 />
                 <div className="flex gap-3">
@@ -588,6 +590,7 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
                 value={manualTitle}
                 onChange={(e) => setManualTitle(e.target.value)}
                 placeholder="Enter paper title"
+                maxLength={255}
                 className="w-full px-4 py-3 bg-bg-base border border-border-subtle rounded-lg text-body focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
@@ -601,6 +604,7 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
                 value={manualAuthors}
                 onChange={(e) => setManualAuthors(e.target.value)}
                 placeholder="John Doe, Jane Smith, et al."
+                maxLength={1000}
                 className="w-full px-4 py-3 bg-bg-base border border-border-subtle rounded-lg text-body focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
@@ -614,6 +618,7 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
                 value={manualDoi}
                 onChange={(e) => setManualDoi(e.target.value)}
                 placeholder="10.1038/nature12373"
+                maxLength={255}
                 className="w-full px-4 py-3 bg-bg-base border border-border-subtle rounded-lg text-body focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
@@ -627,6 +632,7 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
                 value={manualUrl}
                 onChange={(e) => setManualUrl(e.target.value)}
                 placeholder="https://..."
+                maxLength={2048}
                 className="w-full px-4 py-3 bg-bg-base border border-border-subtle rounded-lg text-body focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>

@@ -129,6 +129,11 @@ export function IdeaList({ ideas, onSelectIdea, onDeleteIdea, onStageChange, sel
 
   const normalizedQuery = searchQuery.trim().toLowerCase()
   const filteredIdeas = useMemo(() => {
+    // Optimization: Return original array if no filters are active
+    if (stageFilter === 'all' && !normalizedQuery) {
+      return ideas
+    }
+
     return ideas.filter((idea) => {
       const matchesStage = stageFilter === 'all' || idea.stage === stageFilter
       if (!matchesStage) {

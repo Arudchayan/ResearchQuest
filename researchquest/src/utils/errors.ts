@@ -1,4 +1,4 @@
-export const extractFunctionErrorMessage = (error: any, fallback: string): string => {
+export function extractFunctionErrorMessage(error: any, fallback: string): string {
   if (!error) return fallback
 
   const candidates: any[] = []

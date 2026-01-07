@@ -6,7 +6,6 @@ import { supabase } from '../../lib/supabase'
 import { useNotes } from '../../hooks/useNotes'
 import { usePapers } from '../../hooks/usePapers'
 import { useIdeas } from '../../hooks/useIdeas'
-import { useFocusEntityCounts } from '../../hooks/useFocusEntityCounts'
 import { NoteList } from '../entities/NoteList'
 import { PaperList } from '../entities/PaperList'
 import { IdeaList } from '../entities/IdeaList'
@@ -366,53 +365,56 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
     [activeSearchQuery]
   )
 
-  const filteredNotes = useMemo(
-    () =>
-      notes.filter((note) => {
-        if (!normalizedQuery) {
-          return true
-        }
+  const filteredNotes = useMemo(() => {
+    // Optimization: Don't filter if not viewing notes
+    if (currentView !== 'notes') return []
 
-        const title = note.title || note.markdown_body.split('\n')[0] || ''
-        const tags = (note.tags || []).join(' ')
-        return (
-          title.toLowerCase().includes(normalizedQuery) ||
-          note.markdown_body.toLowerCase().includes(normalizedQuery) ||
-          tags.toLowerCase().includes(normalizedQuery)
-        )
-      }),
-    [notes, normalizedQuery]
-  )
+    return notes.filter((note) => {
+      if (!normalizedQuery) {
+        return true
+      }
 
-  const filteredPapers = useMemo(
-    () =>
-      papers.filter((paper) => {
-        if (!normalizedQuery) {
-          return true
-        }
+      const title = note.title || note.markdown_body.split('\n')[0] || ''
+      const tags = (note.tags || []).join(' ')
+      return (
+        title.toLowerCase().includes(normalizedQuery) ||
+        note.markdown_body.toLowerCase().includes(normalizedQuery) ||
+        tags.toLowerCase().includes(normalizedQuery)
+      )
+    })
+  }, [notes, normalizedQuery, currentView])
 
-        return (
-          paper.title.toLowerCase().includes(normalizedQuery) ||
-          paper.authors.some((author) => author.toLowerCase().includes(normalizedQuery))
-        )
-      }),
-    [papers, normalizedQuery]
-  )
+  const filteredPapers = useMemo(() => {
+    // Optimization: Don't filter if not viewing papers
+    if (currentView !== 'papers') return []
 
-  const filteredIdeas = useMemo(
-    () =>
-      ideas.filter((idea) => {
-        if (!normalizedQuery) {
-          return true
-        }
+    return papers.filter((paper) => {
+      if (!normalizedQuery) {
+        return true
+      }
 
-        return (
-          idea.title.toLowerCase().includes(normalizedQuery) ||
-          (idea.description && idea.description.toLowerCase().includes(normalizedQuery))
-        )
-      }),
-    [ideas, normalizedQuery]
-  )
+      return (
+        paper.title.toLowerCase().includes(normalizedQuery) ||
+        paper.authors.some((author) => author.toLowerCase().includes(normalizedQuery))
+      )
+    })
+  }, [papers, normalizedQuery, currentView])
+
+  const filteredIdeas = useMemo(() => {
+    // Optimization: Don't filter if not viewing ideas
+    if (currentView !== 'ideas') return []
+
+    return ideas.filter((idea) => {
+      if (!normalizedQuery) {
+        return true
+      }
+
+      return (
+        idea.title.toLowerCase().includes(normalizedQuery) ||
+        (idea.description && idea.description.toLowerCase().includes(normalizedQuery))
+      )
+    })
+  }, [ideas, normalizedQuery, currentView])
 
   const nextDeadline = upcomingDeadlines[0]
 
@@ -424,20 +426,14 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
     return formatTimeUntil(nextDeadline.due_date)
   }, [nextDeadline])
 
-  const entityCounts = useFocusEntityCounts(userId, {
-    notes: notes.length,
-    papers: papers.length,
-    ideas: ideas.length,
-  })
-
   const workspaceStats = useMemo(
     () => [
-      { key: 'notes', label: 'Notes', count: entityCounts.notes, icon: FileText },
-      { key: 'papers', label: 'Papers', count: entityCounts.papers, icon: BookOpen },
-      { key: 'ideas', label: 'Ideas', count: entityCounts.ideas, icon: Lightbulb },
+      { key: 'notes', label: 'Notes', count: notes.length, icon: FileText },
+      { key: 'papers', label: 'Papers', count: papers.length, icon: BookOpen },
+      { key: 'ideas', label: 'Ideas', count: ideas.length, icon: Lightbulb },
       { key: 'focus', label: 'Focus queue', count: upcomingDeadlines.length, icon: Target },
     ],
-    [entityCounts.ideas, entityCounts.notes, entityCounts.papers, upcomingDeadlines.length]
+    [ideas.length, notes.length, papers.length, upcomingDeadlines.length]
   )
 
   const readingStatusCounts = useMemo(() => {
@@ -619,6 +615,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
               <input
                 type="text"
                 placeholder={`Search ${currentView}...`}
+                aria-label={`Search ${currentView}`}
                 value={activeSearchQuery}
                 onChange={(e) => {
                   const nextValue = e.target.value
