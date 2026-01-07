@@ -26,6 +26,20 @@ interface AppState {
   setSelectedIdea: (idea: Idea | null) => void
   setSelectedTopic: (topic: TopicWithCounts | null) => void
 
+  // Entity collections (Global Cache)
+  notes: Note[]
+  papers: Paper[]
+  ideas: Idea[]
+  notesLoading: boolean
+  papersLoading: boolean
+  ideasLoading: boolean
+  setNotes: (notes: Note[]) => void
+  setPapers: (papers: Paper[]) => void
+  setIdeas: (ideas: Idea[]) => void
+  setNotesLoading: (loading: boolean) => void
+  setPapersLoading: (loading: boolean) => void
+  setIdeasLoading: (loading: boolean) => void
+
   // Topics collection
   topics: TopicWithCounts[]
   setTopics: (topics: TopicWithCounts[]) => void
@@ -77,6 +91,20 @@ export const useAppStore = create<AppState>()(
       setSelectedPaper: (selectedPaper) => set({ selectedPaper }),
       setSelectedIdea: (selectedIdea) => set({ selectedIdea }),
       setSelectedTopic: (selectedTopic) => set({ selectedTopic }),
+
+      // Entity collections (Global Cache)
+      notes: [],
+      papers: [],
+      ideas: [],
+      notesLoading: false,
+      papersLoading: false,
+      ideasLoading: false,
+      setNotes: (notes) => set({ notes }),
+      setPapers: (papers) => set({ papers }),
+      setIdeas: (ideas) => set({ ideas }),
+      setNotesLoading: (notesLoading) => set({ notesLoading }),
+      setPapersLoading: (papersLoading) => set({ papersLoading }),
+      setIdeasLoading: (ideasLoading) => set({ ideasLoading }),
 
       // Topics collection state
       topics: [],

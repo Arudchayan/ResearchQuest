@@ -17,6 +17,7 @@ import { Toaster } from 'sonner'
 import type { User } from '@supabase/supabase-js'
 import { usePapers } from './hooks/usePapers'
 import { useIdeas } from './hooks/useIdeas'
+import { useDataSync } from './hooks/useDataSync'
 import { FocusWorkspace } from './components/focus/FocusWorkspace'
 import { IdeasOverview } from './components/ideas/IdeasOverview'
 import { OnboardingGuide } from './components/layout/OnboardingGuide'
@@ -244,7 +245,10 @@ function App() {
   } = useAppStore()
   const hydrateGamification = useGamificationStore(state => state.hydrateFromProfile)
   
-  // Get hooks for CRUD operations
+  // Sync data centrally
+  useDataSync(userId)
+
+  // Get hooks for CRUD operations (data comes from store now)
   const { papers, loading: papersLoading, searchPaperByDOI, searchPapersByQuery, createPaper, updatePaper } = usePapers(userId)
   const { ideas, loading: ideasLoading, createIdea, updateIdea } = useIdeas(userId)
   
