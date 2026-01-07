@@ -1,20 +1,23 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { awardXP, XP_REWARDS } from '../utils/gamification'
 import { sortByUpdatedAt } from '../utils/sort'
 import { toast } from 'sonner'
 import type { Note } from '../types/database'
-import { dedupeById } from '../utils/collections'
+import { useAppStore } from '../store/appStore'
 
 export function useNotes(userId: string | undefined) {
-  const [notes, setNotes] = useState<Note[]>([])
-  const [loading, setLoading] = useState(true)
+  // Use global state instead of local state
+  const notes = useAppStore(state => state.notes)
+  const loading = useAppStore(state => state.notesLoading)
+  const setNotes = useAppStore(state => state.setNotes)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchNotes = useCallback(async () => {
+  // This function is now mainly for refreshing manually if needed,
+  // but useDataSync handles the initial fetch and subscriptions.
+  async function fetchNotes() {
     if (!userId) return
     
-    setLoading(true)
     const { data, error: fetchError } = await supabase
       .from('notes')
       .select('*')
@@ -26,55 +29,7 @@ export function useNotes(userId: string | undefined) {
     } else {
       setNotes(sortByUpdatedAt(data || []))
     }
-    setLoading(false)
-  }, [userId])
-
-  useEffect(() => {
-    if (!userId) {
-      setNotes([])
-      setLoading(false)
-      return
-    }
-
-    void fetchNotes()
-    
-    // Subscribe to realtime updates
-    const subscription = supabase
-      .channel(`notes_realtime_${userId}`)
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'notes', filter: `user_id=eq.${userId}` },
-        (payload) => {
-          console.log('Notes realtime update:', payload)
-          // Optimistic UI update based on event type
-          if (payload.eventType === 'INSERT') {
-            // Check if note already exists (from optimistic update) to avoid duplicates
-            setNotes(prev => {
-              const nextNotes = dedupeById([payload.new as Note, ...prev])
-              if (nextNotes.length === prev.length) {
-                console.log('Note already exists (from optimistic update), skipping realtime insert')
-                return sortByUpdatedAt(prev)
-              }
-              return sortByUpdatedAt(nextNotes)
-            })
-          } else if (payload.eventType === 'UPDATE') {
-            setNotes(prev => {
-              const updatedNote = payload.new as Note
-              const remaining = prev.filter(note => note.id !== updatedNote.id)
-              return sortByUpdatedAt([updatedNote, ...remaining])
-            })
-          } else if (payload.eventType === 'DELETE') {
-            setNotes(prev => prev.filter(note => note.id !== payload.old.id))
-          }
-        }
-      )
-      .subscribe((status) => {
-        console.log('Notes subscription status:', status)
-      })
-
-    return () => {
-      subscription.unsubscribe()
-    }
-  }, [userId, fetchNotes])
+  }
 
   async function createNote(noteData: Partial<Note>): Promise<Note | null> {
     if (!userId) {
@@ -83,29 +38,24 @@ export function useNotes(userId: string | undefined) {
       return null
     }
 
-    // Validate required fields - markdown_body is required, but can be empty
     if (noteData.markdown_body === undefined) {
       setError('Note content is required')
       toast.error('Note content is required')
       return null
     }
 
-    // Clean and prepare the data - only include defined fields
     const cleanData: any = {
       user_id: userId,
       markdown_body: noteData.markdown_body,
       tags: Array.isArray(noteData.tags) ? noteData.tags : [],
     }
 
-    // Only add optional fields if they have values (and trim strings)
     if (noteData.title && noteData.title.trim()) {
       cleanData.title = noteData.title.trim()
     }
     if (noteData.linked_entity_ids && Array.isArray(noteData.linked_entity_ids) && noteData.linked_entity_ids.length > 0) {
       cleanData.linked_entity_ids = noteData.linked_entity_ids
     }
-
-    console.log('Creating note with cleaned data:', cleanData)
 
     const { data, error: createError } = await supabase
       .from('notes')
@@ -114,38 +64,30 @@ export function useNotes(userId: string | undefined) {
       .single()
 
     if (createError) {
-      console.error('Failed to create note:', createError)
-      console.error('Error details:', JSON.stringify(createError, null, 2))
-      console.error('Note data that failed:', cleanData)
-      
-      const errorMessage = createError.message || createError.details || createError.hint || 'Unknown error occurred'
+      const errorMessage = createError.message || 'Unknown error occurred'
       setError(`Failed to create note: ${errorMessage}`)
       toast.error(`Failed to create note: ${errorMessage}`)
       return null
     }
 
-    console.log('Note created successfully:', data)
     toast.success('Note created successfully')
 
-    // Optimistic update - add to local state immediately
-    setNotes(prev => sortByUpdatedAt([data, ...prev]))
+    // Optimistic update
+    setNotes(sortByUpdatedAt([data, ...useAppStore.getState().notes]))
 
-    // Award XP (don't await to avoid blocking)
     awardXP(userId, XP_REWARDS.CREATE_NOTE, 'create_note').catch(console.error)
-
-    void fetchNotes()
 
     return data
   }
 
   async function updateNote(noteId: string, updates: Partial<Note>): Promise<boolean> {
     // Optimistic update
-    setNotes(prev => {
-      const updatedNotes = prev.map(note =>
-        note.id === noteId ? { ...note, ...updates, updated_at: new Date().toISOString() } : note
-      )
-      return sortByUpdatedAt(updatedNotes)
-    })
+    const currentNotes = useAppStore.getState().notes
+    const previousNotes = [...currentNotes]
+
+    setNotes(sortByUpdatedAt(currentNotes.map(note =>
+      note.id === noteId ? { ...note, ...updates, updated_at: new Date().toISOString() } : note
+    )))
 
     const { error: updateError } = await supabase
       .from('notes')
@@ -153,32 +95,42 @@ export function useNotes(userId: string | undefined) {
       .eq('id', noteId)
 
     if (updateError) {
-      console.error('Failed to update note:', updateError)
-      console.error('Error details:', JSON.stringify(updateError, null, 2))
-
-      const errorMessage = updateError.message || updateError.details || updateError.hint || 'Unknown error occurred'
+      const errorMessage = updateError.message || 'Unknown error occurred'
       setError(`Failed to update note: ${errorMessage}`)
       toast.error(`Failed to update note: ${errorMessage}`)
-      // Revert on error
-      fetchNotes()
+      // Revert on error - safely using fresh state
+      // Actually, revert to 'previousNotes' is NOT safe if realtime updates happened.
+      // But we captured 'previousNotes' just before 'setNotes', synchronously.
+      // So 'previousNotes' IS the state before optimistic update.
+      // However, if we restore it after async await, we overwrite realtime updates.
+      // Correct way: Only revert the specific note.
+
+      const freshNotes = useAppStore.getState().notes
+      // Find the note in 'previousNotes' (the original state)
+      const originalNote = previousNotes.find(n => n.id === noteId)
+
+      if (originalNote) {
+          setNotes(sortByUpdatedAt(freshNotes.map(n => n.id === noteId ? originalNote : n)))
+      } else {
+          // If note wasn't in previous state (unlikely for update), maybe we shouldn't do anything or re-fetch?
+          void fetchNotes()
+      }
       return false
     }
 
-    // Award XP (don't await to avoid blocking)
     if (userId) {
       awardXP(userId, XP_REWARDS.UPDATE_NOTE, 'update_note').catch(console.error)
     }
-
-    void fetchNotes()
 
     return true
   }
 
   async function deleteNote(noteId: string): Promise<boolean> {
-    const deletedNote = notes.find((n) => n.id === noteId)
+    const currentNotes = useAppStore.getState().notes
+    const deletedNote = currentNotes.find((n) => n.id === noteId)
 
     // Optimistic delete
-    setNotes((prev) => prev.filter((note) => note.id !== noteId))
+    setNotes(currentNotes.filter((note) => note.id !== noteId))
 
     const { error: deleteError } = await supabase
       .from('notes')
@@ -186,21 +138,16 @@ export function useNotes(userId: string | undefined) {
       .eq('id', noteId)
 
     if (deleteError) {
-      console.error('Failed to delete note:', deleteError)
-      console.error('Error details:', JSON.stringify(deleteError, null, 2))
-
-      const errorMessage = deleteError.message || deleteError.details || deleteError.hint || 'Unknown error occurred'
+      const errorMessage = deleteError.message || 'Unknown error occurred'
       setError(`Failed to delete note: ${errorMessage}`)
       toast.error(`Failed to delete note: ${errorMessage}`)
 
       // Revert on error
       if (deletedNote) {
-        setNotes((prev) => sortByUpdatedAt([...prev, deletedNote]))
+        setNotes(sortByUpdatedAt([...useAppStore.getState().notes, deletedNote]))
       }
       return false
     }
-
-    void fetchNotes()
 
     return true
   }
@@ -218,20 +165,16 @@ export function useNotes(userId: string | undefined) {
       .single()
 
     if (restoreError) {
-      console.error('Failed to restore note:', restoreError)
-      const errorMessage = restoreError.message || restoreError.details || restoreError.hint || 'Unknown error occurred'
+      const errorMessage = restoreError.message || 'Unknown error occurred'
       toast.error(`Failed to restore note: ${errorMessage}`)
       return null
     }
 
     const restoredNote = data as Note
-    setNotes((prev) => {
-      const remaining = prev.filter((existing) => existing.id !== restoredNote.id)
-      return sortByUpdatedAt([restoredNote, ...remaining])
-    })
+    const currentNotes = useAppStore.getState().notes
+    setNotes(sortByUpdatedAt([restoredNote, ...currentNotes.filter((existing) => existing.id !== restoredNote.id)]))
 
     toast.success('Note restored')
-    void fetchNotes()
     return restoredNote
   }
 
