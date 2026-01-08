@@ -21,6 +21,7 @@ import { useDataSync } from './hooks/useDataSync'
 import { FocusWorkspace } from './components/focus/FocusWorkspace'
 import { IdeasOverview } from './components/ideas/IdeasOverview'
 import { OnboardingGuide } from './components/layout/OnboardingGuide'
+import { CommandMenu } from './components/layout/CommandMenu'
 
 export function AuthScreen() {
   const [email, setEmail] = useState('')
@@ -391,6 +392,9 @@ function App() {
   
   return (
     <div className="min-h-screen-dynamic bg-bg-base">
+      {/* Global Command Menu */}
+      <CommandMenu />
+
       {/* Toast Notifications */}
       <Toaster
         position="top-right"

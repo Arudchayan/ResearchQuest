@@ -43,3 +43,18 @@ global.ResizeObserver = class ResizeObserver {
   observe() {}
   unobserve() {}
 } as any
+
+// Mock HTMLElement.prototype.scrollIntoView
+if (typeof HTMLElement.prototype.scrollIntoView !== 'function') {
+  HTMLElement.prototype.scrollIntoView = vi.fn()
+}
+
+// Mock PointerEvent if missing (often needed for Radix primitives)
+if (typeof window.PointerEvent === 'undefined') {
+  // @ts-ignore
+  window.PointerEvent = class PointerEvent extends Event {
+    constructor(type: string, props: any) {
+      super(type, props)
+    }
+  }
+}
