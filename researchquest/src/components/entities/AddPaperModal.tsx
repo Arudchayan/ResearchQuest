@@ -361,9 +361,10 @@ export function AddPaperModal({
               {searchResults.length > 0 && (
                 <div className="space-y-2 max-h-96 overflow-y-auto">
                   {searchResults.map((result, index) => (
-                    <div
+                    <button
                       key={index}
-                      className="p-4 border border-border-subtle rounded-md hover:border-primary-500 cursor-pointer transition-colors"
+                      type="button"
+                      className="w-full text-left p-4 border border-border-subtle rounded-md hover:border-primary-500 cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
                       onClick={() => handleSelectResult(result)}
                     >
                       <h4 className="font-medium text-text-primary mb-1">
@@ -378,7 +379,7 @@ export function AddPaperModal({
                           DOI: {result.doi}
                         </p>
                       )}
-                    </div>
+                    </button>
                   ))}
                 </div>
               )}
