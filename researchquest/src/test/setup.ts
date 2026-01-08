@@ -10,6 +10,11 @@ afterEach(() => {
   cleanup()
 })
 
+// Mock scrollIntoView for Radix/cmdk
+window.HTMLElement.prototype.scrollIntoView = vi.fn()
+window.HTMLElement.prototype.hasPointerCapture = vi.fn()
+window.HTMLElement.prototype.releasePointerCapture = vi.fn()
+
 // Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
