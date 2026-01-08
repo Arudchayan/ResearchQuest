@@ -1,0 +1,174 @@
+import { useEffect, useState, useMemo } from 'react'
+import { Command } from 'cmdk'
+import {
+  FileText,
+  BookOpen,
+  Lightbulb,
+  Target,
+  CheckSquare,
+  Plus,
+  Moon,
+  Sun,
+  Search
+} from 'lucide-react'
+import { useAppStore } from '../../store/appStore'
+import { useNotes } from '../../hooks/useNotes'
+import { usePapers } from '../../hooks/usePapers'
+import { useIdeas } from '../../hooks/useIdeas'
+import './CommandPalette.css'
+
+export function CommandPalette() {
+  const [open, setOpen] = useState(false)
+
+  const {
+    setTheme,
+    effectiveTheme,
+    setCurrentView,
+    setSelectedNote,
+    setSelectedPaper,
+    setSelectedIdea,
+    user
+  } = useAppStore()
+
+  // Fetch data for search
+  const { notes } = useNotes(user?.id)
+  const { papers } = usePapers(user?.id)
+  const { ideas } = useIdeas(user?.id)
+
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      if ((e.key === 'k' && (e.metaKey || e.ctrlKey)) || e.key === '/') {
+        e.preventDefault()
+        setOpen((open) => !open)
+      }
+    }
+
+    document.addEventListener('keydown', down)
+    return () => document.removeEventListener('keydown', down)
+  }, [])
+
+  // Navigation handlers using App's custom routing
+  const handleNavigate = (view: 'notes' | 'papers' | 'ideas' | 'tasks' | 'focus') => {
+    setCurrentView(view)
+    window.history.pushState(null, '', view === 'notes' ? '/' : `/${view}`)
+    // Trigger popstate event for other listeners if needed (App.tsx listens to it)
+    window.dispatchEvent(new PopStateEvent('popstate'))
+    setOpen(false)
+  }
+
+  const handleSelectNote = (note: any) => {
+    setCurrentView('notes')
+    setSelectedNote(note)
+    window.history.pushState(null, '', `/notes/${note.id}`)
+    window.dispatchEvent(new PopStateEvent('popstate'))
+    setOpen(false)
+  }
+
+  const handleSelectPaper = (paper: any) => {
+    setCurrentView('papers')
+    setSelectedPaper(paper)
+    window.history.pushState(null, '', `/papers/${paper.id}`)
+    window.dispatchEvent(new PopStateEvent('popstate'))
+    setOpen(false)
+  }
+
+  const handleSelectIdea = (idea: any) => {
+    setCurrentView('ideas')
+    setSelectedIdea(idea)
+    window.history.pushState(null, '', `/ideas/${idea.id}`)
+    window.dispatchEvent(new PopStateEvent('popstate'))
+    setOpen(false)
+  }
+
+  const toggleTheme = () => {
+    const newTheme = effectiveTheme === 'light' ? 'dark' : 'light'
+    document.body.classList.add('theme-transitioning')
+    setTheme(newTheme)
+    setTimeout(() => {
+      document.body.classList.remove('theme-transitioning')
+    }, 300)
+    setOpen(false)
+  }
+
+  // Memoize search items
+  const searchItems = useMemo(() => {
+    return [
+      ...notes.map(n => ({ type: 'note', item: n, label: n.title || 'Untitled Note' })),
+      ...papers.map(p => ({ type: 'paper', item: p, label: p.title })),
+      ...ideas.map(i => ({ type: 'idea', item: i, label: i.title }))
+    ]
+  }, [notes, papers, ideas])
+
+  return (
+    <Command.Dialog open={open} onOpenChange={setOpen} label="Command Menu">
+      <div className="flex items-center border-b border-border-subtle px-3" cmdk-input-wrapper="">
+        <Search className="w-5 h-5 text-text-tertiary mr-2" />
+        <Command.Input placeholder="Type a command or search..." />
+      </div>
+
+      <Command.List>
+        <Command.Empty>No results found.</Command.Empty>
+
+        <Command.Group heading="Navigation">
+          <Command.Item onSelect={() => handleNavigate('notes')}>
+            <FileText />
+            <span>Go to Notes</span>
+          </Command.Item>
+          <Command.Item onSelect={() => handleNavigate('papers')}>
+            <BookOpen />
+            <span>Go to Papers</span>
+          </Command.Item>
+          <Command.Item onSelect={() => handleNavigate('ideas')}>
+            <Lightbulb />
+            <span>Go to Ideas</span>
+          </Command.Item>
+          <Command.Item onSelect={() => handleNavigate('tasks')}>
+            <CheckSquare />
+            <span>Go to Tasks</span>
+          </Command.Item>
+          <Command.Item onSelect={() => handleNavigate('focus')}>
+            <Target />
+            <span>Go to Focus</span>
+          </Command.Item>
+        </Command.Group>
+
+        <Command.Group heading="Actions">
+          <Command.Item onSelect={() => {
+            handleNavigate('notes')
+          }}>
+            <Plus />
+            <span>Create New Note (Go to Notes)</span>
+          </Command.Item>
+
+          <Command.Item onSelect={toggleTheme}>
+            {effectiveTheme === 'light' ? <Moon /> : <Sun />}
+            <span>Toggle Theme</span>
+          </Command.Item>
+        </Command.Group>
+
+        <Command.Group heading="Search Results">
+          {searchItems.map((entry) => (
+             <Command.Item
+               key={`${entry.type}-${entry.item.id}`}
+               onSelect={() => {
+                 if (entry.type === 'note') handleSelectNote(entry.item)
+                 if (entry.type === 'paper') handleSelectPaper(entry.item)
+                 if (entry.type === 'idea') handleSelectIdea(entry.item)
+               }}
+               value={`${entry.type}: ${entry.label}`}
+             >
+               {entry.type === 'note' && <FileText className="text-primary-500" />}
+               {entry.type === 'paper' && <BookOpen className="text-blue-500" />}
+               {entry.type === 'idea' && <Lightbulb className="text-yellow-500" />}
+               <div className="flex flex-col">
+                 <span>{entry.label}</span>
+                 <span className="text-xs text-text-tertiary capitalize">{entry.type}</span>
+               </div>
+             </Command.Item>
+          ))}
+        </Command.Group>
+
+      </Command.List>
+    </Command.Dialog>
+  )
+}
