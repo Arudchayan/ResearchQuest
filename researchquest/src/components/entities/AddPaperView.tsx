@@ -193,8 +193,12 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
       )}
       
       {/* Tabs */}
-      <div className="flex gap-2 mb-6 border-b border-border-subtle">
+      <div className="flex gap-2 mb-6 border-b border-border-subtle" role="tablist">
         <button
+          role="tab"
+          aria-selected={activeTab === 'doi'}
+          aria-controls="view-panel-doi"
+          id="view-tab-doi"
           onClick={() => {
             setActiveTab('doi')
             setError('')
@@ -211,6 +215,10 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
           )}
         </button>
         <button
+          role="tab"
+          aria-selected={activeTab === 'search'}
+          aria-controls="view-panel-search"
+          id="view-tab-search"
           onClick={() => {
             setActiveTab('search')
             setError('')
@@ -227,6 +235,10 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
           )}
         </button>
         <button
+          role="tab"
+          aria-selected={activeTab === 'manual'}
+          aria-controls="view-panel-manual"
+          id="view-tab-manual"
           onClick={() => {
             setActiveTab('manual')
             setError('')
@@ -247,13 +259,14 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
       {/* Content */}
       <div className="bg-bg-surface rounded-lg border border-border-subtle shadow-sm p-6">
         {activeTab === 'doi' && (
-          <div className="space-y-6">
+          <div className="space-y-6" role="tabpanel" id="view-panel-doi" aria-labelledby="view-tab-doi">
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-3">
+              <label htmlFor="view-doi-input" className="block text-sm font-medium text-text-primary mb-3">
                 Enter DOI (Digital Object Identifier)
               </label>
               <div className="flex gap-3">
                 <input
+                  id="view-doi-input"
                   type="text"
                   value={doiInput}
                   onChange={(e) => setDoiInput(e.target.value)}
@@ -339,13 +352,14 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
         )}
         
         {activeTab === 'search' && (
-          <div className="space-y-6">
+          <div className="space-y-6" role="tabpanel" id="view-panel-search" aria-labelledby="view-tab-search">
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-3">
+              <label htmlFor="view-search-input" className="block text-sm font-medium text-text-primary mb-3">
                 Search by Keywords or Title
               </label>
               <div className="flex flex-col gap-3 lg:flex-row">
                 <input
+                  id="view-search-input"
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -367,8 +381,9 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
               </div>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-medium text-text-secondary">Results per search</label>
+                  <label htmlFor="view-limit-select" className="text-xs font-medium text-text-secondary">Results per search</label>
                   <select
+                    id="view-limit-select"
                     value={resultLimit}
                     onChange={(event) => setResultLimit(event.target.value)}
                     className="px-3 py-2 bg-bg-base border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
@@ -380,8 +395,9 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
                   </select>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-medium text-text-secondary">Sort by</label>
+                  <label htmlFor="view-sort-select" className="text-xs font-medium text-text-secondary">Sort by</label>
                   <select
+                    id="view-sort-select"
                     value={sortField}
                     onChange={(event) => setSortField(event.target.value as typeof sortField)}
                     className="px-3 py-2 bg-bg-base border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
@@ -393,8 +409,9 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
                   </select>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-medium text-text-secondary">Order</label>
+                  <label htmlFor="view-order-select" className="text-xs font-medium text-text-secondary">Order</label>
                   <select
+                    id="view-order-select"
                     value={sortOrder}
                     onChange={(event) => setSortOrder(event.target.value as typeof sortOrder)}
                     className="px-3 py-2 bg-bg-base border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
@@ -580,12 +597,13 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
         )}
         
         {activeTab === 'manual' && (
-          <div className="space-y-6">
+          <div className="space-y-6" role="tabpanel" id="view-panel-manual" aria-labelledby="view-tab-manual">
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-2">
+              <label htmlFor="view-manual-title" className="block text-sm font-medium text-text-primary mb-2">
                 Title <span className="text-red-500">*</span>
               </label>
               <input
+                id="view-manual-title"
                 type="text"
                 value={manualTitle}
                 onChange={(e) => setManualTitle(e.target.value)}
@@ -596,10 +614,11 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-2">
+              <label htmlFor="view-manual-authors" className="block text-sm font-medium text-text-primary mb-2">
                 Authors <span className="text-text-tertiary">(comma separated)</span>
               </label>
               <input
+                id="view-manual-authors"
                 type="text"
                 value={manualAuthors}
                 onChange={(e) => setManualAuthors(e.target.value)}
@@ -610,10 +629,11 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-2">
+              <label htmlFor="view-manual-doi" className="block text-sm font-medium text-text-primary mb-2">
                 DOI <span className="text-text-tertiary">(optional)</span>
               </label>
               <input
+                id="view-manual-doi"
                 type="text"
                 value={manualDoi}
                 onChange={(e) => setManualDoi(e.target.value)}
@@ -624,10 +644,11 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-2">
+              <label htmlFor="view-manual-url" className="block text-sm font-medium text-text-primary mb-2">
                 URL <span className="text-text-tertiary">(optional)</span>
               </label>
               <input
+                id="view-manual-url"
                 type="url"
                 value={manualUrl}
                 onChange={(e) => setManualUrl(e.target.value)}

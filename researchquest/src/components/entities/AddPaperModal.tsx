@@ -146,22 +146,32 @@ export function AddPaperModal({ isOpen, onClose, onAdd, searchByDOI, searchByQue
   }
   
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="add-paper-title"
+    >
       <div className="bg-bg-surface rounded-lg shadow-lg border border-border-subtle max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-border-subtle">
-          <h2 className="text-title font-semibold text-text-primary">Add Paper</h2>
+          <h2 id="add-paper-title" className="text-title font-semibold text-text-primary">Add Paper</h2>
           <button
             onClick={handleClose}
             className="p-1 hover:bg-bg-elevated rounded transition-colors"
+            aria-label="Close modal"
           >
             <X className="w-5 h-5 text-text-secondary" />
           </button>
         </div>
         
         {/* Tabs */}
-        <div className="flex border-b border-border-subtle">
+        <div className="flex border-b border-border-subtle" role="tablist">
           <button
+            role="tab"
+            aria-selected={activeTab === 'doi'}
+            aria-controls="modal-panel-doi"
+            id="modal-tab-doi"
             onClick={() => setActiveTab('doi')}
             className={`px-6 py-3 text-small font-medium transition-colors ${
               activeTab === 'doi'
@@ -172,6 +182,10 @@ export function AddPaperModal({ isOpen, onClose, onAdd, searchByDOI, searchByQue
             DOI Search
           </button>
           <button
+            role="tab"
+            aria-selected={activeTab === 'search'}
+            aria-controls="modal-panel-search"
+            id="modal-tab-search"
             onClick={() => setActiveTab('search')}
             className={`px-6 py-3 text-small font-medium transition-colors ${
               activeTab === 'search'
@@ -182,6 +196,10 @@ export function AddPaperModal({ isOpen, onClose, onAdd, searchByDOI, searchByQue
             Search
           </button>
           <button
+            role="tab"
+            aria-selected={activeTab === 'manual'}
+            aria-controls="modal-panel-manual"
+            id="modal-tab-manual"
             onClick={() => setActiveTab('manual')}
             className={`px-6 py-3 text-small font-medium transition-colors ${
               activeTab === 'manual'
@@ -196,13 +214,14 @@ export function AddPaperModal({ isOpen, onClose, onAdd, searchByDOI, searchByQue
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
           {activeTab === 'doi' && (
-            <div className="space-y-4">
+            <div className="space-y-4" role="tabpanel" id="modal-panel-doi" aria-labelledby="modal-tab-doi">
               <div>
-                <label className="block text-small font-medium text-text-primary mb-2">
+                <label htmlFor="modal-doi-input" className="block text-small font-medium text-text-primary mb-2">
                   Enter DOI
                 </label>
                 <div className="flex gap-2">
                   <input
+                    id="modal-doi-input"
                     type="text"
                     value={doiInput}
                     onChange={(e) => setDoiInput(e.target.value)}
@@ -252,13 +271,14 @@ export function AddPaperModal({ isOpen, onClose, onAdd, searchByDOI, searchByQue
           )}
           
           {activeTab === 'search' && (
-            <div className="space-y-4">
+            <div className="space-y-4" role="tabpanel" id="modal-panel-search" aria-labelledby="modal-tab-search">
               <div>
-                <label className="block text-small font-medium text-text-primary mb-2">
+                <label htmlFor="modal-search-query" className="block text-small font-medium text-text-primary mb-2">
                   Search Query
                 </label>
                 <div className="flex gap-2">
                   <input
+                    id="modal-search-query"
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -306,12 +326,13 @@ export function AddPaperModal({ isOpen, onClose, onAdd, searchByDOI, searchByQue
           )}
           
           {activeTab === 'manual' && (
-            <div className="space-y-4">
+            <div className="space-y-4" role="tabpanel" id="modal-panel-manual" aria-labelledby="modal-tab-manual">
               <div>
-                <label className="block text-small font-medium text-text-primary mb-2">
+                <label htmlFor="modal-manual-title" className="block text-small font-medium text-text-primary mb-2">
                   Title *
                 </label>
                 <input
+                  id="modal-manual-title"
                   type="text"
                   value={manualTitle}
                   onChange={(e) => setManualTitle(e.target.value)}
@@ -320,10 +341,11 @@ export function AddPaperModal({ isOpen, onClose, onAdd, searchByDOI, searchByQue
               </div>
               
               <div>
-                <label className="block text-small font-medium text-text-primary mb-2">
+                <label htmlFor="modal-manual-authors" className="block text-small font-medium text-text-primary mb-2">
                   Authors (comma separated)
                 </label>
                 <input
+                  id="modal-manual-authors"
                   type="text"
                   value={manualAuthors}
                   onChange={(e) => setManualAuthors(e.target.value)}
@@ -333,10 +355,11 @@ export function AddPaperModal({ isOpen, onClose, onAdd, searchByDOI, searchByQue
               </div>
               
               <div>
-                <label className="block text-small font-medium text-text-primary mb-2">
+                <label htmlFor="modal-manual-doi" className="block text-small font-medium text-text-primary mb-2">
                   DOI (optional)
                 </label>
                 <input
+                  id="modal-manual-doi"
                   type="text"
                   value={manualDoi}
                   onChange={(e) => setManualDoi(e.target.value)}
@@ -346,10 +369,11 @@ export function AddPaperModal({ isOpen, onClose, onAdd, searchByDOI, searchByQue
               </div>
               
               <div>
-                <label className="block text-small font-medium text-text-primary mb-2">
+                <label htmlFor="modal-manual-url" className="block text-small font-medium text-text-primary mb-2">
                   URL (optional)
                 </label>
                 <input
+                  id="modal-manual-url"
                   type="url"
                   value={manualUrl}
                   onChange={(e) => setManualUrl(e.target.value)}
