@@ -1,424 +1,496 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import CodeMirror from '@uiw/react-codemirror'
-import { markdown } from '@codemirror/lang-markdown'
-import { EditorView, keymap } from '@codemirror/view'
-import { githubLight, githubDark } from '@uiw/codemirror-theme-github'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import rehypeSanitize from 'rehype-sanitize'
-import rehypeHighlight from 'rehype-highlight'
-import { Bold, Italic, Code, List, Link2, Save, Columns, Eye, Pencil, Sparkles } from 'lucide-react'
-import { useAppStore } from '../../store/appStore'
-import { supabase } from '../../lib/supabase'
-import { awardXP, XP_REWARDS } from '../../utils/gamification'
-import { TopicSelector } from '../topics/TopicSelector'
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import CodeMirror from "@uiw/react-codemirror";
+import { markdown } from "@codemirror/lang-markdown";
+import { EditorView, keymap } from "@codemirror/view";
+import { githubLight, githubDark } from "@uiw/codemirror-theme-github";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeSanitize from "rehype-sanitize";
+import rehypeHighlight from "rehype-highlight";
+import {
+  Bold,
+  Italic,
+  Code,
+  List,
+  Link2,
+  Save,
+  Columns,
+  Eye,
+  Pencil,
+  Sparkles,
+} from "lucide-react";
+import { useAppStore } from "../../store/appStore";
+import { supabase } from "../../lib/supabase";
+import { awardXP, XP_REWARDS } from "../../utils/gamification";
+import { TopicSelector } from "../topics/TopicSelector";
+import { isValidUrl } from "../../utils/security";
 
-type ViewMode = 'split' | 'edit' | 'preview'
+type ViewMode = "split" | "edit" | "preview";
 
-const VIEW_OPTIONS: { id: ViewMode; label: string; icon: typeof Pencil; description: string; shortcut: string }[] = [
-  { id: 'edit', label: 'Edit', icon: Pencil, description: 'Focus on writing without the preview pane', shortcut: 'Shift+Ctrl/Cmd+E' },
-  { id: 'split', label: 'Split', icon: Columns, description: 'See editor and preview side-by-side', shortcut: 'Shift+Ctrl/Cmd+S' },
-  { id: 'preview', label: 'Preview', icon: Eye, description: 'Review formatted output in full width', shortcut: 'Shift+Ctrl/Cmd+P' },
-]
+const VIEW_OPTIONS: {
+  id: ViewMode;
+  label: string;
+  icon: typeof Pencil;
+  description: string;
+  shortcut: string;
+}[] = [
+  {
+    id: "edit",
+    label: "Edit",
+    icon: Pencil,
+    description: "Focus on writing without the preview pane",
+    shortcut: "Shift+Ctrl/Cmd+E",
+  },
+  {
+    id: "split",
+    label: "Split",
+    icon: Columns,
+    description: "See editor and preview side-by-side",
+    shortcut: "Shift+Ctrl/Cmd+S",
+  },
+  {
+    id: "preview",
+    label: "Preview",
+    icon: Eye,
+    description: "Review formatted output in full width",
+    shortcut: "Shift+Ctrl/Cmd+P",
+  },
+];
 
 export function MarkdownEditor() {
-  const { selectedNote, setSelectedNote, effectiveTheme } = useAppStore()
-  const [content, setContent] = useState('')
-  const [title, setTitle] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [userId, setUserId] = useState<string | null>(null)
-  const [viewMode, setViewMode] = useState<ViewMode>('split')
-  const editorViewRef = useRef<EditorView | null>(null)
-  const [linkDialogOpen, setLinkDialogOpen] = useState(false)
-  const [pendingLinkRange, setPendingLinkRange] = useState<{ from: number; to: number } | null>(null)
-  const [linkTextValue, setLinkTextValue] = useState('')
-  const [linkUrlValue, setLinkUrlValue] = useState('')
-  const linkUrlInputRef = useRef<HTMLInputElement>(null)
-  const [linkError, setLinkError] = useState<string | null>(null)
+  const { selectedNote, setSelectedNote, effectiveTheme } = useAppStore();
+  const [content, setContent] = useState("");
+  const [title, setTitle] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("split");
+  const editorViewRef = useRef<EditorView | null>(null);
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [pendingLinkRange, setPendingLinkRange] = useState<{
+    from: number;
+    to: number;
+  } | null>(null);
+  const [linkTextValue, setLinkTextValue] = useState("");
+  const [linkUrlValue, setLinkUrlValue] = useState("");
+  const linkUrlInputRef = useRef<HTMLInputElement>(null);
+  const [linkError, setLinkError] = useState<string | null>(null);
 
   useEffect(() => {
     return () => {
-      editorViewRef.current = null
-    }
-  }, [])
-  
+      editorViewRef.current = null;
+    };
+  }, []);
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
-      setUserId(user?.id || null)
-    })
-  }, [])
+      setUserId(user?.id || null);
+    });
+  }, []);
 
   const closeLinkDialog = useCallback(() => {
-    setLinkDialogOpen(false)
-    setPendingLinkRange(null)
-    setLinkTextValue('')
-    setLinkUrlValue('')
-    setLinkError(null)
-  }, [])
+    setLinkDialogOpen(false);
+    setPendingLinkRange(null);
+    setLinkTextValue("");
+    setLinkUrlValue("");
+    setLinkError(null);
+  }, []);
 
   useEffect(() => {
     if (!linkDialogOpen) {
-      return
+      return;
     }
 
-    setLinkError(null)
-    document.body.style.overflow = 'hidden'
+    setLinkError(null);
+    document.body.style.overflow = "hidden";
     const frame = requestAnimationFrame(() => {
-      linkUrlInputRef.current?.focus()
-    })
+      linkUrlInputRef.current?.focus();
+    });
 
     return () => {
-      document.body.style.overflow = 'unset'
-      cancelAnimationFrame(frame)
-    }
-  }, [linkDialogOpen])
+      document.body.style.overflow = "unset";
+      cancelAnimationFrame(frame);
+    };
+  }, [linkDialogOpen]);
 
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && linkDialogOpen) {
-        event.preventDefault()
-        closeLinkDialog()
+      if (event.key === "Escape" && linkDialogOpen) {
+        event.preventDefault();
+        closeLinkDialog();
       }
-    }
+    };
 
-    window.addEventListener('keydown', handleEscape)
-    return () => window.removeEventListener('keydown', handleEscape)
-  }, [closeLinkDialog, linkDialogOpen])
-  
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [closeLinkDialog, linkDialogOpen]);
+
   // Load selected note
   useEffect(() => {
     if (selectedNote) {
-      setContent(selectedNote.markdown_body)
-      setTitle(selectedNote.title || '')
+      setContent(selectedNote.markdown_body);
+      setTitle(selectedNote.title || "");
     } else {
-      setContent('')
-      setTitle('')
+      setContent("");
+      setTitle("");
     }
-  }, [selectedNote])
+  }, [selectedNote]);
 
   const openLinkDialog = useCallback(() => {
-    const view = editorViewRef.current
-    if (!view) return
+    const view = editorViewRef.current;
+    if (!view) return;
 
-    const { state } = view
-    const { from, to } = state.selection.main
-    const selectedText = state.sliceDoc(from, to)
+    const { state } = view;
+    const { from, to } = state.selection.main;
+    const selectedText = state.sliceDoc(from, to);
 
-    setPendingLinkRange({ from, to })
-    setLinkTextValue(selectedText)
-    setLinkUrlValue('')
-    setLinkError(null)
-    setLinkDialogOpen(true)
-  }, [])
+    setPendingLinkRange({ from, to });
+    setLinkTextValue(selectedText);
+    setLinkUrlValue("");
+    setLinkError(null);
+    setLinkDialogOpen(true);
+  }, []);
 
   const applyWrappedFormatting = useCallback(
     (startWrapper: string, endWrapper: string, placeholder: string) => {
-      const view = editorViewRef.current
-      if (!view) return
+      const view = editorViewRef.current;
+      if (!view) return;
 
-      const { state } = view
-      const { from, to } = state.selection.main
-      const selectedText = state.sliceDoc(from, to)
-      const hasSelection = from !== to
+      const { state } = view;
+      const { from, to } = state.selection.main;
+      const selectedText = state.sliceDoc(from, to);
+      const hasSelection = from !== to;
       const alreadyWrapped =
         hasSelection &&
         selectedText.startsWith(startWrapper) &&
         selectedText.endsWith(endWrapper) &&
-        selectedText.length >= startWrapper.length + endWrapper.length
+        selectedText.length >= startWrapper.length + endWrapper.length;
 
       if (alreadyWrapped) {
-        const unwrapped = selectedText.slice(startWrapper.length, selectedText.length - endWrapper.length)
+        const unwrapped = selectedText.slice(
+          startWrapper.length,
+          selectedText.length - endWrapper.length,
+        );
         view.dispatch({
           changes: { from, to, insert: unwrapped },
           selection: { anchor: from, head: from + unwrapped.length },
           scrollIntoView: true,
-        })
-        view.focus()
-        return
+        });
+        view.focus();
+        return;
       }
 
-      const text = hasSelection && selectedText.length > 0 ? selectedText : placeholder
-      const insert = `${startWrapper}${text}${endWrapper}`
-      const anchor = from + startWrapper.length
-      const head = anchor + text.length
+      const text =
+        hasSelection && selectedText.length > 0 ? selectedText : placeholder;
+      const insert = `${startWrapper}${text}${endWrapper}`;
+      const anchor = from + startWrapper.length;
+      const head = anchor + text.length;
 
       view.dispatch({
         changes: { from, to, insert },
         selection: { anchor, head },
         scrollIntoView: true,
-      })
-      view.focus()
+      });
+      view.focus();
     },
-    []
-  )
+    [],
+  );
 
   const applyListFormatting = useCallback(() => {
-    const view = editorViewRef.current
-    if (!view) return
+    const view = editorViewRef.current;
+    if (!view) return;
 
-    const { state } = view
-    const [range] = state.selection.ranges
+    const { state } = view;
+    const [range] = state.selection.ranges;
 
     if (state.selection.ranges.length === 1 && range.from === range.to) {
-      const line = state.doc.lineAt(range.from)
-      const prefix = line.text.startsWith('- ') ? '' : '- '
+      const line = state.doc.lineAt(range.from);
+      const prefix = line.text.startsWith("- ") ? "" : "- ";
 
       if (prefix) {
         view.dispatch({
           changes: { from: line.from, to: line.from, insert: prefix },
-          selection: { anchor: range.from + prefix.length, head: range.from + prefix.length },
+          selection: {
+            anchor: range.from + prefix.length,
+            head: range.from + prefix.length,
+          },
           scrollIntoView: true,
-        })
+        });
       }
-      view.focus()
-      return
+      view.focus();
+      return;
     }
 
-    const lineNumbers = new Set<number>()
+    const lineNumbers = new Set<number>();
     state.selection.ranges.forEach((currentRange) => {
-      let line = state.doc.lineAt(currentRange.from)
-      lineNumbers.add(line.number)
+      let line = state.doc.lineAt(currentRange.from);
+      lineNumbers.add(line.number);
 
       while (line.to < currentRange.to) {
-        line = state.doc.line(line.number + 1)
-        lineNumbers.add(line.number)
+        line = state.doc.line(line.number + 1);
+        lineNumbers.add(line.number);
       }
-    })
+    });
 
     const changes = Array.from(lineNumbers)
       .map((lineNumber) => state.doc.line(lineNumber))
       .filter((line) => !/^(?:[-*] |\d+\. )/.test(line.text.trimStart()))
-      .map((line) => ({ from: line.from, to: line.from, insert: '- ' }))
-      .sort((a, b) => a.from - b.from)
+      .map((line) => ({ from: line.from, to: line.from, insert: "- " }))
+      .sort((a, b) => a.from - b.from);
 
     if (changes.length > 0) {
-      view.dispatch({ changes, scrollIntoView: true })
+      view.dispatch({ changes, scrollIntoView: true });
     }
 
-    view.focus()
-  }, [])
+    view.focus();
+  }, []);
 
   const applyFormatting = useCallback(
-    (format: 'bold' | 'italic' | 'code' | 'list') => {
+    (format: "bold" | "italic" | "code" | "list") => {
       switch (format) {
-        case 'bold':
-          applyWrappedFormatting('**', '**', 'bold text')
-          break
-        case 'italic':
-          applyWrappedFormatting('*', '*', 'italic text')
-          break
-        case 'code':
-          applyWrappedFormatting('`', '`', 'code')
-          break
-        case 'list':
-          applyListFormatting()
-          break
+        case "bold":
+          applyWrappedFormatting("**", "**", "bold text");
+          break;
+        case "italic":
+          applyWrappedFormatting("*", "*", "italic text");
+          break;
+        case "code":
+          applyWrappedFormatting("`", "`", "code");
+          break;
+        case "list":
+          applyListFormatting();
+          break;
       }
     },
-    [applyListFormatting, applyWrappedFormatting]
-  )
+    [applyListFormatting, applyWrappedFormatting],
+  );
 
   const handleLinkSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
-      event.preventDefault()
-      if (!pendingLinkRange) return
+      event.preventDefault();
+      if (!pendingLinkRange) return;
 
-      const url = linkUrlValue.trim()
-      const text = linkTextValue.trim()
+      const url = linkUrlValue.trim();
+      const text = linkTextValue.trim();
 
       if (!url) {
-        setLinkError('Link URL is required')
-        return
+        setLinkError("Link URL is required");
+        return;
       }
 
-      const view = editorViewRef.current
+      if (!isValidUrl(url)) {
+        setLinkError(
+          "Invalid URL protocol. Only http, https, and mailto are allowed.",
+        );
+        return;
+      }
+
+      const view = editorViewRef.current;
       if (!view) {
-        closeLinkDialog()
-        return
+        closeLinkDialog();
+        return;
       }
 
-      const safeText = text.length > 0 ? text : url
-      const insert = `[${safeText}](${url})`
-      const anchor = pendingLinkRange.from + 1
-      const head = anchor + safeText.length
+      const safeText = text.length > 0 ? text : url;
+      const insert = `[${safeText}](${url})`;
+      const anchor = pendingLinkRange.from + 1;
+      const head = anchor + safeText.length;
 
       view.dispatch({
-        changes: { from: pendingLinkRange.from, to: pendingLinkRange.to, insert },
+        changes: {
+          from: pendingLinkRange.from,
+          to: pendingLinkRange.to,
+          insert,
+        },
         selection: { anchor, head },
         scrollIntoView: true,
-      })
-      view.focus()
-      closeLinkDialog()
+      });
+      view.focus();
+      closeLinkDialog();
     },
-    [closeLinkDialog, linkTextValue, linkUrlValue, pendingLinkRange]
-  )
+    [closeLinkDialog, linkTextValue, linkUrlValue, pendingLinkRange],
+  );
 
   const formattingExtensions = useMemo(
     () => [
       keymap.of([
         {
-          key: 'Mod-b',
+          key: "Mod-b",
           preventDefault: true,
           run: () => {
-            applyFormatting('bold')
-            return true
+            applyFormatting("bold");
+            return true;
           },
         },
         {
-          key: 'Mod-i',
+          key: "Mod-i",
           preventDefault: true,
           run: () => {
-            applyFormatting('italic')
-            return true
+            applyFormatting("italic");
+            return true;
           },
         },
         {
-          key: 'Mod-Shift-c',
+          key: "Mod-Shift-c",
           preventDefault: true,
           run: () => {
-            applyFormatting('code')
-            return true
+            applyFormatting("code");
+            return true;
           },
         },
         {
-          key: 'Mod-Shift-l',
+          key: "Mod-Shift-l",
           preventDefault: true,
           run: () => {
-            applyFormatting('list')
-            return true
+            applyFormatting("list");
+            return true;
           },
         },
         {
-          key: 'Mod-k',
+          key: "Mod-k",
           preventDefault: true,
           run: () => {
-            openLinkDialog()
-            return true
+            openLinkDialog();
+            return true;
           },
         },
         {
-          key: 'Mod-Shift-e',
+          key: "Mod-Shift-e",
           preventDefault: true,
           run: () => {
-            setViewMode('edit')
-            return true
+            setViewMode("edit");
+            return true;
           },
         },
         {
-          key: 'Mod-Shift-s',
+          key: "Mod-Shift-s",
           preventDefault: true,
           run: () => {
-            setViewMode('split')
-            return true
+            setViewMode("split");
+            return true;
           },
         },
         {
-          key: 'Mod-Shift-p',
+          key: "Mod-Shift-p",
           preventDefault: true,
           run: () => {
-            setViewMode('preview')
-            return true
+            setViewMode("preview");
+            return true;
           },
         },
       ]),
     ],
-    [applyFormatting, openLinkDialog]
-  )
+    [applyFormatting, openLinkDialog],
+  );
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
-      if (!(event.metaKey || event.ctrlKey) || !event.shiftKey || linkDialogOpen) {
-        return
+      if (
+        !(event.metaKey || event.ctrlKey) ||
+        !event.shiftKey ||
+        linkDialogOpen
+      ) {
+        return;
       }
 
-      const target = event.target as HTMLElement | null
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
-        return
+      const target = event.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable)
+      ) {
+        return;
       }
 
-      const key = event.key.toLowerCase()
-      if (key === 'e') {
-        setViewMode('edit')
-        event.preventDefault()
-      } else if (key === 'p') {
-        setViewMode('preview')
-        event.preventDefault()
-      } else if (key === 's') {
-        setViewMode('split')
-        event.preventDefault()
+      const key = event.key.toLowerCase();
+      if (key === "e") {
+        setViewMode("edit");
+        event.preventDefault();
+      } else if (key === "p") {
+        setViewMode("preview");
+        event.preventDefault();
+      } else if (key === "s") {
+        setViewMode("split");
+        event.preventDefault();
       }
-    }
+    };
 
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [linkDialogOpen])
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [linkDialogOpen]);
 
   const saveNote = useCallback(async () => {
-    if (!selectedNote || !userId) return
+    if (!selectedNote || !userId) return;
 
-    setSaving(true)
+    setSaving(true);
 
     try {
       // Extract tags from content (words starting with #)
-      const tagMatches = content.match(/#(\w+)/g)
-      const tags = tagMatches ? [...new Set(tagMatches.map(tag => tag.slice(1)))] : []
+      const tagMatches = content.match(/#(\w+)/g);
+      const tags = tagMatches
+        ? [...new Set(tagMatches.map((tag) => tag.slice(1)))]
+        : [];
 
-      const trimmedTitle = title.trim()
-      const persistedTitle = trimmedTitle.length > 0 ? trimmedTitle : null
+      const trimmedTitle = title.trim();
+      const persistedTitle = trimmedTitle.length > 0 ? trimmedTitle : null;
 
       const updatedData = {
         title: persistedTitle,
         markdown_body: content,
         tags,
-      }
+      };
 
       const { data, error } = await supabase
-        .from('notes')
+        .from("notes")
         .update(updatedData)
-        .eq('id', selectedNote.id)
+        .eq("id", selectedNote.id)
         .select()
-        .single()
+        .single();
 
       if (!error && data) {
-        const persisted = data as typeof selectedNote
+        const persisted = data as typeof selectedNote;
         // Optimistically update the selected note in store with server values
         setSelectedNote({
           ...selectedNote,
           ...persisted,
           title: persisted.title,
-        })
+        });
 
         // Award XP for updating (don't await to avoid blocking)
-        awardXP(userId, XP_REWARDS.UPDATE_NOTE, 'update_note').catch(console.error)
+        awardXP(userId, XP_REWARDS.UPDATE_NOTE, "update_note").catch(
+          console.error,
+        );
       }
     } catch (err) {
-      console.error('Error saving note:', err)
+      console.error("Error saving note:", err);
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }, [selectedNote, userId, content, title, setSelectedNote])
+  }, [selectedNote, userId, content, title, setSelectedNote]);
 
   // Auto-save with debounce
   useEffect(() => {
-    if (!selectedNote || !userId) return
+    if (!selectedNote || !userId) return;
 
     const timer = setTimeout(() => {
-      void saveNote()
-    }, 1000)
+      void saveNote();
+    }, 1000);
 
-    return () => clearTimeout(timer)
-  }, [content, title, selectedNote, userId, saveNote])
-  
+    return () => clearTimeout(timer);
+  }, [content, title, selectedNote, userId, saveNote]);
+
   if (!selectedNote) {
     return (
       <div className="h-screen-dynamic flex items-center justify-center bg-bg-base">
         <div className="text-center text-text-tertiary">
-          <p className="text-body">Select a note or create a new one to start editing</p>
+          <p className="text-body">
+            Select a note or create a new one to start editing
+          </p>
         </div>
       </div>
-    )
+    );
   }
-  
+
   return (
     <div className="h-screen-dynamic flex flex-col bg-bg-base">
       {/* Title Input */}
@@ -438,13 +510,13 @@ export function MarkdownEditor() {
           </div>
         )}
       </div>
-      
+
       {/* Toolbar */}
       <div className="px-6 py-3 bg-bg-elevated border-b border-border-subtle flex flex-wrap items-center gap-3 justify-between">
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => applyFormatting('bold')}
+            onClick={() => applyFormatting("bold")}
             className="p-2 rounded-md transition-colors hover:bg-bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
             aria-label="Bold (Ctrl/Cmd+B)"
             title="Bold (Ctrl/Cmd+B)"
@@ -453,16 +525,19 @@ export function MarkdownEditor() {
           </button>
           <button
             type="button"
-            onClick={() => applyFormatting('italic')}
+            onClick={() => applyFormatting("italic")}
             className="p-2 rounded-md transition-colors hover:bg-bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
             aria-label="Italic (Ctrl/Cmd+I)"
             title="Italic (Ctrl/Cmd+I)"
           >
-            <Italic className="w-4 h-4 text-text-secondary" aria-hidden="true" />
+            <Italic
+              className="w-4 h-4 text-text-secondary"
+              aria-hidden="true"
+            />
           </button>
           <button
             type="button"
-            onClick={() => applyFormatting('code')}
+            onClick={() => applyFormatting("code")}
             className="p-2 rounded-md transition-colors hover:bg-bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
             aria-label="Inline code (Ctrl/Cmd+Shift+C)"
             title="Inline code (Ctrl/Cmd+Shift+C)"
@@ -472,7 +547,7 @@ export function MarkdownEditor() {
           <div className="w-px h-6 bg-border-subtle mx-1" aria-hidden="true" />
           <button
             type="button"
-            onClick={() => applyFormatting('list')}
+            onClick={() => applyFormatting("list")}
             className="p-2 rounded-md transition-colors hover:bg-bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
             aria-label="Bulleted list (Ctrl/Cmd+Shift+L)"
             title="Bulleted list (Ctrl/Cmd+Shift+L)"
@@ -491,7 +566,10 @@ export function MarkdownEditor() {
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-caption text-text-tertiary hidden xl:inline" aria-hidden="true">
+          <span
+            className="text-caption text-text-tertiary hidden xl:inline"
+            aria-hidden="true"
+          >
             Layout
           </span>
           <div
@@ -500,7 +578,7 @@ export function MarkdownEditor() {
             aria-label="Toggle editor layout"
           >
             {VIEW_OPTIONS.map(({ id, label, icon: OptionIcon, shortcut }) => {
-              const isActive = viewMode === id
+              const isActive = viewMode === id;
               return (
                 <button
                   key={id}
@@ -510,15 +588,15 @@ export function MarkdownEditor() {
                   onClick={() => setViewMode(id)}
                   className={`flex items-center gap-2 px-3 py-2 text-small transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 ${
                     isActive
-                      ? 'bg-primary-500 text-white'
-                      : 'text-text-secondary hover:text-text-primary hover:bg-bg-surface'
+                      ? "bg-primary-500 text-white"
+                      : "text-text-secondary hover:text-text-primary hover:bg-bg-surface"
                   }`}
                   title={`${label} (${shortcut})`}
                 >
                   <OptionIcon className="w-4 h-4" aria-hidden="true" />
                   <span className="hidden sm:inline">{label}</span>
                 </button>
-              )
+              );
             })}
           </div>
         </div>
@@ -528,15 +606,17 @@ export function MarkdownEditor() {
         <TopicSelector entityId={selectedNote.id} entityType="note" />
       </div>
 
-      <div className={`flex-1 flex overflow-hidden ${viewMode === 'split' ? 'flex-col lg:flex-row' : 'flex-col'}`}>
+      <div
+        className={`flex-1 flex overflow-hidden ${viewMode === "split" ? "flex-col lg:flex-row" : "flex-col"}`}
+      >
         <div
-          className={`${viewMode === 'split' ? 'lg:w-3/5' : 'w-full'} ${viewMode === 'preview' ? 'hidden' : 'block'} h-full bg-bg-surface border-b border-border-subtle lg:border-b-0`}
+          className={`${viewMode === "split" ? "lg:w-3/5" : "w-full"} ${viewMode === "preview" ? "hidden" : "block"} h-full bg-bg-surface border-b border-border-subtle lg:border-b-0`}
         >
           <div className="h-full overflow-auto">
             <CodeMirror
               value={content}
               height="100%"
-              theme={effectiveTheme === 'dark' ? githubDark : githubLight}
+              theme={effectiveTheme === "dark" ? githubDark : githubLight}
               extensions={[
                 markdown(),
                 EditorView.lineWrapping,
@@ -545,7 +625,7 @@ export function MarkdownEditor() {
               onChange={(value) => setContent(value)}
               className="h-full font-mono text-code"
               onCreateEditor={(view) => {
-                editorViewRef.current = view
+                editorViewRef.current = view;
               }}
               basicSetup={{
                 lineNumbers: true,
@@ -576,19 +656,22 @@ export function MarkdownEditor() {
           </div>
         </div>
 
-        {viewMode === 'split' && (
-          <div className="hidden lg:block w-px bg-border-subtle flex-shrink-0" aria-hidden="true" />
+        {viewMode === "split" && (
+          <div
+            className="hidden lg:block w-px bg-border-subtle flex-shrink-0"
+            aria-hidden="true"
+          />
         )}
 
         <div
-          className={`${viewMode === 'split' ? 'lg:w-2/5' : 'w-full'} ${viewMode === 'edit' ? 'hidden' : 'block'} h-full overflow-auto bg-bg-base p-6`}
+          className={`${viewMode === "split" ? "lg:w-2/5" : "w-full"} ${viewMode === "edit" ? "hidden" : "block"} h-full overflow-auto bg-bg-base p-6`}
         >
           <div className="prose prose-sm max-w-none dark:prose-invert">
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               rehypePlugins={[rehypeSanitize, rehypeHighlight]}
             >
-              {content || '*Start typing to see preview...*'}
+              {content || "*Start typing to see preview...*"}
             </ReactMarkdown>
           </div>
         </div>
@@ -597,7 +680,8 @@ export function MarkdownEditor() {
       <div className="px-6 py-4 border-t border-border-subtle bg-bg-surface text-caption text-text-tertiary flex items-center gap-2">
         <Sparkles className="w-4 h-4" aria-hidden="true" />
         <span>
-          Markdown supported. Use Ctrl/Cmd shortcuts for bold, italic, lists, and Shift+Ctrl/Cmd+S to toggle the split view.
+          Markdown supported. Use Ctrl/Cmd shortcuts for bold, italic, lists,
+          and Shift+Ctrl/Cmd+S to toggle the split view.
         </span>
       </div>
 
@@ -610,17 +694,24 @@ export function MarkdownEditor() {
         >
           <div className="w-full max-w-md rounded-lg bg-bg-surface border border-border-subtle shadow-xl">
             <div className="p-6 border-b border-border-subtle">
-              <h2 id="link-dialog-title" className="text-lg font-semibold text-text-primary">
+              <h2
+                id="link-dialog-title"
+                className="text-lg font-semibold text-text-primary"
+              >
                 Insert link
               </h2>
               <p className="text-caption text-text-secondary mt-1">
-                Wrap your selection with a Markdown link. Leave the text blank to use the URL as the label.
+                Wrap your selection with a Markdown link. Leave the text blank
+                to use the URL as the label.
               </p>
             </div>
 
             <form onSubmit={handleLinkSubmit} className="p-6 space-y-4">
               <div>
-                <label htmlFor="link-text" className="block text-caption font-medium text-text-secondary mb-1">
+                <label
+                  htmlFor="link-text"
+                  className="block text-caption font-medium text-text-secondary mb-1"
+                >
                   Link text
                 </label>
                 <input
@@ -628,7 +719,7 @@ export function MarkdownEditor() {
                   type="text"
                   value={linkTextValue}
                   onChange={(event) => {
-                    setLinkTextValue(event.target.value)
+                    setLinkTextValue(event.target.value);
                   }}
                   className="w-full px-3 py-2 rounded-md border border-border-subtle bg-bg-base text-small focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="e.g. Research dataset"
@@ -636,7 +727,10 @@ export function MarkdownEditor() {
               </div>
 
               <div>
-                <label htmlFor="link-url" className="block text-caption font-medium text-text-secondary mb-1">
+                <label
+                  htmlFor="link-url"
+                  className="block text-caption font-medium text-text-secondary mb-1"
+                >
                   URL
                 </label>
                 <input
@@ -645,9 +739,9 @@ export function MarkdownEditor() {
                   type="url"
                   value={linkUrlValue}
                   onChange={(event) => {
-                    setLinkUrlValue(event.target.value)
+                    setLinkUrlValue(event.target.value);
                     if (linkError) {
-                      setLinkError(null)
+                      setLinkError(null);
                     }
                   }}
                   required
@@ -655,7 +749,11 @@ export function MarkdownEditor() {
                   className="w-full px-3 py-2 rounded-md border border-border-subtle bg-bg-base text-small focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="https://example.com"
                 />
-                {linkError && <p className="text-caption text-destructive mt-1">{linkError}</p>}
+                {linkError && (
+                  <p className="text-caption text-destructive mt-1">
+                    {linkError}
+                  </p>
+                )}
               </div>
 
               <div className="flex justify-end gap-2">
@@ -678,5 +776,5 @@ export function MarkdownEditor() {
         </div>
       )}
     </div>
-  )
+  );
 }
