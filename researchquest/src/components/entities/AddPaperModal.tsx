@@ -1,53 +1,62 @@
-import { useState } from 'react'
-import { X, Search, Plus, Loader } from 'lucide-react'
-import type { CrossrefPaper } from '../../types/database'
+import { useState } from "react";
+import { X, Search, Plus, Loader } from "lucide-react";
+import type { CrossrefPaper } from "../../types/database";
+import { isValidUrl } from "../../utils/security";
 
 interface AddPaperModalProps {
-  isOpen: boolean
-  onClose: () => void
-  onAdd: (paperData: any) => void
-  searchByDOI: (doi: string) => Promise<CrossrefPaper | null>
-  searchByQuery: (query: string) => Promise<CrossrefPaper[]>
+  isOpen: boolean;
+  onClose: () => void;
+  onAdd: (paperData: any) => void;
+  searchByDOI: (doi: string) => Promise<CrossrefPaper | null>;
+  searchByQuery: (query: string) => Promise<CrossrefPaper[]>;
 }
 
-export function AddPaperModal({ isOpen, onClose, onAdd, searchByDOI, searchByQuery }: AddPaperModalProps) {
-  const [activeTab, setActiveTab] = useState<'doi' | 'search' | 'manual'>('doi')
-  const [doiInput, setDoiInput] = useState('')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<CrossrefPaper[]>([])
-  const [doiResult, setDoiResult] = useState<CrossrefPaper | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  
+export function AddPaperModal({
+  isOpen,
+  onClose,
+  onAdd,
+  searchByDOI,
+  searchByQuery,
+}: AddPaperModalProps) {
+  const [activeTab, setActiveTab] = useState<"doi" | "search" | "manual">(
+    "doi",
+  );
+  const [doiInput, setDoiInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<CrossrefPaper[]>([]);
+  const [doiResult, setDoiResult] = useState<CrossrefPaper | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
   // Manual entry fields
-  const [manualTitle, setManualTitle] = useState('')
-  const [manualAuthors, setManualAuthors] = useState('')
-  const [manualDoi, setManualDoi] = useState('')
-  const [manualUrl, setManualUrl] = useState('')
-  
-  if (!isOpen) return null
-  
+  const [manualTitle, setManualTitle] = useState("");
+  const [manualAuthors, setManualAuthors] = useState("");
+  const [manualDoi, setManualDoi] = useState("");
+  const [manualUrl, setManualUrl] = useState("");
+
+  if (!isOpen) return null;
+
   const handleDOISearch = async () => {
-    if (!doiInput.trim()) return
-    
-    setLoading(true)
-    setError('')
-    setDoiResult(null)
-    
-    const result = await searchByDOI(doiInput.trim())
-    
+    if (!doiInput.trim()) return;
+
+    setLoading(true);
+    setError("");
+    setDoiResult(null);
+
+    const result = await searchByDOI(doiInput.trim());
+
     if (result) {
-      setDoiResult(result)
+      setDoiResult(result);
     } else {
-      setError('Paper not found. Try manual entry.')
+      setError("Paper not found. Try manual entry.");
     }
-    
-    setLoading(false)
-  }
-  
+
+    setLoading(false);
+  };
+
   const handleAddDoiResult = async () => {
-    if (!doiResult) return
-    
+    if (!doiResult) return;
+
     const paperData = {
       title: doiResult.title,
       authors: Array.isArray(doiResult.authors) ? doiResult.authors : [],
@@ -55,36 +64,38 @@ export function AddPaperModal({ isOpen, onClose, onAdd, searchByDOI, searchByQue
       source_url: doiResult.sourceUrl,
       abstract: doiResult.abstract,
       publication_date: doiResult.publicationDate?.toString(),
-    }
-    
-    console.log('Adding paper via DOI:', paperData)
-    
+    };
+
+    console.log("Adding paper via DOI:", paperData);
+
     try {
-      await onAdd(paperData)
-      console.log('Paper added successfully')
-      handleClose()
+      await onAdd(paperData);
+      console.log("Paper added successfully");
+      handleClose();
     } catch (error) {
-      console.error('Failed to add paper:', error)
-      setError(`Failed to add paper: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      console.error("Failed to add paper:", error);
+      setError(
+        `Failed to add paper: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
     }
-  }
-  
+  };
+
   const handleQuerySearch = async () => {
-    if (!searchQuery.trim()) return
-    
-    setLoading(true)
-    setError('')
-    
-    const results = await searchByQuery(searchQuery.trim())
-    setSearchResults(results)
-    
+    if (!searchQuery.trim()) return;
+
+    setLoading(true);
+    setError("");
+
+    const results = await searchByQuery(searchQuery.trim());
+    setSearchResults(results);
+
     if (results.length === 0) {
-      setError('No papers found. Try different keywords.')
+      setError("No papers found. Try different keywords.");
     }
-    
-    setLoading(false)
-  }
-  
+
+    setLoading(false);
+  };
+
   const handleSelectResult = async (result: CrossrefPaper) => {
     const paperData = {
       title: result.title,
@@ -93,58 +104,72 @@ export function AddPaperModal({ isOpen, onClose, onAdd, searchByDOI, searchByQue
       source_url: result.sourceUrl,
       abstract: result.abstract,
       publication_date: result.publicationDate?.toString(),
-    }
-    
-    console.log('Adding paper via search selection:', paperData)
-    
+    };
+
+    console.log("Adding paper via search selection:", paperData);
+
     try {
-      await onAdd(paperData)
-      console.log('Paper added successfully')
-      handleClose()
+      await onAdd(paperData);
+      console.log("Paper added successfully");
+      handleClose();
     } catch (error) {
-      console.error('Failed to add paper:', error)
-      setError(`Failed to add paper: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      console.error("Failed to add paper:", error);
+      setError(
+        `Failed to add paper: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
     }
-  }
-  
+  };
+
   const handleManualAdd = async () => {
     if (!manualTitle.trim()) {
-      setError('Title is required')
-      return
+      setError("Title is required");
+      return;
     }
-    
+
+    if (manualUrl && !isValidUrl(manualUrl)) {
+      setError(
+        "Invalid URL protocol. Only http, https, and mailto are allowed.",
+      );
+      return;
+    }
+
     const paperData = {
       title: manualTitle,
-      authors: manualAuthors.split(',').map(a => a.trim()).filter(Boolean),
+      authors: manualAuthors
+        .split(",")
+        .map((a) => a.trim())
+        .filter(Boolean),
       doi: manualDoi || undefined,
       source_url: manualUrl || undefined,
-    }
-    
-    console.log('Adding paper via manual entry:', paperData)
-    
+    };
+
+    console.log("Adding paper via manual entry:", paperData);
+
     try {
-      await onAdd(paperData)
-      console.log('Paper added successfully')
-      handleClose()
+      await onAdd(paperData);
+      console.log("Paper added successfully");
+      handleClose();
     } catch (error) {
-      console.error('Failed to add paper:', error)
-      setError(`Failed to add paper: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      console.error("Failed to add paper:", error);
+      setError(
+        `Failed to add paper: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
     }
-  }
-  
+  };
+
   const handleClose = () => {
-    setDoiInput('')
-    setSearchQuery('')
-    setSearchResults([])
-    setDoiResult(null)
-    setManualTitle('')
-    setManualAuthors('')
-    setManualDoi('')
-    setManualUrl('')
-    setError('')
-    onClose()
-  }
-  
+    setDoiInput("");
+    setSearchQuery("");
+    setSearchResults([]);
+    setDoiResult(null);
+    setManualTitle("");
+    setManualAuthors("");
+    setManualDoi("");
+    setManualUrl("");
+    setError("");
+    onClose();
+  };
+
   return (
     <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
@@ -155,7 +180,12 @@ export function AddPaperModal({ isOpen, onClose, onAdd, searchByDOI, searchByQue
       <div className="bg-bg-surface rounded-lg shadow-lg border border-border-subtle max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-border-subtle">
-          <h2 id="add-paper-title" className="text-title font-semibold text-text-primary">Add Paper</h2>
+          <h2
+            id="add-paper-title"
+            className="text-title font-semibold text-text-primary"
+          >
+            Add Paper
+          </h2>
           <button
             onClick={handleClose}
             className="p-1 hover:bg-bg-elevated rounded transition-colors"
@@ -164,59 +194,67 @@ export function AddPaperModal({ isOpen, onClose, onAdd, searchByDOI, searchByQue
             <X className="w-5 h-5 text-text-secondary" />
           </button>
         </div>
-        
+
         {/* Tabs */}
         <div className="flex border-b border-border-subtle" role="tablist">
           <button
             role="tab"
-            aria-selected={activeTab === 'doi'}
+            aria-selected={activeTab === "doi"}
             aria-controls="modal-panel-doi"
             id="modal-tab-doi"
-            onClick={() => setActiveTab('doi')}
+            onClick={() => setActiveTab("doi")}
             className={`px-6 py-3 text-small font-medium transition-colors ${
-              activeTab === 'doi'
-                ? 'text-primary-500 border-b-2 border-primary-500'
-                : 'text-text-secondary hover:text-text-primary'
+              activeTab === "doi"
+                ? "text-primary-500 border-b-2 border-primary-500"
+                : "text-text-secondary hover:text-text-primary"
             }`}
           >
             DOI Search
           </button>
           <button
             role="tab"
-            aria-selected={activeTab === 'search'}
+            aria-selected={activeTab === "search"}
             aria-controls="modal-panel-search"
             id="modal-tab-search"
-            onClick={() => setActiveTab('search')}
+            onClick={() => setActiveTab("search")}
             className={`px-6 py-3 text-small font-medium transition-colors ${
-              activeTab === 'search'
-                ? 'text-primary-500 border-b-2 border-primary-500'
-                : 'text-text-secondary hover:text-text-primary'
+              activeTab === "search"
+                ? "text-primary-500 border-b-2 border-primary-500"
+                : "text-text-secondary hover:text-text-primary"
             }`}
           >
             Search
           </button>
           <button
             role="tab"
-            aria-selected={activeTab === 'manual'}
+            aria-selected={activeTab === "manual"}
             aria-controls="modal-panel-manual"
             id="modal-tab-manual"
-            onClick={() => setActiveTab('manual')}
+            onClick={() => setActiveTab("manual")}
             className={`px-6 py-3 text-small font-medium transition-colors ${
-              activeTab === 'manual'
-                ? 'text-primary-500 border-b-2 border-primary-500'
-                : 'text-text-secondary hover:text-text-primary'
+              activeTab === "manual"
+                ? "text-primary-500 border-b-2 border-primary-500"
+                : "text-text-secondary hover:text-text-primary"
             }`}
           >
             Manual Entry
           </button>
         </div>
-        
+
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
-          {activeTab === 'doi' && (
-            <div className="space-y-4" role="tabpanel" id="modal-panel-doi" aria-labelledby="modal-tab-doi">
+          {activeTab === "doi" && (
+            <div
+              className="space-y-4"
+              role="tabpanel"
+              id="modal-panel-doi"
+              aria-labelledby="modal-tab-doi"
+            >
               <div>
-                <label htmlFor="modal-doi-input" className="block text-small font-medium text-text-primary mb-2">
+                <label
+                  htmlFor="modal-doi-input"
+                  className="block text-small font-medium text-text-primary mb-2"
+                >
                   Enter DOI
                 </label>
                 <div className="flex gap-2">
@@ -225,7 +263,7 @@ export function AddPaperModal({ isOpen, onClose, onAdd, searchByDOI, searchByQue
                     type="text"
                     value={doiInput}
                     onChange={(e) => setDoiInput(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleDOISearch()}
+                    onKeyPress={(e) => e.key === "Enter" && handleDOISearch()}
                     placeholder="10.1038/nature12373"
                     className="flex-1 px-4 py-2 bg-bg-base border border-border-subtle rounded-md text-body focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
@@ -234,7 +272,11 @@ export function AddPaperModal({ isOpen, onClose, onAdd, searchByDOI, searchByQue
                     disabled={loading || !doiInput.trim()}
                     className="px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   >
-                    {loading ? <Loader className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                    {loading ? (
+                      <Loader className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Search className="w-4 h-4" />
+                    )}
                     Search
                   </button>
                 </div>
@@ -247,15 +289,22 @@ export function AddPaperModal({ isOpen, onClose, onAdd, searchByDOI, searchByQue
               {doiResult && (
                 <div className="space-y-3">
                   <div className="p-4 border border-border-subtle rounded-md bg-bg-elevated">
-                    <h4 className="font-medium text-text-primary mb-2">{doiResult.title}</h4>
+                    <h4 className="font-medium text-text-primary mb-2">
+                      {doiResult.title}
+                    </h4>
                     <p className="text-small text-text-secondary mb-2">
-                      {doiResult.authors.slice(0, 3).join(', ')}{doiResult.authors.length > 3 ? ', et al.' : ''}
+                      {doiResult.authors.slice(0, 3).join(", ")}
+                      {doiResult.authors.length > 3 ? ", et al." : ""}
                     </p>
                     {doiResult.doi && (
-                      <p className="text-caption text-text-tertiary">DOI: {doiResult.doi}</p>
+                      <p className="text-caption text-text-tertiary">
+                        DOI: {doiResult.doi}
+                      </p>
                     )}
                     {doiResult.publicationDate && (
-                      <p className="text-caption text-text-tertiary">Year: {doiResult.publicationDate}</p>
+                      <p className="text-caption text-text-tertiary">
+                        Year: {doiResult.publicationDate}
+                      </p>
                     )}
                   </div>
                   <button
@@ -269,11 +318,19 @@ export function AddPaperModal({ isOpen, onClose, onAdd, searchByDOI, searchByQue
               )}
             </div>
           )}
-          
-          {activeTab === 'search' && (
-            <div className="space-y-4" role="tabpanel" id="modal-panel-search" aria-labelledby="modal-tab-search">
+
+          {activeTab === "search" && (
+            <div
+              className="space-y-4"
+              role="tabpanel"
+              id="modal-panel-search"
+              aria-labelledby="modal-tab-search"
+            >
               <div>
-                <label htmlFor="modal-search-query" className="block text-small font-medium text-text-primary mb-2">
+                <label
+                  htmlFor="modal-search-query"
+                  className="block text-small font-medium text-text-primary mb-2"
+                >
                   Search Query
                 </label>
                 <div className="flex gap-2">
@@ -282,7 +339,7 @@ export function AddPaperModal({ isOpen, onClose, onAdd, searchByDOI, searchByQue
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleQuerySearch()}
+                    onKeyPress={(e) => e.key === "Enter" && handleQuerySearch()}
                     placeholder="CRISPR gene editing"
                     className="flex-1 px-4 py-2 bg-bg-base border border-border-subtle rounded-md text-body focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
@@ -291,12 +348,16 @@ export function AddPaperModal({ isOpen, onClose, onAdd, searchByDOI, searchByQue
                     disabled={loading || !searchQuery.trim()}
                     className="px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   >
-                    {loading ? <Loader className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                    {loading ? (
+                      <Loader className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Search className="w-4 h-4" />
+                    )}
                     Search
                   </button>
                 </div>
               </div>
-              
+
               {searchResults.length > 0 && (
                 <div className="space-y-2 max-h-96 overflow-y-auto">
                   {searchResults.map((result, index) => (
@@ -305,18 +366,23 @@ export function AddPaperModal({ isOpen, onClose, onAdd, searchByDOI, searchByQue
                       className="p-4 border border-border-subtle rounded-md hover:border-primary-500 cursor-pointer transition-colors"
                       onClick={() => handleSelectResult(result)}
                     >
-                      <h4 className="font-medium text-text-primary mb-1">{result.title}</h4>
+                      <h4 className="font-medium text-text-primary mb-1">
+                        {result.title}
+                      </h4>
                       <p className="text-small text-text-secondary">
-                        {result.authors.slice(0, 3).join(', ')}{result.authors.length > 3 ? ', et al.' : ''}
+                        {result.authors.slice(0, 3).join(", ")}
+                        {result.authors.length > 3 ? ", et al." : ""}
                       </p>
                       {result.doi && (
-                        <p className="text-caption text-text-tertiary mt-1">DOI: {result.doi}</p>
+                        <p className="text-caption text-text-tertiary mt-1">
+                          DOI: {result.doi}
+                        </p>
                       )}
                     </div>
                   ))}
                 </div>
               )}
-              
+
               {error && (
                 <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-small rounded-md">
                   {error}
@@ -324,11 +390,19 @@ export function AddPaperModal({ isOpen, onClose, onAdd, searchByDOI, searchByQue
               )}
             </div>
           )}
-          
-          {activeTab === 'manual' && (
-            <div className="space-y-4" role="tabpanel" id="modal-panel-manual" aria-labelledby="modal-tab-manual">
+
+          {activeTab === "manual" && (
+            <div
+              className="space-y-4"
+              role="tabpanel"
+              id="modal-panel-manual"
+              aria-labelledby="modal-tab-manual"
+            >
               <div>
-                <label htmlFor="modal-manual-title" className="block text-small font-medium text-text-primary mb-2">
+                <label
+                  htmlFor="modal-manual-title"
+                  className="block text-small font-medium text-text-primary mb-2"
+                >
                   Title *
                 </label>
                 <input
@@ -339,9 +413,12 @@ export function AddPaperModal({ isOpen, onClose, onAdd, searchByDOI, searchByQue
                   className="w-full px-4 py-2 bg-bg-base border border-border-subtle rounded-md text-body focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
-              
+
               <div>
-                <label htmlFor="modal-manual-authors" className="block text-small font-medium text-text-primary mb-2">
+                <label
+                  htmlFor="modal-manual-authors"
+                  className="block text-small font-medium text-text-primary mb-2"
+                >
                   Authors (comma separated)
                 </label>
                 <input
@@ -353,9 +430,12 @@ export function AddPaperModal({ isOpen, onClose, onAdd, searchByDOI, searchByQue
                   className="w-full px-4 py-2 bg-bg-base border border-border-subtle rounded-md text-body focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
-              
+
               <div>
-                <label htmlFor="modal-manual-doi" className="block text-small font-medium text-text-primary mb-2">
+                <label
+                  htmlFor="modal-manual-doi"
+                  className="block text-small font-medium text-text-primary mb-2"
+                >
                   DOI (optional)
                 </label>
                 <input
@@ -367,9 +447,12 @@ export function AddPaperModal({ isOpen, onClose, onAdd, searchByDOI, searchByQue
                   className="w-full px-4 py-2 bg-bg-base border border-border-subtle rounded-md text-body focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
-              
+
               <div>
-                <label htmlFor="modal-manual-url" className="block text-small font-medium text-text-primary mb-2">
+                <label
+                  htmlFor="modal-manual-url"
+                  className="block text-small font-medium text-text-primary mb-2"
+                >
                   URL (optional)
                 </label>
                 <input
@@ -381,13 +464,13 @@ export function AddPaperModal({ isOpen, onClose, onAdd, searchByDOI, searchByQue
                   className="w-full px-4 py-2 bg-bg-base border border-border-subtle rounded-md text-body focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
-              
+
               {error && (
                 <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-small rounded-md">
                   {error}
                 </div>
               )}
-              
+
               <button
                 onClick={handleManualAdd}
                 className="w-full px-4 py-3 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors font-medium flex items-center justify-center gap-2"
@@ -400,5 +483,5 @@ export function AddPaperModal({ isOpen, onClose, onAdd, searchByDOI, searchByQue
         </div>
       </div>
     </div>
-  )
+  );
 }
