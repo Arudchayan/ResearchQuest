@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
+import { useAppStore } from '../store/appStore'
 import type { Note, Paper, Idea } from '../types/database'
 
 export interface RelatedItem {
@@ -14,6 +15,12 @@ export function useRelatedItems(entityId: string | null, entityType: 'note' | 'p
   const [relatedItems, setRelatedItems] = useState<RelatedItem[]>([])
   const [loading, setLoading] = useState(false)
 
+  // ⚡ PERFORMANCE OPTIMIZATION: Use atomic selectors to avoid unnecessary re-renders
+  // and effect executions when unrelated store parts change.
+  const notes = useAppStore(state => state.notes)
+  const papers = useAppStore(state => state.papers)
+  const ideas = useAppStore(state => state.ideas)
+
   const fetchRelatedItems = useCallback(async () => {
     if (!entityId || !entityType || !userId) {
       setRelatedItems([])
@@ -21,7 +28,6 @@ export function useRelatedItems(entityId: string | null, entityType: 'note' | 'p
     }
 
     setLoading(true)
-    const results: RelatedItem[] = []
 
     try {
       // First, get the topics for the current entity
@@ -44,20 +50,26 @@ export function useRelatedItems(entityId: string | null, entityType: 'note' | 'p
       // Now find other entities that share these topics
       const relatedMap = new Map<string, { item: RelatedItem, topicCount: number }>()
 
+      // ⚡ PERFORMANCE OPTIMIZATION:
+      // Instead of joining with full entity tables (which is slow and fetches redundant data),
+      // we fetch only the IDs from the relationship tables and look up the full objects
+      // in our global appStore (which is already synced with the DB).
+
       // Find related notes
       const { data: relatedNotes, error: notesError } = await supabase
         .from('topic_notes')
-        .select(`
-          note_id,
-          topic_id,
-          notes!inner(id, title, markdown_body, updated_at, user_id)
-        `)
+        .select('note_id, topic_id')
         .in('topic_id', topicIds)
         .neq('note_id', entityType === 'note' ? entityId : '00000000-0000-0000-0000-000000000000')
 
       if (!notesError && relatedNotes) {
+        // Use current store state to ensure we have the latest data
+        const currentNotes = useAppStore.getState().notes
+        const noteMap = new Map(currentNotes.map(n => [n.id, n]))
+
         for (const link of relatedNotes) {
-          const note = (link as any).notes
+          const note = noteMap.get(link.note_id)
+          // Store data is already filtered by userId in useDataSync, but we check to be safe
           if (note && note.user_id === userId) {
             const key = `note-${note.id}`
             if (relatedMap.has(key)) {
@@ -81,17 +93,16 @@ export function useRelatedItems(entityId: string | null, entityType: 'note' | 'p
       // Find related papers
       const { data: relatedPapers, error: papersError } = await supabase
         .from('topic_papers')
-        .select(`
-          paper_id,
-          topic_id,
-          papers!inner(id, title, updated_at, user_id)
-        `)
+        .select('paper_id, topic_id')
         .in('topic_id', topicIds)
         .neq('paper_id', entityType === 'paper' ? entityId : '00000000-0000-0000-0000-000000000000')
 
       if (!papersError && relatedPapers) {
+        const currentPapers = useAppStore.getState().papers
+        const paperMap = new Map(currentPapers.map(p => [p.id, p]))
+
         for (const link of relatedPapers) {
-          const paper = (link as any).papers
+          const paper = paperMap.get(link.paper_id)
           if (paper && paper.user_id === userId) {
             const key = `paper-${paper.id}`
             if (relatedMap.has(key)) {
@@ -115,17 +126,16 @@ export function useRelatedItems(entityId: string | null, entityType: 'note' | 'p
       // Find related ideas
       const { data: relatedIdeas, error: ideasError } = await supabase
         .from('topic_ideas')
-        .select(`
-          idea_id,
-          topic_id,
-          ideas!inner(id, title, updated_at, user_id)
-        `)
+        .select('idea_id, topic_id')
         .in('topic_id', topicIds)
         .neq('idea_id', entityType === 'idea' ? entityId : '00000000-0000-0000-0000-000000000000')
 
       if (!ideasError && relatedIdeas) {
+        const currentIdeas = useAppStore.getState().ideas
+        const ideaMap = new Map(currentIdeas.map(i => [i.id, i]))
+
         for (const link of relatedIdeas) {
-          const idea = (link as any).ideas
+          const idea = ideaMap.get(link.idea_id)
           if (idea && idea.user_id === userId) {
             const key = `idea-${idea.id}`
             if (relatedMap.has(key)) {
@@ -169,9 +179,12 @@ export function useRelatedItems(entityId: string | null, entityType: 'note' | 'p
     }
   }, [entityId, entityType, userId])
 
+  // Re-run when dependencies change.
+  // We use the stable atomic values (notes, papers, ideas) to trigger updates
+  // only when the relevant data changes.
   useEffect(() => {
     void fetchRelatedItems()
-  }, [fetchRelatedItems])
+  }, [fetchRelatedItems, notes, papers, ideas])
 
   return {
     relatedItems,
