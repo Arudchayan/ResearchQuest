@@ -18,6 +18,7 @@ import {
   Eye,
   Pencil,
   Sparkles,
+  Download,
 } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
 import { supabase } from "../../lib/supabase";
@@ -263,6 +264,25 @@ export function MarkdownEditor() {
     },
     [applyListFormatting, applyWrappedFormatting],
   );
+
+  const handleExport = useCallback(() => {
+    if (!content) return;
+
+    const exportTitle = title.trim() || "Untitled Note";
+    // Sanitize filename: replace non-alphanumeric chars with underscore, keep nice format
+    const safeTitle = exportTitle.replace(/[^a-z0-9\s-_]/gi, "").replace(/\s+/g, "_");
+    const filename = `${safeTitle || "note"}.md`;
+
+    const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [content, title]);
 
   const handleLinkSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
@@ -562,6 +582,16 @@ export function MarkdownEditor() {
             title="Insert link (Ctrl/Cmd+K)"
           >
             <Link2 className="w-4 h-4 text-text-secondary" aria-hidden="true" />
+          </button>
+          <div className="w-px h-6 bg-border-subtle mx-1" aria-hidden="true" />
+          <button
+            type="button"
+            onClick={handleExport}
+            className="p-2 rounded-md transition-colors hover:bg-bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
+            aria-label="Export to Markdown"
+            title="Export to Markdown"
+          >
+            <Download className="w-4 h-4 text-text-secondary" aria-hidden="true" />
           </button>
         </div>
 
