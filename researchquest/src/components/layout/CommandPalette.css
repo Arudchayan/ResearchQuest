@@ -1,0 +1,122 @@
+[cmdk-root] {
+  max-width: 640px;
+  width: 100%;
+  background: var(--bg-surface);
+  border-radius: 12px;
+  padding: 8px 0;
+  font-family: var(--font-sans);
+  box-shadow: 0 16px 70px rgb(0 0 0 / 20%);
+  border: 1px solid var(--border-subtle);
+  position: relative;
+  overflow: hidden;
+}
+
+[cmdk-dialog] {
+  z-index: 9999;
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translateX(-50%) translateY(-50%);
+  width: 100%;
+  max-width: 640px;
+}
+
+[cmdk-overlay] {
+  z-index: 9998;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(2px);
+}
+
+[cmdk-input] {
+  font-family: var(--font-sans);
+  border: none;
+  width: 100%;
+  font-size: 16px;
+  padding: 16px;
+  outline: none;
+  background: transparent;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 8px;
+}
+
+[cmdk-input]::placeholder {
+  color: var(--text-tertiary);
+}
+
+[cmdk-list] {
+  min-height: 300px;
+  max-height: 500px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  transition: 100ms ease;
+  padding: 0 8px;
+}
+
+[cmdk-group-heading] {
+  user-select: none;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+[cmdk-item] {
+  content-visibility: auto;
+  cursor: pointer;
+  height: 48px;
+  border-radius: 8px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  color: var(--text-secondary);
+  user-select: none;
+  will-change: background, color;
+  transition: all 150ms ease;
+}
+
+[cmdk-item][data-selected='true'] {
+  background: var(--primary-500);
+  color: #fff;
+}
+
+[cmdk-item][data-selected='true'] svg {
+  color: #fff;
+}
+
+[cmdk-item][data-disabled='true'] {
+  color: var(--text-tertiary);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+[cmdk-empty] {
+  font-size: 14px;
+  color: var(--text-tertiary);
+  text-align: center;
+  padding: 48px 0;
+}
+
+[cmdk-item] svg {
+  width: 18px;
+  height: 18px;
+  color: var(--text-tertiary);
+  transition: color 150ms ease;
+}
+
+.dark [cmdk-root] {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+}
+
+.dark [cmdk-item][data-selected='true'] {
+  background: var(--primary-600);
+}
