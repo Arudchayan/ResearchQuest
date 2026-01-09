@@ -33,6 +33,13 @@ export function IdeaCard({ idea, onSelect, onDelete, onStageChange, isSelected, 
       setTimeout(() => setShowDeleteConfirm(false), 3000)
     }
   }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      onSelect(idea)
+    }
+  }
   
   const getStageColor = (stage: IdeaStage) => {
     switch (stage) {
@@ -50,7 +57,9 @@ export function IdeaCard({ idea, onSelect, onDelete, onStageChange, isSelected, 
   return (
     <div
       onClick={() => onSelect(idea)}
-      className={`p-3 rounded-md border cursor-pointer transition-all ${
+      onKeyDown={handleKeyDown}
+      tabIndex={0}
+      className={`p-3 rounded-md border cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-primary-500 ${
         isSelected
           ? 'bg-bg-elevated border-primary-500'
           : 'bg-bg-surface border-border-subtle hover:border-border-moderate hover:shadow-sm'
