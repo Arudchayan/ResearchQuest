@@ -151,6 +151,10 @@ export function NoteList({
     )
   }, [notes.length, searchQuery])
 
+  const handleDeleteRequest = useCallback((candidate: Note) => {
+    setNoteToDelete(candidate)
+  }, [])
+
   const handleConfirmDelete = useCallback(async () => {
     if (!noteToDelete) return
     setDeleting(true)
@@ -208,9 +212,7 @@ export function NoteList({
             key={note.id}
             note={note}
             onSelect={onSelectNote}
-            onDelete={(candidate) => {
-              setNoteToDelete(candidate)
-            }}
+            onDelete={handleDeleteRequest}
             isSelected={note.id === selectedNoteId}
             searchQuery={searchQuery}
           />
