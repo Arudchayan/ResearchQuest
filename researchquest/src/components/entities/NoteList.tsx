@@ -27,11 +27,20 @@ const NoteCardComponent = ({ note, onSelect, onDelete, isSelected, searchQuery =
   const handleSelect = useCallback(() => {
     onSelect(note)
   }, [onSelect, note])
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      onSelect(note)
+    }
+  }, [onSelect, note])
   
   return (
     <div
       onClick={handleSelect}
-      className={`p-3 rounded-md border cursor-pointer transition-all ${
+      onKeyDown={handleKeyDown}
+      tabIndex={0}
+      className={`p-3 rounded-md border cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-primary-500 ${
         isSelected
           ? 'bg-bg-elevated border-primary-500'
           : 'bg-bg-surface border-border-subtle hover:border-border-moderate hover:shadow-sm'
