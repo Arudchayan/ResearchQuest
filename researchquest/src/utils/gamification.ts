@@ -83,8 +83,7 @@ export async function awardXP(userId: string, xpAmount: number, action: string):
     .single()
   
   if (fetchError || !profile) {
-    console.error('Failed to fetch user profile:', fetchError)
-    console.error('Error details:', JSON.stringify(fetchError, null, 2))
+    console.error('Failed to fetch user profile:', fetchError?.message || 'Profile not found')
     return
   }
   
@@ -102,8 +101,7 @@ export async function awardXP(userId: string, xpAmount: number, action: string):
     .eq('id', userId)
   
   if (updateError) {
-    console.error('Failed to update user profile:', updateError)
-    console.error('Error details:', JSON.stringify(updateError, null, 2))
+    console.error('Failed to update user profile:', updateError.message)
     return
   }
   
@@ -207,8 +205,7 @@ async function awardAchievement(userId: string, achievement: typeof ACHIEVEMENTS
     })
   
   if (insertError) {
-    console.error('Failed to award achievement:', insertError)
-    console.error('Error details:', JSON.stringify(insertError, null, 2))
+    console.error('Failed to award achievement:', insertError.message)
     return
   }
   
@@ -232,8 +229,7 @@ async function awardAchievement(userId: string, achievement: typeof ACHIEVEMENTS
       .eq('id', userId)
     
     if (xpError) {
-      console.error('Failed to award achievement XP:', xpError)
-      console.error('Error details:', JSON.stringify(xpError, null, 2))
+      console.error('Failed to award achievement XP:', xpError.message)
     }
   }
 }
@@ -282,8 +278,7 @@ async function updateDailyLog(userId: string, xpEarned: number): Promise<void> {
     .eq('id', userId)
   
   if (streakError) {
-    console.error('Failed to update streak:', streakError)
-    console.error('Error details:', JSON.stringify(streakError, null, 2))
+    console.error('Failed to update streak:', streakError.message)
   }
   
   // Check if daily log exists for today
@@ -305,8 +300,7 @@ async function updateDailyLog(userId: string, xpEarned: number): Promise<void> {
       .eq('id', existingLog.id)
     
     if (updateLogError) {
-      console.error('Failed to update daily log:', updateLogError)
-      console.error('Error details:', JSON.stringify(updateLogError, null, 2))
+      console.error('Failed to update daily log:', updateLogError.message)
     }
   } else {
     // Create new log
@@ -320,8 +314,7 @@ async function updateDailyLog(userId: string, xpEarned: number): Promise<void> {
       })
     
     if (insertLogError) {
-      console.error('Failed to create daily log:', insertLogError)
-      console.error('Error details:', JSON.stringify(insertLogError, null, 2))
+      console.error('Failed to create daily log:', insertLogError.message)
     }
   }
 }
