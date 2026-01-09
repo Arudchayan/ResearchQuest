@@ -28,6 +28,13 @@ const PaperCardComponent = ({ paper, onSelect, onDelete, onStatusChange, isSelec
     onSelect(paper)
   }, [onSelect, paper])
   
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      onSelect(paper)
+    }
+  }, [onSelect, paper])
+
   const handleStatusChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
     e.stopPropagation()
     onStatusChange(paper.id, e.target.value as ReadingStatus)
@@ -47,7 +54,9 @@ const PaperCardComponent = ({ paper, onSelect, onDelete, onStatusChange, isSelec
   return (
     <div
       onClick={handleSelect}
-      className={`p-3 rounded-md border cursor-pointer transition-all ${
+      onKeyDown={handleKeyDown}
+      tabIndex={0}
+      className={`p-3 rounded-md border cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-primary-500 ${
         isSelected
           ? 'bg-bg-elevated border-primary-500'
           : 'bg-bg-surface border-border-subtle hover:border-border-moderate hover:shadow-sm'
