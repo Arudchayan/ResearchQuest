@@ -19,12 +19,15 @@ import {
   Pencil,
   Sparkles,
   Download,
+  AlignLeft,
+  Clock,
 } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
 import { supabase } from "../../lib/supabase";
 import { awardXP, XP_REWARDS } from "../../utils/gamification";
 import { TopicSelector } from "../topics/TopicSelector";
 import { isValidUrl } from "../../utils/security";
+import { countWords, estimateReadingTime } from "../../utils/text";
 
 type ViewMode = "split" | "edit" | "preview";
 
@@ -75,6 +78,10 @@ export function MarkdownEditor() {
   const [linkUrlValue, setLinkUrlValue] = useState("");
   const linkUrlInputRef = useRef<HTMLInputElement>(null);
   const [linkError, setLinkError] = useState<string | null>(null);
+
+  // Memoize word count and reading time to avoid recalculation on every render
+  const wordCount = useMemo(() => countWords(content), [content]);
+  const readingTime = useMemo(() => estimateReadingTime(content), [content]);
 
   useEffect(() => {
     return () => {
@@ -707,12 +714,24 @@ export function MarkdownEditor() {
         </div>
       </div>
 
-      <div className="px-6 py-4 border-t border-border-subtle bg-bg-surface text-caption text-text-tertiary flex items-center gap-2">
-        <Sparkles className="w-4 h-4" aria-hidden="true" />
-        <span>
-          Markdown supported. Use Ctrl/Cmd shortcuts for bold, italic, lists,
-          and Shift+Ctrl/Cmd+S to toggle the split view.
-        </span>
+      <div className="px-6 py-4 border-t border-border-subtle bg-bg-surface text-caption text-text-tertiary flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1.5" title="Word count">
+            <AlignLeft className="w-4 h-4" aria-hidden="true" />
+            <span>{wordCount} words</span>
+          </div>
+          <div className="flex items-center gap-1.5" title="Estimated reading time">
+            <Clock className="w-4 h-4" aria-hidden="true" />
+            <span>{readingTime}</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 hidden sm:flex">
+          <Sparkles className="w-4 h-4" aria-hidden="true" />
+          <span>
+            Markdown supported. Use Ctrl/Cmd shortcuts.
+          </span>
+        </div>
       </div>
 
       {linkDialogOpen && (
