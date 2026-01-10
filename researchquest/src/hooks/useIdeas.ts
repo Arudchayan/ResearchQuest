@@ -22,7 +22,7 @@ export function useIdeas(userId: string | undefined) {
     }
   }, [setSelectedIdea])
 
-  async function fetchIdeas() {
+  const fetchIdeas = useCallback(async () => {
     if (!userId) return
 
     // setLoading(true) // Handled by global sync
@@ -45,9 +45,9 @@ export function useIdeas(userId: string | undefined) {
         }
       }
     }
-  }
+  }, [userId, setIdeas, setSelectedIdea])
 
-  async function createIdea(ideaData: Partial<Idea>): Promise<Idea | null> {
+  const createIdea = useCallback(async (ideaData: Partial<Idea>): Promise<Idea | null> => {
     if (!userId) {
       setError('User not authenticated')
       toast.error('You must be logged in to create ideas')
@@ -133,9 +133,9 @@ export function useIdeas(userId: string | undefined) {
     awardXP(userId, XP_REWARDS.CREATE_IDEA, 'create_idea').catch(console.error)
 
     return createdIdea
-  }
+  }, [userId, setIdeas, fetchIdeas])
 
-  async function updateIdea(ideaId: string, updates: Partial<Idea>, oldStage?: IdeaStage): Promise<boolean> {
+  const updateIdea = useCallback(async (ideaId: string, updates: Partial<Idea>, oldStage?: IdeaStage): Promise<boolean> => {
     // Optimistic update
     let optimisticSnapshot: Idea | null = null
     const currentIdeas = useAppStore.getState().ideas
@@ -238,9 +238,9 @@ export function useIdeas(userId: string | undefined) {
     }
 
     return true
-  }
+  }, [userId, setIdeas, syncSelectedIdea, fetchIdeas])
 
-  async function deleteIdea(ideaId: string): Promise<boolean> {
+  const deleteIdea = useCallback(async (ideaId: string): Promise<boolean> => {
     if (!userId) {
       setError('User not authenticated')
       toast.error('You must be logged in to delete ideas')
@@ -275,7 +275,7 @@ export function useIdeas(userId: string | undefined) {
 
     toast.success('Idea deleted')
     return true
-  }
+  }, [userId, setIdeas, setSelectedIdea, syncSelectedIdea])
 
   return {
     ideas,
