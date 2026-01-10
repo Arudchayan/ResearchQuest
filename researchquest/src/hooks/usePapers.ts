@@ -129,7 +129,7 @@ export function usePapers(userId: string | undefined) {
     }
   }, [setSelectedPaper])
 
-  async function fetchPapers() {
+  const fetchPapers = useCallback(async () => {
     if (!userId) return
 
     const { data, error: fetchError } = await supabase
@@ -151,9 +151,9 @@ export function usePapers(userId: string | undefined) {
         }
       }
     }
-  }
+  }, [userId, setPapers, setSelectedPaper])
 
-  async function searchPaperByDOI(doi: string): Promise<CrossrefPaper | null> {
+  const searchPaperByDOI = useCallback(async (doi: string): Promise<CrossrefPaper | null> => {
     if (!doi.trim()) {
       setError('Please enter a DOI to search')
       return null
@@ -185,9 +185,9 @@ export function usePapers(userId: string | undefined) {
       toast.error(errorMessage)
       return null
     }
-  }
+  }, [])
 
-  async function searchPapersByQuery(query: string, options: PaperSearchOptions = {}): Promise<CrossrefPaper[]> {
+  const searchPapersByQuery = useCallback(async (query: string, options: PaperSearchOptions = {}): Promise<CrossrefPaper[]> => {
     if (!query.trim()) {
       setError('Please enter a search query')
       return []
@@ -224,9 +224,9 @@ export function usePapers(userId: string | undefined) {
       toast.error(errorMessage)
       return []
     }
-  }
+  }, [])
 
-  async function createPaper(paperData: Partial<Paper>): Promise<Paper | null> {
+  const createPaper = useCallback(async (paperData: Partial<Paper>): Promise<Paper | null> => {
     if (!userId) {
       setError('User not authenticated')
       toast.error('You must be logged in to add papers')
@@ -298,9 +298,9 @@ export function usePapers(userId: string | undefined) {
     void createReadingTaskForPaper(userId, data)
     
     return data
-  }
+  }, [userId, setPapers])
 
-  async function updatePaper(paperId: string, updates: Partial<Paper>): Promise<boolean> {
+  const updatePaper = useCallback(async (paperId: string, updates: Partial<Paper>): Promise<boolean> => {
     let optimisticSnapshot: Paper | null = null
     const papers = useAppStore.getState().papers // Get fresh state
 
@@ -357,9 +357,9 @@ export function usePapers(userId: string | undefined) {
     }
 
     return true
-  }
+  }, [userId, setPapers, syncSelectedPaper])
 
-  async function deletePaper(paperId: string): Promise<boolean> {
+  const deletePaper = useCallback(async (paperId: string): Promise<boolean> => {
     const papers = useAppStore.getState().papers // Get fresh state
     const deletedPaper = papers.find(p => p.id === paperId)
 
@@ -388,7 +388,7 @@ export function usePapers(userId: string | undefined) {
 
     toast.success('Paper deleted')
     return true
-  }
+  }, [setPapers, setSelectedPaper, syncSelectedPaper])
 
   return {
     papers,
