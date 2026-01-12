@@ -14,6 +14,7 @@ import { useGamificationStore } from '../../store/gamificationStore'
 import { formatTimeUntil } from '../../utils/time'
 import { toast } from 'sonner'
 import { FocusStudioWidget } from './FocusStudioWidget'
+import { AddIdeaDialog } from '../ideas/AddIdeaDialog'
 
 const TABS = [
   { id: 'notes' as const, label: 'Notes', icon: FileText },
@@ -91,6 +92,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   const [userId, setUserId] = useState<string | undefined>(undefined)
   const [todayXP, setTodayXP] = useState(0)
   const [upcomingDeadlines, setUpcomingDeadlines] = useState<DeadlinePreview[]>([])
+  const [isAddIdeaDialogOpen, setIsAddIdeaDialogOpen] = useState(false)
   const realtimeChannelsRef = useRef<RealtimeChannel[]>([])
   
   // URL-based navigation handler
@@ -288,28 +290,24 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
       // Clear selected paper to show the AddPaperView in main content
       setSelectedPaper(null)
     } else if (currentView === 'ideas') {
-      const input = prompt('Enter idea title (you can add a description on a new line):')
-      if (!input) {
-        return
-      }
-
-      const parsed = parseQuickIdeaInput(input)
-      if (!parsed || !parsed.title) {
-        toast.error('Idea title is required')
-        return
-      }
-
-      const newIdea = await createIdea({
-        title: parsed.title,
-        description: parsed.description,
-        stage: 'Seed',
-      })
-      if (newIdea) {
-        setSelectedIdea(newIdea)
-        window.history.pushState(null, '', `/ideas/${newIdea.id}`)
-      }
+      setIsAddIdeaDialogOpen(true)
     }
-  }, [createIdea, createNote, currentView, setSelectedIdea, setSelectedNote, setSelectedPaper])
+  }, [createNote, currentView, setSelectedNote, setSelectedPaper])
+
+  const handleCreateIdea = async (data: { title: string; description?: string }) => {
+    const newIdea = await createIdea({
+      title: data.title,
+      description: data.description,
+      stage: 'Seed',
+    })
+
+    if (newIdea) {
+      setSelectedIdea(newIdea)
+      window.history.pushState(null, '', `/ideas/${newIdea.id}`)
+      setIsAddIdeaDialogOpen(false)
+      toast.success('Idea created successfully')
+    }
+  }
   
   // Handlers for list items (memoized)
   const handleSelectNote = useCallback((note: Note) => {
@@ -739,6 +737,12 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
         </div>
       </div>
 
+      <AddIdeaDialog
+        isOpen={isAddIdeaDialogOpen}
+        onClose={() => setIsAddIdeaDialogOpen(false)}
+        onConfirm={handleCreateIdea}
+        isLoading={ideasLoading}
+      />
     </>
   )
 }
