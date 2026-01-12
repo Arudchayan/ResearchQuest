@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, memo } from 'react'
 import { Clock, Lightbulb, Trash2, TrendingUp, Search } from 'lucide-react'
 import type { Idea, IdeaStage } from '../../types/database'
 import { ListSkeleton } from '../ui/Skeleton'
@@ -21,7 +21,7 @@ const STAGE_FILTER_OPTIONS: { value: IdeaStage | 'all'; label: string }[] = [
   { value: 'Mature', label: 'Mature' },
 ]
 
-export function IdeaCard({ idea, onSelect, onDelete, onStageChange, isSelected, searchQuery = '' }: IdeaCardProps) {
+const IdeaCardComponent = ({ idea, onSelect, onDelete, onStageChange, isSelected, searchQuery = '' }: IdeaCardProps) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   
   const handleDelete = (e: React.MouseEvent) => {
@@ -122,6 +122,8 @@ export function IdeaCard({ idea, onSelect, onDelete, onStageChange, isSelected, 
     </div>
   )
 }
+
+export const IdeaCard = memo(IdeaCardComponent)
 
 interface IdeaListProps {
   ideas: Idea[]

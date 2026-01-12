@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { awardXP, XP_REWARDS } from '../utils/gamification'
 import { sortByUpdatedAt } from '../utils/sort'
@@ -15,7 +15,7 @@ export function useNotes(userId: string | undefined) {
 
   // This function is now mainly for refreshing manually if needed,
   // but useDataSync handles the initial fetch and subscriptions.
-  async function fetchNotes() {
+  const fetchNotes = useCallback(async () => {
     if (!userId) return
     
     const { data, error: fetchError } = await supabase
@@ -29,9 +29,9 @@ export function useNotes(userId: string | undefined) {
     } else {
       setNotes(sortByUpdatedAt(data || []))
     }
-  }
+  }, [userId, setNotes])
 
-  async function createNote(noteData: Partial<Note>): Promise<Note | null> {
+  const createNote = useCallback(async (noteData: Partial<Note>): Promise<Note | null> => {
     if (!userId) {
       setError('User not authenticated')
       toast.error('You must be logged in to create notes')
@@ -78,9 +78,9 @@ export function useNotes(userId: string | undefined) {
     awardXP(userId, XP_REWARDS.CREATE_NOTE, 'create_note').catch(console.error)
 
     return data
-  }
+  }, [userId, setNotes])
 
-  async function updateNote(noteId: string, updates: Partial<Note>): Promise<boolean> {
+  const updateNote = useCallback(async (noteId: string, updates: Partial<Note>): Promise<boolean> => {
     // Optimistic update
     const currentNotes = useAppStore.getState().notes
     const previousNotes = [...currentNotes]
@@ -123,9 +123,9 @@ export function useNotes(userId: string | undefined) {
     }
 
     return true
-  }
+  }, [userId, setNotes, fetchNotes])
 
-  async function deleteNote(noteId: string): Promise<boolean> {
+  const deleteNote = useCallback(async (noteId: string): Promise<boolean> => {
     const currentNotes = useAppStore.getState().notes
     const deletedNote = currentNotes.find((n) => n.id === noteId)
 
@@ -150,9 +150,9 @@ export function useNotes(userId: string | undefined) {
     }
 
     return true
-  }
+  }, [setNotes])
 
-  async function restoreNote(note: Note): Promise<Note | null> {
+  const restoreNote = useCallback(async (note: Note): Promise<Note | null> => {
     const payload = {
       ...note,
       updated_at: new Date().toISOString(),
@@ -176,7 +176,7 @@ export function useNotes(userId: string | undefined) {
 
     toast.success('Note restored')
     return restoredNote
-  }
+  }, [setNotes])
 
   return {
     notes,
