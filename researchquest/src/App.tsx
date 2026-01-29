@@ -103,6 +103,24 @@ export function AuthScreen() {
       setOauthLoading(false)
     }
   }
+
+  const handleTestLogin = async () => {
+    setLoading(true)
+    setMessage('')
+
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: 'arudchayan01@gmail.com',
+        password: '3As278ePfWCBFLZ',
+      })
+
+      if (error) throw error
+    } catch (error: any) {
+      setMessage(error.message || 'An error occurred during test login')
+    } finally {
+      setLoading(false)
+    }
+  }
   
   return (
     <div className="min-h-screen flex items-center justify-center bg-bg-base">
@@ -148,6 +166,15 @@ export function AuthScreen() {
                 />
               </svg>
               {oauthLoading ? 'Contacting Google…' : 'Continue with Google'}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleTestLogin}
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-dashed border-border-subtle rounded-md text-body font-medium text-text-secondary hover:border-primary-500 hover:text-primary-600 transition-colors disabled:opacity-60"
+            >
+              🛠️ Use Test Login
             </button>
 
             <div className="flex items-center gap-3 text-small text-text-secondary">
