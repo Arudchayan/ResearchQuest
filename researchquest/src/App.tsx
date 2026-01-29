@@ -299,6 +299,7 @@ function App() {
   
   // URL-based routing - handle initial load and navigation
   useEffect(() => {
+    // Handle route changes
     const handleRouteChange = () => {
       const path = window.location.pathname
       
