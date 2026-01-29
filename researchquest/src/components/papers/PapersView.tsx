@@ -111,13 +111,6 @@ export function PapersView() {
                       <Calendar className="w-3 h-3" />
                       <span>{paper.publication_date ? new Date(paper.publication_date).getFullYear() : 'N/A'}</span>
                     </div>
-                    {paper.tags && paper.tags.length > 0 && (
-                      <div className="flex items-center gap-1">
-                        <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-full">
-                          {paper.tags.length} tags
-                        </span>
-                      </div>
-                    )}
                   </div>
                 </div>
               ))}
