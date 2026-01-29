@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, MoreHorizontal, Lightbulb, ArrowRight } from 'lucide-react'
+import { Plus, MoreHorizontal, Lightbulb, ArrowRight, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAppStore } from '../../store/appStore'
 import { useIdeas } from '../../hooks/useIdeas'
