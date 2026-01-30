@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { BookOpen, Calendar, ExternalLink, Edit2, Save, X, Link as LinkIcon, Sparkles } from 'lucide-react'
 import type { Paper, ReadingStatus } from '../../types/database'
 import { toast } from 'sonner'
+import { isValidUrl } from '../../utils/security'
 import { TopicSelector } from '../topics/TopicSelector'
 
 interface PaperDetailViewProps {
@@ -281,7 +282,7 @@ export function PaperDetailView({ paper, onUpdate }: PaperDetailViewProps) {
                   View DOI
                 </a>
               )}
-              {paper.source_url && (
+              {paper.source_url && isValidUrl(paper.source_url) && (
                 <a
                   href={paper.source_url}
                   target="_blank"
