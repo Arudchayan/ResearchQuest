@@ -9,12 +9,14 @@ import {
   Plus,
   Moon,
   Sun,
-  Search
+  Search,
+  Download
 } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { useNotes } from '../../hooks/useNotes'
 import { usePapers } from '../../hooks/usePapers'
 import { useIdeas } from '../../hooks/useIdeas'
+import { exportData } from '../../utils/export'
 import './CommandPalette.css'
 
 export function CommandPalette() {
@@ -90,6 +92,12 @@ export function CommandPalette() {
     setOpen(false)
   }
 
+  const handleExport = () => {
+    const { user, notes, papers, ideas } = useAppStore.getState()
+    exportData({ user, notes, papers, ideas })
+    setOpen(false)
+  }
+
   // Memoize search items
   const searchItems = useMemo(() => {
     return [
@@ -138,6 +146,11 @@ export function CommandPalette() {
           }}>
             <Plus />
             <span>Create New Note (Go to Notes)</span>
+          </Command.Item>
+
+          <Command.Item onSelect={handleExport}>
+            <Download />
+            <span>Export All Data</span>
           </Command.Item>
 
           <Command.Item onSelect={toggleTheme}>
