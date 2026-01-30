@@ -5,3 +5,7 @@
 ## 2024-05-24 - Interactive List Items
 **Learning:** Using `div` with `onClick` for list items (like search results) makes them inaccessible to keyboard users. They lack focus states and key handlers (Enter/Space).
 **Action:** Replace interactive `div` wrappers with `button` elements (using `type="button"`). Apply `w-full text-left` to maintain the block layout, and ensure visible focus states (`focus:ring`).
+
+## 2024-05-25 - Radix UI Dialog Accessibility
+**Learning:** Radix UI Dialog component requires `Dialog.Title` for screen reader accessibility. If a `Dialog.Description` is not provided, `aria-describedby={undefined}` can be used on `Dialog.Content` to silence warnings when the dialog content is self-explanatory.
+**Action:** Ensure all `Dialog.Content` implementations include a `Dialog.Title` and either a `Dialog.Description` or explicit `aria-describedby` attribute.
