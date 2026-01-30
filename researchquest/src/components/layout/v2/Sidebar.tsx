@@ -11,16 +11,23 @@ import {
   Sun,
   Moon,
   Flame,
-  HelpCircle
+  HelpCircle,
+  Download
 } from 'lucide-react'
 import { useAppStore } from '../../../store/appStore'
 import { cn } from '../../../lib/utils'
 import { supabase } from '../../../lib/supabase'
 import { XPExplainer } from '../XPExplainer'
+import { exportData } from '../../../utils/export'
 
 export function Sidebar() {
   const { currentView, setCurrentView, user, effectiveTheme, setTheme } = useAppStore()
   const [showXpGuide, setShowXpGuide] = useState(false)
+
+  const handleExport = () => {
+    const { user, notes, papers, ideas } = useAppStore.getState()
+    exportData({ user, notes, papers, ideas })
+  }
 
   const navItems = [
     { id: 'notes', label: 'Notes', icon: FileText },
@@ -120,6 +127,14 @@ export function Sidebar() {
              {effectiveTheme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
            </button>
         </div>
+
+        <button
+          onClick={handleExport}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 transition-colors"
+        >
+          <Download className="w-5 h-5" />
+          Export Data
+        </button>
 
         <button
           onClick={handleLogout}
