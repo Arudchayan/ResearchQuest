@@ -1,23 +1,23 @@
-import { useState } from 'react'
-import { Plus, Search, FileText, Trash2, Clock } from 'lucide-react'
+import { useState, useMemo, useCallback } from 'react'
+import { Plus, Search, FileText } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { useNotes } from '../../hooks/useNotes'
 import { MarkdownEditor } from '../editor/MarkdownEditor'
-import { cn } from '../../lib/utils'
-import { formatDistanceToNow } from 'date-fns'
+import { NoteCard } from './NoteCard'
+import type { Note } from '../../types/database'
 
 export function NotesView() {
   const { notes, selectedNote, setSelectedNote } = useAppStore()
   const { createNote, deleteNote } = useNotes(useAppStore.getState().user?.id)
   const [searchQuery, setSearchQuery] = useState('')
 
-  const filteredNotes = notes.filter(note => {
+  const filteredNotes = useMemo(() => notes.filter(note => {
     const query = searchQuery.toLowerCase()
     return (
       (note.title && note.title.toLowerCase().includes(query)) ||
       (note.markdown_body && note.markdown_body.toLowerCase().includes(query))
     )
-  })
+  }), [notes, searchQuery])
 
   const handleCreateNote = async () => {
     const newNote = await createNote({
@@ -29,15 +29,18 @@ export function NotesView() {
     }
   }
 
-  const handleDeleteNote = async (e: React.MouseEvent, noteId: string) => {
-    e.stopPropagation()
+  const handleDeleteNote = useCallback(async (noteId: string) => {
     if (window.confirm('Are you sure you want to delete this note?')) {
       await deleteNote(noteId)
       if (selectedNote?.id === noteId) {
         setSelectedNote(null)
       }
     }
-  }
+  }, [deleteNote, selectedNote?.id, setSelectedNote])
+
+  const handleSelectNote = useCallback((note: Note) => {
+     setSelectedNote(note)
+  }, [setSelectedNote])
 
   return (
     <div className="flex h-full bg-white dark:bg-slate-950">
@@ -75,38 +78,13 @@ export function NotesView() {
           ) : (
             <div className="divide-y divide-slate-100 dark:divide-slate-800">
               {filteredNotes.map((note) => (
-                <div
-                  key={note.id}
-                  onClick={() => setSelectedNote(note)}
-                  className={cn(
-                    "group p-4 cursor-pointer hover:bg-white dark:hover:bg-slate-800 transition-colors",
-                    selectedNote?.id === note.id ? "bg-white dark:bg-slate-800 border-l-4 border-blue-500" : "border-l-4 border-transparent"
-                  )}
-                >
-                  <div className="flex items-start justify-between mb-1">
-                    <h3 className={cn(
-                      "font-medium truncate pr-2",
-                      !note.title ? "text-slate-400 italic" : "text-slate-900 dark:text-slate-100"
-                    )}>
-                      {note.title || 'Untitled Note'}
-                    </h3>
-                    <button
-                      onClick={(e) => handleDeleteNote(e, note.id)}
-                      className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-red-500 transition-all"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mb-2 h-8">
-                    {note.markdown_body || 'No content...'}
-                  </p>
-
-                  <div className="flex items-center gap-2 text-[10px] text-slate-400">
-                    <Clock className="w-3 h-3" />
-                    <span>{formatDistanceToNow(new Date(note.updated_at), { addSuffix: true })}</span>
-                  </div>
-                </div>
+                <NoteCard
+                    key={note.id}
+                    note={note}
+                    isSelected={selectedNote?.id === note.id}
+                    onSelect={handleSelectNote}
+                    onDelete={handleDeleteNote}
+                />
               ))}
             </div>
           )}
