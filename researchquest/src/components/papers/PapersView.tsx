@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Plus, Search, BookOpen, ExternalLink, Calendar, X, ArrowUpDown } from 'lucide-react'
+import { Plus, Search, BookOpen, ExternalLink, Calendar, X, ArrowUpDown, Users } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { usePapers } from '../../hooks/usePapers'
 import { AddPaperView } from '../entities/AddPaperView'
@@ -25,9 +25,11 @@ export function PapersView() {
   const [sortOption, setSortOption] = useState<SortOption>('updated_desc')
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
 
+  // Memoize filtered papers to avoid expensive recalculation on every render
   const filteredPapers = useMemo(() => {
-    const result = papers.filter(paper => {
-      const query = searchQuery.toLowerCase()
+    // Optimization: Calculate query lowercasing once outside the loop
+    const query = searchQuery.toLowerCase()
+    return papers.filter(paper => {
       return (
         (paper.title && paper.title.toLowerCase().includes(query)) ||
         (paper.authors && paper.authors.some(a => a.toLowerCase().includes(query)))
