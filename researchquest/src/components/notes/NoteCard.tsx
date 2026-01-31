@@ -22,11 +22,23 @@ export const NoteCard = React.memo(function NoteCard({
     onDelete(note.id)
   }
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.target !== e.currentTarget) return
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      onSelect(note)
+    }
+  }
+
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-label={`Select note: ${note.title || 'Untitled Note'}`}
       onClick={() => onSelect(note)}
+      onKeyDown={handleKeyDown}
       className={cn(
-        "group p-4 cursor-pointer hover:bg-white dark:hover:bg-slate-800 transition-colors",
+        "group p-4 cursor-pointer hover:bg-white dark:hover:bg-slate-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500",
         isSelected ? "bg-white dark:bg-slate-800 border-l-4 border-blue-500" : "border-l-4 border-transparent"
       )}
     >
@@ -39,7 +51,8 @@ export const NoteCard = React.memo(function NoteCard({
         </h3>
         <button
           onClick={handleDelete}
-          className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-red-500 transition-all"
+          aria-label="Delete note"
+          className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 text-slate-400 hover:text-red-500 transition-all focus:outline-none focus:ring-2 focus:ring-red-500 rounded"
         >
           <Trash2 className="w-4 h-4" />
         </button>
