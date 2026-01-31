@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Plus, Search, BookOpen, ExternalLink, Calendar, Users, X } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { Plus, Search, BookOpen, ExternalLink, Calendar, X, ArrowUpDown } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { usePapers } from '../../hooks/usePapers'
 import { AddPaperView } from '../entities/AddPaperView'
@@ -8,19 +8,59 @@ import { cn } from '../../lib/utils'
 import * as Dialog from '@radix-ui/react-dialog'
 import { OnboardingGuide } from '../layout/OnboardingGuide'
 
+type SortOption =
+  | 'updated_desc'
+  | 'updated_asc'
+  | 'created_desc'
+  | 'created_asc'
+  | 'title_asc'
+  | 'title_desc'
+  | 'year_desc'
+  | 'year_asc'
+
 export function PapersView() {
   const { papers, selectedPaper, setSelectedPaper } = useAppStore()
   const { createPaper, updatePaper, searchPaperByDOI, searchPapersByQuery } = usePapers(useAppStore.getState().user?.id)
   const [searchQuery, setSearchQuery] = useState('')
+  const [sortOption, setSortOption] = useState<SortOption>('updated_desc')
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
 
-  const filteredPapers = papers.filter(paper => {
-    const query = searchQuery.toLowerCase()
-    return (
-      (paper.title && paper.title.toLowerCase().includes(query)) ||
-      (paper.authors && paper.authors.some(a => a.toLowerCase().includes(query)))
-    )
-  })
+  const filteredPapers = useMemo(() => {
+    const result = papers.filter(paper => {
+      const query = searchQuery.toLowerCase()
+      return (
+        (paper.title && paper.title.toLowerCase().includes(query)) ||
+        (paper.authors && paper.authors.some(a => a.toLowerCase().includes(query)))
+      )
+    })
+
+    return result.sort((a, b) => {
+      switch (sortOption) {
+        case 'updated_desc':
+          return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+        case 'updated_asc':
+          return new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime()
+        case 'created_desc':
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        case 'created_asc':
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        case 'title_asc':
+          return (a.title || '').localeCompare(b.title || '')
+        case 'title_desc':
+          return (b.title || '').localeCompare(a.title || '')
+        case 'year_desc':
+          const yearA = a.publication_date ? new Date(a.publication_date).getFullYear() : 0
+          const yearB = b.publication_date ? new Date(b.publication_date).getFullYear() : 0
+          return yearB - yearA
+        case 'year_asc':
+          const yearA2 = a.publication_date ? new Date(a.publication_date).getFullYear() : 0
+          const yearB2 = b.publication_date ? new Date(b.publication_date).getFullYear() : 0
+          return yearA2 - yearB2
+        default:
+          return 0
+      }
+    })
+  }, [papers, searchQuery, sortOption])
 
   return (
     <div className="flex h-full bg-slate-50 dark:bg-slate-900 overflow-hidden">
@@ -40,8 +80,8 @@ export function PapersView() {
           </button>
         </div>
 
-        <div className="p-4 bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800">
-          <div className="relative max-w-md">
+        <div className="p-4 bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
             <input
               type="text"
@@ -50,6 +90,25 @@ export function PapersView() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <ArrowUpDown className="w-4 h-4 text-slate-400" />
+            <select
+              value={sortOption}
+              onChange={(e) => setSortOption(e.target.value as SortOption)}
+              className="px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer min-w-[180px]"
+              aria-label="Sort papers"
+            >
+              <option value="updated_desc">Last Updated (Newest)</option>
+              <option value="updated_asc">Last Updated (Oldest)</option>
+              <option value="created_desc">Date Added (Newest)</option>
+              <option value="created_asc">Date Added (Oldest)</option>
+              <option value="title_asc">Title (A-Z)</option>
+              <option value="title_desc">Title (Z-A)</option>
+              <option value="year_desc">Publication Year (Newest)</option>
+              <option value="year_asc">Publication Year (Oldest)</option>
+            </select>
           </div>
         </div>
 
