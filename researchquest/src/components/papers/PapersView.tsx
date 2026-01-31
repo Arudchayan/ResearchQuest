@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Plus, Search, BookOpen, ExternalLink, Calendar, Users, X } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { usePapers } from '../../hooks/usePapers'
@@ -14,13 +14,17 @@ export function PapersView() {
   const [searchQuery, setSearchQuery] = useState('')
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
 
-  const filteredPapers = papers.filter(paper => {
+  // Memoize filtered papers to avoid expensive recalculation on every render
+  const filteredPapers = useMemo(() => {
+    // Optimization: Calculate query lowercasing once outside the loop
     const query = searchQuery.toLowerCase()
-    return (
-      (paper.title && paper.title.toLowerCase().includes(query)) ||
-      (paper.authors && paper.authors.some(a => a.toLowerCase().includes(query)))
-    )
-  })
+    return papers.filter(paper => {
+      return (
+        (paper.title && paper.title.toLowerCase().includes(query)) ||
+        (paper.authors && paper.authors.some(a => a.toLowerCase().includes(query)))
+      )
+    })
+  }, [papers, searchQuery])
 
   return (
     <div className="flex h-full bg-slate-50 dark:bg-slate-900 overflow-hidden">
