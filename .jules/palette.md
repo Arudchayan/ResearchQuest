@@ -9,3 +9,7 @@
 ## 2024-05-25 - Radix UI Dialog Accessibility
 **Learning:** Radix UI Dialog component requires `Dialog.Title` for screen reader accessibility. If a `Dialog.Description` is not provided, `aria-describedby={undefined}` can be used on `Dialog.Content` to silence warnings when the dialog content is self-explanatory.
 **Action:** Ensure all `Dialog.Content` implementations include a `Dialog.Title` and either a `Dialog.Description` or explicit `aria-describedby` attribute.
+
+## 2024-05-26 - Keyboard Event Bubbling in Cards
+**Learning:** When implementing keyboard accessibility on a card container (using `onKeyDown` for Enter/Space), events from interactive children (like delete buttons) bubble up. Pressing 'Enter' on a child button triggers both the child action AND the parent card action if not handled.
+**Action:** In the parent `onKeyDown` handler, always check `if (e.target !== e.currentTarget) return;` to ensure the parent only responds to events targeting itself.
