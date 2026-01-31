@@ -102,10 +102,19 @@ export function AuthScreen() {
     setLoading(true)
     setMessage('')
 
+    const testEmail = import.meta.env.VITE_TEST_EMAIL
+    const testPassword = import.meta.env.VITE_TEST_PASSWORD
+
+    if (!testEmail || !testPassword) {
+      setMessage('Test credentials not configured')
+      setLoading(false)
+      return
+    }
+
     try {
       const { error } = await supabase.auth.signInWithPassword({
-        email: 'arudchayan01@gmail.com',
-        password: '3As278ePfWCBFLZ',
+        email: testEmail,
+        password: testPassword,
       })
 
       if (error) throw error
@@ -115,6 +124,8 @@ export function AuthScreen() {
       setLoading(false)
     }
   }
+
+  const showTestLogin = !!(import.meta.env.VITE_TEST_EMAIL && import.meta.env.VITE_TEST_PASSWORD)
   
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 transition-colors">
@@ -146,14 +157,16 @@ export function AuthScreen() {
               {oauthLoading ? 'Contacting Google…' : 'Continue with Google'}
             </button>
 
-            <button
-              type="button"
-              onClick={handleTestLogin}
-              disabled={loading}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-dashed border-slate-300 dark:border-slate-700 rounded-lg text-slate-500 dark:text-slate-400 font-medium hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 transition-all disabled:opacity-60"
-            >
-              🛠️ Use Test Login
-            </button>
+            {showTestLogin && (
+              <button
+                type="button"
+                onClick={handleTestLogin}
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-dashed border-slate-300 dark:border-slate-700 rounded-lg text-slate-500 dark:text-slate-400 font-medium hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 transition-all disabled:opacity-60"
+              >
+                🛠️ Use Test Login
+              </button>
+            )}
 
             <div className="flex items-center gap-3 text-sm text-slate-400">
               <span className="h-px flex-1 bg-slate-200 dark:bg-slate-700" aria-hidden="true" />
