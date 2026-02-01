@@ -7,7 +7,6 @@ import { PaperDetailView } from '../entities/PaperDetailView'
 import { cn } from '../../lib/utils'
 import * as Dialog from '@radix-ui/react-dialog'
 import { OnboardingGuide } from '../layout/OnboardingGuide'
-import { PaperCard } from './PaperCard'
 import type { Paper } from '../../types/database'
 
 type SortOption =
@@ -145,11 +144,52 @@ export function PapersView() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               {filteredPapers.map((paper) => (
-                <PaperCard
+                <div
                   key={paper.id}
-                  paper={paper}
-                  onSelect={handleSelectPaper}
-                />
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Select paper: ${paper.title}`}
+                  onClick={() => handleSelectPaper(paper)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      handleSelectPaper(paper)
+                    }
+                  }}
+                  className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-5 cursor-pointer hover:border-blue-500 dark:hover:border-blue-500 transition-all hover:shadow-md group focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-blue-600 dark:text-blue-400">
+                      <BookOpen className="w-5 h-5" />
+                    </div>
+                    {paper.doi && (
+                      <a
+                        href={`https://doi.org/${paper.doi}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-xs text-slate-400 hover:text-blue-600 flex items-center gap-1"
+                      >
+                        DOI <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
+                  </div>
+
+                  <h3 className="font-semibold text-slate-900 dark:text-white mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
+                    {paper.title}
+                  </h3>
+
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mb-4 line-clamp-2">
+                    {paper.authors?.join(', ') || 'Unknown Authors'}
+                  </p>
+
+                  <div className="flex items-center gap-4 text-xs text-slate-400">
+                    <div className="flex items-center gap-1">
+                      <Calendar className="w-3 h-3" />
+                      <span>{paper.publication_date ? new Date(paper.publication_date).getFullYear() : 'N/A'}</span>
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
           )}
@@ -163,7 +203,8 @@ export function PapersView() {
             <h2 className="font-semibold text-slate-900 dark:text-white">Paper Details</h2>
             <button
               onClick={() => setSelectedPaper(null)}
-              className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"
+              aria-label="Close details"
+              className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <X className="w-5 h-5 text-slate-500" />
             </button>
