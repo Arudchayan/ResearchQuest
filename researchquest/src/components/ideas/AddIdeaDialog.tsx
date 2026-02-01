@@ -118,6 +118,7 @@ export function AddIdeaDialog({
                 className="w-full px-3 py-2 bg-bg-base border border-border-subtle rounded-md text-body focus:outline-none focus:ring-2 focus:ring-primary-500 transition-shadow"
                 required
                 disabled={isLoading}
+                maxLength={255}
               />
             </div>
 
@@ -133,6 +134,7 @@ export function AddIdeaDialog({
                 rows={4}
                 className="w-full px-3 py-2 bg-bg-base border border-border-subtle rounded-md text-body focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none transition-shadow"
                 disabled={isLoading}
+                maxLength={5000}
               />
             </div>
           </div>
