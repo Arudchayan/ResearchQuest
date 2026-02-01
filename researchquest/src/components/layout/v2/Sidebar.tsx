@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import {
   BookOpen,
   FileText,
@@ -12,21 +12,50 @@ import {
   Moon,
   Flame,
   HelpCircle,
-  Download
+  Download,
+  Upload
 } from 'lucide-react'
 import { useAppStore } from '../../../store/appStore'
 import { cn } from '../../../lib/utils'
 import { supabase } from '../../../lib/supabase'
 import { XPExplainer } from '../XPExplainer'
 import { exportData } from '../../../utils/export'
+import { importData } from '../../../utils/import'
 
 export function Sidebar() {
   const { currentView, setCurrentView, user, effectiveTheme, setTheme } = useAppStore()
   const [showXpGuide, setShowXpGuide] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleExport = () => {
-    const { user, notes, papers, ideas } = useAppStore.getState()
-    exportData({ user, notes, papers, ideas })
+    const { user, notes, papers, ideas, topics } = useAppStore.getState()
+
+    // Map TopicWithCounts to Topic (strip counts)
+    const cleanTopics = topics.map(t => ({
+      id: t.id,
+      user_id: t.user_id,
+      name: t.name,
+      description: t.description,
+      created_at: t.created_at,
+      updated_at: t.updated_at
+    }))
+
+    exportData({ user, notes, papers, ideas, topics: cleanTopics })
+  }
+
+  const handleImport = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file && user?.id) {
+      importData(file, user.id)
+    }
+    // Reset input so same file can be selected again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
   }
 
   const navItems = [
@@ -135,6 +164,22 @@ export function Sidebar() {
           <Download className="w-5 h-5" />
           Export Data
         </button>
+
+        <button
+          onClick={handleImport}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 transition-colors"
+        >
+          <Upload className="w-5 h-5" />
+          Import Data
+        </button>
+
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          accept=".json"
+          className="hidden"
+        />
 
         <button
           onClick={handleLogout}

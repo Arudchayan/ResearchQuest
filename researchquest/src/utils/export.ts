@@ -1,4 +1,4 @@
-import { UserProfile, Note, Paper, Idea } from '../types/database';
+import { UserProfile, Note, Paper, Idea, Topic } from '../types/database';
 
 export interface ExportData {
   metadata: {
@@ -10,11 +10,12 @@ export interface ExportData {
   notes: Note[];
   papers: Paper[];
   ideas: Idea[];
+  topics?: Topic[];
 }
 
 /**
  * Exports the provided data as a JSON file download.
- * @param data The data to export (user, notes, papers, ideas)
+ * @param data The data to export (user, notes, papers, ideas, topics)
  */
 export function exportData(data: Omit<ExportData, 'metadata'>) {
   const exportPayload: ExportData = {
