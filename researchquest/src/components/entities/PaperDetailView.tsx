@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { BookOpen, Calendar, ExternalLink, Edit2, Save, X, Link as LinkIcon, Sparkles } from 'lucide-react'
+import { BookOpen, Calendar, ExternalLink, Edit2, Save, X, Link as LinkIcon, Sparkles, Trash } from 'lucide-react'
 import type { Paper, ReadingStatus } from '../../types/database'
 import { toast } from 'sonner'
 import { isValidUrl } from '../../utils/security'
@@ -8,9 +8,10 @@ import { TopicSelector } from '../topics/TopicSelector'
 interface PaperDetailViewProps {
   paper: Paper
   onUpdate: (paperId: string, updates: Partial<Paper>) => Promise<boolean>
+  onDelete?: (paperId: string) => Promise<boolean>
 }
 
-export function PaperDetailView({ paper, onUpdate }: PaperDetailViewProps) {
+export function PaperDetailView({ paper, onUpdate, onDelete }: PaperDetailViewProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editedTitle, setEditedTitle] = useState(paper.title)
   const [editedAuthors, setEditedAuthors] = useState(paper.authors.join(', '))
@@ -46,6 +47,13 @@ export function PaperDetailView({ paper, onUpdate }: PaperDetailViewProps) {
     setEditedAbstract(paper.abstract || '')
     setEditedStatus(paper.status)
     setIsEditing(false)
+  }
+
+  const handleDelete = async () => {
+    if (!onDelete) return
+    if (window.confirm('Are you sure you want to delete this paper? This action cannot be undone.')) {
+      await onDelete(paper.id)
+    }
   }
   
   const getStatusColor = (status: ReadingStatus) => {
@@ -122,13 +130,24 @@ export function PaperDetailView({ paper, onUpdate }: PaperDetailViewProps) {
                   </button>
                 </>
               ) : (
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
-                  title="Edit paper"
-                >
-                  <Edit2 className="w-5 h-5" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
+                    title="Edit paper"
+                  >
+                    <Edit2 className="w-5 h-5" />
+                  </button>
+                  {onDelete && (
+                    <button
+                      onClick={handleDelete}
+                      className="p-2 bg-bg-elevated text-red-600 dark:text-red-400 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                      title="Delete paper"
+                    >
+                      <Trash className="w-5 h-5" />
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           </div>

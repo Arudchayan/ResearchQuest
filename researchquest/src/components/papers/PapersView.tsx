@@ -21,7 +21,7 @@ type SortOption =
 
 export function PapersView() {
   const { papers, selectedPaper, setSelectedPaper } = useAppStore()
-  const { createPaper, updatePaper, searchPaperByDOI, searchPapersByQuery } = usePapers(useAppStore.getState().user?.id)
+  const { createPaper, updatePaper, deletePaper, searchPaperByDOI, searchPapersByQuery } = usePapers(useAppStore.getState().user?.id)
   const [searchQuery, setSearchQuery] = useState('')
   const [sortOption, setSortOption] = useState<SortOption>('updated_desc')
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
@@ -210,7 +210,7 @@ export function PapersView() {
             </button>
           </div>
           <div className="flex-1 overflow-y-auto">
-            <PaperDetailView paper={selectedPaper} onUpdate={updatePaper} />
+            <PaperDetailView paper={selectedPaper} onUpdate={updatePaper} onDelete={deletePaper} />
           </div>
         </div>
       )}
