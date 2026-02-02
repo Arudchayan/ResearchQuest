@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { awardXP, XP_REWARDS } from '../utils/gamification'
 import { sortByUpdatedAt } from '../utils/sort'
+import { isValidUrl } from '../utils/security'
 import { toast } from 'sonner'
 import type { Paper, CrossrefPaper } from '../types/database'
 import { useAppStore } from '../store/appStore'
@@ -247,7 +248,12 @@ export function usePapers(userId: string | undefined) {
     }
 
     if (paperData.doi && paperData.doi.trim()) cleanData.doi = paperData.doi.trim()
-    if (paperData.source_url && paperData.source_url.trim()) cleanData.source_url = paperData.source_url.trim()
+    if (paperData.source_url && paperData.source_url.trim()) {
+      const url = paperData.source_url.trim()
+      if (isValidUrl(url)) {
+        cleanData.source_url = url
+      }
+    }
     if (paperData.abstract && paperData.abstract.trim()) cleanData.abstract = paperData.abstract.trim()
     
     if (paperData.publication_date && paperData.publication_date.trim() && paperData.publication_date !== 'null') {
@@ -301,6 +307,15 @@ export function usePapers(userId: string | undefined) {
   }, [userId, setPapers])
 
   const updatePaper = useCallback(async (paperId: string, updates: Partial<Paper>): Promise<boolean> => {
+    if (updates.source_url) {
+      const url = updates.source_url.trim()
+      if (isValidUrl(url)) {
+        updates.source_url = url
+      } else {
+        delete updates.source_url
+      }
+    }
+
     let optimisticSnapshot: Paper | null = null
     const papers = useAppStore.getState().papers // Get fresh state
 
