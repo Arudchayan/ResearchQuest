@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Lightbulb, Calendar, TrendingUp, Edit2, Save, X } from 'lucide-react'
+import { Lightbulb, Calendar, TrendingUp, Edit2, Save, X, Trash } from 'lucide-react'
 import type { Idea, IdeaStage } from '../../types/database'
 import { supabase } from '../../lib/supabase'
 import { toast } from 'sonner'
@@ -8,9 +8,10 @@ import { TopicSelector } from '../topics/TopicSelector'
 interface IdeaDetailViewProps {
   idea: Idea
   onUpdate: (ideaId: string, updates: Partial<Idea>, oldStage?: IdeaStage) => Promise<boolean>
+  onDelete?: (ideaId: string) => Promise<boolean>
 }
 
-export function IdeaDetailView({ idea, onUpdate }: IdeaDetailViewProps) {
+export function IdeaDetailView({ idea, onUpdate, onDelete }: IdeaDetailViewProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editedTitle, setEditedTitle] = useState(idea.title)
   const [editedDescription, setEditedDescription] = useState(idea.description || '')
@@ -77,6 +78,13 @@ export function IdeaDetailView({ idea, onUpdate }: IdeaDetailViewProps) {
     setEditedStage(idea.stage)
     setIsEditing(false)
     setSaveError('')
+  }
+
+  const handleDelete = async () => {
+    if (!onDelete) return
+    if (window.confirm('Are you sure you want to delete this idea? This action cannot be undone.')) {
+      await onDelete(idea.id)
+    }
   }
   
   const getStageColor = (stage: IdeaStage) => {
@@ -148,13 +156,24 @@ export function IdeaDetailView({ idea, onUpdate }: IdeaDetailViewProps) {
                   </button>
                 </>
               ) : (
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
-                  title="Edit idea"
-                >
-                  <Edit2 className="w-5 h-5" />
-                </button>
+                <div className="flex items-center gap-2 md:self-start">
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
+                    title="Edit idea"
+                  >
+                    <Edit2 className="w-5 h-5" />
+                  </button>
+                  {onDelete && (
+                    <button
+                      onClick={handleDelete}
+                      className="p-2 bg-bg-elevated text-red-600 dark:text-red-400 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                      title="Delete idea"
+                    >
+                      <Trash className="w-5 h-5" />
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           </div>

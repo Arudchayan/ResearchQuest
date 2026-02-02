@@ -18,7 +18,7 @@ const STAGES: { id: IdeaStage; label: string; color: string }[] = [
 
 export function IdeasBoard() {
   const { ideas, selectedIdea, setSelectedIdea } = useAppStore();
-  const { createIdea, updateIdea } = useIdeas(useAppStore.getState().user?.id);
+  const { createIdea, updateIdea, deleteIdea } = useIdeas(useAppStore.getState().user?.id);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newIdeaTitle, setNewIdeaTitle] = useState("");
   const [newIdeaDesc, setNewIdeaDesc] = useState("");
@@ -173,7 +173,7 @@ export function IdeasBoard() {
             </button>
           </div>
           <div className="flex-1 overflow-y-auto p-4">
-            <IdeaDetailView idea={selectedIdea} onUpdate={updateIdea} />
+            <IdeaDetailView idea={selectedIdea} onUpdate={updateIdea} onDelete={deleteIdea} />
           </div>
         </div>
       )}
