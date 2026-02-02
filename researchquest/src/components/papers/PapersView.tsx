@@ -179,10 +179,10 @@ export function PapersView() {
       <Dialog.Root open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 animate-fade-in" />
-          <Dialog.Content className="fixed left-[50%] top-[50%] max-h-[85vh] w-[90vw] max-w-[1000px] translate-x-[-50%] translate-y-[-50%] rounded-xl bg-white dark:bg-slate-950 p-0 shadow-2xl focus:outline-none z-50 overflow-hidden animate-slide-in border border-slate-200 dark:border-slate-800">
+          <Dialog.Content aria-describedby={undefined} className="fixed left-[50%] top-[50%] max-h-[85vh] w-[90vw] max-w-[1000px] translate-x-[-50%] translate-y-[-50%] rounded-xl bg-white dark:bg-slate-950 p-0 shadow-2xl focus:outline-none z-50 overflow-hidden animate-slide-in border border-slate-200 dark:border-slate-800">
             <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800">
-               <h2 className="text-lg font-semibold px-2">Add New Paper</h2>
-               <Dialog.Close className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full">
+               <Dialog.Title className="text-lg font-semibold px-2">Add New Paper</Dialog.Title>
+               <Dialog.Close aria-label="Close" className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full">
                  <X className="w-5 h-5" />
                </Dialog.Close>
             </div>
