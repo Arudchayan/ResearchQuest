@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { PaperDetailView } from '../../components/entities/PaperDetailView'
 import type { Paper } from '../../types/database'
 
@@ -18,6 +18,7 @@ vi.mock('lucide-react', () => ({
   Search: () => <span>SearchIcon</span>,
   Plus: () => <span>PlusIcon</span>,
   Loader2: () => <span>Loader2Icon</span>,
+  AlertTriangle: () => <span>AlertIcon</span>,
 }))
 
 // Mock sub-components
@@ -49,35 +50,48 @@ describe('PaperDetailView', () => {
   })
 
   it('calls onDelete when delete button is clicked and confirmed', async () => {
-    const onDelete = vi.fn()
+    const onDelete = vi.fn().mockResolvedValue(true)
     const onUpdate = vi.fn()
-
-    // Mock window.confirm
-    vi.spyOn(window, 'confirm').mockImplementation(() => true)
 
     render(<PaperDetailView paper={mockPaper} onUpdate={onUpdate} onDelete={onDelete} />)
 
     const deleteButton = screen.getByTitle('Delete paper')
     fireEvent.click(deleteButton)
 
-    expect(window.confirm).toHaveBeenCalled()
-    expect(onDelete).toHaveBeenCalledWith('1')
+    // Check dialog
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+    expect(screen.getByText(/Are you sure you want to delete/)).toBeInTheDocument()
+
+    // Confirm
+    const confirmButton = screen.getByRole('button', { name: 'Delete' })
+    fireEvent.click(confirmButton)
+
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('1')
+    })
   })
 
   it('does not call onDelete when delete button is clicked and cancelled', async () => {
     const onDelete = vi.fn()
     const onUpdate = vi.fn()
 
-    // Mock window.confirm
-    vi.spyOn(window, 'confirm').mockImplementation(() => false)
-
     render(<PaperDetailView paper={mockPaper} onUpdate={onUpdate} onDelete={onDelete} />)
 
     const deleteButton = screen.getByTitle('Delete paper')
     fireEvent.click(deleteButton)
 
-    expect(window.confirm).toHaveBeenCalled()
+    // Check dialog
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+
+    // Cancel
+    const cancelButton = screen.getByRole('button', { name: 'Cancel' })
+    fireEvent.click(cancelButton)
+
     expect(onDelete).not.toHaveBeenCalled()
+    // Dialog should be gone (or closing)
+    await waitFor(() => {
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    })
   })
 
   it('does not render delete button if onDelete is not provided', () => {

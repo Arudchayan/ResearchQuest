@@ -1,13 +1,14 @@
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Plus, MoreHorizontal, Lightbulb, ArrowRight, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAppStore } from "../../store/appStore";
 import { useIdeas } from "../../hooks/useIdeas";
 import { IdeaDetailView } from "../entities/IdeaDetailView";
-import { IdeaStage } from "../../types/database";
+import { IdeaStage, Idea } from "../../types/database";
 import { cn } from "../../lib/utils";
 import * as Dialog from "@radix-ui/react-dialog";
 import { OnboardingGuide } from "../layout/OnboardingGuide";
+import { toast } from "sonner";
 
 const STAGES: { id: IdeaStage; label: string; color: string }[] = [
   { id: "Seed", label: "Seed", color: "bg-emerald-500" },
@@ -18,10 +19,59 @@ const STAGES: { id: IdeaStage; label: string; color: string }[] = [
 
 export function IdeasBoard() {
   const { ideas, selectedIdea, setSelectedIdea } = useAppStore();
-  const { createIdea, updateIdea, deleteIdea } = useIdeas(useAppStore.getState().user?.id);
+  const { createIdea, updateIdea, deleteIdea, restoreIdea } = useIdeas(useAppStore.getState().user?.id);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newIdeaTitle, setNewIdeaTitle] = useState("");
   const [newIdeaDesc, setNewIdeaDesc] = useState("");
+
+  const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastDeletedRef = useRef<Idea | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (undoTimeoutRef.current) {
+        clearTimeout(undoTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  const handleDeleteWithUndo = useCallback(async (ideaId: string) => {
+    const idea = ideas.find(i => i.id === ideaId)
+    const success = await deleteIdea(ideaId)
+
+    if (success && idea) {
+      lastDeletedRef.current = idea
+      if (undoTimeoutRef.current) {
+        clearTimeout(undoTimeoutRef.current)
+      }
+
+      const toastId = toast.success('Idea deleted', {
+        description: 'Undo within 6 seconds to restore it.',
+        duration: 6000,
+        action: {
+          label: 'Undo',
+          onClick: async () => {
+            if (lastDeletedRef.current) {
+              await restoreIdea(lastDeletedRef.current)
+              lastDeletedRef.current = null
+              if (undoTimeoutRef.current) {
+                clearTimeout(undoTimeoutRef.current)
+                undoTimeoutRef.current = null
+              }
+              toast.dismiss(toastId)
+            }
+          },
+        },
+      })
+
+      undoTimeoutRef.current = setTimeout(() => {
+        lastDeletedRef.current = null
+        toast.dismiss(toastId)
+        undoTimeoutRef.current = null
+      }, 6000)
+    }
+    return success
+  }, [deleteIdea, restoreIdea, ideas])
 
   const handleCreate = async () => {
     if (!newIdeaTitle.trim()) return;
@@ -173,7 +223,7 @@ export function IdeasBoard() {
             </button>
           </div>
           <div className="flex-1 overflow-y-auto p-4">
-            <IdeaDetailView idea={selectedIdea} onUpdate={updateIdea} onDelete={deleteIdea} />
+            <IdeaDetailView idea={selectedIdea} onUpdate={updateIdea} onDelete={handleDeleteWithUndo} />
           </div>
         </div>
       )}
