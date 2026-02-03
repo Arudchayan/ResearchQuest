@@ -273,9 +273,34 @@ export function useIdeas(userId: string | undefined) {
       return false
     }
 
-    toast.success('Idea deleted')
     return true
   }, [userId, setIdeas, setSelectedIdea, syncSelectedIdea])
+
+  const restoreIdea = useCallback(async (idea: Idea): Promise<Idea | null> => {
+    const payload = {
+      ...idea,
+      updated_at: new Date().toISOString(),
+    }
+
+    const { data, error: restoreError } = await supabase
+      .from('ideas')
+      .upsert(payload, { onConflict: 'id' })
+      .select()
+      .single()
+
+    if (restoreError) {
+      const errorMessage = restoreError.message || 'Unknown error occurred'
+      toast.error(`Failed to restore idea: ${errorMessage}`)
+      return null
+    }
+
+    const restoredIdea = data as Idea
+    const currentIdeas = useAppStore.getState().ideas
+    setIdeas([restoredIdea, ...currentIdeas.filter((existing) => existing.id !== restoredIdea.id)])
+
+    toast.success('Idea restored')
+    return restoredIdea
+  }, [setIdeas])
 
   return {
     ideas,
@@ -284,6 +309,7 @@ export function useIdeas(userId: string | undefined) {
     createIdea,
     updateIdea,
     deleteIdea,
+    restoreIdea,
     refreshIdeas: fetchIdeas,
   }
 }

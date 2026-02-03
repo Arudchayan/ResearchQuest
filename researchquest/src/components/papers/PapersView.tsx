@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { Plus, Search, BookOpen, X, ArrowUpDown, Users } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { usePapers } from '../../hooks/usePapers'
@@ -9,6 +9,7 @@ import { cn } from '../../lib/utils'
 import * as Dialog from '@radix-ui/react-dialog'
 import { OnboardingGuide } from '../layout/OnboardingGuide'
 import type { Paper } from '../../types/database'
+import { toast } from 'sonner'
 
 type SortOption =
   | 'updated_desc'
@@ -22,10 +23,59 @@ type SortOption =
 
 export function PapersView() {
   const { papers, selectedPaper, setSelectedPaper } = useAppStore()
-  const { createPaper, updatePaper, deletePaper, searchPaperByDOI, searchPapersByQuery } = usePapers(useAppStore.getState().user?.id)
+  const { createPaper, updatePaper, deletePaper, restorePaper, searchPaperByDOI, searchPapersByQuery } = usePapers(useAppStore.getState().user?.id)
   const [searchQuery, setSearchQuery] = useState('')
   const [sortOption, setSortOption] = useState<SortOption>('updated_desc')
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+
+  const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastDeletedRef = useRef<Paper | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (undoTimeoutRef.current) {
+        clearTimeout(undoTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  const handleDeleteWithUndo = useCallback(async (paperId: string) => {
+    const paper = papers.find(p => p.id === paperId)
+    const success = await deletePaper(paperId)
+
+    if (success && paper) {
+      lastDeletedRef.current = paper
+      if (undoTimeoutRef.current) {
+        clearTimeout(undoTimeoutRef.current)
+      }
+
+      const toastId = toast.success('Paper deleted', {
+        description: 'Undo within 6 seconds to restore it.',
+        duration: 6000,
+        action: {
+          label: 'Undo',
+          onClick: async () => {
+            if (lastDeletedRef.current) {
+              await restorePaper(lastDeletedRef.current)
+              lastDeletedRef.current = null
+              if (undoTimeoutRef.current) {
+                clearTimeout(undoTimeoutRef.current)
+                undoTimeoutRef.current = null
+              }
+              toast.dismiss(toastId)
+            }
+          },
+        },
+      })
+
+      undoTimeoutRef.current = setTimeout(() => {
+        lastDeletedRef.current = null
+        toast.dismiss(toastId)
+        undoTimeoutRef.current = null
+      }, 6000)
+    }
+    return success
+  }, [deletePaper, restorePaper, papers])
 
   const handleSelectPaper = useCallback((paper: Paper) => {
     setSelectedPaper(paper)
@@ -170,7 +220,7 @@ export function PapersView() {
             </button>
           </div>
           <div className="flex-1 overflow-y-auto">
-            <PaperDetailView paper={selectedPaper} onUpdate={updatePaper} onDelete={deletePaper} />
+            <PaperDetailView paper={selectedPaper} onUpdate={updatePaper} onDelete={handleDeleteWithUndo} />
           </div>
         </div>
       )}
