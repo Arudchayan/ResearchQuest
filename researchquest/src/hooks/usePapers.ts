@@ -401,9 +401,34 @@ export function usePapers(userId: string | undefined) {
       return false
     }
 
-    toast.success('Paper deleted')
     return true
   }, [setPapers, setSelectedPaper, syncSelectedPaper])
+
+  const restorePaper = useCallback(async (paper: Paper): Promise<Paper | null> => {
+    const payload = {
+      ...paper,
+      updated_at: new Date().toISOString(),
+    }
+
+    const { data, error: restoreError } = await supabase
+      .from('papers')
+      .upsert(payload, { onConflict: 'id' })
+      .select()
+      .single()
+
+    if (restoreError) {
+      const errorMessage = restoreError.message || 'Unknown error occurred'
+      toast.error(`Failed to restore paper: ${errorMessage}`)
+      return null
+    }
+
+    const restoredPaper = data as Paper
+    const currentPapers = useAppStore.getState().papers
+    setPapers(sortByUpdatedAt([restoredPaper, ...currentPapers.filter((existing) => existing.id !== restoredPaper.id)]))
+
+    toast.success('Paper restored')
+    return restoredPaper
+  }, [setPapers])
 
   return {
     papers,
@@ -414,6 +439,7 @@ export function usePapers(userId: string | undefined) {
     createPaper,
     updatePaper,
     deletePaper,
+    restorePaper,
     refreshPapers: fetchPapers,
   }
 }

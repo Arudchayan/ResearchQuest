@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { BookOpen, Calendar, ExternalLink, Edit2, Save, X, Link as LinkIcon, Sparkles, Trash } from 'lucide-react'
 import type { Paper, ReadingStatus } from '../../types/database'
 import { toast } from 'sonner'
 import { isValidUrl } from '../../utils/security'
 import { TopicSelector } from '../topics/TopicSelector'
+import { ConfirmDialog } from '../ui/ConfirmDialog'
 
 interface PaperDetailViewProps {
   paper: Paper
@@ -17,6 +18,15 @@ export function PaperDetailView({ paper, onUpdate, onDelete }: PaperDetailViewPr
   const [editedAuthors, setEditedAuthors] = useState(paper.authors.join(', '))
   const [editedAbstract, setEditedAbstract] = useState(paper.abstract || '')
   const [editedStatus, setEditedStatus] = useState(paper.status)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const isMounted = useRef(true)
+
+  useEffect(() => {
+    return () => {
+      isMounted.current = false
+    }
+  }, [])
   
   useEffect(() => {
     setEditedTitle(paper.title)
@@ -49,10 +59,18 @@ export function PaperDetailView({ paper, onUpdate, onDelete }: PaperDetailViewPr
     setIsEditing(false)
   }
 
-  const handleDelete = async () => {
+  const handleDeleteClick = () => {
+    setShowDeleteConfirm(true)
+  }
+
+  const handleConfirmDelete = async () => {
     if (!onDelete) return
-    if (window.confirm('Are you sure you want to delete this paper? This action cannot be undone.')) {
-      await onDelete(paper.id)
+    setDeleting(true)
+    await onDelete(paper.id)
+
+    if (isMounted.current) {
+        setDeleting(false)
+        setShowDeleteConfirm(false)
     }
   }
   
@@ -88,242 +106,255 @@ export function PaperDetailView({ paper, onUpdate, onDelete }: PaperDetailViewPr
   const progressPercent = Math.round(((statusIndex + 1) / statusOrder.length) * 100)
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <div className="bg-bg-surface rounded-lg border border-border-subtle shadow-sm">
-        {/* Header */}
-        <div className="p-6 border-b border-border-subtle">
-          <div className="flex items-start justify-between gap-4 mb-4">
-            <div className="flex items-center gap-3 flex-1">
-              <div className="p-3 bg-bg-elevated rounded-lg">
-                <BookOpen className="w-6 h-6 text-primary-500" />
+    <>
+      <div className="p-6 max-w-4xl mx-auto">
+        <div className="bg-bg-surface rounded-lg border border-border-subtle shadow-sm">
+          {/* Header */}
+          <div className="p-6 border-b border-border-subtle">
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div className="flex items-center gap-3 flex-1">
+                <div className="p-3 bg-bg-elevated rounded-lg">
+                  <BookOpen className="w-6 h-6 text-primary-500" />
+                </div>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={editedTitle}
+                    onChange={(e) => setEditedTitle(e.target.value)}
+                    maxLength={255}
+                    className="flex-1 text-2xl font-bold text-text-primary bg-bg-base border border-border-subtle rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="Paper title..."
+                  />
+                ) : (
+                  <h1 className="text-2xl font-bold text-text-primary">{paper.title}</h1>
+                )}
               </div>
+
+              <div className="flex items-center gap-2">
+                {isEditing ? (
+                  <>
+                    <button
+                      onClick={handleSave}
+                      className="p-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors"
+                      title="Save changes"
+                    >
+                      <Save className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={handleCancel}
+                      className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
+                      title="Cancel"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setIsEditing(true)}
+                      className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
+                      title="Edit paper"
+                    >
+                      <Edit2 className="w-5 h-5" />
+                    </button>
+                    {onDelete && (
+                      <button
+                        onClick={handleDeleteClick}
+                        className="p-2 bg-bg-elevated text-red-600 dark:text-red-400 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                        title="Delete paper"
+                      >
+                        <Trash className="w-5 h-5" />
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Authors */}
+            <div className="space-y-2 mb-4">
+              <label className="block text-sm font-medium text-text-secondary">
+                Authors
+              </label>
               {isEditing ? (
                 <input
                   type="text"
-                  value={editedTitle}
-                  onChange={(e) => setEditedTitle(e.target.value)}
-                  maxLength={255}
-                  className="flex-1 text-2xl font-bold text-text-primary bg-bg-base border border-border-subtle rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  placeholder="Paper title..."
+                  value={editedAuthors}
+                  onChange={(e) => setEditedAuthors(e.target.value)}
+                  maxLength={1000}
+                  className="w-full px-4 py-2 bg-bg-base border border-border-subtle rounded-md text-body text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  placeholder="Author 1, Author 2, et al."
                 />
               ) : (
-                <h1 className="text-2xl font-bold text-text-primary">{paper.title}</h1>
+                <p className="text-lg text-text-secondary">{paper.authors.join(', ')}</p>
               )}
             </div>
             
-            <div className="flex items-center gap-2">
+            {/* Status Selector */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-text-secondary">
+                Reading Status
+              </label>
               {isEditing ? (
-                <>
-                  <button
-                    onClick={handleSave}
-                    className="p-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors"
-                    title="Save changes"
-                  >
-                    <Save className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={handleCancel}
-                    className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
-                    title="Cancel"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </>
+                <select
+                  value={editedStatus}
+                  onChange={(e) => setEditedStatus(e.target.value as ReadingStatus)}
+                  className={`px-4 py-2 rounded-md border text-sm font-medium ${getStatusColor(editedStatus)} focus:outline-none focus:ring-2 focus:ring-primary-500`}
+                >
+                  <option value="To Read">📚 To Read</option>
+                  <option value="Reading">📖 Reading</option>
+                  <option value="Read">✅ Read</option>
+                </select>
               ) : (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <button
                     onClick={() => setIsEditing(true)}
-                    className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
-                    title="Edit paper"
+                    className={`inline-flex items-center px-4 py-2 rounded-md border text-sm font-medium transition-all ${getStatusColor(paper.status)} hover:ring-2 hover:ring-primary-500`}
+                    title="Click to change status"
                   >
-                    <Edit2 className="w-5 h-5" />
+                    {paper.status === 'To Read' && '📚'}
+                    {paper.status === 'Reading' && '📖'}
+                    {paper.status === 'Read' && '✅'}
+                    <span className="ml-2">{paper.status}</span>
                   </button>
-                  {onDelete && (
-                    <button
-                      onClick={handleDelete}
-                      className="p-2 bg-bg-elevated text-red-600 dark:text-red-400 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                      title="Delete paper"
-                    >
-                      <Trash className="w-5 h-5" />
-                    </button>
-                  )}
+                  <button
+                    onClick={async () => {
+                      // Cycle through statuses
+                      const statusOrder: ReadingStatus[] = ['To Read', 'Reading', 'Read']
+                      const currentIndex = statusOrder.indexOf(paper.status)
+                      const nextStatus = statusOrder[(currentIndex + 1) % statusOrder.length]
+                      await onUpdate(paper.id, { status: nextStatus })
+                    }}
+                    className="px-3 py-2 text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 font-medium transition-colors"
+                  >
+                    Next →
+                  </button>
+                </div>
+              )}
+              <div className="mt-4 space-y-3">
+                <div className="flex items-center justify-between text-caption text-text-tertiary uppercase tracking-wide">
+                  <span>{statusCopy[statusForProgress].title}</span>
+                  <span>{progressPercent}% complete</span>
+                </div>
+                <div className="h-2 bg-bg-base rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-primary-500 via-primary-500 to-primary-600 transition-all"
+                    style={{ width: `${progressPercent}%` }}
+                    aria-hidden
+                  />
+                </div>
+                <p className="text-sm text-text-secondary leading-relaxed">{statusCopy[statusForProgress].helper}</p>
+                <div className="flex items-start gap-3 rounded-lg border border-border-subtle bg-bg-elevated/60 p-3">
+                  <Sparkles className="w-4 h-4 text-primary-500 mt-0.5" />
+                  <p className="text-sm text-text-secondary leading-relaxed">
+                    Updating statuses, linking topics, or finishing summaries all grant XP. Every change is reflected instantly in
+                    Focus Studio so you can track your research momentum.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Abstract */}
+          {(paper.abstract || isEditing) && (
+            <div className="p-6 border-b border-border-subtle">
+              <h2 className="text-lg font-semibold text-text-primary mb-3">Abstract</h2>
+              {isEditing ? (
+                <textarea
+                  value={editedAbstract}
+                  onChange={(e) => setEditedAbstract(e.target.value)}
+                  rows={8}
+                  maxLength={10000}
+                  className="w-full px-4 py-3 bg-bg-base border border-border-subtle rounded-md text-body text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+                  placeholder="Enter or paste the paper's abstract..."
+                />
+              ) : (
+                <div className="prose prose-sm max-w-none dark:prose-invert">
+                  <p className="text-body text-text-secondary leading-relaxed whitespace-pre-wrap">
+                    {paper.abstract}
+                  </p>
                 </div>
               )}
             </div>
-          </div>
-          
-          {/* Authors */}
-          <div className="space-y-2 mb-4">
-            <label className="block text-sm font-medium text-text-secondary">
-              Authors
-            </label>
-            {isEditing ? (
-              <input
-                type="text"
-                value={editedAuthors}
-                onChange={(e) => setEditedAuthors(e.target.value)}
-                maxLength={1000}
-                className="w-full px-4 py-2 bg-bg-base border border-border-subtle rounded-md text-body text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
-                placeholder="Author 1, Author 2, et al."
-              />
-            ) : (
-              <p className="text-lg text-text-secondary">{paper.authors.join(', ')}</p>
-            )}
-          </div>
-          
-          {/* Status Selector */}
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-text-secondary">
-              Reading Status
-            </label>
-            {isEditing ? (
-              <select
-                value={editedStatus}
-                onChange={(e) => setEditedStatus(e.target.value as ReadingStatus)}
-                className={`px-4 py-2 rounded-md border text-sm font-medium ${getStatusColor(editedStatus)} focus:outline-none focus:ring-2 focus:ring-primary-500`}
-              >
-                <option value="To Read">📚 To Read</option>
-                <option value="Reading">📖 Reading</option>
-                <option value="Read">✅ Read</option>
-              </select>
-            ) : (
-              <div className="flex items-center gap-2 flex-wrap">
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className={`inline-flex items-center px-4 py-2 rounded-md border text-sm font-medium transition-all ${getStatusColor(paper.status)} hover:ring-2 hover:ring-primary-500`}
-                  title="Click to change status"
-                >
-                  {paper.status === 'To Read' && '📚'}
-                  {paper.status === 'Reading' && '📖'}
-                  {paper.status === 'Read' && '✅'}
-                  <span className="ml-2">{paper.status}</span>
-                </button>
-                <button
-                  onClick={async () => {
-                    // Cycle through statuses
-                    const statusOrder: ReadingStatus[] = ['To Read', 'Reading', 'Read']
-                    const currentIndex = statusOrder.indexOf(paper.status)
-                    const nextStatus = statusOrder[(currentIndex + 1) % statusOrder.length]
-                    await onUpdate(paper.id, { status: nextStatus })
-                  }}
-                  className="px-3 py-2 text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 font-medium transition-colors"
-                >
-                  Next →
-                </button>
-              </div>
-            )}
-            <div className="mt-4 space-y-3">
-              <div className="flex items-center justify-between text-caption text-text-tertiary uppercase tracking-wide">
-                <span>{statusCopy[statusForProgress].title}</span>
-                <span>{progressPercent}% complete</span>
-              </div>
-              <div className="h-2 bg-bg-base rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-primary-500 via-primary-500 to-primary-600 transition-all"
-                  style={{ width: `${progressPercent}%` }}
-                  aria-hidden
-                />
-              </div>
-              <p className="text-sm text-text-secondary leading-relaxed">{statusCopy[statusForProgress].helper}</p>
-              <div className="flex items-start gap-3 rounded-lg border border-border-subtle bg-bg-elevated/60 p-3">
-                <Sparkles className="w-4 h-4 text-primary-500 mt-0.5" />
-                <p className="text-sm text-text-secondary leading-relaxed">
-                  Updating statuses, linking topics, or finishing summaries all grant XP. Every change is reflected instantly in
-                  Focus Studio so you can track your research momentum.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
+          )}
 
-        {/* Abstract */}
-        {(paper.abstract || isEditing) && (
-          <div className="p-6 border-b border-border-subtle">
-            <h2 className="text-lg font-semibold text-text-primary mb-3">Abstract</h2>
-            {isEditing ? (
-              <textarea
-                value={editedAbstract}
-                onChange={(e) => setEditedAbstract(e.target.value)}
-                rows={8}
-                maxLength={10000}
-                className="w-full px-4 py-3 bg-bg-base border border-border-subtle rounded-md text-body text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
-                placeholder="Enter or paste the paper's abstract..."
-              />
-            ) : (
-              <div className="prose prose-sm max-w-none dark:prose-invert">
-                <p className="text-body text-text-secondary leading-relaxed whitespace-pre-wrap">
-                  {paper.abstract}
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-        
-        {/* Metadata & Links */}
-        <div className="p-6 space-y-4">
-          <TopicSelector entityId={paper.id} entityType="paper" />
+          {/* Metadata & Links */}
+          <div className="p-6 space-y-4">
+            <TopicSelector entityId={paper.id} entityType="paper" />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {paper.publication_date && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {paper.publication_date && (
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-text-tertiary">
+                    <Calendar className="w-4 h-4" />
+                    <span className="text-sm font-medium">Publication Date</span>
+                  </div>
+                  <p className="text-text-primary">{paper.publication_date}</p>
+                </div>
+              )}
+
               <div className="space-y-1">
                 <div className="flex items-center gap-2 text-text-tertiary">
                   <Calendar className="w-4 h-4" />
-                  <span className="text-sm font-medium">Publication Date</span>
+                  <span className="text-sm font-medium">Added to Library</span>
                 </div>
-                <p className="text-text-primary">{paper.publication_date}</p>
+                <p className="text-text-primary">{new Date(paper.created_at).toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                })}</p>
               </div>
-            )}
-            
-            <div className="space-y-1">
-              <div className="flex items-center gap-2 text-text-tertiary">
-                <Calendar className="w-4 h-4" />
-                <span className="text-sm font-medium">Added to Library</span>
-              </div>
-              <p className="text-text-primary">{new Date(paper.created_at).toLocaleDateString('en-US', { 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-              })}</p>
             </div>
-          </div>
-          
-          {/* External Links */}
-          <div className="pt-4 border-t border-border-subtle">
-            <div className="flex flex-wrap gap-3">
-              {paper.doi && (
-                <a
-                  href={`https://doi.org/${paper.doi}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors"
-                >
-                  <LinkIcon className="w-4 h-4" />
-                  View DOI
-                </a>
-              )}
-              {paper.source_url && isValidUrl(paper.source_url) && (
-                <a
-                  href={paper.source_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-bg-elevated text-text-primary border border-border-subtle rounded-md hover:bg-bg-base transition-colors"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                  View Source
-                </a>
-              )}
+            
+            {/* External Links */}
+            <div className="pt-4 border-t border-border-subtle">
+              <div className="flex flex-wrap gap-3">
+                {paper.doi && (
+                  <a
+                    href={`https://doi.org/${paper.doi}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors"
+                  >
+                    <LinkIcon className="w-4 h-4" />
+                    View DOI
+                  </a>
+                )}
+                {paper.source_url && isValidUrl(paper.source_url) && (
+                  <a
+                    href={paper.source_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-bg-elevated text-text-primary border border-border-subtle rounded-md hover:bg-bg-base transition-colors"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    View Source
+                  </a>
+                )}
+              </div>
             </div>
           </div>
         </div>
+
+        {/* Tips Card */}
+        <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-2">💡 Pro Tip</h3>
+          <p className="text-sm text-blue-800 dark:text-blue-400">
+            Update the reading status as you progress through the paper. This helps track your research progress and earns you XP!
+          </p>
+        </div>
       </div>
-      
-      {/* Tips Card */}
-      <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-lg">
-        <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-2">💡 Pro Tip</h3>
-        <p className="text-sm text-blue-800 dark:text-blue-400">
-          Update the reading status as you progress through the paper. This helps track your research progress and earns you XP!
-        </p>
-      </div>
-    </div>
+
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={() => void handleConfirmDelete()}
+        title="Delete paper"
+        message={`Are you sure you want to delete "${paper.title}"? You can undo for a short time after deleting.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        isLoading={deleting}
+      />
+    </>
   )
 }

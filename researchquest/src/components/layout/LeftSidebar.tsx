@@ -116,8 +116,8 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   
   // Get hooks
   const { notes, loading: notesLoading, createNote, updateNote, deleteNote, restoreNote } = useNotes(userId)
-  const { papers, loading: papersLoading, updatePaper, deletePaper } = usePapers(userId)
-  const { ideas, loading: ideasLoading, createIdea, updateIdea, deleteIdea } = useIdeas(userId)
+  const { papers, loading: papersLoading, updatePaper, deletePaper, restorePaper } = usePapers(userId)
+  const { ideas, loading: ideasLoading, createIdea, updateIdea, deleteIdea, restoreIdea } = useIdeas(userId)
   // Determine current loading state
   const loading = useMemo(() => {
     if (currentView === 'notes') return notesLoading
@@ -338,6 +338,17 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
     [restoreNote, setSelectedNote]
   )
 
+  const handleRestorePaper = useCallback(
+    async (paper: Paper) => {
+      const restored = await restorePaper(paper)
+      if (restored) {
+        setSelectedPaper(restored)
+      }
+      return restored
+    },
+    [restorePaper, setSelectedPaper]
+  )
+
   const handleSelectPaper = useCallback((paper: Paper) => {
     setSelectedPaper(paper)
     window.history.pushState(null, '', `/papers/${paper.id}`)
@@ -355,6 +366,17 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   const handleIdeaStageChange = useCallback((id: string, stage: IdeaStage, oldStage: IdeaStage) => {
     updateIdea(id, { stage }, oldStage)
   }, [updateIdea])
+
+  const handleRestoreIdea = useCallback(
+    async (idea: Idea) => {
+      const restored = await restoreIdea(idea)
+      if (restored) {
+        setSelectedIdea(restored)
+      }
+      return restored
+    },
+    [restoreIdea, setSelectedIdea]
+  )
 
   
   // Filter entities by search query (memoized for performance)
@@ -681,6 +703,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
                 loading={loading}
                 onSelectPaper={handleSelectPaper}
                 onDeletePaper={deletePaper}
+                onRestorePaper={handleRestorePaper}
                 onStatusChange={handlePaperStatusChange}
                 selectedPaperId={selectedPaper?.id}
               />
@@ -692,6 +715,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
                 loading={loading}
                 onSelectIdea={handleSelectIdea}
                 onDeleteIdea={deleteIdea}
+                onRestoreIdea={handleRestoreIdea}
                 onStageChange={handleIdeaStageChange}
                 selectedIdeaId={selectedIdea?.id}
               />
