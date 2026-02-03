@@ -25,11 +25,16 @@ export function ConfirmDialog({
   isLoading = false
 }: ConfirmDialogProps) {
   const confirmButtonRef = useRef<HTMLButtonElement>(null)
+  const cancelButtonRef = useRef<HTMLButtonElement>(null)
   
   useEffect(() => {
     if (isOpen) {
-      // Focus confirm button when dialog opens
-      confirmButtonRef.current?.focus()
+      // Focus cancel button for destructive/warning actions, confirm for others
+      if (variant === 'danger' || variant === 'warning') {
+        cancelButtonRef.current?.focus()
+      } else {
+        confirmButtonRef.current?.focus()
+      }
       
       // Lock body scroll
       document.body.style.overflow = 'hidden'
@@ -38,7 +43,7 @@ export function ConfirmDialog({
         document.body.style.overflow = 'unset'
       }
     }
-  }, [isOpen])
+  }, [isOpen, variant])
   
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -130,6 +135,7 @@ export function ConfirmDialog({
         {/* Actions */}
         <div className="flex gap-3 px-6 py-4 bg-bg-elevated border-t border-border-subtle">
           <button
+            ref={cancelButtonRef}
             onClick={onClose}
             disabled={isLoading}
             className="flex-1 px-4 py-2 bg-bg-surface text-text-primary border border-border-subtle rounded-md hover:bg-bg-base transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
