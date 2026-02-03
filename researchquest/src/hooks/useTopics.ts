@@ -342,6 +342,16 @@ export function useTopics(userId: string | undefined) {
         return null
       }
 
+      if (topicData.name.length > 50) {
+        toast.error('Topic name is too long')
+        return null
+      }
+
+      if (topicData.description && topicData.description.length > 500) {
+        toast.error('Topic description is too long')
+        return null
+      }
+
       const payload = {
         user_id: userId,
         name: topicData.name.trim(),
@@ -439,6 +449,16 @@ export function useTopics(userId: string | undefined) {
     async (topicId: string, updates: { name?: string; description?: string }) => {
       if (!userId) {
         toast.error('You must be logged in to update topics')
+        return false
+      }
+
+      if (updates.name && updates.name.length > 50) {
+        toast.error('Topic name is too long')
+        return false
+      }
+
+      if (updates.description && updates.description.length > 500) {
+        toast.error('Topic description is too long')
         return false
       }
 

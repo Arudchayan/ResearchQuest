@@ -17,3 +17,8 @@
 **Vulnerability:** Hardcoded email and password for a test account were found in `AuthScreen.tsx`.
 **Learning:** "Dev-only" features like test logins often leak into production code if not explicitly gated. Hardcoded secrets in source code are a critical risk, even if intended for testing.
 **Prevention:** Removed hardcoded strings. Implemented conditional rendering for the "Test Login" button, checking for `VITE_TEST_EMAIL` and `VITE_TEST_PASSWORD` environment variables. The feature now only activates if explicitly configured in the environment.
+
+## 2025-02-23 - Missing Input Length Limits
+**Vulnerability:** Task and Topic creation endpoints allowed unbounded string inputs, posing a Denial of Service (DoS) risk and potential database issues.
+**Learning:** Frontend `maxLength` attributes are necessary for UX but insufficient for security; backend-adjacent hooks (or backend itself) must enforce limits.
+**Prevention:** Added `maxLength` to inputs and validation logic to `create`/`update` hooks.
