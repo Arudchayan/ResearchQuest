@@ -43,28 +43,30 @@ export function PapersView() {
     })
 
     return filtered.sort((a, b) => {
+      // Optimization: Use string comparison for ISO dates to avoid expensive Date object creation
       switch (sortOption) {
         case 'updated_desc':
-          return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+          return b.updated_at > a.updated_at ? 1 : -1
         case 'updated_asc':
-          return new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime()
+          return a.updated_at > b.updated_at ? 1 : -1
         case 'created_desc':
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          return b.created_at > a.created_at ? 1 : -1
         case 'created_asc':
-          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          return a.created_at > b.created_at ? 1 : -1
         case 'title_asc':
           return (a.title || '').localeCompare(b.title || '')
         case 'title_desc':
           return (b.title || '').localeCompare(a.title || '')
         case 'year_desc': {
-          const yearA = a.publication_date ? new Date(a.publication_date).getFullYear() : 0
-          const yearB = b.publication_date ? new Date(b.publication_date).getFullYear() : 0
+          // Optimization: Parse year from string instead of full Date parsing
+          const yearA = a.publication_date ? parseInt(a.publication_date.substring(0, 4)) || 0 : 0
+          const yearB = b.publication_date ? parseInt(b.publication_date.substring(0, 4)) || 0 : 0
           return yearB - yearA
         }
         case 'year_asc': {
-          const yearA2 = a.publication_date ? new Date(a.publication_date).getFullYear() : 0
-          const yearB2 = b.publication_date ? new Date(b.publication_date).getFullYear() : 0
-          return yearA2 - yearB2
+          const yearA = a.publication_date ? parseInt(a.publication_date.substring(0, 4)) || 0 : 0
+          const yearB = b.publication_date ? parseInt(b.publication_date.substring(0, 4)) || 0 : 0
+          return yearA - yearB
         }
         default:
           return 0
