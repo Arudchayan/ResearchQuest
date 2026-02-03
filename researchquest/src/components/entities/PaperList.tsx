@@ -1,28 +1,23 @@
-import { useState, memo, useCallback } from 'react'
+import { useState, memo, useCallback, useRef, useEffect } from 'react'
 import { Clock, BookOpen, Trash2, ExternalLink } from 'lucide-react'
 import type { Paper, ReadingStatus } from '../../types/database'
 import { ListSkeleton } from '../ui/Skeleton'
+import { ConfirmDialog } from '../ui/ConfirmDialog'
+import { toast } from 'sonner'
 
 interface PaperCardProps {
   paper: Paper
   onSelect: (paper: Paper) => void
-  onDelete: (id: string) => void
+  onDelete: (paper: Paper) => void
   onStatusChange: (id: string, status: ReadingStatus) => void
   isSelected: boolean
 }
 
 const PaperCardComponent = ({ paper, onSelect, onDelete, onStatusChange, isSelected }: PaperCardProps) => {
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  
   const handleDelete = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
-    if (showDeleteConfirm) {
-      onDelete(paper.id)
-    } else {
-      setShowDeleteConfirm(true)
-      setTimeout(() => setShowDeleteConfirm(false), 3000)
-    }
-  }, [showDeleteConfirm, onDelete, paper.id])
+    onDelete(paper)
+  }, [onDelete, paper])
   
   const handleSelect = useCallback(() => {
     onSelect(paper)
@@ -69,10 +64,9 @@ const PaperCardComponent = ({ paper, onSelect, onDelete, onStatusChange, isSelec
         </div>
         <button
           onClick={handleDelete}
-          className={`p-1 rounded hover:bg-bg-elevated transition-colors flex-shrink-0 ${
-            showDeleteConfirm ? 'text-red-500' : 'text-text-tertiary'
-          }`}
-          title={showDeleteConfirm ? 'Click again to confirm' : 'Delete paper'}
+          className="p-1 rounded hover:bg-bg-elevated transition-colors flex-shrink-0 text-text-tertiary"
+          title="Delete paper"
+          aria-label="Delete paper"
         >
           <Trash2 className="w-4 h-4" />
         </button>
@@ -123,13 +117,80 @@ export const PaperCard = memo(PaperCardComponent)
 interface PaperListProps {
   papers: Paper[]
   onSelectPaper: (paper: Paper) => void
-  onDeletePaper: (id: string) => void
+  onDeletePaper: (id: string) => Promise<boolean>
+  onRestorePaper: (paper: Paper) => Promise<Paper | null>
   onStatusChange: (id: string, status: ReadingStatus) => void
   selectedPaperId?: string
   loading?: boolean
 }
 
-export function PaperList({ papers, onSelectPaper, onDeletePaper, onStatusChange, selectedPaperId, loading = false }: PaperListProps) {
+export function PaperList({
+  papers,
+  onSelectPaper,
+  onDeletePaper,
+  onRestorePaper,
+  onStatusChange,
+  selectedPaperId,
+  loading = false
+}: PaperListProps) {
+  const [paperToDelete, setPaperToDelete] = useState<Paper | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastDeletedRef = useRef<Paper | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (undoTimeoutRef.current) {
+        clearTimeout(undoTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  const handleDeleteRequest = useCallback((candidate: Paper) => {
+    setPaperToDelete(candidate)
+  }, [])
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!paperToDelete) return
+    setDeleting(true)
+    const paper = paperToDelete
+    const success = await onDeletePaper(paper.id)
+    setDeleting(false)
+    setPaperToDelete(null)
+
+    if (success) {
+      lastDeletedRef.current = paper
+      if (undoTimeoutRef.current) {
+        clearTimeout(undoTimeoutRef.current)
+      }
+
+      const toastId = toast.success('Paper deleted', {
+        description: 'Undo within 6 seconds to restore it.',
+        duration: 6000,
+        action: {
+          label: 'Undo',
+          onClick: async () => {
+            if (lastDeletedRef.current) {
+              await onRestorePaper(lastDeletedRef.current)
+              lastDeletedRef.current = null
+              if (undoTimeoutRef.current) {
+                clearTimeout(undoTimeoutRef.current)
+                undoTimeoutRef.current = null
+              }
+              toast.dismiss(toastId)
+            }
+          },
+        },
+      })
+
+      undoTimeoutRef.current = setTimeout(() => {
+        lastDeletedRef.current = null
+        toast.dismiss(toastId)
+        undoTimeoutRef.current = null
+      }, 6000)
+    }
+  }, [paperToDelete, onDeletePaper, onRestorePaper])
+
   if (loading) {
     return <ListSkeleton count={5} itemType="paper" />
   }
@@ -145,17 +206,36 @@ export function PaperList({ papers, onSelectPaper, onDeletePaper, onStatusChange
   }
   
   return (
-    <div className="space-y-2">
-      {papers.map((paper) => (
-        <PaperCard
-          key={paper.id}
-          paper={paper}
-          onSelect={onSelectPaper}
-          onDelete={onDeletePaper}
-          onStatusChange={onStatusChange}
-          isSelected={paper.id === selectedPaperId}
-        />
-      ))}
-    </div>
+    <>
+      <div className="space-y-2">
+        {papers.map((paper) => (
+          <PaperCard
+            key={paper.id}
+            paper={paper}
+            onSelect={onSelectPaper}
+            onDelete={handleDeleteRequest}
+            onStatusChange={onStatusChange}
+            isSelected={paper.id === selectedPaperId}
+          />
+        ))}
+      </div>
+
+      <ConfirmDialog
+        isOpen={Boolean(paperToDelete)}
+        onClose={() => {
+          if (!deleting) {
+            setPaperToDelete(null)
+          }
+        }}
+        onConfirm={() => {
+          void handleConfirmDelete()
+        }}
+        title="Delete paper"
+        message={`Are you sure you want to delete "${paperToDelete?.title || 'Untitled Paper'}"? You can undo for a short time after deleting.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        isLoading={deleting}
+      />
+    </>
   )
 }

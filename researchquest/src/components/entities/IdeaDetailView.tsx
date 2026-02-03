@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Lightbulb, Calendar, TrendingUp, Edit2, Save, X, Trash } from 'lucide-react'
 import type { Idea, IdeaStage } from '../../types/database'
-import { supabase } from '../../lib/supabase'
 import { toast } from 'sonner'
 import { TopicSelector } from '../topics/TopicSelector'
+import { ConfirmDialog } from '../ui/ConfirmDialog'
 
 interface IdeaDetailViewProps {
   idea: Idea
@@ -18,6 +18,15 @@ export function IdeaDetailView({ idea, onUpdate, onDelete }: IdeaDetailViewProps
   const [editedStage, setEditedStage] = useState(idea.stage)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const isMounted = useRef(true)
+
+  useEffect(() => {
+    return () => {
+      isMounted.current = false
+    }
+  }, [])
 
   useEffect(() => {
     setEditedTitle(idea.title)
@@ -80,10 +89,18 @@ export function IdeaDetailView({ idea, onUpdate, onDelete }: IdeaDetailViewProps
     setSaveError('')
   }
 
-  const handleDelete = async () => {
+  const handleDeleteClick = () => {
+    setShowDeleteConfirm(true)
+  }
+
+  const handleConfirmDelete = async () => {
     if (!onDelete) return
-    if (window.confirm('Are you sure you want to delete this idea? This action cannot be undone.')) {
-      await onDelete(idea.id)
+    setDeleting(true)
+    await onDelete(idea.id)
+
+    if (isMounted.current) {
+        setDeleting(false)
+        setShowDeleteConfirm(false)
     }
   }
   
@@ -114,178 +131,191 @@ export function IdeaDetailView({ idea, onUpdate, onDelete }: IdeaDetailViewProps
   }
   
   return (
-    <div className="p-4 sm:p-6 max-w-4xl mx-auto">
-      <div className="bg-bg-surface rounded-lg border border-border-subtle shadow-sm">
-        {/* Header */}
-        <div className="p-4 sm:p-6 border-b border-border-subtle">
-          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-4">
-            <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 flex-1">
-              <div className="p-3 bg-bg-elevated rounded-lg">
-                <Lightbulb className="w-6 h-6 text-primary-500" />
+    <>
+      <div className="p-4 sm:p-6 max-w-4xl mx-auto">
+        <div className="bg-bg-surface rounded-lg border border-border-subtle shadow-sm">
+          {/* Header */}
+          <div className="p-4 sm:p-6 border-b border-border-subtle">
+            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-4">
+              <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 flex-1">
+                <div className="p-3 bg-bg-elevated rounded-lg">
+                  <Lightbulb className="w-6 h-6 text-primary-500" />
+                </div>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={editedTitle}
+                    onChange={(e) => setEditedTitle(e.target.value)}
+                    className="flex-1 text-2xl font-bold text-text-primary bg-bg-base border border-border-subtle rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="Idea title..."
+                  />
+                ) : (
+                  <h1 className="text-2xl font-bold text-text-primary">{idea.title}</h1>
+                )}
               </div>
-              {isEditing ? (
-                <input
-                  type="text"
-                  value={editedTitle}
-                  onChange={(e) => setEditedTitle(e.target.value)}
-                  className="flex-1 text-2xl font-bold text-text-primary bg-bg-base border border-border-subtle rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  placeholder="Idea title..."
-                />
-              ) : (
-                <h1 className="text-2xl font-bold text-text-primary">{idea.title}</h1>
-              )}
+
+              <div className="flex items-center gap-2 md:self-start">
+                {isEditing ? (
+                  <>
+                    <button
+                      onClick={handleSave}
+                      disabled={saving}
+                      className="p-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                      title="Save changes"
+                    >
+                      <Save className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={handleCancel}
+                      className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
+                      title="Cancel"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </>
+                ) : (
+                  <div className="flex items-center gap-2 md:self-start">
+                    <button
+                      onClick={() => setIsEditing(true)}
+                      className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
+                      title="Edit idea"
+                    >
+                      <Edit2 className="w-5 h-5" />
+                    </button>
+                    {onDelete && (
+                      <button
+                        onClick={handleDeleteClick}
+                        className="p-2 bg-bg-elevated text-red-600 dark:text-red-400 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                        title="Delete idea"
+                      >
+                        <Trash className="w-5 h-5" />
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
             
-            <div className="flex items-center gap-2 md:self-start">
+            {/* Stage Selector */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-text-secondary">
+                Development Stage
+              </label>
               {isEditing ? (
-                <>
-                  <button
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="p-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                    title="Save changes"
-                  >
-                    <Save className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={handleCancel}
-                    className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
-                    title="Cancel"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </>
+                <select
+                  value={editedStage}
+                  onChange={(e) => setEditedStage(e.target.value as IdeaStage)}
+                  className={`px-4 py-2 rounded-md border text-sm font-medium ${getStageColor(editedStage)} focus:outline-none focus:ring-2 focus:ring-primary-500`}
+                >
+                  <option value="Seed">🌱 Seed</option>
+                  <option value="Developing">🌿 Developing</option>
+                  <option value="Supported">🌳 Supported</option>
+                  <option value="Mature">🏆 Mature</option>
+                </select>
               ) : (
-                <div className="flex items-center gap-2 md:self-start">
-                  <button
-                    onClick={() => setIsEditing(true)}
-                    className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
-                    title="Edit idea"
-                  >
-                    <Edit2 className="w-5 h-5" />
-                  </button>
-                  {onDelete && (
-                    <button
-                      onClick={handleDelete}
-                      className="p-2 bg-bg-elevated text-red-600 dark:text-red-400 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                      title="Delete idea"
-                    >
-                      <Trash className="w-5 h-5" />
-                    </button>
-                  )}
+                <div>
+                  <div className={`inline-flex items-center px-4 py-2 rounded-md border text-sm font-medium ${getStageColor(idea.stage)}`}>
+                    {idea.stage === 'Seed' && '🌱'}
+                    {idea.stage === 'Developing' && '🌿'}
+                    {idea.stage === 'Supported' && '🌳'}
+                    {idea.stage === 'Mature' && '🏆'}
+                    <span className="ml-2">{idea.stage}</span>
+                  </div>
+                  <p className="text-sm text-text-tertiary mt-2">{getStageDescription(idea.stage)}</p>
                 </div>
+              )}
+              {saveError && isEditing && (
+                <p className="text-sm text-destructive">{saveError}</p>
               )}
             </div>
           </div>
           
-          {/* Stage Selector */}
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-text-secondary">
-              Development Stage
-            </label>
+          {/* Description */}
+          <div className="p-4 sm:p-6 border-b border-border-subtle">
+            <h2 className="text-lg font-semibold text-text-primary mb-3">Description</h2>
             {isEditing ? (
-              <select
-                value={editedStage}
-                onChange={(e) => setEditedStage(e.target.value as IdeaStage)}
-                className={`px-4 py-2 rounded-md border text-sm font-medium ${getStageColor(editedStage)} focus:outline-none focus:ring-2 focus:ring-primary-500`}
-              >
-                <option value="Seed">🌱 Seed</option>
-                <option value="Developing">🌿 Developing</option>
-                <option value="Supported">🌳 Supported</option>
-                <option value="Mature">🏆 Mature</option>
-              </select>
+              <textarea
+                value={editedDescription}
+                onChange={(e) => setEditedDescription(e.target.value)}
+                rows={8}
+                className="w-full px-4 py-3 bg-bg-base border border-border-subtle rounded-md text-body text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+                placeholder="Describe your idea in detail..."
+              />
             ) : (
-              <div>
-                <div className={`inline-flex items-center px-4 py-2 rounded-md border text-sm font-medium ${getStageColor(idea.stage)}`}>
-                  {idea.stage === 'Seed' && '🌱'}
-                  {idea.stage === 'Developing' && '🌿'}
-                  {idea.stage === 'Supported' && '🌳'}
-                  {idea.stage === 'Mature' && '🏆'}
-                  <span className="ml-2">{idea.stage}</span>
-                </div>
-                <p className="text-sm text-text-tertiary mt-2">{getStageDescription(idea.stage)}</p>
+              <div className="prose prose-sm max-w-none dark:prose-invert">
+                {idea.description ? (
+                  <p className="text-body text-text-secondary whitespace-pre-wrap">{idea.description}</p>
+                ) : (
+                  <p className="text-body text-text-tertiary italic">No description yet. Click edit to add one.</p>
+                )}
               </div>
             )}
-            {saveError && isEditing && (
-              <p className="text-sm text-destructive">{saveError}</p>
-            )}
           </div>
-        </div>
-        
-        {/* Description */}
-        <div className="p-4 sm:p-6 border-b border-border-subtle">
-          <h2 className="text-lg font-semibold text-text-primary mb-3">Description</h2>
-          {isEditing ? (
-            <textarea
-              value={editedDescription}
-              onChange={(e) => setEditedDescription(e.target.value)}
-              rows={8}
-              className="w-full px-4 py-3 bg-bg-base border border-border-subtle rounded-md text-body text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
-              placeholder="Describe your idea in detail..."
-            />
-          ) : (
-            <div className="prose prose-sm max-w-none dark:prose-invert">
-              {idea.description ? (
-                <p className="text-body text-text-secondary whitespace-pre-wrap">{idea.description}</p>
-              ) : (
-                <p className="text-body text-text-tertiary italic">No description yet. Click edit to add one.</p>
-              )}
-            </div>
-          )}
-        </div>
 
-        <div className="p-4 sm:p-6 border-b border-border-subtle">
-          <TopicSelector entityId={idea.id} entityType="idea" />
-        </div>
+          <div className="p-4 sm:p-6 border-b border-border-subtle">
+            <TopicSelector entityId={idea.id} entityType="idea" />
+          </div>
 
-        {/* Metadata */}
-        <div className="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 text-text-tertiary">
-              <Calendar className="w-4 h-4" />
-              <span className="text-sm font-medium">Created</span>
+          {/* Metadata */}
+          <div className="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-text-tertiary">
+                <Calendar className="w-4 h-4" />
+                <span className="text-sm font-medium">Created</span>
+              </div>
+              <p className="text-text-primary">{new Date(idea.created_at).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              })}</p>
             </div>
-            <p className="text-text-primary">{new Date(idea.created_at).toLocaleDateString('en-US', { 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric' 
-            })}</p>
-          </div>
-          
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 text-text-tertiary">
-              <TrendingUp className="w-4 h-4" />
-              <span className="text-sm font-medium">Last Updated</span>
-            </div>
-            <p className="text-text-primary">{new Date(idea.updated_at).toLocaleDateString('en-US', { 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric' 
-            })}</p>
-          </div>
-          
-          {(idea.linked_note_ids?.length || idea.linked_paper_ids?.length) && (
-            <div className="col-span-full space-y-1">
+
+            <div className="space-y-1">
               <div className="flex items-center gap-2 text-text-tertiary">
                 <TrendingUp className="w-4 h-4" />
-                <span className="text-sm font-medium">Connections</span>
+                <span className="text-sm font-medium">Last Updated</span>
               </div>
-              <p className="text-text-secondary">
-                {idea.linked_note_ids?.length || 0} notes, {idea.linked_paper_ids?.length || 0} papers
-              </p>
+              <p className="text-text-primary">{new Date(idea.updated_at).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              })}</p>
             </div>
-          )}
+
+            {(idea.linked_note_ids?.length || idea.linked_paper_ids?.length) && (
+              <div className="col-span-full space-y-1">
+                <div className="flex items-center gap-2 text-text-tertiary">
+                  <TrendingUp className="w-4 h-4" />
+                  <span className="text-sm font-medium">Connections</span>
+                </div>
+                <p className="text-text-secondary">
+                  {idea.linked_note_ids?.length || 0} notes, {idea.linked_paper_ids?.length || 0} papers
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Tips Card */}
+        <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-2">💡 Tip: Develop Your Idea</h3>
+          <p className="text-sm text-blue-800 dark:text-blue-400">
+            Progress your idea through stages as you gather evidence and develop it further.
+            Link related papers and notes to build a strong foundation for your research.
+          </p>
         </div>
       </div>
-      
-      {/* Tips Card */}
-      <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-lg">
-        <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-2">💡 Tip: Develop Your Idea</h3>
-        <p className="text-sm text-blue-800 dark:text-blue-400">
-          Progress your idea through stages as you gather evidence and develop it further. 
-          Link related papers and notes to build a strong foundation for your research.
-        </p>
-      </div>
-    </div>
+
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={() => void handleConfirmDelete()}
+        title="Delete idea"
+        message={`Are you sure you want to delete "${idea.title}"? You can undo for a short time after deleting.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        isLoading={deleting}
+      />
+    </>
   )
 }

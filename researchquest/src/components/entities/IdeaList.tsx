@@ -1,13 +1,15 @@
-import { useMemo, useState, memo } from 'react'
+import { useMemo, useState, memo, useCallback, useRef, useEffect } from 'react'
 import { Clock, Lightbulb, Trash2, TrendingUp, Search } from 'lucide-react'
 import type { Idea, IdeaStage } from '../../types/database'
 import { ListSkeleton } from '../ui/Skeleton'
 import { highlightMatch } from '../../utils/highlight'
+import { ConfirmDialog } from '../ui/ConfirmDialog'
+import { toast } from 'sonner'
 
 interface IdeaCardProps {
   idea: Idea
   onSelect: (idea: Idea) => void
-  onDelete: (id: string) => void
+  onDelete: (idea: Idea) => void
   onStageChange: (id: string, stage: IdeaStage, oldStage: IdeaStage) => void
   isSelected: boolean
   searchQuery?: string
@@ -22,16 +24,9 @@ const STAGE_FILTER_OPTIONS: { value: IdeaStage | 'all'; label: string }[] = [
 ]
 
 const IdeaCardComponent = ({ idea, onSelect, onDelete, onStageChange, isSelected, searchQuery = '' }: IdeaCardProps) => {
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation()
-    if (showDeleteConfirm) {
-      onDelete(idea.id)
-    } else {
-      setShowDeleteConfirm(true)
-      setTimeout(() => setShowDeleteConfirm(false), 3000)
-    }
+    onDelete(idea)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -74,10 +69,8 @@ const IdeaCardComponent = ({ idea, onSelect, onDelete, onStageChange, isSelected
         </div>
         <button
           onClick={handleDelete}
-          className={`p-1 rounded hover:bg-bg-elevated transition-colors flex-shrink-0 ${
-            showDeleteConfirm ? 'text-red-500' : 'text-text-tertiary'
-          }`}
-          title={showDeleteConfirm ? 'Click again to confirm' : 'Delete idea'}
+          className="p-1 rounded hover:bg-bg-elevated transition-colors flex-shrink-0 text-text-tertiary"
+          title="Delete idea"
           aria-label="Delete idea"
         >
           <Trash2 className="w-4 h-4" />
@@ -128,15 +121,36 @@ export const IdeaCard = memo(IdeaCardComponent)
 interface IdeaListProps {
   ideas: Idea[]
   onSelectIdea: (idea: Idea) => void
-  onDeleteIdea: (id: string) => void
+  onDeleteIdea: (id: string) => Promise<boolean>
+  onRestoreIdea: (idea: Idea) => Promise<Idea | null>
   onStageChange: (id: string, stage: IdeaStage, oldStage: IdeaStage) => void
   selectedIdeaId?: string
   loading?: boolean
 }
 
-export function IdeaList({ ideas, onSelectIdea, onDeleteIdea, onStageChange, selectedIdeaId, loading = false }: IdeaListProps) {
+export function IdeaList({
+  ideas,
+  onSelectIdea,
+  onDeleteIdea,
+  onRestoreIdea,
+  onStageChange,
+  selectedIdeaId,
+  loading = false
+}: IdeaListProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [stageFilter, setStageFilter] = useState<IdeaStage | 'all'>('all')
+  const [ideaToDelete, setIdeaToDelete] = useState<Idea | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastDeletedRef = useRef<Idea | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (undoTimeoutRef.current) {
+        clearTimeout(undoTimeoutRef.current)
+      }
+    }
+  }, [])
 
   const normalizedQuery = searchQuery.trim().toLowerCase()
   const filteredIdeas = useMemo(() => {
@@ -162,6 +176,51 @@ export function IdeaList({ ideas, onSelectIdea, onDeleteIdea, onStageChange, sel
     })
   }, [ideas, normalizedQuery, stageFilter])
 
+  const handleDeleteRequest = useCallback((candidate: Idea) => {
+    setIdeaToDelete(candidate)
+  }, [])
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!ideaToDelete) return
+    setDeleting(true)
+    const idea = ideaToDelete
+    const success = await onDeleteIdea(idea.id)
+    setDeleting(false)
+    setIdeaToDelete(null)
+
+    if (success) {
+      lastDeletedRef.current = idea
+      if (undoTimeoutRef.current) {
+        clearTimeout(undoTimeoutRef.current)
+      }
+
+      const toastId = toast.success('Idea deleted', {
+        description: 'Undo within 6 seconds to restore it.',
+        duration: 6000,
+        action: {
+          label: 'Undo',
+          onClick: async () => {
+            if (lastDeletedRef.current) {
+              await onRestoreIdea(lastDeletedRef.current)
+              lastDeletedRef.current = null
+              if (undoTimeoutRef.current) {
+                clearTimeout(undoTimeoutRef.current)
+                undoTimeoutRef.current = null
+              }
+              toast.dismiss(toastId)
+            }
+          },
+        },
+      })
+
+      undoTimeoutRef.current = setTimeout(() => {
+        lastDeletedRef.current = null
+        toast.dismiss(toastId)
+        undoTimeoutRef.current = null
+      }, 6000)
+    }
+  }, [ideaToDelete, onDeleteIdea, onRestoreIdea])
+
   if (loading) {
     return <ListSkeleton count={5} itemType="idea" />
   }
@@ -177,55 +236,74 @@ export function IdeaList({ ideas, onSelectIdea, onDeleteIdea, onStageChange, sel
   }
 
   return (
-    <div className="space-y-3">
-      <div className="space-y-2">
-        <div className="relative">
-          <Search className="w-4 h-4 text-text-tertiary absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="Filter ideas by keyword..."
-            className="w-full pl-10 pr-3 py-2 border border-border-subtle rounded-md bg-bg-base text-small focus:outline-none focus:ring-2 focus:ring-primary-500"
-            aria-label="Filter ideas"
-          />
+    <>
+      <div className="space-y-3">
+        <div className="space-y-2">
+          <div className="relative">
+            <Search className="w-4 h-4 text-text-tertiary absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Filter ideas by keyword..."
+              className="w-full pl-10 pr-3 py-2 border border-border-subtle rounded-md bg-bg-base text-small focus:outline-none focus:ring-2 focus:ring-primary-500"
+              aria-label="Filter ideas"
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {STAGE_FILTER_OPTIONS.map(({ value, label }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setStageFilter(value)}
+                className={`px-3 py-1.5 rounded-full border text-caption font-medium transition-colors ${
+                  stageFilter === value
+                    ? 'bg-primary-500/10 border-primary-500 text-primary-600'
+                    : 'bg-bg-base border-border-subtle text-text-secondary hover:border-border-moderate'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {STAGE_FILTER_OPTIONS.map(({ value, label }) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setStageFilter(value)}
-              className={`px-3 py-1.5 rounded-full border text-caption font-medium transition-colors ${
-                stageFilter === value
-                  ? 'bg-primary-500/10 border-primary-500 text-primary-600'
-                  : 'bg-bg-base border-border-subtle text-text-secondary hover:border-border-moderate'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+
+        {filteredIdeas.length === 0 ? (
+          <div className="text-center py-10 border border-dashed border-border-subtle rounded-md text-caption text-text-tertiary">
+            No ideas match your filters yet.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {filteredIdeas.map((idea) => (
+              <IdeaCard
+                key={idea.id}
+                idea={idea}
+                onSelect={onSelectIdea}
+                onDelete={handleDeleteRequest}
+                onStageChange={onStageChange}
+                isSelected={idea.id === selectedIdeaId}
+                searchQuery={searchQuery}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
-      {filteredIdeas.length === 0 ? (
-        <div className="text-center py-10 border border-dashed border-border-subtle rounded-md text-caption text-text-tertiary">
-          No ideas match your filters yet.
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {filteredIdeas.map((idea) => (
-            <IdeaCard
-              key={idea.id}
-              idea={idea}
-              onSelect={onSelectIdea}
-              onDelete={onDeleteIdea}
-              onStageChange={onStageChange}
-              isSelected={idea.id === selectedIdeaId}
-              searchQuery={searchQuery}
-            />
-          ))}
-        </div>
-      )}
-    </div>
+      <ConfirmDialog
+        isOpen={Boolean(ideaToDelete)}
+        onClose={() => {
+          if (!deleting) {
+            setIdeaToDelete(null)
+          }
+        }}
+        onConfirm={() => {
+          void handleConfirmDelete()
+        }}
+        title="Delete idea"
+        message={`Are you sure you want to delete "${ideaToDelete?.title || 'Untitled Idea'}"? You can undo for a short time after deleting.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        isLoading={deleting}
+      />
+    </>
   )
 }
