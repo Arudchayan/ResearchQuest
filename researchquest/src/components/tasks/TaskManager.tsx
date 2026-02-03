@@ -359,6 +359,7 @@ export function TaskManager() {
                   value={formTitle}
                   onChange={e => setFormTitle(e.target.value)}
                   placeholder="Enter task title"
+                  maxLength={255}
                   className="w-full px-3 py-2 bg-bg-base border border-border-subtle rounded-md text-body focus:outline-none focus:ring-2 focus:ring-primary-500"
                   autoFocus
                 />
@@ -375,6 +376,7 @@ export function TaskManager() {
                   onChange={e => setFormDescription(e.target.value)}
                   placeholder="Optional task details"
                   rows={3}
+                  maxLength={1000}
                   className="w-full px-3 py-2 bg-bg-base border border-border-subtle rounded-md text-small focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
                 />
               </div>

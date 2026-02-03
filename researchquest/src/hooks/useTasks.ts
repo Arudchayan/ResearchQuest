@@ -118,6 +118,18 @@ export function useTasks(userId: string | undefined) {
       return null
     }
 
+    if (taskData.title.length > 255) {
+      setError('Task title exceeds 255 characters')
+      toast.error('Task title is too long')
+      return null
+    }
+
+    if (taskData.description && taskData.description.length > 1000) {
+      setError('Task description exceeds 1000 characters')
+      toast.error('Task description is too long')
+      return null
+    }
+
     // Clean and prepare the data - only include defined fields
     const cleanData: any = {
       user_id: userId,
@@ -177,6 +189,18 @@ export function useTasks(userId: string | undefined) {
   }
 
   async function updateTask(taskId: string, updates: Partial<Task>): Promise<boolean> {
+    if (updates.title && updates.title.length > 255) {
+      setError('Task title exceeds 255 characters')
+      toast.error('Task title is too long')
+      return false
+    }
+
+    if (updates.description && updates.description.length > 1000) {
+      setError('Task description exceeds 1000 characters')
+      toast.error('Task description is too long')
+      return false
+    }
+
     // Optimistic update
     const sanitizedUpdates: Partial<Task> = { ...updates }
     if (typeof sanitizedUpdates.due_date === 'string') {
