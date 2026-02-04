@@ -35,6 +35,7 @@ export function AppShell({ children }: AppShellProps) {
         <button
           onClick={() => setIsMobileSidebarOpen(false)}
           className="absolute top-4 right-4 p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+          aria-label="Close sidebar"
         >
           <X className="w-5 h-5" />
         </button>
@@ -47,6 +48,7 @@ export function AppShell({ children }: AppShellProps) {
           <button
             onClick={() => setIsMobileSidebarOpen(true)}
             className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 rounded-md"
+            aria-label="Open sidebar"
           >
             <Menu className="w-6 h-6" />
           </button>
