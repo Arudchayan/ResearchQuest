@@ -121,7 +121,11 @@ export function Sidebar() {
           <div className="p-3 bg-white dark:bg-slate-950 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm">
              <div className="flex items-center justify-between mb-2">
                <span className="text-xs font-semibold text-slate-900 dark:text-white">Level {currentLevel}</span>
-               <button onClick={() => setShowXpGuide(true)} className="text-slate-400 hover:text-blue-500">
+               <button
+                 onClick={() => setShowXpGuide(true)}
+                 className="text-slate-400 hover:text-blue-500"
+                 aria-label="Learn about XP and Levels"
+               >
                  <HelpCircle className="w-3.5 h-3.5" />
                </button>
              </div>
@@ -152,6 +156,7 @@ export function Sidebar() {
            <button
              onClick={toggleTheme}
              className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
+             aria-label={effectiveTheme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
            >
              {effectiveTheme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
            </button>
