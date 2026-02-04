@@ -36,6 +36,7 @@ const createMockBuilder = (overrides: any = {}) => {
   if (!builder.select) builder.select = vi.fn().mockReturnValue(builder)
   if (!builder.insert) builder.insert = vi.fn().mockReturnValue(builder)
   if (!builder.update) builder.update = vi.fn().mockReturnValue(builder)
+  if (!builder.delete) builder.delete = vi.fn().mockReturnValue(builder)
   if (!builder.eq) builder.eq = vi.fn().mockReturnValue(builder)
   if (!builder.single) builder.single = vi.fn().mockResolvedValue({ data: null, error: null })
 
@@ -156,5 +157,79 @@ describe('usePapers Security', () => {
         expect(capturedUpdates.length).toBe(1)
         expect(capturedUpdates[0].source_url).toBeUndefined()
     })
+  })
+
+  describe('Authorization', () => {
+    it('should include user_id check in deletePaper', async () => {
+      // Create a mock builder that returns itself on 'eq' so we can capture chained calls
+      const mockBuilder = createMockBuilder()
+      // We need to spy on the 'eq' method of this specific builder instance
+      const eqSpy = vi.spyOn(mockBuilder, 'eq')
+      // Ensure it returns itself for chaining
+      eqSpy.mockReturnValue(mockBuilder)
+
+      mockSupabaseClient.from.mockImplementation((tableName: string) => {
+        if (tableName === 'papers') {
+            return createMockBuilder({
+                delete: vi.fn().mockReturnValue(mockBuilder)
+            })
+        }
+        return createMockBuilder()
+      })
+
+      const { result } = renderHook(() => usePapers('test-user-id'))
+
+      const paperToDelete = { ...mockPaper, id: 'paper-to-delete' }
+      useAppStore.setState({ papers: [paperToDelete] })
+
+      await act(async () => {
+        await result.current.deletePaper('paper-to-delete')
+      })
+
+      const calls = eqSpy.mock.calls
+
+      const hasIdCheck = calls.some(call => call[0] === 'id' && call[1] === 'paper-to-delete')
+      const hasUserIdCheck = calls.some(call => call[0] === 'user_id' && call[1] === 'test-user-id')
+
+      expect(hasIdCheck).toBe(true)
+      expect(hasUserIdCheck).toBe(true)
+    })
+
+    it('should include user_id check in updatePaper', async () => {
+        const mockBuilder = createMockBuilder()
+        const eqSpy = vi.spyOn(mockBuilder, 'eq')
+        eqSpy.mockReturnValue(mockBuilder)
+
+        // Mock the end of the chain
+        mockBuilder.select.mockReturnValue(createMockBuilder({
+            single: vi.fn().mockResolvedValue({ data: { ...mockPaper, id: 'paper-to-update' }, error: null })
+        }))
+
+        mockSupabaseClient.from.mockImplementation((tableName: string) => {
+          if (tableName === 'papers') {
+              return createMockBuilder({
+                  update: vi.fn().mockReturnValue(mockBuilder)
+              })
+          }
+          return createMockBuilder()
+        })
+
+        const { result } = renderHook(() => usePapers('test-user-id'))
+
+        const paperToUpdate = { ...mockPaper, id: 'paper-to-update' }
+        useAppStore.setState({ papers: [paperToUpdate] })
+
+        await act(async () => {
+          await result.current.updatePaper('paper-to-update', { title: 'New Title' })
+        })
+
+        const calls = eqSpy.mock.calls
+
+        const hasIdCheck = calls.some(call => call[0] === 'id' && call[1] === 'paper-to-update')
+        const hasUserIdCheck = calls.some(call => call[0] === 'user_id' && call[1] === 'test-user-id')
+
+        expect(hasIdCheck).toBe(true)
+        expect(hasUserIdCheck).toBe(true)
+      })
   })
 })
