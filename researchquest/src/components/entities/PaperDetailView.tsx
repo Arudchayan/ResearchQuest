@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
-import { BookOpen, Calendar, ExternalLink, Edit2, Save, X, Link as LinkIcon, Sparkles, Trash } from 'lucide-react'
+import { BookOpen, Calendar, ExternalLink, Edit2, Save, X, Link as LinkIcon, Sparkles, Trash, Quote } from 'lucide-react'
 import type { Paper, ReadingStatus } from '../../types/database'
 import { toast } from 'sonner'
 import { isValidUrl } from '../../utils/security'
 import { TopicSelector } from '../topics/TopicSelector'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
+import { CitationDialog } from '../papers/CitationDialog'
 
 interface PaperDetailViewProps {
   paper: Paper
@@ -19,6 +20,7 @@ export function PaperDetailView({ paper, onUpdate, onDelete }: PaperDetailViewPr
   const [editedAbstract, setEditedAbstract] = useState(paper.abstract || '')
   const [editedStatus, setEditedStatus] = useState(paper.status)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showCitation, setShowCitation] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const isMounted = useRef(true)
 
@@ -156,6 +158,13 @@ export function PaperDetailView({ paper, onUpdate, onDelete }: PaperDetailViewPr
                       title="Edit paper"
                     >
                       <Edit2 className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => setShowCitation(true)}
+                      className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
+                      title="Cite paper"
+                    >
+                      <Quote className="w-5 h-5" />
                     </button>
                     {onDelete && (
                       <button
@@ -354,6 +363,12 @@ export function PaperDetailView({ paper, onUpdate, onDelete }: PaperDetailViewPr
         confirmText="Delete"
         cancelText="Cancel"
         isLoading={deleting}
+      />
+
+      <CitationDialog
+        paper={paper}
+        isOpen={showCitation}
+        onOpenChange={setShowCitation}
       />
     </>
   )
