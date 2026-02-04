@@ -115,12 +115,14 @@ export function TaskManager() {
         if (aDue !== bDue) {
           return aDue - bDue
         }
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        // Optimization: Use string comparison for ISO dates
+        return b.created_at > a.created_at ? 1 : -1
       })
     }
 
     if (sortOption === 'recent') {
-      return list.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      // Optimization: Use string comparison for ISO dates
+      return list.sort((a, b) => (b.created_at > a.created_at ? 1 : -1))
     }
 
     return list.sort((a, b) => {
@@ -129,7 +131,8 @@ export function TaskManager() {
       if (aDue !== bDue) {
         return aDue - bDue
       }
-      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      // Optimization: Use string comparison for ISO dates
+      return a.created_at > b.created_at ? 1 : -1
     })
   }, [filteredTasks, sortOption])
 

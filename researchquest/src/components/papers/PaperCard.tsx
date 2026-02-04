@@ -57,7 +57,8 @@ export const PaperCard = React.memo(function PaperCard({ paper, onSelect }: Pape
       <div className="flex items-center gap-4 text-xs text-slate-400">
         <div className="flex items-center gap-1">
           <Calendar className="w-3 h-3" />
-          <span>{paper.publication_date ? new Date(paper.publication_date).getFullYear() : 'N/A'}</span>
+          {/* Optimization: Parse year from string instead of full Date parsing */}
+          <span>{paper.publication_date ? parseInt(paper.publication_date.substring(0, 4)) || 'N/A' : 'N/A'}</span>
         </div>
       </div>
     </div>

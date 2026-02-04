@@ -31,12 +31,14 @@ export function useTasks(userId: string | undefined) {
       const bDue = bDueDate ? bDueDate.getTime() : null
 
       if (aDue === null && bDue === null) {
-        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        // Optimization: Use string comparison for ISO dates
+        return a.created_at > b.created_at ? 1 : -1
       }
       if (aDue === null) return 1
       if (bDue === null) return -1
       if (aDue === bDue) {
-        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        // Optimization: Use string comparison for ISO dates
+        return a.created_at > b.created_at ? 1 : -1
       }
       return aDue - bDue
     })
