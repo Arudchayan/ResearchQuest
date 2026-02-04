@@ -307,6 +307,12 @@ export function usePapers(userId: string | undefined) {
   }, [userId, setPapers])
 
   const updatePaper = useCallback(async (paperId: string, updates: Partial<Paper>): Promise<boolean> => {
+    if (!userId) {
+      setError('User not authenticated')
+      toast.error('You must be logged in to update papers')
+      return false
+    }
+
     if (updates.source_url) {
       const url = updates.source_url.trim()
       if (isValidUrl(url)) {
@@ -337,6 +343,7 @@ export function usePapers(userId: string | undefined) {
       .from('papers')
       .update(updates)
       .eq('id', paperId)
+      .eq('user_id', userId)
       .select()
       .single()
 
@@ -375,6 +382,12 @@ export function usePapers(userId: string | undefined) {
   }, [userId, setPapers, syncSelectedPaper])
 
   const deletePaper = useCallback(async (paperId: string): Promise<boolean> => {
+    if (!userId) {
+      setError('User not authenticated')
+      toast.error('You must be logged in to delete papers')
+      return false
+    }
+
     const papers = useAppStore.getState().papers // Get fresh state
     const deletedPaper = papers.find(p => p.id === paperId)
 
@@ -388,6 +401,7 @@ export function usePapers(userId: string | undefined) {
       .from('papers')
       .delete()
       .eq('id', paperId)
+      .eq('user_id', userId)
 
     if (deleteError) {
       setError(deleteError.message)
