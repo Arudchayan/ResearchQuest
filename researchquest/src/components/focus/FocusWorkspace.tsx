@@ -162,7 +162,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
           .map((paper) => ({
             id: paper.id,
             title: paper.title,
-            meta: paper.publication_date ? new Date(paper.publication_date).getFullYear().toString() : 'No year',
+            meta: paper.publication_date ? (parseInt(paper.publication_date.substring(0, 4)) || 'No year').toString() : 'No year',
           })),
       },
       {
