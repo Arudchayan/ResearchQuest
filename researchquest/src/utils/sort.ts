@@ -1,11 +1,9 @@
-export function getUpdatedAtTimestamp(value: string | null | undefined): number {
-  if (!value) return 0
-  const timestamp = Date.parse(value)
-  return Number.isNaN(timestamp) ? 0 : timestamp
-}
-
 export function sortByUpdatedAt<T extends { updated_at: string | null | undefined }>(items: T[]): T[] {
-  return [...items].sort(
-    (a, b) => getUpdatedAtTimestamp(b.updated_at) - getUpdatedAtTimestamp(a.updated_at)
-  )
+  // Optimization: Use string comparison for ISO dates to avoid expensive Date object creation
+  return [...items].sort((a, b) => {
+    const timeA = a.updated_at || ''
+    const timeB = b.updated_at || ''
+    if (timeA === timeB) return 0
+    return timeB > timeA ? 1 : -1
+  })
 }
