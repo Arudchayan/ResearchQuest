@@ -22,3 +22,8 @@
 **Vulnerability:** Task and Topic creation endpoints allowed unbounded string inputs, posing a Denial of Service (DoS) risk and potential database issues.
 **Learning:** Frontend `maxLength` attributes are necessary for UX but insufficient for security; backend-adjacent hooks (or backend itself) must enforce limits.
 **Prevention:** Added `maxLength` to inputs and validation logic to `create`/`update` hooks.
+
+## 2025-05-21 - Recurrence of Information Leakage in Task Hooks
+**Vulnerability:** `useTasks.ts` was found logging full error objects using `JSON.stringify(error, null, 2)` to `console.error`, exposing potential database schema details and internal error codes.
+**Learning:** Security fixes (like the one on 2025-01-28) must be applied systematically across the entire codebase, not just in isolated files. Copy-paste coding can reintroduce previously fixed vulnerabilities.
+**Prevention:** Audit all hooks for `JSON.stringify` usage in error handling. Replaced vulnerable logging in `useTasks.ts` with safe `error.message` logging. Added `useTasksSecurity.test.ts` to prevent regression.
