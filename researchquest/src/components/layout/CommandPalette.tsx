@@ -10,7 +10,8 @@ import {
   Moon,
   Sun,
   Search,
-  Download
+  Download,
+  Keyboard
 } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { useNotes } from '../../hooks/useNotes'
@@ -39,9 +40,20 @@ export function CommandPalette() {
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      if ((e.key === 'k' && (e.metaKey || e.ctrlKey)) || e.key === '/') {
+      if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault()
         setOpen((open) => !open)
+      } else if (e.key === '/') {
+        const target = e.target as HTMLElement
+        const isInput =
+          target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable
+
+        if (!isInput) {
+          e.preventDefault()
+          setOpen((open) => !open)
+        }
       }
     }
 
@@ -156,6 +168,16 @@ export function CommandPalette() {
           <Command.Item onSelect={toggleTheme}>
             {effectiveTheme === 'light' ? <Moon /> : <Sun />}
             <span>Toggle Theme</span>
+          </Command.Item>
+
+          <Command.Item
+            onSelect={() => {
+              document.dispatchEvent(new CustomEvent('open-shortcuts-help'))
+              setOpen(false)
+            }}
+          >
+            <Keyboard />
+            <span>Keyboard Shortcuts</span>
           </Command.Item>
         </Command.Group>
 
