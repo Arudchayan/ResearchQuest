@@ -166,9 +166,8 @@ export function useTasks(userId: string | undefined) {
       .single()
 
     if (createError) {
-      console.error('Failed to create task:', createError)
-      console.error('Error details:', JSON.stringify(createError, null, 2))
-      console.error('Task data that failed:', cleanData)
+      // Sentinel: Prevent information leakage by logging only the message
+      console.error('Failed to create task:', createError.message || 'Unknown error')
       
       const errorMessage = createError.message || createError.details || createError.hint || 'Unknown error occurred'
       setError(`Failed to create task: ${errorMessage}`)
@@ -222,8 +221,8 @@ export function useTasks(userId: string | undefined) {
       .eq('id', taskId)
 
     if (updateError) {
-      console.error('Failed to update task:', updateError)
-      console.error('Error details:', JSON.stringify(updateError, null, 2))
+      // Sentinel: Prevent information leakage
+      console.error('Failed to update task:', updateError.message || 'Unknown error')
 
       const errorMessage = updateError.message || updateError.details || updateError.hint || 'Unknown error occurred'
       setError(`Failed to update task: ${errorMessage}`)
@@ -255,8 +254,8 @@ export function useTasks(userId: string | undefined) {
       .eq('id', taskId)
 
     if (updateError) {
-      console.error('Failed to complete/uncomplete task:', updateError)
-      console.error('Error details:', JSON.stringify(updateError, null, 2))
+      // Sentinel: Prevent information leakage
+      console.error('Failed to complete/uncomplete task:', updateError.message || 'Unknown error')
       
       const errorMessage = updateError.message || updateError.details || updateError.hint || 'Unknown error occurred'
       setError(`Failed to update task: ${errorMessage}`)
@@ -290,8 +289,8 @@ export function useTasks(userId: string | undefined) {
       .eq('id', taskId)
 
     if (deleteError) {
-      console.error('Failed to delete task:', deleteError)
-      console.error('Error details:', JSON.stringify(deleteError, null, 2))
+      // Sentinel: Prevent information leakage
+      console.error('Failed to delete task:', deleteError.message || 'Unknown error')
       
       const errorMessage = deleteError.message || deleteError.details || deleteError.hint || 'Unknown error occurred'
       setError(`Failed to delete task: ${errorMessage}`)
