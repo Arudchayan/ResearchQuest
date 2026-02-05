@@ -16,6 +16,7 @@ import { useIdeas } from './hooks/useIdeas'
 import { useDataSync } from './hooks/useDataSync'
 import { OnboardingGuide } from './components/layout/OnboardingGuide'
 import { CommandPalette } from './components/layout/CommandPalette'
+import { ShortcutsDialog } from './components/layout/ShortcutsDialog'
 
 export function AuthScreen() {
   const [email, setEmail] = useState('')
@@ -396,6 +397,7 @@ function App() {
   return (
     <div className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100">
       <CommandPalette />
+      <ShortcutsDialog />
 
       <Toaster
         position="top-right"
