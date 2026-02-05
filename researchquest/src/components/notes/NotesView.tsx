@@ -4,12 +4,14 @@ import { useAppStore } from '../../store/appStore'
 import { useNotes } from '../../hooks/useNotes'
 import { MarkdownEditor } from '../editor/MarkdownEditor'
 import { NoteCard } from './NoteCard'
+import { ConfirmDialog, useConfirmDialog } from '../ui/ConfirmDialog'
 import type { Note } from '../../types/database'
 
 export function NotesView() {
   const { notes, selectedNote, setSelectedNote } = useAppStore()
   const { createNote, deleteNote } = useNotes(useAppStore.getState().user?.id)
   const [searchQuery, setSearchQuery] = useState('')
+  const { confirm, isOpen, config } = useConfirmDialog()
 
   const filteredNotes = useMemo(() => notes.filter(note => {
     const query = searchQuery.toLowerCase()
@@ -30,13 +32,20 @@ export function NotesView() {
   }
 
   const handleDeleteNote = useCallback(async (noteId: string) => {
-    if (window.confirm('Are you sure you want to delete this note?')) {
+    const shouldDelete = await confirm({
+      title: 'Delete Note',
+      message: 'Are you sure you want to delete this note?',
+      variant: 'danger',
+      confirmText: 'Delete'
+    })
+
+    if (shouldDelete) {
       await deleteNote(noteId)
       if (selectedNote?.id === noteId) {
         setSelectedNote(null)
       }
     }
-  }, [deleteNote, selectedNote?.id, setSelectedNote])
+  }, [confirm, deleteNote, selectedNote?.id, setSelectedNote])
 
   const handleSelectNote = useCallback((note: Note) => {
      setSelectedNote(note)
@@ -107,6 +116,18 @@ export function NotesView() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={isOpen}
+        onClose={config.onClose || (() => {})}
+        onConfirm={config.onConfirm || (() => {})}
+        title={config.title || ''}
+        message={config.message || ''}
+        confirmText={config.confirmText}
+        cancelText={config.cancelText}
+        variant={config.variant}
+        isLoading={config.isLoading}
+      />
     </div>
   )
 }
