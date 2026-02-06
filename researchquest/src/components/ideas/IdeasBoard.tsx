@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Plus, MoreHorizontal, Lightbulb, ArrowRight, X } from "lucide-react";
+import { Plus, Trash2, Lightbulb, ArrowRight, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAppStore } from "../../store/appStore";
 import { useIdeas } from "../../hooks/useIdeas";
@@ -9,6 +9,7 @@ import { cn } from "../../lib/utils";
 import * as Dialog from "@radix-ui/react-dialog";
 import { OnboardingGuide } from "../layout/OnboardingGuide";
 import { toast } from "sonner";
+import { ConfirmDialog } from "../ui/ConfirmDialog";
 
 const STAGES: { id: IdeaStage; label: string; color: string }[] = [
   { id: "Seed", label: "Seed", color: "bg-emerald-500" },
@@ -23,6 +24,8 @@ export function IdeasBoard() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newIdeaTitle, setNewIdeaTitle] = useState("");
   const [newIdeaDesc, setNewIdeaDesc] = useState("");
+  const [ideaToDelete, setIdeaToDelete] = useState<Idea | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastDeletedRef = useRef<Idea | null>(null)
@@ -100,6 +103,17 @@ export function IdeasBoard() {
     }
   };
 
+  const confirmDelete = async () => {
+    if (!ideaToDelete) return;
+    setIsDeleting(true);
+    try {
+      await handleDeleteWithUndo(ideaToDelete.id);
+    } finally {
+      setIsDeleting(false);
+      setIdeaToDelete(null);
+    }
+  };
+
   return (
     <div className="flex h-full bg-slate-50 dark:bg-slate-900 overflow-hidden">
       <div className="flex-1 flex flex-col min-w-0">
@@ -158,17 +172,28 @@ export function IdeasBoard() {
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, scale: 0.9 }}
                           onClick={() => setSelectedIdea(idea)}
-                          className="group bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md cursor-pointer transition-all hover:border-blue-400 dark:hover:border-blue-500"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setSelectedIdea(idea);
+                            }
+                          }}
+                          tabIndex={0}
+                          className="group bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md cursor-pointer transition-all hover:border-blue-400 dark:hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
                           <div className="flex items-start justify-between mb-2">
                             <h4 className="font-medium text-slate-900 dark:text-white line-clamp-2 leading-snug">
                               {idea.title}
                             </h4>
                             <button
-                              aria-label="More options"
-                              className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-slate-600 transition-opacity"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setIdeaToDelete(idea);
+                              }}
+                              aria-label={`Delete ${idea.title}`}
+                              className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all rounded"
                             >
-                              <MoreHorizontal className="w-4 h-4" />
+                              <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
 
@@ -183,7 +208,7 @@ export function IdeasBoard() {
                                   handleMoveStage(e, idea.id, idea.stage)
                                 }
                                 aria-label="Advance idea to next stage"
-                                className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity"
                               >
                                 Advance <ArrowRight className="w-3 h-3" />
                               </button>
@@ -293,6 +318,23 @@ export function IdeasBoard() {
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
+
+      <ConfirmDialog
+        isOpen={Boolean(ideaToDelete)}
+        onClose={() => {
+          if (!isDeleting) {
+            setIdeaToDelete(null);
+          }
+        }}
+        onConfirm={() => {
+          void confirmDelete();
+        }}
+        title="Delete idea"
+        message={`Are you sure you want to delete "${ideaToDelete?.title || "Untitled Idea"}"? You can undo for a short time after deleting.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        isLoading={isDeleting}
+      />
     </div>
   );
 }
