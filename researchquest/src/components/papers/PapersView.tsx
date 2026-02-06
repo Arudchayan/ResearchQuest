@@ -28,6 +28,8 @@ export function PapersView() {
   const [sortOption, setSortOption] = useState<SortOption>('updated_desc')
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
 
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
   const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastDeletedRef = useRef<Paper | null>(null)
 
@@ -146,13 +148,26 @@ export function PapersView() {
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
             <input
+              ref={searchInputRef}
               type="text"
               placeholder="Search library..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-9 pr-10 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               aria-label="Search papers"
             />
+            {searchQuery && (
+              <button
+                onClick={() => {
+                  setSearchQuery('')
+                  searchInputRef.current?.focus()
+                }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                aria-label="Clear search"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
