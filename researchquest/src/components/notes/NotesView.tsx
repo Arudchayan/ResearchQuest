@@ -14,13 +14,16 @@ export function NotesView() {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const { confirm, isOpen, config } = useConfirmDialog()
 
-  const filteredNotes = useMemo(() => notes.filter(note => {
+  const filteredNotes = useMemo(() => {
+    // Optimization: Calculate query lowercasing once outside the loop to avoid redundant operations
     const query = searchQuery.toLowerCase()
-    return (
-      (note.title && note.title.toLowerCase().includes(query)) ||
-      (note.markdown_body && note.markdown_body.toLowerCase().includes(query))
-    )
-  }), [notes, searchQuery])
+    return notes.filter(note => {
+      return (
+        (note.title && note.title.toLowerCase().includes(query)) ||
+        (note.markdown_body && note.markdown_body.toLowerCase().includes(query))
+      )
+    })
+  }, [notes, searchQuery])
 
   const handleCreateNote = async () => {
     const newNote = await createNote({
