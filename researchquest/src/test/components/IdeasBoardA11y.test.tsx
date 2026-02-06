@@ -50,16 +50,16 @@ describe("IdeasBoard Accessibility", () => {
     expect(screen.getByText("New Idea")).toBeInTheDocument();
   });
 
-  it("renders idea cards with accessible menu button", () => {
+  it("renders idea cards with accessible delete button", () => {
     mockUseAppStore.mockReturnValue(defaultStore);
     render(<IdeasBoard />);
     expect(screen.getByText("Test Idea")).toBeInTheDocument();
 
-    // Check for accessible "More options" button
-    const moreOptionsBtns = screen.getAllByRole("button", {
-      name: /more options/i,
+    // Check for accessible "Delete" button
+    const deleteBtns = screen.getAllByRole("button", {
+      name: /delete/i,
     });
-    expect(moreOptionsBtns.length).toBeGreaterThan(0);
+    expect(deleteBtns.length).toBeGreaterThan(0);
   });
 
   it('renders "Advance" button with accessible label', () => {
