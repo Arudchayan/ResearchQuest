@@ -27,11 +27,11 @@ vi.mock('../../utils/gamification', () => ({
 // Helper to create a complete mock builder that supports chaining
 const createMockBuilder = (overrides: any = {}) => {
   const builder: any = {
-    ...overrides,
     then: ((onFulfilled?: (value: any) => any) => {
       const result = { data: null, error: null }
       return Promise.resolve(result).then(onFulfilled)
     }) as any,
+    ...overrides,
   }
 
   // Define chaining methods that return the builder itself (if not overridden)
@@ -228,13 +228,8 @@ describe('usePapers Hook', () => {
       const initialPaper: Paper = mockPaper
       useAppStore.setState({ papers: [initialPaper] })
 
-      mockSupabaseClient.from.mockImplementation(() => createMockBuilder({
-        delete: vi.fn().mockReturnValue(createMockBuilder({
-            eq: vi.fn().mockImplementation(() => {
-                return Promise.resolve({ data: null, error: null })
-            })
-        }))
-      }))
+      // Default mock builder handles chaining and returns success
+      mockSupabaseClient.from.mockImplementation(() => createMockBuilder())
 
       const { result } = renderHook(() => usePapers('test-user-id'))
 
@@ -251,10 +246,15 @@ describe('usePapers Hook', () => {
       const initialPaper: Paper = mockPaper
       useAppStore.setState({ papers: [initialPaper] })
 
+      // Create a builder that resolves to an error
+      const errorBuilder = createMockBuilder({
+          then: ((onFulfilled?: (value: any) => any) => {
+              return Promise.resolve({ data: null, error: { message: 'Delete failed' } }).then(onFulfilled)
+          }) as any
+      })
+
       mockSupabaseClient.from.mockImplementation(() => createMockBuilder({
-        delete: vi.fn().mockReturnValue(createMockBuilder({
-            eq: vi.fn().mockResolvedValue({ error: { message: 'Delete failed' } })
-        }))
+        delete: vi.fn().mockReturnValue(errorBuilder)
       }))
 
       const { result } = renderHook(() => usePapers('test-user-id'))
