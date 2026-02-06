@@ -173,7 +173,7 @@ export function useTopics(userId: string | undefined) {
     }
 
     if (fetchError) {
-      console.error('Failed to fetch topics:', fetchError)
+      console.error('Failed to fetch topics:', fetchError.message || 'Unknown error')
       setError(fetchError.message)
       setTopics([])
     } else if (isTopicRowArray(data)) {
@@ -213,7 +213,7 @@ export function useTopics(userId: string | undefined) {
       }
 
       if (fetchError) {
-        console.error('Failed to refresh topic:', fetchError)
+        console.error('Failed to refresh topic:', fetchError.message || 'Unknown error')
         return
       }
 
@@ -242,7 +242,7 @@ export function useTopics(userId: string | undefined) {
       .order('created_at', { ascending: false })
 
     if (questError) {
-      console.error('Failed to fetch topic quests:', questError)
+      console.error('Failed to fetch topic quests:', questError.message || 'Unknown error')
     } else {
       const questRows = (data || []).map((row) => mapQuestRow(row as TopicQuestRow))
       setQuests(questRows)
@@ -273,7 +273,7 @@ export function useTopics(userId: string | undefined) {
       .single()
 
     if (insertError) {
-      console.error('Failed to create topic quest:', insertError)
+      console.error('Failed to create topic quest:', insertError.message || 'Unknown error')
       return
     }
 
@@ -303,7 +303,7 @@ export function useTopics(userId: string | undefined) {
             const supports = await tableSupportsUserId(table)
             return { type, supports }
           } catch (error) {
-            console.error(`Failed to detect user_id support for ${table}`, error)
+            console.error(`Failed to detect user_id support for ${table}`, (error as Error).message || error)
             return { type, supports: linkSupportsUserIdRef.current[type] }
           }
         })
@@ -364,7 +364,7 @@ export function useTopics(userId: string | undefined) {
         .single()
 
       if (insertError) {
-        console.error('Failed to create topic:', insertError)
+        console.error('Failed to create topic:', insertError.message || 'Unknown error')
         toast.error(insertError.message)
         return null
       }
@@ -421,7 +421,7 @@ export function useTopics(userId: string | undefined) {
         .single()
 
       if (progressError) {
-        console.error('Failed to update quest progress:', progressError)
+        console.error('Failed to update quest progress:', progressError.message || 'Unknown error')
         return
       }
 
@@ -476,7 +476,7 @@ export function useTopics(userId: string | undefined) {
         .eq('id', topicId)
 
       if (updateError) {
-        console.error('Failed to update topic:', updateError)
+        console.error('Failed to update topic:', updateError.message || 'Unknown error')
         toast.error(updateError.message)
         return false
       }
@@ -503,7 +503,7 @@ export function useTopics(userId: string | undefined) {
         .eq('id', topicId)
 
       if (deleteError) {
-        console.error('Failed to delete topic:', deleteError)
+        console.error('Failed to delete topic:', deleteError.message || 'Unknown error')
         toast.error(deleteError.message)
         return false
       }
@@ -559,7 +559,7 @@ export function useTopics(userId: string | undefined) {
           linkSupportsUserIdRef.current[entityType] = false
           return attachTopicToEntity(topicId, entityId, entityType)
         }
-        console.error('Failed to link topic:', upsertError)
+        console.error('Failed to link topic:', upsertError.message || 'Unknown error')
         toast.error(upsertError.message)
         return false
       }
@@ -600,7 +600,7 @@ export function useTopics(userId: string | undefined) {
       const { error: deleteError } = await query
 
       if (deleteError) {
-        console.error('Failed to unlink topic:', deleteError)
+        console.error('Failed to unlink topic:', deleteError.message || 'Unknown error')
         toast.error(deleteError.message)
         return false
       }
@@ -641,7 +641,7 @@ export function useTopics(userId: string | undefined) {
       const { data, error: fetchError } = await query
 
       if (fetchError) {
-        console.error('Failed to fetch topic links:', fetchError)
+        console.error('Failed to fetch topic links:', fetchError.message || 'Unknown error')
         return []
       }
 
