@@ -38,7 +38,7 @@ vi.mock('../../store/appStore', () => {
   }
 
   const useAppStore = () => mockState
-  // @ts-ignore
+  // @ts-expect-error - mock injection
   useAppStore.getState = () => mockState
 
   return { useAppStore }
