@@ -27,3 +27,8 @@
 **Vulnerability:** `useTasks.ts` was found logging full error objects using `JSON.stringify(error, null, 2)` to `console.error`, exposing potential database schema details and internal error codes.
 **Learning:** Security fixes (like the one on 2025-01-28) must be applied systematically across the entire codebase, not just in isolated files. Copy-paste coding can reintroduce previously fixed vulnerabilities.
 **Prevention:** Audit all hooks for `JSON.stringify` usage in error handling. Replaced vulnerable logging in `useTasks.ts` with safe `error.message` logging. Added `useTasksSecurity.test.ts` to prevent regression.
+
+## 2025-05-22 - Information Leakage in Topic Hooks
+**Vulnerability:** `useTopics.ts` was logging full error objects to the console, potentially exposing internal database schema details.
+**Learning:** Inconsistent application of security patterns across similar hooks leads to gaps.
+**Prevention:** Replaced all instances of insecure logging in `useTopics.ts` with safe message-only logging. Added regression test `useTopicsSecurity.test.ts`.
