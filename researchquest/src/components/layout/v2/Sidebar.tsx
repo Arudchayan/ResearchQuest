@@ -13,7 +13,9 @@ import {
   Flame,
   HelpCircle,
   Download,
-  Upload
+  Upload,
+  PanelRightOpen,
+  PanelRightClose
 } from 'lucide-react'
 import { useAppStore } from '../../../store/appStore'
 import { cn } from '../../../lib/utils'
@@ -23,7 +25,7 @@ import { exportData } from '../../../utils/export'
 import { importData } from '../../../utils/import'
 
 export function Sidebar() {
-  const { currentView, setCurrentView, user, effectiveTheme, setTheme } = useAppStore()
+  const { currentView, setCurrentView, user, effectiveTheme, setTheme, isRightSidebarOpen, setIsRightSidebarOpen } = useAppStore()
   const [showXpGuide, setShowXpGuide] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -153,13 +155,23 @@ export function Sidebar() {
                </p>
              </div>
            </div>
-           <button
-             onClick={toggleTheme}
-             className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
-             aria-label={effectiveTheme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
-           >
-             {effectiveTheme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-           </button>
+           <div className="flex items-center gap-1">
+             <button
+               onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
+               className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
+               aria-label={isRightSidebarOpen ? 'Close context panel' : 'Open context panel'}
+               title="Toggle Context Panel"
+             >
+               {isRightSidebarOpen ? <PanelRightClose className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
+             </button>
+             <button
+               onClick={toggleTheme}
+               className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
+               aria-label={effectiveTheme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+             >
+               {effectiveTheme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+             </button>
+           </div>
         </div>
 
         <button
