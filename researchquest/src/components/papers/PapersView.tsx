@@ -5,6 +5,7 @@ import { usePapers } from '../../hooks/usePapers'
 import { AddPaperView } from '../entities/AddPaperView'
 import { PaperDetailView } from '../entities/PaperDetailView'
 import { PaperCard } from './PaperCard'
+import { PaperCardSkeleton } from '../ui/Skeleton'
 import { cn } from '../../lib/utils'
 import * as Dialog from '@radix-ui/react-dialog'
 import { OnboardingGuide } from '../layout/OnboardingGuide'
@@ -22,7 +23,7 @@ type SortOption =
   | 'year_asc'
 
 export function PapersView() {
-  const { papers, selectedPaper, setSelectedPaper } = useAppStore()
+  const { papers, papersLoading, selectedPaper, setSelectedPaper } = useAppStore()
   const { createPaper, updatePaper, deletePaper, restorePaper, searchPaperByDOI, searchPapersByQuery } = usePapers(useAppStore.getState().user?.id)
   const [searchQuery, setSearchQuery] = useState('')
   const [sortOption, setSortOption] = useState<SortOption>('updated_desc')
@@ -192,7 +193,13 @@ export function PapersView() {
 
         <div className="flex-1 overflow-auto p-6">
           <OnboardingGuide />
-          {filteredPapers.length === 0 ? (
+          {papersLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              {[...Array(6)].map((_, i) => (
+                <PaperCardSkeleton key={i} />
+              ))}
+            </div>
+          ) : filteredPapers.length === 0 ? (
             <div className="text-center py-20">
               <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
                 <BookOpen className="w-8 h-8 text-slate-400" />
