@@ -419,8 +419,15 @@ export function usePapers(userId: string | undefined) {
   }, [setPapers, setSelectedPaper, syncSelectedPaper])
 
   const restorePaper = useCallback(async (paper: Paper): Promise<Paper | null> => {
+    if (!userId) {
+      setError('User not authenticated')
+      toast.error('You must be logged in to restore papers')
+      return null
+    }
+
     const payload = {
       ...paper,
+      user_id: userId,
       updated_at: new Date().toISOString(),
     }
 
