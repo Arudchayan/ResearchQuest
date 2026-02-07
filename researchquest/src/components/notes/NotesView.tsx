@@ -45,11 +45,13 @@ export function NotesView() {
 
     if (shouldDelete) {
       await deleteNote(noteId)
-      if (selectedNote?.id === noteId) {
+      // Optimization: Access state directly to keep callback stable and avoid re-renders
+      const currentSelected = useAppStore.getState().selectedNote
+      if (currentSelected?.id === noteId) {
         setSelectedNote(null)
       }
     }
-  }, [confirm, deleteNote, selectedNote?.id, setSelectedNote])
+  }, [confirm, deleteNote, setSelectedNote])
 
   const handleSelectNote = useCallback((note: Note) => {
      setSelectedNote(note)
