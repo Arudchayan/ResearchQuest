@@ -277,8 +277,15 @@ export function useIdeas(userId: string | undefined) {
   }, [userId, setIdeas, setSelectedIdea, syncSelectedIdea])
 
   const restoreIdea = useCallback(async (idea: Idea): Promise<Idea | null> => {
+    if (!userId) {
+      setError('User not authenticated')
+      toast.error('You must be logged in to restore ideas')
+      return null
+    }
+
     const payload = {
       ...idea,
+      user_id: userId,
       updated_at: new Date().toISOString(),
     }
 
