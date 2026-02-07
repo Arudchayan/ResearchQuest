@@ -81,6 +81,12 @@ export function useNotes(userId: string | undefined) {
   }, [userId, setNotes])
 
   const updateNote = useCallback(async (noteId: string, updates: Partial<Note>): Promise<boolean> => {
+    if (!userId) {
+      setError('User not authenticated')
+      toast.error('You must be logged in to update notes')
+      return false
+    }
+
     // Optimistic update
     const currentNotes = useAppStore.getState().notes
     const previousNotes = [...currentNotes]
@@ -93,6 +99,7 @@ export function useNotes(userId: string | undefined) {
       .from('notes')
       .update(updates)
       .eq('id', noteId)
+      .eq('user_id', userId)
 
     if (updateError) {
       const errorMessage = updateError.message || 'Unknown error occurred'
@@ -126,6 +133,12 @@ export function useNotes(userId: string | undefined) {
   }, [userId, setNotes, fetchNotes])
 
   const deleteNote = useCallback(async (noteId: string): Promise<boolean> => {
+    if (!userId) {
+      setError('User not authenticated')
+      toast.error('You must be logged in to delete notes')
+      return false
+    }
+
     const currentNotes = useAppStore.getState().notes
     const deletedNote = currentNotes.find((n) => n.id === noteId)
 
@@ -136,6 +149,7 @@ export function useNotes(userId: string | undefined) {
       .from('notes')
       .delete()
       .eq('id', noteId)
+      .eq('user_id', userId)
 
     if (deleteError) {
       const errorMessage = deleteError.message || 'Unknown error occurred'
@@ -153,8 +167,15 @@ export function useNotes(userId: string | undefined) {
   }, [setNotes])
 
   const restoreNote = useCallback(async (note: Note): Promise<Note | null> => {
+    if (!userId) {
+      setError('User not authenticated')
+      toast.error('You must be logged in to restore notes')
+      return null
+    }
+
     const payload = {
       ...note,
+      user_id: userId,
       updated_at: new Date().toISOString(),
     }
 
