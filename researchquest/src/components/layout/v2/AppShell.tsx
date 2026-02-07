@@ -1,5 +1,6 @@
 import { ReactNode } from 'react'
 import { Sidebar } from './Sidebar'
+import { RightSidebar } from '../RightSidebar'
 import { Menu, X } from 'lucide-react'
 import { useAppStore } from '../../../store/appStore'
 import { cn } from '../../../lib/utils'
@@ -9,7 +10,7 @@ interface AppShellProps {
 }
 
 export function AppShell({ children }: AppShellProps) {
-  const { isMobileSidebarOpen, setIsMobileSidebarOpen } = useAppStore()
+  const { isMobileSidebarOpen, setIsMobileSidebarOpen, isRightSidebarOpen } = useAppStore()
 
   return (
     <div className="flex h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans overflow-hidden">
@@ -59,6 +60,16 @@ export function AppShell({ children }: AppShellProps) {
         <main className="flex-1 overflow-auto">
           {children}
         </main>
+      </div>
+
+      {/* Right Sidebar (Context Panel) */}
+      <div className={cn(
+        "hidden xl:block h-full shrink-0 bg-slate-50 dark:bg-slate-900 transition-all duration-300 ease-in-out overflow-hidden",
+        isRightSidebarOpen ? "w-80 border-l border-slate-200 dark:border-slate-800" : "w-0 border-l-0"
+      )}>
+        <div className="w-80 h-full">
+          <RightSidebar />
+        </div>
       </div>
     </div>
   )
