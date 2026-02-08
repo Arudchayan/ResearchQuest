@@ -1,0 +1,77 @@
+import { describe, it, expect } from 'vitest';
+import { convertPapersToCSV, convertPapersToJSON, convertPapersToBibTeX } from '../../utils/export';
+import { Paper } from '../../types/database';
+
+const mockPapers: Paper[] = [
+  {
+    id: '1',
+    user_id: 'user1',
+    title: 'Test Paper "With Quotes"',
+    authors: ['Author One', 'Author Two'],
+    publication_date: '2023-01-01',
+    doi: '10.1000/1',
+    source_url: 'http://example.com',
+    abstract: 'This is a test abstract, with commas.',
+    status: 'To Read',
+    created_at: '2023-01-01T00:00:00Z',
+    updated_at: '2023-01-01T00:00:00Z'
+  },
+  {
+    id: '2',
+    user_id: 'user1',
+    title: 'Another Paper',
+    authors: [],
+    publication_date: undefined,
+    doi: undefined,
+    source_url: undefined,
+    abstract: undefined,
+    status: 'Reading',
+    created_at: '2023-02-01T00:00:00Z',
+    updated_at: '2023-02-01T00:00:00Z'
+  }
+];
+
+describe('Export Utils', () => {
+  it('converts papers to CSV correctly', () => {
+    const csv = convertPapersToCSV(mockPapers);
+    const lines = csv.split('\n');
+    expect(lines.length).toBe(3); // Header + 2 rows
+
+    // Check header
+    expect(lines[0]).toBe('Title,Authors,Publication Year,DOI,Source URL,Abstract,Created At');
+
+    // Check first row (escaping)
+    const row1 = lines[1];
+    expect(row1).toContain('"Test Paper ""With Quotes"""');
+    // "Author One; Author Two" does not contain special chars, so it won't be quoted
+    expect(row1).toContain('Author One; Author Two');
+    expect(row1).toContain('"This is a test abstract, with commas."');
+    expect(row1).toContain('2023'); // Year extracted
+
+    // Check second row (empty fields)
+    const row2 = lines[2];
+    expect(row2).toContain('Another Paper');
+    expect(row2).toMatch(/^Another Paper,,,,,,2023-02-01/);
+  });
+
+  it('converts papers to JSON correctly', () => {
+    const json = convertPapersToJSON(mockPapers);
+    const parsed = JSON.parse(json);
+    expect(parsed).toHaveLength(2);
+    expect(parsed[0].title).toBe('Test Paper "With Quotes"');
+    expect(parsed[1].status).toBe('Reading');
+  });
+
+  it('converts papers to BibTeX correctly', () => {
+    const bibtex = convertPapersToBibTeX(mockPapers);
+    // Check first paper
+    expect(bibtex).toContain('@article{One2023Test');
+
+    expect(bibtex).toContain('title = {Test Paper "With Quotes"}');
+    expect(bibtex).toContain('author = {Author One and Author Two}');
+    expect(bibtex).toContain('year = {2023}');
+
+    // Check second paper
+    expect(bibtex).toContain('@article{AnonymousndAnother');
+  });
+});
