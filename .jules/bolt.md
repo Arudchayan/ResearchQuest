@@ -21,3 +21,7 @@
 ## 2025-05-24 - Breaking Dependency Chains in List Callbacks
 **Learning:** If a callback passed to every item in a list depends on a frequently changing global state (like `selectedId`), it breaks `React.memo` for ALL items whenever that state changes, causing O(N) re-renders.
 **Action:** Use `store.getState()` (or refs) to access the current value of the volatile state inside the callback without adding it to the dependency array, ensuring the callback remains stable.
+
+## 2025-05-24 - Safe Conditional Filtering with Sort
+**Learning:** Optimizing list filtering by returning the original array when filters are empty can lead to store mutations if `.sort()` is called on the returned array, as `.sort()` mutates in place.
+**Action:** When skipping filtering but still sorting, always create a shallow copy (`[...array]`) before calling `.sort()` to preserve the immutability of the source data (e.g., from a Zustand store).

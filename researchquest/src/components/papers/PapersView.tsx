@@ -86,14 +86,27 @@ export function PapersView() {
 
   // Memoize filtered papers to avoid expensive recalculation on every render
   const filteredPapers = useMemo(() => {
-    // Optimization: Calculate query lowercasing once outside the loop
-    const query = searchQuery.toLowerCase()
-    const filtered = papers.filter(paper => {
-      return (
-        (paper.title && paper.title.toLowerCase().includes(query)) ||
-        (paper.authors && paper.authors.some(a => a.toLowerCase().includes(query)))
-      )
-    })
+    // Optimization: Skip filtering if query is empty and sort order matches default
+    if (!searchQuery && sortOption === 'updated_desc') {
+      return papers
+    }
+
+    let filtered = papers
+
+    if (searchQuery) {
+      // Optimization: Calculate query lowercasing once outside the loop
+      const query = searchQuery.toLowerCase()
+      filtered = papers.filter(paper => {
+        return (
+          (paper.title && paper.title.toLowerCase().includes(query)) ||
+          (paper.authors && paper.authors.some(a => a.toLowerCase().includes(query)))
+        )
+      })
+    } else {
+      // Create a shallow copy if we need to sort but not filter
+      // (to avoid mutating the store)
+      filtered = [...papers]
+    }
 
     return filtered.sort((a, b) => {
       // Optimization: Use string comparison for ISO dates to avoid expensive Date object creation
