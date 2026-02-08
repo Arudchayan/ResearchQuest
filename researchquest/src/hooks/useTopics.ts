@@ -474,6 +474,7 @@ export function useTopics(userId: string | undefined) {
         .from('topics')
         .update(payload)
         .eq('id', topicId)
+        .eq('user_id', userId)
 
       if (updateError) {
         console.error('Failed to update topic:', updateError.message || 'Unknown error')
@@ -501,6 +502,7 @@ export function useTopics(userId: string | undefined) {
         .from('topics')
         .delete()
         .eq('id', topicId)
+        .eq('user_id', userId)
 
       if (deleteError) {
         console.error('Failed to delete topic:', deleteError.message || 'Unknown error')
