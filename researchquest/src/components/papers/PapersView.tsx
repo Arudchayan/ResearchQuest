@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
-import { Plus, Search, BookOpen, X, ArrowUpDown, Users } from 'lucide-react'
+import { Plus, Search, BookOpen, X, ArrowUpDown, Users, Download, FileText, FileJson, Table } from 'lucide-react'
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { useAppStore } from '../../store/appStore'
 import { usePapers } from '../../hooks/usePapers'
 import { AddPaperView } from '../entities/AddPaperView'
@@ -11,6 +12,7 @@ import * as Dialog from '@radix-ui/react-dialog'
 import { OnboardingGuide } from '../layout/OnboardingGuide'
 import type { Paper } from '../../types/database'
 import { toast } from 'sonner'
+import { convertPapersToBibTeX, convertPapersToCSV, convertPapersToJSON, downloadFile } from '../../utils/export'
 
 type SortOption =
   | 'updated_desc'
@@ -127,6 +129,44 @@ export function PapersView() {
     })
   }, [papers, searchQuery, sortOption])
 
+  const handleExport = (format: 'bibtex' | 'csv' | 'json') => {
+    if (filteredPapers.length === 0) {
+      toast.error('No papers to export')
+      return
+    }
+
+    const timestamp = new Date().toISOString().split('T')[0]
+    let content = ''
+    let filename = ''
+    let type = ''
+
+    try {
+      switch (format) {
+        case 'bibtex':
+          content = convertPapersToBibTeX(filteredPapers)
+          filename = `research-library-${timestamp}.bib`
+          type = 'text/plain'
+          break
+        case 'csv':
+          content = convertPapersToCSV(filteredPapers)
+          filename = `research-library-${timestamp}.csv`
+          type = 'text/csv'
+          break
+        case 'json':
+          content = convertPapersToJSON(filteredPapers)
+          filename = `research-library-${timestamp}.json`
+          type = 'application/json'
+          break
+      }
+
+      downloadFile(content, filename, type)
+      toast.success(`Exported ${filteredPapers.length} papers as ${format.toUpperCase()}`)
+    } catch (err) {
+      console.error('Export failed:', err)
+      toast.error('Failed to export papers')
+    }
+  }
+
   return (
     <div className="flex h-full bg-slate-50 dark:bg-slate-900 overflow-hidden">
       {/* Main Content */}
@@ -136,13 +176,55 @@ export function PapersView() {
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Research Library</h1>
             <p className="text-slate-500 dark:text-slate-400 text-sm">Manage and organize your research papers</p>
           </div>
-          <button
-            onClick={() => setIsAddDialogOpen(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 font-medium"
-          >
-            <Plus className="w-5 h-5" />
-            Add Paper
-          </button>
+          <div className="flex items-center gap-2">
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger asChild>
+                <button
+                  className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-2 font-medium"
+                >
+                  <Download className="w-5 h-5" />
+                  Export
+                </button>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content
+                  className="min-w-[180px] bg-white dark:bg-slate-950 rounded-lg shadow-lg border border-slate-200 dark:border-slate-800 p-1 z-50 animate-in fade-in-0 zoom-in-95"
+                  align="end"
+                  sideOffset={5}
+                >
+                  <DropdownMenu.Item
+                    onSelect={() => handleExport('bibtex')}
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md cursor-pointer outline-none"
+                  >
+                    <FileText className="w-4 h-4" />
+                    BibTeX (.bib)
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item
+                    onSelect={() => handleExport('csv')}
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md cursor-pointer outline-none"
+                  >
+                    <Table className="w-4 h-4" />
+                    CSV (.csv)
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item
+                    onSelect={() => handleExport('json')}
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md cursor-pointer outline-none"
+                  >
+                    <FileJson className="w-4 h-4" />
+                    JSON (.json)
+                  </DropdownMenu.Item>
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Root>
+
+            <button
+              onClick={() => setIsAddDialogOpen(true)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 font-medium"
+            >
+              <Plus className="w-5 h-5" />
+              Add Paper
+            </button>
+          </div>
         </div>
 
         <div className="p-4 bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row gap-4">
