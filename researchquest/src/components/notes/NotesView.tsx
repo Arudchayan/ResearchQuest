@@ -15,6 +15,9 @@ export function NotesView() {
   const { confirm, isOpen, config } = useConfirmDialog()
 
   const filteredNotes = useMemo(() => {
+    // Optimization: Skip filtering if query is empty
+    if (!searchQuery) return notes
+
     // Optimization: Calculate query lowercasing once outside the loop to avoid redundant operations
     const query = searchQuery.toLowerCase()
     return notes.filter(note => {
