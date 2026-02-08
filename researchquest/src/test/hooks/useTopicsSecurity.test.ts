@@ -115,19 +115,6 @@ describe('useTopics Security', () => {
       // Check all calls to console.error
       const calls = consoleErrorSpy.mock.calls.flat()
 
-      // The current vulnerable code logs the full error object or stringifies it?
-      // useTopics.ts uses `console.error('Failed to create topic:', insertError)`
-      // Browsers/Node console will display the object properties.
-      // If we look at how console.error works in Vitest spy, it captures the arguments.
-      // We want to ensure that the argument passed is NOT the sensitiveError object itself,
-      // or at least that we are logging just the message.
-
-      // Actually, passing the object to console.error is what we want to avoid if it ends up being
-      // serialized in production logs or if we want to be strict about what we log.
-      // The sentinel rule is "Replaced indiscriminate logging JSON.stringify(error) with targeted logging of error.message".
-      // But here the code is `console.error('...', insertError)`.
-      // Passing the object directly to console.error is ALSO bad because it exposes the whole object structure.
-
       const foundSensitiveObj = calls.some((arg: any) => {
         if (typeof arg === 'object' && arg !== null) {
             return arg.column === 'secret_column'
@@ -135,13 +122,111 @@ describe('useTopics Security', () => {
         return false
       })
 
-      // Also check if it was stringified (though the current code doesn't seem to stringify,
-      // but passing the object is the issue).
       const foundStringifiedLeak = calls.some((arg: any) =>
         typeof arg === 'string' && arg.includes('secret_column')
       )
 
       expect(foundSensitiveObj || foundStringifiedLeak).toBe(false)
+    })
+  })
+
+  describe('Authorization', () => {
+    it('should include user_id filter when deleting a topic', async () => {
+      const eqSpy = vi.fn()
+      // Create a chain where delete returns itself, and eq returns itself
+      const mockChain: any = {
+        then: ((onFulfilled?: (value: any) => any) => {
+             return Promise.resolve({ error: null }).then(onFulfilled)
+        }) as any
+      }
+      mockChain.delete = vi.fn().mockReturnValue(mockChain)
+      mockChain.eq = eqSpy.mockReturnValue(mockChain)
+
+      mockSupabaseClient.from.mockImplementation((tableName: string) => {
+        if (tableName === 'topics') {
+             return createMockBuilder({
+                 delete: vi.fn().mockReturnValue(mockChain),
+                 select: vi.fn().mockReturnValue(createMockBuilder({
+                    eq: vi.fn().mockReturnValue(createMockBuilder({
+                        order: vi.fn().mockReturnValue(createMockBuilder({
+                            then: ((onFulfilled: any) => Promise.resolve({ data: [], error: null }).then(onFulfilled)) as any
+                        }))
+                    }))
+                 }))
+             })
+        }
+        if (tableName === 'topic_quests') {
+             return createMockBuilder({
+                select: vi.fn().mockReturnValue(createMockBuilder({
+                    eq: vi.fn().mockReturnValue(createMockBuilder({
+                        order: vi.fn().mockResolvedValue({ data: [], error: null })
+                    }))
+                }))
+             })
+        }
+        return createMockBuilder()
+      })
+
+      const { result } = renderHook(() => useTopics('test-user-id'))
+
+      await act(async () => {
+        await Promise.resolve()
+      })
+
+      await act(async () => {
+        await result.current.deleteTopic('topic-123')
+      })
+
+      // We expect eq to be called with 'id', 'topic-123' AND 'user_id', 'test-user-id'
+      expect(eqSpy).toHaveBeenCalledWith('user_id', 'test-user-id')
+    })
+
+    it('should include user_id filter when updating a topic', async () => {
+      const eqSpy = vi.fn()
+      const mockChain: any = {
+        then: ((onFulfilled?: (value: any) => any) => {
+             return Promise.resolve({ error: null }).then(onFulfilled)
+        }) as any
+      }
+      mockChain.update = vi.fn().mockReturnValue(mockChain)
+      mockChain.eq = eqSpy.mockReturnValue(mockChain)
+
+      mockSupabaseClient.from.mockImplementation((tableName: string) => {
+        if (tableName === 'topics') {
+             return createMockBuilder({
+                 update: vi.fn().mockReturnValue(mockChain),
+                 select: vi.fn().mockReturnValue(createMockBuilder({
+                    eq: vi.fn().mockReturnValue(createMockBuilder({
+                        order: vi.fn().mockReturnValue(createMockBuilder({
+                            then: ((onFulfilled: any) => Promise.resolve({ data: [], error: null }).then(onFulfilled)) as any
+                        }))
+                    }))
+                 }))
+             })
+        }
+        if (tableName === 'topic_quests') {
+             return createMockBuilder({
+                select: vi.fn().mockReturnValue(createMockBuilder({
+                    eq: vi.fn().mockReturnValue(createMockBuilder({
+                        order: vi.fn().mockResolvedValue({ data: [], error: null })
+                    }))
+                }))
+             })
+        }
+        return createMockBuilder()
+      })
+
+      const { result } = renderHook(() => useTopics('test-user-id'))
+
+      await act(async () => {
+        await Promise.resolve()
+      })
+
+      await act(async () => {
+        await result.current.updateTopic('topic-123', { name: 'Updated' })
+      })
+
+      expect(eqSpy).toHaveBeenCalledWith('user_id', 'test-user-id')
     })
   })
 })
