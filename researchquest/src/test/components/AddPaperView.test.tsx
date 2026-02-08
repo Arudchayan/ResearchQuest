@@ -404,7 +404,22 @@ describe('AddPaperView Component', () => {
       await userEvent.click(manualTab)
 
       const addButton = screen.getByRole('button', { name: /add paper/i })
-      expect(addButton).toBeDisabled()
+      expect(addButton).toBeEnabled()
+
+      await userEvent.click(addButton)
+
+      await waitFor(() => {
+        expect(screen.getByText(/Title is required/i)).toBeInTheDocument()
+      })
+
+      const titleInput = screen.getByPlaceholderText(/enter paper title/i)
+      expect(titleInput).toHaveFocus()
+
+      await userEvent.type(titleInput, 'A')
+
+      await waitFor(() => {
+        expect(screen.queryByText(/Title is required/i)).not.toBeInTheDocument()
+      })
     })
 
     it('should handle optional fields in manual entry', async () => {
