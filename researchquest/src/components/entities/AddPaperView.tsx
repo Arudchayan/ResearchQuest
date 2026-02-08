@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   Search,
   Plus,
@@ -51,6 +51,7 @@ export function AddPaperView({
   const [manualDoi, setManualDoi] = useState("");
   const [manualUrl, setManualUrl] = useState("");
   const setSelectedPaper = useAppStore((state) => state.setSelectedPaper);
+  const manualTitleInputRef = useRef<HTMLInputElement>(null);
 
   const buildPaperPayload = (paper: CrossrefPaper) => {
     const paperData: any = {
@@ -171,6 +172,7 @@ export function AddPaperView({
   const handleManualAdd = async () => {
     if (!manualTitle.trim()) {
       setError("Title is required");
+      manualTitleInputRef.current?.focus();
       return;
     }
 
@@ -741,14 +743,23 @@ export function AddPaperView({
                 Title <span className="text-red-500">*</span>
               </label>
               <input
+                ref={manualTitleInputRef}
                 id="view-manual-title"
                 type="text"
                 value={manualTitle}
-                onChange={(e) => setManualTitle(e.target.value)}
+                onChange={(e) => {
+                  setManualTitle(e.target.value);
+                  if (error) setError("");
+                }}
                 placeholder="Enter paper title"
                 maxLength={255}
+                aria-invalid={!manualTitle.trim() && error === "Title is required"}
+                aria-describedby={error ? "manual-entry-error" : undefined}
                 className="w-full px-4 py-3 bg-bg-base border border-border-subtle rounded-lg text-body focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
+              <span className="text-xs text-text-tertiary text-right mt-1 block">
+                {manualTitle.length}/255
+              </span>
             </div>
 
             <div>
@@ -807,14 +818,16 @@ export function AddPaperView({
             </div>
 
             {error && (
-              <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg">
+              <div
+                id="manual-entry-error"
+                className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg"
+              >
                 {error}
               </div>
             )}
 
             <button
               onClick={handleManualAdd}
-              disabled={!manualTitle.trim()}
               className="w-full px-6 py-4 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors font-semibold flex items-center justify-center gap-2 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Plus className="w-6 h-6" />
