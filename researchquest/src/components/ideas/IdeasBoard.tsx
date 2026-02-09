@@ -282,7 +282,11 @@ export function IdeasBoard() {
                   placeholder="e.g. Quantum Entanglement in Biology"
                   value={newIdeaTitle}
                   onChange={(e) => setNewIdeaTitle(e.target.value)}
+                  maxLength={255}
                 />
+                <span className="text-xs text-slate-400 text-right mt-1 block">
+                  {newIdeaTitle.length}/255
+                </span>
               </div>
               <div>
                 <label
@@ -297,6 +301,7 @@ export function IdeasBoard() {
                   placeholder="Briefly describe your hypothesis..."
                   value={newIdeaDesc}
                   onChange={(e) => setNewIdeaDesc(e.target.value)}
+                  maxLength={5000}
                 />
               </div>
               <div className="flex justify-end gap-3 pt-2">
