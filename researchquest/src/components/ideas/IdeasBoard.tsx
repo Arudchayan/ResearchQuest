@@ -10,6 +10,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { OnboardingGuide } from "../layout/OnboardingGuide";
 import { toast } from "sonner";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
+import { ListSkeleton } from "../ui/Skeleton";
 
 const STAGES: { id: IdeaStage; label: string; color: string }[] = [
   { id: "Seed", label: "Seed", color: "bg-emerald-500" },
@@ -19,7 +20,7 @@ const STAGES: { id: IdeaStage; label: string; color: string }[] = [
 ];
 
 export function IdeasBoard() {
-  const { ideas, selectedIdea, setSelectedIdea } = useAppStore();
+  const { ideas, selectedIdea, setSelectedIdea, ideasLoading } = useAppStore();
   const { createIdea, updateIdea, deleteIdea, restoreIdea } = useIdeas(useAppStore.getState().user?.id);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newIdeaTitle, setNewIdeaTitle] = useState("");
@@ -163,66 +164,72 @@ export function IdeasBoard() {
                   </div>
 
                   <div className="flex-1 overflow-y-auto p-3 space-y-3">
-                    <AnimatePresence mode="popLayout">
-                      {stageIdeas.map((idea) => (
-                        <motion.div
-                          layoutId={idea.id}
-                          key={idea.id}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, scale: 0.9 }}
-                          onClick={() => setSelectedIdea(idea)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.preventDefault();
-                              setSelectedIdea(idea);
-                            }
-                          }}
-                          tabIndex={0}
-                          className="group bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md cursor-pointer transition-all hover:border-blue-400 dark:hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <div className="flex items-start justify-between mb-2">
-                            <h4 className="font-medium text-slate-900 dark:text-white line-clamp-2 leading-snug">
-                              {idea.title}
-                            </h4>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setIdeaToDelete(idea);
-                              }}
-                              aria-label={`Delete ${idea.title}`}
-                              className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all rounded"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-
-                          <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-3 mb-3">
-                            {idea.description || "No description provided..."}
-                          </p>
-
-                          {stage.id !== "Mature" && (
-                            <div className="flex justify-end pt-2 border-t border-slate-100 dark:border-slate-700/50">
-                              <button
-                                onClick={(e) =>
-                                  handleMoveStage(e, idea.id, idea.stage)
+                    {ideasLoading ? (
+                      <ListSkeleton count={3} itemType="idea" />
+                    ) : (
+                      <>
+                        <AnimatePresence mode="popLayout">
+                          {stageIdeas.map((idea) => (
+                            <motion.div
+                              layoutId={idea.id}
+                              key={idea.id}
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, scale: 0.9 }}
+                              onClick={() => setSelectedIdea(idea)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  setSelectedIdea(idea);
                                 }
-                                aria-label="Advance idea to next stage"
-                                className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity"
-                              >
-                                Advance <ArrowRight className="w-3 h-3" />
-                              </button>
-                            </div>
-                          )}
-                        </motion.div>
-                      ))}
-                    </AnimatePresence>
+                              }}
+                              tabIndex={0}
+                              className="group bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md cursor-pointer transition-all hover:border-blue-400 dark:hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                              <div className="flex items-start justify-between mb-2">
+                                <h4 className="font-medium text-slate-900 dark:text-white line-clamp-2 leading-snug">
+                                  {idea.title}
+                                </h4>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIdeaToDelete(idea);
+                                  }}
+                                  aria-label={`Delete ${idea.title}`}
+                                  className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all rounded"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
 
-                    {stageIdeas.length === 0 && (
-                      <div className="p-8 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-lg text-slate-400">
-                        <Lightbulb className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                        <p className="text-sm">No ideas yet</p>
-                      </div>
+                              <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-3 mb-3">
+                                {idea.description || "No description provided..."}
+                              </p>
+
+                              {stage.id !== "Mature" && (
+                                <div className="flex justify-end pt-2 border-t border-slate-100 dark:border-slate-700/50">
+                                  <button
+                                    onClick={(e) =>
+                                      handleMoveStage(e, idea.id, idea.stage)
+                                    }
+                                    aria-label="Advance idea to next stage"
+                                    className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity"
+                                  >
+                                    Advance <ArrowRight className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              )}
+                            </motion.div>
+                          ))}
+                        </AnimatePresence>
+
+                        {stageIdeas.length === 0 && (
+                          <div className="p-8 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-lg text-slate-400">
+                            <Lightbulb className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                            <p className="text-sm">No ideas yet</p>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
