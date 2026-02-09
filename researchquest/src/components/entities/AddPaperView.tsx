@@ -97,6 +97,7 @@ export function AddPaperView({
   const handleAddDoiResult = async () => {
     if (!doiResult) return;
 
+    setLoading(true);
     try {
       const created = await onAdd(buildPaperPayload(doiResult));
       if (created) {
@@ -114,6 +115,8 @@ export function AddPaperView({
       setError(
         `Failed to add paper: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -148,6 +151,7 @@ export function AddPaperView({
   const handleAddSelectedResult = async () => {
     if (!selectedResult) return;
 
+    setLoading(true);
     try {
       const created = await onAdd(buildPaperPayload(selectedResult));
       if (created) {
@@ -166,6 +170,8 @@ export function AddPaperView({
       setError(
         `Failed to add paper: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -195,6 +201,7 @@ export function AddPaperView({
     if (manualDoi && manualDoi.trim()) paperData.doi = manualDoi.trim();
     if (manualUrl && manualUrl.trim()) paperData.source_url = manualUrl.trim();
 
+    setLoading(true);
     try {
       const result = await onAdd(paperData);
       if (result) {
@@ -215,6 +222,8 @@ export function AddPaperView({
       setError(
         `Failed to add paper: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -418,10 +427,15 @@ export function AddPaperView({
                 </div>
                 <button
                   onClick={handleAddDoiResult}
-                  className="w-full px-6 py-4 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors font-semibold flex items-center justify-center gap-2 text-lg"
+                  disabled={loading}
+                  className="w-full px-6 py-4 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors font-semibold flex items-center justify-center gap-2 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Plus className="w-6 h-6" />
-                  Add Paper to Library
+                  {loading ? (
+                    <Loader className="w-6 h-6 animate-spin" />
+                  ) : (
+                    <Plus className="w-6 h-6" />
+                  )}
+                  {loading ? "Adding..." : "Add Paper to Library"}
                 </button>
               </div>
             )}
@@ -635,8 +649,12 @@ export function AddPaperView({
                               disabled={loading}
                               className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-500 text-white rounded-lg font-semibold hover:bg-primary-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed w-full sm:w-auto"
                             >
-                              <Plus className="w-4 h-4" />
-                              Add to library
+                              {loading ? (
+                                <Loader className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Plus className="w-4 h-4" />
+                              )}
+                              {loading ? "Adding..." : "Add to library"}
                             </button>
                           </div>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-text-tertiary">
@@ -828,10 +846,15 @@ export function AddPaperView({
 
             <button
               onClick={handleManualAdd}
+              disabled={loading}
               className="w-full px-6 py-4 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors font-semibold flex items-center justify-center gap-2 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Plus className="w-6 h-6" />
-              Add Paper
+              {loading ? (
+                <Loader className="w-6 h-6 animate-spin" />
+              ) : (
+                <Plus className="w-6 h-6" />
+              )}
+              {loading ? "Adding Paper..." : "Add Paper"}
             </button>
           </div>
         )}
