@@ -57,6 +57,7 @@ export const mockSupabaseClient = {
   functions: {
     invoke: vi.fn(),
   },
+  rpc: vi.fn().mockResolvedValue({ data: null, error: null }),
 }
 
 vi.mock('../../lib/supabase', () => ({
