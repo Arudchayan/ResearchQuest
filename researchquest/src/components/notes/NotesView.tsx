@@ -5,10 +5,11 @@ import { useNotes } from '../../hooks/useNotes'
 import { MarkdownEditor } from '../editor/MarkdownEditor'
 import { NoteCard } from './NoteCard'
 import { ConfirmDialog, useConfirmDialog } from '../ui/ConfirmDialog'
+import { ListSkeleton } from '../ui/Skeleton'
 import type { Note } from '../../types/database'
 
 export function NotesView() {
-  const { notes, selectedNote, setSelectedNote } = useAppStore()
+  const { notes, selectedNote, setSelectedNote, notesLoading } = useAppStore()
   const { createNote, deleteNote } = useNotes(useAppStore.getState().user?.id)
   const [searchQuery, setSearchQuery] = useState('')
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -102,7 +103,11 @@ export function NotesView() {
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {filteredNotes.length === 0 ? (
+          {notesLoading ? (
+            <div className="p-4">
+              <ListSkeleton count={6} itemType="note" />
+            </div>
+          ) : filteredNotes.length === 0 ? (
             <div className="p-8 text-center text-slate-500 dark:text-slate-400">
               <p className="text-sm">No notes found</p>
             </div>
