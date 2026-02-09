@@ -6,6 +6,8 @@ import type { Idea, IdeaStage } from '../types/database'
 import { useAppStore } from '../store/appStore'
 
 const IDEA_TRANSACTION_RPC = 'save_idea_with_links' as const
+const IDEA_TITLE_MAX_LENGTH = 255
+const IDEA_DESCRIPTION_MAX_LENGTH = 5000
 
 export function useIdeas(userId: string | undefined) {
   const ideas = useAppStore(state => state.ideas)
@@ -88,6 +90,20 @@ export function useIdeas(userId: string | undefined) {
           }
         }
       }
+    }
+
+    if (normalizedTitle.length > IDEA_TITLE_MAX_LENGTH) {
+      const msg = `Idea title exceeds ${IDEA_TITLE_MAX_LENGTH} characters`
+      setError(msg)
+      toast.error(msg)
+      return null
+    }
+
+    if (inferredDescription.length > IDEA_DESCRIPTION_MAX_LENGTH) {
+      const msg = `Idea description exceeds ${IDEA_DESCRIPTION_MAX_LENGTH} characters`
+      setError(msg)
+      toast.error(msg)
+      return null
     }
 
     const transactionPayload = {
@@ -189,6 +205,34 @@ export function useIdeas(userId: string | undefined) {
           stage: updates.stage ?? ideaToUpdate.stage,
           linked_note_ids: updates.linked_note_ids ?? ideaToUpdate.linked_note_ids ?? [],
           linked_paper_ids: updates.linked_paper_ids ?? ideaToUpdate.linked_paper_ids ?? [],
+    }
+
+    if (mergedForRPC.title.length > IDEA_TITLE_MAX_LENGTH) {
+      const msg = `Idea title exceeds ${IDEA_TITLE_MAX_LENGTH} characters`
+      setError(msg)
+      toast.error(msg)
+      if (optimisticSnapshot) {
+        const freshIdeas = useAppStore.getState().ideas
+        setIdeas(freshIdeas.map(i => i.id === ideaId ? optimisticSnapshot as Idea : i))
+        syncSelectedIdea(optimisticSnapshot)
+      } else {
+        void fetchIdeas()
+      }
+      return false
+    }
+
+    if ((mergedForRPC.description?.length ?? 0) > IDEA_DESCRIPTION_MAX_LENGTH) {
+      const msg = `Idea description exceeds ${IDEA_DESCRIPTION_MAX_LENGTH} characters`
+      setError(msg)
+      toast.error(msg)
+      if (optimisticSnapshot) {
+        const freshIdeas = useAppStore.getState().ideas
+        setIdeas(freshIdeas.map(i => i.id === ideaId ? optimisticSnapshot as Idea : i))
+        syncSelectedIdea(optimisticSnapshot)
+      } else {
+        void fetchIdeas()
+      }
+      return false
     }
 
     const { data, error: updateError } = await supabase.rpc(IDEA_TRANSACTION_RPC, {
