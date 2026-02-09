@@ -501,6 +501,50 @@ describe('AddPaperView Component', () => {
       const searchButton = screen.getByRole('button', { name: /^search$/i })
       expect(searchButton).toBeDisabled()
     })
+
+    it('should show loading state on "Add Paper" button during manual entry submission', async () => {
+      // Create a promise that we can control resolution of
+      let resolveAdd: (value: any) => void
+      const addPromise = new Promise((resolve) => {
+        resolveAdd = resolve
+      })
+      mockOnAdd.mockReturnValue(addPromise)
+
+      render(
+        <AddPaperView
+          onAdd={mockOnAdd}
+          searchByDOI={mockSearchByDOI}
+          searchByQuery={mockSearchByQuery}
+        />
+      )
+
+      // Switch to Manual Entry
+      const manualTab = screen.getByText('Manual Entry')
+      await userEvent.click(manualTab)
+
+      // Fill form
+      const titleInput = screen.getByPlaceholderText(/enter paper title/i)
+      await userEvent.type(titleInput, 'Loading Test Paper')
+
+      // Click Add
+      const addButton = screen.getByRole('button', { name: /add paper/i })
+      await userEvent.click(addButton)
+
+      // Verify loading state
+      expect(addButton).toBeDisabled()
+      expect(screen.getByText('Adding Paper...')).toBeInTheDocument()
+
+      // Resolve the promise
+      await act(async () => {
+        resolveAdd({ id: 'new-id', title: 'Loading Test Paper' })
+      })
+
+      // Verify loading state cleared
+      await waitFor(() => {
+        expect(screen.queryByText('Adding Paper...')).not.toBeInTheDocument()
+        expect(screen.getByText(/paper added successfully/i)).toBeInTheDocument()
+      })
+    })
   })
 
   describe('Paper Metadata Display', () => {
