@@ -1,7 +1,6 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAppStore } from '../store/appStore'
-import type { Note, Paper, Idea } from '../types/database'
 
 export interface RelatedItem {
   id: string
@@ -11,19 +10,25 @@ export interface RelatedItem {
   updated_at: string
 }
 
+interface RelatedLink {
+  id: string
+  type: 'note' | 'paper' | 'idea'
+  topicCount: number
+}
+
 export function useRelatedItems(entityId: string | null, entityType: 'note' | 'paper' | 'idea' | null, userId: string | undefined) {
-  const [relatedItems, setRelatedItems] = useState<RelatedItem[]>([])
+  // Store only the structural relationship data (IDs and counts), not the full objects
+  const [relatedLinks, setRelatedLinks] = useState<RelatedLink[]>([])
   const [loading, setLoading] = useState(false)
 
-  // ⚡ PERFORMANCE OPTIMIZATION: Use atomic selectors to avoid unnecessary re-renders
-  // and effect executions when unrelated store parts change.
+  // Subscribe to store updates for hydration
   const notes = useAppStore(state => state.notes)
   const papers = useAppStore(state => state.papers)
   const ideas = useAppStore(state => state.ideas)
 
-  const fetchRelatedItems = useCallback(async () => {
+  const fetchRelatedLinks = useCallback(async () => {
     if (!entityId || !entityType || !userId) {
-      setRelatedItems([])
+      setRelatedLinks([])
       return
     }
 
@@ -40,7 +45,7 @@ export function useRelatedItems(entityId: string | null, entityType: 'note' | 'p
         .eq(entityColumn, entityId)
 
       if (topicsError || !currentTopics || currentTopics.length === 0) {
-        setRelatedItems([])
+        setRelatedLinks([])
         setLoading(false)
         return
       }
@@ -48,12 +53,11 @@ export function useRelatedItems(entityId: string | null, entityType: 'note' | 'p
       const topicIds = currentTopics.map(t => t.topic_id)
 
       // Now find other entities that share these topics
-      const relatedMap = new Map<string, { item: RelatedItem, topicCount: number }>()
+      const linkMap = new Map<string, RelatedLink>()
 
       // ⚡ PERFORMANCE OPTIMIZATION:
-      // Instead of joining with full entity tables (which is slow and fetches redundant data),
-      // we fetch only the IDs from the relationship tables and look up the full objects
-      // in our global appStore (which is already synced with the DB).
+      // We fetch only the IDs. We do NOT hydrate with store data here.
+      // This allows us to keep this effect independent of store updates.
 
       // Find related notes
       const { data: relatedNotes, error: notesError } = await supabase
@@ -63,29 +67,12 @@ export function useRelatedItems(entityId: string | null, entityType: 'note' | 'p
         .neq('note_id', entityType === 'note' ? entityId : '00000000-0000-0000-0000-000000000000')
 
       if (!notesError && relatedNotes) {
-        // Use current store state to ensure we have the latest data
-        const currentNotes = useAppStore.getState().notes
-        const noteMap = new Map(currentNotes.map(n => [n.id, n]))
-
         for (const link of relatedNotes) {
-          const note = noteMap.get(link.note_id)
-          // Store data is already filtered by userId in useDataSync, but we check to be safe
-          if (note && note.user_id === userId) {
-            const key = `note-${note.id}`
-            if (relatedMap.has(key)) {
-              relatedMap.get(key)!.topicCount++
-            } else {
-              relatedMap.set(key, {
-                item: {
-                  id: note.id,
-                  title: note.title || note.markdown_body.split('\n')[0]?.replace(/^#+ /, '').trim() || 'Untitled Note',
-                  type: 'note',
-                  sharedTopics: 1,
-                  updated_at: note.updated_at,
-                },
-                topicCount: 1,
-              })
-            }
+          const key = `note-${link.note_id}`
+          if (linkMap.has(key)) {
+            linkMap.get(key)!.topicCount++
+          } else {
+            linkMap.set(key, { id: link.note_id, type: 'note', topicCount: 1 })
           }
         }
       }
@@ -98,27 +85,12 @@ export function useRelatedItems(entityId: string | null, entityType: 'note' | 'p
         .neq('paper_id', entityType === 'paper' ? entityId : '00000000-0000-0000-0000-000000000000')
 
       if (!papersError && relatedPapers) {
-        const currentPapers = useAppStore.getState().papers
-        const paperMap = new Map(currentPapers.map(p => [p.id, p]))
-
         for (const link of relatedPapers) {
-          const paper = paperMap.get(link.paper_id)
-          if (paper && paper.user_id === userId) {
-            const key = `paper-${paper.id}`
-            if (relatedMap.has(key)) {
-              relatedMap.get(key)!.topicCount++
-            } else {
-              relatedMap.set(key, {
-                item: {
-                  id: paper.id,
-                  title: paper.title,
-                  type: 'paper',
-                  sharedTopics: 1,
-                  updated_at: paper.updated_at,
-                },
-                topicCount: 1,
-              })
-            }
+          const key = `paper-${link.paper_id}`
+          if (linkMap.has(key)) {
+            linkMap.get(key)!.topicCount++
+          } else {
+            linkMap.set(key, { id: link.paper_id, type: 'paper', topicCount: 1 })
           }
         }
       }
@@ -131,64 +103,89 @@ export function useRelatedItems(entityId: string | null, entityType: 'note' | 'p
         .neq('idea_id', entityType === 'idea' ? entityId : '00000000-0000-0000-0000-000000000000')
 
       if (!ideasError && relatedIdeas) {
-        const currentIdeas = useAppStore.getState().ideas
-        const ideaMap = new Map(currentIdeas.map(i => [i.id, i]))
-
         for (const link of relatedIdeas) {
-          const idea = ideaMap.get(link.idea_id)
-          if (idea && idea.user_id === userId) {
-            const key = `idea-${idea.id}`
-            if (relatedMap.has(key)) {
-              relatedMap.get(key)!.topicCount++
-            } else {
-              relatedMap.set(key, {
-                item: {
-                  id: idea.id,
-                  title: idea.title,
-                  type: 'idea',
-                  sharedTopics: 1,
-                  updated_at: idea.updated_at,
-                },
-                topicCount: 1,
-              })
-            }
+          const key = `idea-${link.idea_id}`
+          if (linkMap.has(key)) {
+            linkMap.get(key)!.topicCount++
+          } else {
+            linkMap.set(key, { id: link.idea_id, type: 'idea', topicCount: 1 })
           }
         }
       }
 
-      // Convert map to array and update shared topic counts
-      const finalResults = Array.from(relatedMap.values()).map(({ item, topicCount }) => ({
-        ...item,
-        sharedTopics: topicCount,
-      }))
-
-      // Sort by number of shared topics (desc), then by update time (desc)
-      finalResults.sort((a, b) => {
-        if (b.sharedTopics !== a.sharedTopics) {
-          return b.sharedTopics - a.sharedTopics
-        }
-        return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-      })
-
-      setRelatedItems(finalResults)
+      setRelatedLinks(Array.from(linkMap.values()))
     } catch (error) {
       console.error('Error fetching related items:', error)
-      setRelatedItems([])
+      setRelatedLinks([])
     } finally {
       setLoading(false)
     }
-  }, [entityId, entityType, userId])
+  }, [entityId, entityType, userId]) // No dependencies on store data!
 
-  // Re-run when dependencies change.
-  // We use the stable atomic values (notes, papers, ideas) to trigger updates
-  // only when the relevant data changes.
+  // Effect to fetch links. Only runs when entity changes (or userId).
   useEffect(() => {
-    void fetchRelatedItems()
-  }, [fetchRelatedItems, notes, papers, ideas])
+    void fetchRelatedLinks()
+  }, [fetchRelatedLinks])
+
+  // Hydrate links with full object data from store
+  const relatedItems = useMemo(() => {
+    if (relatedLinks.length === 0) return []
+
+    const results: RelatedItem[] = []
+
+    for (const link of relatedLinks) {
+      let fullItem: any = null
+      let title = ''
+      let updated_at = ''
+
+      if (link.type === 'note') {
+        fullItem = notes.find(n => n.id === link.id)
+        if (fullItem) {
+            title = fullItem.title || fullItem.markdown_body?.split('\n')[0]?.replace(/^#+ /, '').trim() || 'Untitled Note'
+            updated_at = fullItem.updated_at
+        }
+      } else if (link.type === 'paper') {
+        fullItem = papers.find(p => p.id === link.id)
+        if (fullItem) {
+            title = fullItem.title
+            updated_at = fullItem.updated_at
+        }
+      } else if (link.type === 'idea') {
+        fullItem = ideas.find(i => i.id === link.id)
+        if (fullItem) {
+            title = fullItem.title
+            updated_at = fullItem.updated_at
+        }
+      }
+
+      // Only include if found in store
+      if (fullItem) {
+        results.push({
+          id: link.id,
+          title,
+          type: link.type,
+          sharedTopics: link.topicCount,
+          updated_at
+        })
+      }
+    }
+
+    // Sort by number of shared topics (desc), then by update time (desc)
+    return results.sort((a, b) => {
+      if (b.sharedTopics !== a.sharedTopics) {
+        return b.sharedTopics - a.sharedTopics
+      }
+      // ⚡ PERFORMANCE OPTIMIZATION: String comparison for ISO dates
+      if (b.updated_at > a.updated_at) return 1
+      if (b.updated_at < a.updated_at) return -1
+      return 0
+    })
+
+  }, [relatedLinks, notes, papers, ideas])
 
   return {
     relatedItems,
     loading,
-    refresh: fetchRelatedItems,
+    refresh: fetchRelatedLinks,
   }
 }
