@@ -21,12 +21,14 @@ import { useAppStore } from '../../../store/appStore'
 import { cn } from '../../../lib/utils'
 import { supabase } from '../../../lib/supabase'
 import { XPExplainer } from '../XPExplainer'
+import { ProfileDialog } from '../ProfileDialog'
 import { exportData } from '../../../utils/export'
 import { importData } from '../../../utils/import'
 
 export function Sidebar() {
   const { currentView, setCurrentView, user, effectiveTheme, setTheme, isRightSidebarOpen, setIsRightSidebarOpen } = useAppStore()
   const [showXpGuide, setShowXpGuide] = useState(false)
+  const [showProfile, setShowProfile] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleExport = () => {
@@ -144,17 +146,21 @@ export function Sidebar() {
 
       <div className="p-4 border-t border-slate-200 dark:border-slate-800 space-y-1">
         <div className="flex items-center justify-between px-3 py-2">
-           <div className="flex items-center gap-2">
+           <button
+             onClick={() => setShowProfile(true)}
+             className="flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md p-1 -ml-1 transition-colors text-left"
+             aria-label="User profile"
+           >
              <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center">
                <User className="w-4 h-4" />
              </div>
              <div className="text-xs">
-               <p className="font-medium text-slate-900 dark:text-white truncate max-w-[80px]">User</p>
-               <p className="text-slate-500 flex items-center gap-1">
+               <span className="block font-medium text-slate-900 dark:text-white truncate max-w-[80px]">User</span>
+               <span className="flex items-center gap-1 text-slate-500">
                  <Flame className="w-3 h-3 text-orange-500" /> {user?.current_streak || 0}
-               </p>
+               </span>
              </div>
-           </div>
+           </button>
            <div className="flex items-center gap-1">
              <button
                onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
@@ -212,6 +218,11 @@ export function Sidebar() {
         onClose={() => setShowXpGuide(false)}
         currentLevel={currentLevel}
         totalXP={user?.total_xp || 0}
+      />
+
+      <ProfileDialog
+        open={showProfile}
+        onClose={() => setShowProfile(false)}
       />
     </aside>
   )
