@@ -110,6 +110,7 @@ export function Sidebar() {
                 ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
                 : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
             )}
+            aria-current={currentView === item.id ? 'page' : undefined}
           >
             <item.icon className="w-5 h-5" />
             {item.label}
