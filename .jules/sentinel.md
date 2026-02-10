@@ -32,3 +32,8 @@
 **Vulnerability:** `useTopics.ts` was logging full error objects to the console, potentially exposing internal database schema details.
 **Learning:** Inconsistent application of security patterns across similar hooks leads to gaps.
 **Prevention:** Replaced all instances of insecure logging in `useTopics.ts` with safe message-only logging. Added regression test `useTopicsSecurity.test.ts`.
+
+## 2025-05-24 - Database Schema Leakage in Error Toasts
+**Vulnerability:** `usePapers.ts` was explicitly falling back to `error.details` and `error.hint` when displaying error toasts to users. This exposed internal Postgres schema details (table names, constraints) in the UI.
+**Learning:** Fallback error handling logic often tries to be "helpful" by showing more detail, but this violates the security principle of "fail securely". Users should never see database-level hints.
+**Prevention:** Removed checks for `details` and `hint` properties. Enforced using only `error.message` or generic error codes. Added regression tests in `usePapersSecurity.test.ts` to explicitly assert that sensitive details are not leaked.
