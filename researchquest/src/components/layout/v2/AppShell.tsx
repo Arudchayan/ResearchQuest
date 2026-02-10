@@ -14,6 +14,14 @@ export function AppShell({ children }: AppShellProps) {
 
   return (
     <div className="flex h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans overflow-hidden">
+      {/* Skip to content link for accessibility */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-white focus:text-blue-600 focus:font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:rounded-md focus:shadow-lg"
+      >
+        Skip to content
+      </a>
+
       {/* Desktop Sidebar */}
       <div className="hidden lg:block h-full shrink-0">
         <Sidebar />
@@ -57,7 +65,7 @@ export function AppShell({ children }: AppShellProps) {
         </header>
 
         {/* Content Area */}
-        <main className="flex-1 overflow-auto">
+        <main id="main-content" className="flex-1 overflow-auto" tabIndex={-1}>
           {children}
         </main>
       </div>
