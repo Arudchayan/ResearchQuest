@@ -131,3 +131,13 @@ export interface CrossrefPaper {
   publisher: string
   type: string
 }
+
+export interface Achievement {
+  id: string
+  user_id: string
+  achievement_type: string
+  title: string
+  description: string
+  xp_awarded: number
+  created_at: string
+}
