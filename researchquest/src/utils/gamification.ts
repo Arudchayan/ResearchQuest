@@ -83,20 +83,47 @@ export async function awardXP(userId: string, xpAmount: number, action: string):
     .single()
   
   if (fetchError || !profile) {
+    // Optimization: avoid logging the full error object to prevent sensitive data leakage
+    // Only log the message if available
     console.error('Failed to fetch user profile:', fetchError?.message || 'Profile not found')
     return
   }
   
+  const today = new Date().toISOString().split('T')[0]
+
+  // Calculate new XP and Level
   const newTotalXP = profile.total_xp + xpAmount
   const newLevel = getLevelFromXP(newTotalXP)
   
-  // Update profile
+  // Calculate Streak
+  // Logic moved here to avoid fetching profile again and to ensure correct calculation based on previous state
+  let newStreak = 1
+  if (profile.last_activity_date) {
+    const lastDate = new Date(profile.last_activity_date)
+    const todayDate = new Date(today)
+    const daysDiff = Math.floor((todayDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24))
+
+    if (daysDiff === 0) {
+      // Same day, keep current streak
+      newStreak = profile.current_streak || 1
+    } else if (daysDiff === 1) {
+      // Consecutive day, increment streak
+      newStreak = (profile.current_streak || 0) + 1
+    }
+    // If > 1 day, streak resets to 1 (already set)
+  }
+
+  const longestStreak = Math.max(newStreak, profile.longest_streak || 0)
+
+  // Update profile with ALL changes in one go
   const { error: updateError } = await supabase
     .from('user_profiles')
     .update({
       total_xp: newTotalXP,
       current_level: newLevel,
-      last_activity_date: new Date().toISOString().split('T')[0],
+      current_streak: newStreak,
+      longest_streak: longestStreak,
+      last_activity_date: today,
     })
     .eq('id', userId)
   
@@ -105,23 +132,16 @@ export async function awardXP(userId: string, xpAmount: number, action: string):
     return
   }
   
-  // Update or create daily log
-  await updateDailyLog(userId, xpAmount)
+  // Update or create daily log (passing streak to avoid refetch)
+  await updateDailyLog(userId, xpAmount, newStreak)
   
-  // Check for achievements
-  await checkAchievements(userId, action)
+  // Check for achievements (passing streak to avoid refetch)
+  await checkAchievements(userId, action, newStreak)
 }
 
 // Check and award achievements
-async function checkAchievements(userId: string, action: string): Promise<void> {
-  // Get user stats
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('current_streak')
-    .eq('id', userId)
-    .single()
-  
-  if (!profile) return
+async function checkAchievements(userId: string, action: string, currentStreak: number): Promise<void> {
+  // Optimization: Use passed currentStreak instead of fetching profile
   
   // Check existing achievements
   const { data: existingAchievements } = await supabase
@@ -132,7 +152,7 @@ async function checkAchievements(userId: string, action: string): Promise<void> 
   const earned = new Set(existingAchievements?.map(a => a.achievement_type) || [])
   
   // Check for 7-day streak
-  if (profile.current_streak >= 7 && !earned.has(ACHIEVEMENTS.RESEARCH_STREAK_7.type)) {
+  if (currentStreak >= 7 && !earned.has(ACHIEVEMENTS.RESEARCH_STREAK_7.type)) {
     await awardAchievement(userId, ACHIEVEMENTS.RESEARCH_STREAK_7)
   }
   
@@ -234,52 +254,12 @@ async function awardAchievement(userId: string, achievement: typeof ACHIEVEMENTS
   }
 }
 
-// Update daily log and check streak
-async function updateDailyLog(userId: string, xpEarned: number): Promise<void> {
+// Update daily log
+async function updateDailyLog(userId: string, xpEarned: number, currentStreak: number): Promise<void> {
   const today = new Date().toISOString().split('T')[0]
   
-  // Get current profile for streak info
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('current_streak, longest_streak, last_activity_date')
-    .eq('id', userId)
-    .single()
-  
-  if (!profile) return
-  
-  // Calculate streak
-  let newStreak = 1
-  if (profile.last_activity_date) {
-    const lastDate = new Date(profile.last_activity_date)
-    const todayDate = new Date(today)
-    const daysDiff = Math.floor((todayDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24))
-    
-    if (daysDiff === 0) {
-      // Same day, keep current streak
-      newStreak = profile.current_streak || 1
-    } else if (daysDiff === 1) {
-      // Consecutive day, increment streak
-      newStreak = (profile.current_streak || 0) + 1
-    }
-    // If > 1 day, streak resets to 1 (already set)
-  }
-  
-  // Calculate longest streak
-  const longestStreak = Math.max(newStreak, profile.longest_streak || 0)
-  
-  // Update profile streak
-  const { error: streakError } = await supabase
-    .from('user_profiles')
-    .update({
-      current_streak: newStreak,
-      longest_streak: longestStreak,
-      last_activity_date: today,
-    })
-    .eq('id', userId)
-  
-  if (streakError) {
-    console.error('Failed to update streak:', streakError.message)
-  }
+  // Optimization: Removed redundant profile fetching and updating.
+  // Streak is now calculated in awardXP and passed down.
   
   // Check if daily log exists for today
   const { data: existingLog } = await supabase
@@ -295,7 +275,7 @@ async function updateDailyLog(userId: string, xpEarned: number): Promise<void> {
       .from('daily_logs')
       .update({
         xp_earned: existingLog.xp_earned + xpEarned,
-        streak_count: newStreak,
+        streak_count: currentStreak,
       })
       .eq('id', existingLog.id)
     
@@ -310,7 +290,7 @@ async function updateDailyLog(userId: string, xpEarned: number): Promise<void> {
         user_id: userId,
         date: today,
         xp_earned: xpEarned,
-        streak_count: newStreak,
+        streak_count: currentStreak,
       })
     
     if (insertLogError) {
