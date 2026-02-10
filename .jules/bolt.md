@@ -29,3 +29,7 @@
 ## 2025-05-24 - Decoupling Fetch and Hydration
 **Learning:** Hooks that both fetch data (network) and hydrate it with store data (memory) in a single effect will re-trigger network requests whenever the store updates, even if the network data is unchanged.
 **Action:** Split the logic into two effects: one for fetching IDs (dependent only on entity ID) and one for hydrating full objects (dependent on store data). Use `useMemo` for the hydration step to keep it cheap.
+
+## 2025-05-24 - Redundant Helper Fetches
+**Learning:** Helper functions (like `awardXP` calling `updateDailyLog`) that independently re-fetch the same entity (e.g., user profile) cause N+1 performance issues on the client.
+**Action:** Refactor helper functions to accept the required data (e.g., `streak`) as arguments instead of fetching it again. Consolidate updates into a single database call where possible.
