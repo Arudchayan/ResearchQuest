@@ -3,6 +3,7 @@ import { renderHook, act } from '@testing-library/react'
 import { usePapers } from '../../hooks/usePapers'
 import { mockSupabaseClient, mockPaper } from '../mocks/supabase'
 import { useAppStore } from '../../store/appStore'
+import { toast } from 'sonner'
 
 // Mock toast
 vi.mock('sonner', () => ({
@@ -231,5 +232,106 @@ describe('usePapers Security', () => {
         expect(hasIdCheck).toBe(true)
         expect(hasUserIdCheck).toBe(true)
       })
+  })
+
+  describe('Information Leakage', () => {
+    it('should NOT leak database details in createPaper error toast', async () => {
+      const sensitiveDetails = 'Key (email)=(test@example.com) already exists.'
+      const sensitiveHint = 'Check constraint violation on table users_secure'
+
+      mockSupabaseClient.from.mockImplementation((tableName: string) => {
+        if (tableName === 'papers') {
+          return createMockBuilder({
+            insert: vi.fn().mockReturnValue(createMockBuilder({
+              select: vi.fn().mockReturnValue(createMockBuilder({
+                single: vi.fn().mockResolvedValue({
+                  data: null,
+                  error: {
+                    details: sensitiveDetails,
+                    hint: sensitiveHint,
+                    code: '23505'
+                    // No message to force fallback logic check
+                  }
+                })
+              }))
+            }))
+          })
+        }
+        return createMockBuilder()
+      })
+
+      const { result } = renderHook(() => usePapers('test-user-id'))
+
+      await act(async () => {
+        await result.current.createPaper({ title: 'Test Paper' })
+      })
+
+      // Expect specific error code message, NOT details/hint
+      expect(toast.error).toHaveBeenCalledWith(
+        expect.stringContaining('Error 23505'),
+        expect.anything()
+      )
+      expect(toast.error).not.toHaveBeenCalledWith(
+        expect.stringContaining(sensitiveDetails),
+        expect.anything()
+      )
+      expect(toast.error).not.toHaveBeenCalledWith(
+        expect.stringContaining(sensitiveHint),
+        expect.anything()
+      )
+    })
+
+    it('should NOT leak full error object to console.error when awardXP fails', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const sensitiveError = {
+          message: 'Award XP Failed',
+          internalStack: 'at /secret/path/to/server.ts:50:1'
+      }
+
+      // Import the mocked module to override implementation
+      const gamification = await import('../../utils/gamification')
+      vi.mocked(gamification.awardXP).mockRejectedValue(sensitiveError)
+
+      mockSupabaseClient.from.mockImplementation((tableName: string) => {
+        if (tableName === 'papers') {
+          return createMockBuilder({
+            insert: vi.fn().mockReturnValue(createMockBuilder({
+              select: vi.fn().mockReturnValue(createMockBuilder({
+                single: vi.fn().mockResolvedValue({
+                  data: { ...mockPaper, id: 'new-paper-id' },
+                  error: null
+                })
+              }))
+            }))
+          })
+        }
+        if (tableName === 'user_profiles') {
+            return createMockBuilder({
+                select: vi.fn().mockReturnValue(createMockBuilder({
+                    eq: vi.fn().mockReturnValue(createMockBuilder({
+                        single: vi.fn().mockResolvedValue({ data: { auto_create_reading_tasks: false }, error: null })
+                    }))
+                }))
+            })
+        }
+        return createMockBuilder()
+      })
+
+      const { result } = renderHook(() => usePapers('test-user-id'))
+
+      await act(async () => {
+        await result.current.createPaper({ title: 'Test Paper' })
+      })
+
+      await new Promise(resolve => setTimeout(resolve, 0))
+
+      // Should verify that console.error was called with MESSAGE string only, not the object
+      expect(consoleSpy).toHaveBeenCalledWith('Award XP Failed')
+
+      // Ensure we didn't log the object
+      expect(consoleSpy).not.toHaveBeenCalledWith(expect.objectContaining({
+          internalStack: expect.anything()
+      }))
+    })
   })
 })

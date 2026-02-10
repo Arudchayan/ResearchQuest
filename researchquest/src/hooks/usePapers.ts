@@ -43,15 +43,17 @@ async function createReadingTaskForPaper(userId: string, paper: Paper): Promise<
       })
 
     if (error) {
-      console.error('Failed to create reading task:', error)
+      // 🛡️ Security: Log only the message, not the full error object
+      console.error('Failed to create reading task:', error.message)
     } else {
       toast.success('Reading task created', {
         description: `Due in 7 days - check your Tasks`,
         duration: 2000,
       })
     }
-  } catch (error) {
-    console.error('Error creating reading task:', error)
+  } catch (error: any) {
+    // 🛡️ Security: Log only the message, not the full error object
+    console.error('Error creating reading task:', error?.message || 'Unknown error')
   }
 }
 
@@ -64,52 +66,24 @@ export interface PaperSearchOptions {
 function extractFunctionErrorMessage(error: any, fallback: string): string {
   if (!error) return fallback
 
+  // 🛡️ Security: Simplified error extraction to prevent leaking internal details like 'details', 'hint', or full stack traces.
+  // We prioritize 'message' properties.
+
   const candidates: any[] = []
 
-  if (error.context) {
-    const context = error.context
-    candidates.push(context.body, context.response)
-    if (context.response) {
-      candidates.push(context.response.error, context.response.data)
-    }
-  }
+  // Check top-level message
+  if (typeof error === 'string') return error.trim() || fallback
+  if (error.message) candidates.push(error.message)
 
-  if (error.error) {
-    candidates.push(error.error)
+  // Check context (Supabase Edge Functions)
+  if (error.context?.response?.error) {
+      candidates.push(error.context.response.error)
   }
 
   for (const candidate of candidates) {
-    if (!candidate) continue
-    if (typeof candidate === 'string') {
-      if (candidate.trim()) return candidate
-      continue
-    }
-
-    if (typeof candidate.message === 'string' && candidate.message.trim()) {
-      return candidate.message.trim()
-    }
-
-    if (candidate.error) {
-      if (typeof candidate.error === 'string' && candidate.error.trim()) {
-        return candidate.error.trim()
-      }
-
-      if (typeof candidate.error.message === 'string' && candidate.error.message.trim()) {
-        return candidate.error.message.trim()
-      }
-
-      if (typeof candidate.error.details === 'string' && candidate.error.details.trim()) {
-        return candidate.error.details.trim()
-      }
-    }
-
-    if (typeof candidate.details === 'string' && candidate.details.trim()) {
-      return candidate.details.trim()
-    }
-  }
-
-  if (typeof error.message === 'string' && error.message.trim()) {
-    return error.message.trim()
+      if (!candidate) continue
+      if (typeof candidate === 'string') return candidate.trim()
+      if (typeof candidate.message === 'string') return candidate.message.trim()
   }
 
   return fallback
@@ -276,18 +250,8 @@ export function usePapers(userId: string | undefined) {
       .single()
 
     if (createError) {
-      let errorMessage = 'Unknown error occurred'
-      if (createError.message) {
-        errorMessage = createError.message
-      } else if (createError.details) {
-        errorMessage = createError.details
-      } else if (createError.hint) {
-        errorMessage = createError.hint
-      } else if (typeof createError === 'string') {
-        errorMessage = createError
-      } else if (createError.code) {
-        errorMessage = `Database error (code: ${createError.code})`
-      }
+      // 🛡️ Security: Only expose the error message or code, not internal details/hints
+      const errorMessage = createError.message || (createError.code ? `Error ${createError.code}` : 'Unknown error occurred')
       
       setError(`Failed to create paper: ${errorMessage}`)
       toast.error(`Failed to add paper: ${errorMessage}`, { duration: 5000 })
@@ -299,7 +263,7 @@ export function usePapers(userId: string | undefined) {
     // Optimistic update - get latest state to be safe
     setPapers(sortByUpdatedAt([data, ...useAppStore.getState().papers]))
 
-    awardXP(userId, XP_REWARDS.CREATE_PAPER, 'create_paper').catch(console.error)
+    awardXP(userId, XP_REWARDS.CREATE_PAPER, 'create_paper').catch((e) => console.error(e?.message))
     
     void createReadingTaskForPaper(userId, data)
     
@@ -375,7 +339,7 @@ export function usePapers(userId: string | undefined) {
     }
 
     if (updates.status && userId) {
-      awardXP(userId, XP_REWARDS.UPDATE_PAPER_STATUS, 'update_paper_status').catch(console.error)
+      awardXP(userId, XP_REWARDS.UPDATE_PAPER_STATUS, 'update_paper_status').catch((e) => console.error(e?.message))
     }
 
     return true
@@ -416,7 +380,7 @@ export function usePapers(userId: string | undefined) {
     }
 
     return true
-  }, [setPapers, setSelectedPaper, syncSelectedPaper])
+  }, [userId, setPapers, setSelectedPaper, syncSelectedPaper])
 
   const restorePaper = useCallback(async (paper: Paper): Promise<Paper | null> => {
     if (!userId) {
@@ -449,7 +413,7 @@ export function usePapers(userId: string | undefined) {
 
     toast.success('Paper restored')
     return restoredPaper
-  }, [setPapers])
+  }, [userId, setPapers])
 
   return {
     papers,
