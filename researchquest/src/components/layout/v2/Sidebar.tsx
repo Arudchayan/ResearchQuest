@@ -15,7 +15,8 @@ import {
   Download,
   Upload,
   PanelRightOpen,
-  PanelRightClose
+  PanelRightClose,
+  Keyboard
 } from 'lucide-react'
 import { useAppStore } from '../../../store/appStore'
 import { cn } from '../../../lib/utils'
@@ -78,6 +79,10 @@ export function Sidebar() {
   const toggleTheme = () => {
     const newTheme = effectiveTheme === 'light' ? 'dark' : 'light'
     setTheme(newTheme)
+  }
+
+  const handleOpenShortcuts = () => {
+    document.dispatchEvent(new CustomEvent('open-shortcuts-help'))
   }
 
   const xpProgress = user ? (user.total_xp % 500) / 500 * 100 : 0
@@ -163,6 +168,14 @@ export function Sidebar() {
              </div>
            </button>
            <div className="flex items-center gap-1">
+             <button
+               onClick={handleOpenShortcuts}
+               className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
+               aria-label="Keyboard Shortcuts"
+               title="Keyboard Shortcuts"
+             >
+               <Keyboard className="w-4 h-4" />
+             </button>
              <button
                onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
                className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
