@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef } from 'react'
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { Plus, Search, FileText, X } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { useNotes } from '../../hooks/useNotes'
@@ -7,13 +7,25 @@ import { NoteCard } from './NoteCard'
 import { ConfirmDialog, useConfirmDialog } from '../ui/ConfirmDialog'
 import { ListSkeleton } from '../ui/Skeleton'
 import type { Note } from '../../types/database'
+import { toast } from 'sonner'
 
 export function NotesView() {
   const { notes, selectedNote, setSelectedNote, notesLoading } = useAppStore()
-  const { createNote, deleteNote } = useNotes(useAppStore.getState().user?.id)
+  const { createNote, deleteNote, restoreNote } = useNotes(useAppStore.getState().user?.id)
   const [searchQuery, setSearchQuery] = useState('')
   const searchInputRef = useRef<HTMLInputElement>(null)
   const { confirm, isOpen, config } = useConfirmDialog()
+
+  const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastDeletedRef = useRef<Note | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (undoTimeoutRef.current) {
+        clearTimeout(undoTimeoutRef.current)
+      }
+    }
+  }, [])
 
   const filteredNotes = useMemo(() => {
     // Optimization: Skip filtering if query is empty
@@ -39,6 +51,49 @@ export function NotesView() {
     }
   }
 
+  const handleDeleteWithUndo = useCallback(async (noteId: string) => {
+    const note = notes.find(n => n.id === noteId)
+    const success = await deleteNote(noteId)
+
+    if (success && note) {
+      lastDeletedRef.current = note
+      if (undoTimeoutRef.current) {
+        clearTimeout(undoTimeoutRef.current)
+      }
+
+      // Optimization: Access state directly to keep callback stable and avoid re-renders
+      const currentSelected = useAppStore.getState().selectedNote
+      if (currentSelected?.id === noteId) {
+        setSelectedNote(null)
+      }
+
+      const toastId = toast.success('Note deleted', {
+        description: 'Undo within 6 seconds to restore it.',
+        duration: 6000,
+        action: {
+          label: 'Undo',
+          onClick: async () => {
+            if (lastDeletedRef.current) {
+              await restoreNote(lastDeletedRef.current)
+              lastDeletedRef.current = null
+              if (undoTimeoutRef.current) {
+                clearTimeout(undoTimeoutRef.current)
+                undoTimeoutRef.current = null
+              }
+              toast.dismiss(toastId)
+            }
+          },
+        },
+      })
+
+      undoTimeoutRef.current = setTimeout(() => {
+        lastDeletedRef.current = null
+        toast.dismiss(toastId)
+        undoTimeoutRef.current = null
+      }, 6000)
+    }
+  }, [deleteNote, restoreNote, notes, setSelectedNote])
+
   const handleDeleteNote = useCallback(async (noteId: string) => {
     const shouldDelete = await confirm({
       title: 'Delete Note',
@@ -48,14 +103,9 @@ export function NotesView() {
     })
 
     if (shouldDelete) {
-      await deleteNote(noteId)
-      // Optimization: Access state directly to keep callback stable and avoid re-renders
-      const currentSelected = useAppStore.getState().selectedNote
-      if (currentSelected?.id === noteId) {
-        setSelectedNote(null)
-      }
+      await handleDeleteWithUndo(noteId)
     }
-  }, [confirm, deleteNote, setSelectedNote])
+  }, [confirm, handleDeleteWithUndo])
 
   const handleSelectNote = useCallback((note: Note) => {
      setSelectedNote(note)
