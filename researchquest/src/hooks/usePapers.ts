@@ -7,6 +7,9 @@ import { toast } from 'sonner'
 import type { Paper, CrossrefPaper } from '../types/database'
 import { useAppStore } from '../store/appStore'
 
+const PAPER_TITLE_MAX_LENGTH = 255
+const PAPER_ABSTRACT_MAX_LENGTH = 5000
+
 // Helper function to create a reading task for a newly added paper
 async function createReadingTaskForPaper(userId: string, paper: Paper): Promise<void> {
   try {
@@ -214,6 +217,20 @@ export function usePapers(userId: string | undefined) {
       return null
     }
 
+    if (paperData.title.length > PAPER_TITLE_MAX_LENGTH) {
+      const msg = `Paper title exceeds ${PAPER_TITLE_MAX_LENGTH} characters`
+      setError(msg)
+      toast.error(msg)
+      return null
+    }
+
+    if (paperData.abstract && paperData.abstract.length > PAPER_ABSTRACT_MAX_LENGTH) {
+      const msg = `Paper abstract exceeds ${PAPER_ABSTRACT_MAX_LENGTH} characters`
+      setError(msg)
+      toast.error(msg)
+      return null
+    }
+
     const cleanData: any = {
       user_id: userId,
       title: paperData.title.trim(),
@@ -274,6 +291,20 @@ export function usePapers(userId: string | undefined) {
     if (!userId) {
       setError('User not authenticated')
       toast.error('You must be logged in to update papers')
+      return false
+    }
+
+    if (updates.title && updates.title.length > PAPER_TITLE_MAX_LENGTH) {
+      const msg = `Paper title exceeds ${PAPER_TITLE_MAX_LENGTH} characters`
+      setError(msg)
+      toast.error(msg)
+      return false
+    }
+
+    if (updates.abstract && updates.abstract.length > PAPER_ABSTRACT_MAX_LENGTH) {
+      const msg = `Paper abstract exceeds ${PAPER_ABSTRACT_MAX_LENGTH} characters`
+      setError(msg)
+      toast.error(msg)
       return false
     }
 

@@ -334,4 +334,63 @@ describe('usePapers Security', () => {
       }))
     })
   })
+
+  describe('Input Validation', () => {
+    it('should reject titles exceeding max length in createPaper', async () => {
+      const { result } = renderHook(() => usePapers('test-user-id'))
+      const longTitle = 'a'.repeat(256)
+
+      await act(async () => {
+        const paper = await result.current.createPaper({ title: longTitle })
+        expect(paper).toBeNull()
+      })
+
+      expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('title exceeds'))
+    })
+
+    it('should reject abstracts exceeding max length in createPaper', async () => {
+      const { result } = renderHook(() => usePapers('test-user-id'))
+      const longAbstract = 'a'.repeat(5001)
+
+      await act(async () => {
+        const paper = await result.current.createPaper({
+            title: 'Valid Title',
+            abstract: longAbstract
+        })
+        expect(paper).toBeNull()
+      })
+
+      expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('abstract exceeds'))
+    })
+
+    it('should reject titles exceeding max length in updatePaper', async () => {
+        const initialPaper = { ...mockPaper, id: 'paper-1' }
+        useAppStore.setState({ papers: [initialPaper] })
+
+        const { result } = renderHook(() => usePapers('test-user-id'))
+        const longTitle = 'a'.repeat(256)
+
+        await act(async () => {
+          const success = await result.current.updatePaper('paper-1', { title: longTitle })
+          expect(success).toBe(false)
+        })
+
+        expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('title exceeds'))
+    })
+
+    it('should reject abstracts exceeding max length in updatePaper', async () => {
+        const initialPaper = { ...mockPaper, id: 'paper-1' }
+        useAppStore.setState({ papers: [initialPaper] })
+
+        const { result } = renderHook(() => usePapers('test-user-id'))
+        const longAbstract = 'a'.repeat(5001)
+
+        await act(async () => {
+          const success = await result.current.updatePaper('paper-1', { abstract: longAbstract })
+          expect(success).toBe(false)
+        })
+
+        expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('abstract exceeds'))
+    })
+  })
 })
