@@ -116,11 +116,12 @@ export function usePapers(userId: string | undefined) {
     if (fetchError) {
       setError(fetchError.message)
     } else {
-      const sorted = sortByUpdatedAt(data || [])
-      setPapers(sorted)
+      // Data is already sorted by updated_at desc from the DB query above
+      const rows = data || []
+      setPapers(rows)
       const selected = useAppStore.getState().selectedPaper
       if (selected) {
-        const fresh = sorted.find((paper) => paper.id === selected.id)
+        const fresh = rows.find((paper) => paper.id === selected.id)
         if (fresh) {
           setSelectedPaper(fresh)
         }
