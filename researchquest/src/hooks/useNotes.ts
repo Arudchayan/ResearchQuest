@@ -27,7 +27,8 @@ export function useNotes(userId: string | undefined) {
     if (fetchError) {
       setError(fetchError.message)
     } else {
-      setNotes(sortByUpdatedAt(data || []))
+      // Data is already sorted by updated_at desc from the DB query above
+      setNotes(data || [])
     }
   }, [userId, setNotes])
 
