@@ -2,9 +2,19 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { NotesView } from '../../components/notes/NotesView'
 import type { Note } from '../../types/database'
+import { toast } from 'sonner'
+
+// Mock sonner
+vi.mock('sonner', () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+    dismiss: vi.fn(),
+  },
+}))
 
 // Use vi.hoisted for variables used in mocks
-const { mockNote, mockDeleteNote, mockCreateNote, mockSetSelectedNote } = vi.hoisted(() => {
+const { mockNote, mockDeleteNote, mockCreateNote, mockSetSelectedNote, mockRestoreNote } = vi.hoisted(() => {
   return {
     mockNote: {
       id: 'test-note-1',
@@ -15,9 +25,10 @@ const { mockNote, mockDeleteNote, mockCreateNote, mockSetSelectedNote } = vi.hoi
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     } as Note,
-    mockDeleteNote: vi.fn(),
+    mockDeleteNote: vi.fn().mockResolvedValue(true),
     mockCreateNote: vi.fn(),
     mockSetSelectedNote: vi.fn(),
+    mockRestoreNote: vi.fn(),
   }
 })
 
@@ -26,6 +37,8 @@ vi.mock('../../hooks/useNotes', () => ({
     notes: [mockNote],
     createNote: mockCreateNote,
     deleteNote: mockDeleteNote,
+    restoreNote: mockRestoreNote,
+    notesLoading: false,
   }),
 }))
 
@@ -35,6 +48,7 @@ vi.mock('../../store/appStore', () => {
     selectedNote: null,
     setSelectedNote: mockSetSelectedNote,
     user: { id: 'test-user-id' },
+    notesLoading: false,
   }
 
   const useAppStore = () => mockState
@@ -52,6 +66,7 @@ vi.mock('../editor/MarkdownEditor', () => ({
 describe('NotesView Deletion UX', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockDeleteNote.mockResolvedValue(true) // Ensure it returns true by default
   })
 
   it('shows confirmation dialog instead of native confirm when deleting a note', async () => {
@@ -108,5 +123,49 @@ describe('NotesView Deletion UX', () => {
     await waitFor(() => {
         expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
     })
+  })
+
+  it('shows success toast with undo action after deletion', async () => {
+    render(<NotesView />)
+
+    const deleteButton = screen.getByRole('button', { name: /Delete note/i })
+    fireEvent.click(deleteButton)
+
+    const confirmButton = await screen.findByRole('button', { name: 'Delete' })
+    fireEvent.click(confirmButton)
+
+    await waitFor(() => {
+        expect(mockDeleteNote).toHaveBeenCalledWith(mockNote.id)
+    })
+
+    // Verify toast.success was called
+    expect(toast.success).toHaveBeenCalledWith('Note deleted', expect.objectContaining({
+      description: expect.stringContaining('Undo'),
+      action: expect.objectContaining({
+        label: 'Undo',
+      }),
+    }))
+  })
+
+  it('calls restoreNote when undo is clicked', async () => {
+    render(<NotesView />)
+
+    const deleteButton = screen.getByRole('button', { name: /Delete note/i })
+    fireEvent.click(deleteButton)
+
+    const confirmButton = await screen.findByRole('button', { name: 'Delete' })
+    fireEvent.click(confirmButton)
+
+    await waitFor(() => {
+        expect(mockDeleteNote).toHaveBeenCalledWith(mockNote.id)
+    })
+
+    const toastCall = vi.mocked(toast.success).mock.calls[0]
+    const toastOptions = toastCall[1] as any
+    const undoAction = toastOptions.action
+
+    await undoAction.onClick()
+
+    expect(mockRestoreNote).toHaveBeenCalledWith(mockNote)
   })
 })
