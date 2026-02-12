@@ -6,6 +6,9 @@ import { toast } from 'sonner'
 import type { Note } from '../types/database'
 import { useAppStore } from '../store/appStore'
 
+const NOTE_TITLE_MAX_LENGTH = 255
+const NOTE_BODY_MAX_LENGTH = 100000
+
 export function useNotes(userId: string | undefined) {
   // Use global state instead of local state
   const notes = useAppStore(state => state.notes)
@@ -45,6 +48,13 @@ export function useNotes(userId: string | undefined) {
       return null
     }
 
+    if (noteData.markdown_body.length > NOTE_BODY_MAX_LENGTH) {
+      const msg = `Note content exceeds ${NOTE_BODY_MAX_LENGTH.toLocaleString()} characters`
+      setError(msg)
+      toast.error(msg)
+      return null
+    }
+
     const cleanData: any = {
       user_id: userId,
       markdown_body: noteData.markdown_body,
@@ -52,6 +62,12 @@ export function useNotes(userId: string | undefined) {
     }
 
     if (noteData.title && noteData.title.trim()) {
+      if (noteData.title.length > NOTE_TITLE_MAX_LENGTH) {
+        const msg = `Note title exceeds ${NOTE_TITLE_MAX_LENGTH} characters`
+        setError(msg)
+        toast.error(msg)
+        return null
+      }
       cleanData.title = noteData.title.trim()
     }
     if (noteData.linked_entity_ids && Array.isArray(noteData.linked_entity_ids) && noteData.linked_entity_ids.length > 0) {
@@ -85,6 +101,20 @@ export function useNotes(userId: string | undefined) {
     if (!userId) {
       setError('User not authenticated')
       toast.error('You must be logged in to update notes')
+      return false
+    }
+
+    if (updates.title && updates.title.length > NOTE_TITLE_MAX_LENGTH) {
+      const msg = `Note title exceeds ${NOTE_TITLE_MAX_LENGTH} characters`
+      setError(msg)
+      toast.error(msg)
+      return false
+    }
+
+    if (updates.markdown_body && updates.markdown_body.length > NOTE_BODY_MAX_LENGTH) {
+      const msg = `Note content exceeds ${NOTE_BODY_MAX_LENGTH.toLocaleString()} characters`
+      setError(msg)
+      toast.error(msg)
       return false
     }
 
