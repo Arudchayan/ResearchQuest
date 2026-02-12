@@ -151,4 +151,126 @@ describe('useNotes Security', () => {
         expect(capturedPayloads[0].user_id).toBe('test-user-id')
       })
   })
+
+  describe('Input Validation', () => {
+    it('should reject note title exceeding 255 characters', async () => {
+      const { result } = renderHook(() => useNotes('test-user-id'))
+      const longTitle = 'a'.repeat(256)
+
+      const insertSpy = vi.fn().mockReturnValue(createMockBuilder())
+      mockSupabaseClient.from.mockImplementation((tableName: string) => {
+         if (tableName === 'notes') {
+             return createMockBuilder({
+                 insert: insertSpy
+             })
+         }
+         return createMockBuilder()
+      })
+
+      await act(async () => {
+        const created = await result.current.createNote({
+          title: longTitle,
+          markdown_body: 'Valid content',
+        })
+        expect(created).toBeNull()
+      })
+
+      expect(insertSpy).not.toHaveBeenCalled()
+    })
+
+    it('should reject note body exceeding 100,000 characters', async () => {
+      const { result } = renderHook(() => useNotes('test-user-id'))
+      const longBody = 'a'.repeat(100001)
+
+      const insertSpy = vi.fn().mockReturnValue(createMockBuilder())
+      mockSupabaseClient.from.mockImplementation((tableName: string) => {
+         if (tableName === 'notes') {
+             return createMockBuilder({
+                 insert: insertSpy
+             })
+         }
+         return createMockBuilder()
+      })
+
+      await act(async () => {
+        const created = await result.current.createNote({
+          title: 'Valid Title',
+          markdown_body: longBody,
+        })
+        expect(created).toBeNull()
+      })
+
+      expect(insertSpy).not.toHaveBeenCalled()
+    })
+
+    it('should reject update with title exceeding 255 characters', async () => {
+      const existingNote = {
+          id: 'note-1',
+          user_id: 'test-user-id',
+          title: 'Original Title',
+          markdown_body: 'Original Body',
+          tags: [],
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+      }
+      useAppStore.setState({ notes: [existingNote] })
+
+      const { result } = renderHook(() => useNotes('test-user-id'))
+      const longTitle = 'a'.repeat(256)
+
+      const updateSpy = vi.fn().mockReturnValue(createMockBuilder())
+      mockSupabaseClient.from.mockImplementation((tableName: string) => {
+         if (tableName === 'notes') {
+             return createMockBuilder({
+                 update: updateSpy
+             })
+         }
+         return createMockBuilder()
+      })
+
+      await act(async () => {
+        const success = await result.current.updateNote('note-1', {
+          title: longTitle
+        })
+        expect(success).toBe(false)
+      })
+
+      expect(updateSpy).not.toHaveBeenCalled()
+    })
+
+    it('should reject update with body exceeding 100,000 characters', async () => {
+      const existingNote = {
+          id: 'note-1',
+          user_id: 'test-user-id',
+          title: 'Original Title',
+          markdown_body: 'Original Body',
+          tags: [],
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+      }
+      useAppStore.setState({ notes: [existingNote] })
+
+      const { result } = renderHook(() => useNotes('test-user-id'))
+      const longBody = 'a'.repeat(100001)
+
+      const updateSpy = vi.fn().mockReturnValue(createMockBuilder())
+      mockSupabaseClient.from.mockImplementation((tableName: string) => {
+         if (tableName === 'notes') {
+             return createMockBuilder({
+                 update: updateSpy
+             })
+         }
+         return createMockBuilder()
+      })
+
+      await act(async () => {
+        const success = await result.current.updateNote('note-1', {
+          markdown_body: longBody
+        })
+        expect(success).toBe(false)
+      })
+
+      expect(updateSpy).not.toHaveBeenCalled()
+    })
+  })
 })
