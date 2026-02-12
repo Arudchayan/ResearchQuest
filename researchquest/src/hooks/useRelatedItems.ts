@@ -58,13 +58,30 @@ export function useRelatedItems(entityId: string | null, entityType: 'note' | 'p
       // ⚡ PERFORMANCE OPTIMIZATION:
       // We fetch only the IDs. We do NOT hydrate with store data here.
       // This allows us to keep this effect independent of store updates.
+      // Additionally, we use Promise.all to fetch related items concurrently.
+
+      const [notesResult, papersResult, ideasResult] = await Promise.all([
+        supabase
+          .from('topic_notes')
+          .select('note_id, topic_id')
+          .in('topic_id', topicIds)
+          .neq('note_id', entityType === 'note' ? entityId : '00000000-0000-0000-0000-000000000000'),
+
+        supabase
+          .from('topic_papers')
+          .select('paper_id, topic_id')
+          .in('topic_id', topicIds)
+          .neq('paper_id', entityType === 'paper' ? entityId : '00000000-0000-0000-0000-000000000000'),
+
+        supabase
+          .from('topic_ideas')
+          .select('idea_id, topic_id')
+          .in('topic_id', topicIds)
+          .neq('idea_id', entityType === 'idea' ? entityId : '00000000-0000-0000-0000-000000000000')
+      ])
 
       // Find related notes
-      const { data: relatedNotes, error: notesError } = await supabase
-        .from('topic_notes')
-        .select('note_id, topic_id')
-        .in('topic_id', topicIds)
-        .neq('note_id', entityType === 'note' ? entityId : '00000000-0000-0000-0000-000000000000')
+      const { data: relatedNotes, error: notesError } = notesResult
 
       if (!notesError && relatedNotes) {
         for (const link of relatedNotes) {
@@ -78,11 +95,7 @@ export function useRelatedItems(entityId: string | null, entityType: 'note' | 'p
       }
 
       // Find related papers
-      const { data: relatedPapers, error: papersError } = await supabase
-        .from('topic_papers')
-        .select('paper_id, topic_id')
-        .in('topic_id', topicIds)
-        .neq('paper_id', entityType === 'paper' ? entityId : '00000000-0000-0000-0000-000000000000')
+      const { data: relatedPapers, error: papersError } = papersResult
 
       if (!papersError && relatedPapers) {
         for (const link of relatedPapers) {
@@ -96,11 +109,7 @@ export function useRelatedItems(entityId: string | null, entityType: 'note' | 'p
       }
 
       // Find related ideas
-      const { data: relatedIdeas, error: ideasError } = await supabase
-        .from('topic_ideas')
-        .select('idea_id, topic_id')
-        .in('topic_id', topicIds)
-        .neq('idea_id', entityType === 'idea' ? entityId : '00000000-0000-0000-0000-000000000000')
+      const { data: relatedIdeas, error: ideasError } = ideasResult
 
       if (!ideasError && relatedIdeas) {
         for (const link of relatedIdeas) {
