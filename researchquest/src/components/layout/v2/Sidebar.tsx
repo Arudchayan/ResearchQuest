@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import {
   BookOpen,
   FileText,
@@ -12,8 +12,7 @@ import {
   Moon,
   Flame,
   HelpCircle,
-  Download,
-  Upload,
+  Database,
   PanelRightOpen,
   PanelRightClose,
   Keyboard
@@ -23,45 +22,19 @@ import { cn } from '../../../lib/utils'
 import { supabase } from '../../../lib/supabase'
 import { XPExplainer } from '../XPExplainer'
 import { ProfileDialog } from '../ProfileDialog'
-import { exportData } from '../../../utils/export'
-import { importData } from '../../../utils/import'
+import { DataManagementDialog } from '../../settings/DataManagementDialog'
 
 export function Sidebar() {
   const { currentView, setCurrentView, user, effectiveTheme, setTheme, isRightSidebarOpen, setIsRightSidebarOpen } = useAppStore()
   const [showXpGuide, setShowXpGuide] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [showDataDialog, setShowDataDialog] = useState(false)
 
-  const handleExport = () => {
-    const { user, notes, papers, ideas, topics } = useAppStore.getState()
-
-    // Map TopicWithCounts to Topic (strip counts)
-    const cleanTopics = topics.map(t => ({
-      id: t.id,
-      user_id: t.user_id,
-      name: t.name,
-      description: t.description,
-      created_at: t.created_at,
-      updated_at: t.updated_at
-    }))
-
-    exportData({ user, notes, papers, ideas, topics: cleanTopics })
-  }
-
-  const handleImport = () => {
-    fileInputRef.current?.click()
-  }
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file && user?.id) {
-      importData(file, user.id)
-    }
-    // Reset input so same file can be selected again
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
-    }
-  }
+  useEffect(() => {
+    const handleOpenDataManagement = () => setShowDataDialog(true)
+    document.addEventListener('open-data-management', handleOpenDataManagement)
+    return () => document.removeEventListener('open-data-management', handleOpenDataManagement)
+  }, [])
 
   const navItems = [
     { id: 'notes', label: 'Notes', icon: FileText },
@@ -195,28 +168,12 @@ export function Sidebar() {
         </div>
 
         <button
-          onClick={handleExport}
+          onClick={() => setShowDataDialog(true)}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 transition-colors"
         >
-          <Download className="w-5 h-5" />
-          Export Data
+          <Database className="w-5 h-5" />
+          Data & Backup
         </button>
-
-        <button
-          onClick={handleImport}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 transition-colors"
-        >
-          <Upload className="w-5 h-5" />
-          Import Data
-        </button>
-
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={handleFileChange}
-          accept=".json"
-          className="hidden"
-        />
 
         <button
           onClick={handleLogout}
@@ -237,6 +194,11 @@ export function Sidebar() {
       <ProfileDialog
         open={showProfile}
         onClose={() => setShowProfile(false)}
+      />
+
+      <DataManagementDialog
+        open={showDataDialog}
+        onClose={() => setShowDataDialog(false)}
       />
     </aside>
   )
