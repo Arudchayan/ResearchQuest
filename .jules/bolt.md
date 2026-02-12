@@ -33,3 +33,7 @@
 ## 2025-05-24 - Redundant Helper Fetches
 **Learning:** Helper functions (like `awardXP` calling `updateDailyLog`) that independently re-fetch the same entity (e.g., user profile) cause N+1 performance issues on the client.
 **Action:** Refactor helper functions to accept the required data (e.g., `streak`) as arguments instead of fetching it again. Consolidate updates into a single database call where possible.
+
+## 2025-05-25 - Parallelizing Independent Fetches
+**Learning:** Sequential `await` calls for independent data (like related notes, papers, ideas) create a "waterfall" effect, significantly increasing latency.
+**Action:** Use `Promise.all` to fetch independent resources concurrently. Verify parallelism with a test that mocks controlled promises and asserts all requests are initiated before any resolve.
