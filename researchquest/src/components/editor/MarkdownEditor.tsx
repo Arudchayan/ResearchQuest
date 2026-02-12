@@ -66,6 +66,7 @@ export function MarkdownEditor() {
   const [content, setContent] = useState("");
   const [title, setTitle] = useState("");
   const [saving, setSaving] = useState(false);
+  const [isTitleFocused, setIsTitleFocused] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("split");
   const editorViewRef = useRef<EditorView | null>(null);
@@ -526,16 +527,26 @@ export function MarkdownEditor() {
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
+          onFocus={() => setIsTitleFocused(true)}
+          onBlur={() => setIsTitleFocused(false)}
           maxLength={255}
           className="flex-1 text-title font-semibold bg-transparent border-none outline-none text-text-primary placeholder-text-tertiary"
           placeholder="Enter title..."
+          aria-label="Note title"
         />
-        {saving && (
-          <div className="flex items-center gap-2 text-small text-text-tertiary">
-            <Save className="w-4 h-4 animate-pulse" />
-            <span>Saving...</span>
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          {isTitleFocused && (
+            <span className="text-xs text-text-tertiary animate-in fade-in duration-200">
+              {title.length}/255
+            </span>
+          )}
+          {saving && (
+            <div className="flex items-center gap-2 text-small text-text-tertiary">
+              <Save className="w-4 h-4 animate-pulse" />
+              <span>Saving...</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Toolbar */}
