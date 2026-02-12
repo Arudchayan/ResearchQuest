@@ -12,3 +12,8 @@
 **Vulnerability:** Paper creation and updates lacked input length validation in `usePapers.ts`, allowing potentially unbounded strings to be sent to the database (DoS risk).
 **Learning:** Similar to the Ideas module, missing validation for `title` and `abstract` could lead to database errors or performance issues if constraints are hit.
 **Prevention:** Added `PAPER_TITLE_MAX_LENGTH` (255) and `PAPER_ABSTRACT_MAX_LENGTH` (5000) constants and enforced them in `createPaper` and `updatePaper` before Supabase interactions.
+
+## 2025-05-25 - Missing Input Length Limits in Notes
+**Vulnerability:** Note creation and updates lacked input length validation in `useNotes.ts`, allowing potentially unbounded strings to be sent to the database (DoS risk).
+**Learning:** Consistent input validation across all entity types is crucial. While Notes are often longer than other entities, they still require reasonable upper bounds to prevent abuse.
+**Prevention:** Added `NOTE_TITLE_MAX_LENGTH` (255) and `NOTE_BODY_MAX_LENGTH` (100000) constants and enforced them in `createNote` and `updateNote` before Supabase interactions.
