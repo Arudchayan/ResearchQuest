@@ -11,7 +11,8 @@ import {
   Sun,
   Search,
   Download,
-  Keyboard
+  Keyboard,
+  Database
 } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { useNotes } from '../../hooks/useNotes'
@@ -105,8 +106,24 @@ export function CommandPalette() {
   }
 
   const handleExport = () => {
-    const { user, notes, papers, ideas } = useAppStore.getState()
-    exportData({ user, notes, papers, ideas })
+    const { user, notes, papers, ideas, topics } = useAppStore.getState()
+
+    // Map TopicWithCounts to Topic (strip counts)
+    const cleanTopics = topics.map(t => ({
+      id: t.id,
+      user_id: t.user_id,
+      name: t.name,
+      description: t.description,
+      created_at: t.created_at,
+      updated_at: t.updated_at
+    }))
+
+    exportData({ user, notes, papers, ideas, topics: cleanTopics })
+    setOpen(false)
+  }
+
+  const handleOpenDataManagement = () => {
+    document.dispatchEvent(new CustomEvent('open-data-management'))
     setOpen(false)
   }
 
@@ -160,9 +177,14 @@ export function CommandPalette() {
             <span>Create New Note (Go to Notes)</span>
           </Command.Item>
 
+          <Command.Item onSelect={handleOpenDataManagement}>
+            <Database />
+            <span>Data Management...</span>
+          </Command.Item>
+
           <Command.Item onSelect={handleExport}>
             <Download />
-            <span>Export All Data</span>
+            <span>Quick Export All Data</span>
           </Command.Item>
 
           <Command.Item onSelect={toggleTheme}>
