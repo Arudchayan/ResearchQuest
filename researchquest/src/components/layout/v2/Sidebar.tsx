@@ -77,9 +77,15 @@ export function Sidebar() {
 
       <nav className="flex-1 px-4 space-y-1">
         {navItems.map((item) => (
-          <button
+          <a
             key={item.id}
-            onClick={() => {
+            href={`/${item.id}`}
+            onClick={(e) => {
+              // Allow default behavior (new tab) if modifier keys are pressed
+              if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
+                return
+              }
+              e.preventDefault()
               setCurrentView(item.id)
               // Update URL without reload
               window.history.pushState(null, '', `/${item.id}`)
@@ -94,7 +100,7 @@ export function Sidebar() {
           >
             <item.icon className="w-5 h-5" />
             {item.label}
-          </button>
+          </a>
         ))}
       </nav>
 

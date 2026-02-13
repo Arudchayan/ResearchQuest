@@ -13,3 +13,7 @@
 ## 2024-05-26 - Keyboard Event Bubbling in Cards
 **Learning:** When implementing keyboard accessibility on a card container (using `onKeyDown` for Enter/Space), events from interactive children (like delete buttons) bubble up. Pressing 'Enter' on a child button triggers both the child action AND the parent card action if not handled.
 **Action:** In the parent `onKeyDown` handler, always check `if (e.target !== e.currentTarget) return;` to ensure the parent only responds to events targeting itself.
+
+## 2024-05-27 - Client-Side Routing with Anchor Tags
+**Learning:** Using `<button>` for navigation in Single Page Applications (SPAs) prevents users from opening links in new tabs (Ctrl/Cmd+Click).
+**Action:** Replace navigation buttons with `<a>` tags using `href`. Implement a click handler that prevents default behavior ONLY when modifier keys are absent, ensuring both client-side routing and native browser features work.
