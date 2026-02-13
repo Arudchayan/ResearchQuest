@@ -23,9 +23,20 @@ import { supabase } from '../../../lib/supabase'
 import { XPExplainer } from '../XPExplainer'
 import { ProfileDialog } from '../ProfileDialog'
 import { DataManagementDialog } from '../../settings/DataManagementDialog'
+import { useShallow } from 'zustand/react/shallow'
 
 export function Sidebar() {
-  const { currentView, setCurrentView, user, effectiveTheme, setTheme, isRightSidebarOpen, setIsRightSidebarOpen } = useAppStore()
+  const { currentView, setCurrentView, user, effectiveTheme, setTheme, isRightSidebarOpen, setIsRightSidebarOpen } = useAppStore(
+    useShallow((state) => ({
+      currentView: state.currentView,
+      setCurrentView: state.setCurrentView,
+      user: state.user,
+      effectiveTheme: state.effectiveTheme,
+      setTheme: state.setTheme,
+      isRightSidebarOpen: state.isRightSidebarOpen,
+      setIsRightSidebarOpen: state.setIsRightSidebarOpen,
+    }))
+  )
   const [showXpGuide, setShowXpGuide] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
   const [showDataDialog, setShowDataDialog] = useState(false)

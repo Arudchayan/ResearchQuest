@@ -7,9 +7,21 @@ import { useGamificationStore } from '../../store/gamificationStore'
 import { formatTimeUntil, formatDateLabel } from '../../utils/time'
 import { useBacklinks } from '../../hooks/useBacklinks'
 import { useRelatedItems } from '../../hooks/useRelatedItems'
+import { useShallow } from 'zustand/react/shallow'
 
 export function RightSidebar() {
-  const { selectedNote, selectedPaper, selectedIdea, user, setSelectedNote, setSelectedPaper, setSelectedIdea, setCurrentView } = useAppStore()
+  const { selectedNote, selectedPaper, selectedIdea, user, setSelectedNote, setSelectedPaper, setSelectedIdea, setCurrentView } = useAppStore(
+    useShallow((state) => ({
+      selectedNote: state.selectedNote,
+      selectedPaper: state.selectedPaper,
+      selectedIdea: state.selectedIdea,
+      user: state.user,
+      setSelectedNote: state.setSelectedNote,
+      setSelectedPaper: state.setSelectedPaper,
+      setSelectedIdea: state.setSelectedIdea,
+      setCurrentView: state.setCurrentView,
+    }))
+  )
   const activeBoost = useGamificationStore((state) => state.activeBoost)
   const boostCountdown = useGamificationStore((state) => state.boostCountdown)
   const streakFreezeTokens = useGamificationStore((state) => state.streakFreezeTokens)
