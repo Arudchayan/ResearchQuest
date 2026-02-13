@@ -74,4 +74,45 @@ describe('Export Utils', () => {
     // Check second paper
     expect(bibtex).toContain('@article{AnonymousndAnother');
   });
+
+  it('escapes CSV injection characters correctly', () => {
+    const maliciousPapers: Paper[] = [
+      {
+        ...mockPapers[0],
+        id: 'bad1',
+        title: '=1+1', // Formula injection
+        authors: ['@evil'], // Another trigger
+        abstract: '-cmd /c calc', // Command execution trigger
+        doi: '+1234567890' // Plus trigger
+      }
+    ];
+
+    const csv = convertPapersToCSV(maliciousPapers);
+    const lines = csv.split('\n');
+    const row = lines[1];
+
+    // Expect single quote prepended to prevent execution
+    // Note: If quotes are added by escapeCSV due to other chars, the single quote should be INSIDE the double quotes?
+    // Or outside? Usually inside. E.g. "'=1+1".
+
+    // However, our implementation will prepend ' to the string BEFORE wrapping in quotes if needed.
+    // Since these strings don't have commas/quotes, they might not be wrapped in double quotes unless we force it.
+    // Let's see what the implementation does.
+    // If input is "=1+1", output should be "'=1+1" (if not quoted) or "\"'=1+1\"" (if quoted).
+
+    // We expect the raw cell value in CSV to start with '.
+    // In CSV format:
+    // =1+1  -> ,=1+1,  (vulnerable)
+    // '=1+1 -> ,'=1+1, (safe, shows ' in cell)
+
+    const parts = row.split(',');
+    // Title is first column
+    expect(parts[0]).toBe("'=1+1");
+    // Authors is second column
+    expect(parts[1]).toBe("'@evil");
+    // DOI is 4th column (index 3). 3rd is Year.
+    expect(parts[3]).toBe("'+1234567890");
+    // Abstract is 6th column (index 5)
+    expect(parts[5]).toBe("'-cmd /c calc");
+  });
 });
