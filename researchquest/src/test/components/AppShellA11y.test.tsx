@@ -89,17 +89,17 @@ describe('AppShell Accessibility', () => {
       </AppShell>
     )
 
-    // AppShell renders two sidebars (mobile/desktop), so we get multiple buttons
-    const papersButtons = screen.getAllByRole('button', { name: /papers/i })
-    expect(papersButtons.length).toBeGreaterThan(0)
-    papersButtons.forEach(button => {
-      expect(button).toHaveAttribute('aria-current', 'page')
+    // AppShell renders two sidebars (mobile/desktop), so we get multiple links
+    const papersLinks = screen.getAllByRole('link', { name: /papers/i })
+    expect(papersLinks.length).toBeGreaterThan(0)
+    papersLinks.forEach(link => {
+      expect(link).toHaveAttribute('aria-current', 'page')
     })
 
-    // Other buttons should not have aria-current="page"
-    const notesButtons = screen.getAllByRole('button', { name: /notes/i })
-    notesButtons.forEach(button => {
-      expect(button).not.toHaveAttribute('aria-current', 'page')
+    // Other links should not have aria-current="page"
+    const notesLinks = screen.getAllByRole('link', { name: /notes/i })
+    notesLinks.forEach(link => {
+      expect(link).not.toHaveAttribute('aria-current', 'page')
     })
   })
 })
