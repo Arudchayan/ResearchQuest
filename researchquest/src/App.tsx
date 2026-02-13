@@ -310,7 +310,7 @@ function App() {
       hydrateGamification({ streak_freeze_tokens: 0, rest_days: 0, active_boost: null })
     }
   }, [user, setUserProfile, hydrateGamification])
-  
+
   // URL-based routing - handle initial load and navigation
   useEffect(() => {
     // Handle route changes
