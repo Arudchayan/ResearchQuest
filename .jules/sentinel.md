@@ -37,3 +37,8 @@
 **Vulnerability:** `usePapers.ts` was explicitly falling back to `error.details` and `error.hint` when displaying error toasts to users. This exposed internal Postgres schema details (table names, constraints) in the UI.
 **Learning:** Fallback error handling logic often tries to be "helpful" by showing more detail, but this violates the security principle of "fail securely". Users should never see database-level hints.
 **Prevention:** Removed checks for `details` and `hint` properties. Enforced using only `error.message` or generic error codes. Added regression tests in `usePapersSecurity.test.ts` to explicitly assert that sensitive details are not leaked.
+
+## 2025-06-03 - CSV Injection (Formula Injection)
+**Vulnerability:** Export functionality in `researchquest/src/utils/export.ts` did not sanitize user input before creating CSV files. Malicious input starting with `=`, `+`, `-`, or `@` could be executed as formulas in spreadsheet software (like Excel).
+**Learning:** Data exported from the application is often treated as trusted by external tools (Excel). Developers must sanitize data for the consuming context (CSV), not just the application context (HTML/SQL).
+**Prevention:** Implemented `escapeCSV` with formula injection protection by prepending a single quote `'` to risky fields. Added regression test `researchquest/src/test/utils/export.test.ts`.
