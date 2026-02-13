@@ -4,13 +4,21 @@ import { RightSidebar } from '../RightSidebar'
 import { Menu, X } from 'lucide-react'
 import { useAppStore } from '../../../store/appStore'
 import { cn } from '../../../lib/utils'
+import { useShallow } from 'zustand/react/shallow'
 
 interface AppShellProps {
   children: ReactNode
 }
 
 export function AppShell({ children }: AppShellProps) {
-  const { isMobileSidebarOpen, setIsMobileSidebarOpen, isRightSidebarOpen } = useAppStore()
+  // OPTIMIZATION: Use shallow selector to prevent unnecessary re-renders when other parts of the store change
+  const { isMobileSidebarOpen, setIsMobileSidebarOpen, isRightSidebarOpen } = useAppStore(
+    useShallow((state) => ({
+      isMobileSidebarOpen: state.isMobileSidebarOpen,
+      setIsMobileSidebarOpen: state.setIsMobileSidebarOpen,
+      isRightSidebarOpen: state.isRightSidebarOpen,
+    }))
+  )
 
   return (
     <div className="flex h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans overflow-hidden">
