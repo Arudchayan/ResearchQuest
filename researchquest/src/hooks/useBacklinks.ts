@@ -9,7 +9,8 @@ export interface BacklinkItem {
   updated_at: string
 }
 
-export function useBacklinks(entityId: string | null, entityType: 'note' | 'paper' | 'idea' | null, userId: string | undefined) {
+export function useBacklinks(entityId: string | null, entityType: 'note' | 'paper' | 'idea' | null, userId: string | undefined, options: { enabled?: boolean } = {}) {
+  const { enabled = true } = options
   const [backlinks, setBacklinks] = useState<BacklinkItem[]>([])
   const [loading, setLoading] = useState(false)
   const requestIdRef = useRef(0)
@@ -31,6 +32,8 @@ export function useBacklinks(entityId: string | null, entityType: 'note' | 'pape
   const fetchBacklinks = useCallback(async () => {
     requestIdRef.current += 1
     const requestId = requestIdRef.current
+
+    if (!enabled) return
 
     if (!entityId || !entityType || !userId) {
       setBacklinks([])
@@ -108,7 +111,7 @@ export function useBacklinks(entityId: string | null, entityType: 'note' | 'pape
         setLoading(false)
       }
     }
-  }, [deriveNoteTitle, entityId, entityType, userId])
+  }, [deriveNoteTitle, entityId, entityType, userId, enabled])
 
   useEffect(() => {
     void fetchBacklinks()
