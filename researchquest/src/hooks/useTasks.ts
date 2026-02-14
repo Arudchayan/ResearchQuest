@@ -169,7 +169,7 @@ export function useTasks(userId: string | undefined) {
       // Sentinel: Prevent information leakage by logging only the message
       console.error('Failed to create task:', createError.message || 'Unknown error')
       
-      const errorMessage = createError.message || createError.details || createError.hint || 'Unknown error occurred'
+      const errorMessage = createError.message || 'Unknown error occurred'
       setError(`Failed to create task: ${errorMessage}`)
       toast.error(`Failed to create task: ${errorMessage}`)
       return null
@@ -219,12 +219,13 @@ export function useTasks(userId: string | undefined) {
       .from('tasks')
       .update(sanitizedUpdates)
       .eq('id', taskId)
+      .eq('user_id', userId)
 
     if (updateError) {
       // Sentinel: Prevent information leakage
       console.error('Failed to update task:', updateError.message || 'Unknown error')
 
-      const errorMessage = updateError.message || updateError.details || updateError.hint || 'Unknown error occurred'
+      const errorMessage = updateError.message || 'Unknown error occurred'
       setError(`Failed to update task: ${errorMessage}`)
       toast.error(`Failed to update task: ${errorMessage}`)
       // Revert on error
@@ -252,12 +253,13 @@ export function useTasks(userId: string | undefined) {
       .from('tasks')
       .update({ completed: newCompletedStatus })
       .eq('id', taskId)
+      .eq('user_id', userId)
 
     if (updateError) {
       // Sentinel: Prevent information leakage
       console.error('Failed to complete/uncomplete task:', updateError.message || 'Unknown error')
       
-      const errorMessage = updateError.message || updateError.details || updateError.hint || 'Unknown error occurred'
+      const errorMessage = updateError.message || 'Unknown error occurred'
       setError(`Failed to update task: ${errorMessage}`)
       toast.error(`Failed to update task: ${errorMessage}`)
       // Revert on error
@@ -287,12 +289,13 @@ export function useTasks(userId: string | undefined) {
       .from('tasks')
       .delete()
       .eq('id', taskId)
+      .eq('user_id', userId)
 
     if (deleteError) {
       // Sentinel: Prevent information leakage
       console.error('Failed to delete task:', deleteError.message || 'Unknown error')
       
-      const errorMessage = deleteError.message || deleteError.details || deleteError.hint || 'Unknown error occurred'
+      const errorMessage = deleteError.message || 'Unknown error occurred'
       setError(`Failed to delete task: ${errorMessage}`)
       toast.error(`Failed to delete task: ${errorMessage}`)
       // Revert on error
