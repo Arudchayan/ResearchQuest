@@ -6,11 +6,14 @@ import {
   BookOpen,
   ExternalLink,
   CheckCircle2,
+  Upload,
+  AlertCircle,
 } from "lucide-react";
 import type { CrossrefPaper } from "../../types/database";
 import { useAppStore } from "../../store/appStore";
 import type { PaperSearchOptions } from "../../hooks/usePapers";
 import { isValidUrl } from "../../utils/security";
+import { parseBibTeX, BibTeXEntry } from "../../utils/bibtexParser";
 
 interface AddPaperViewProps {
   onAdd: (paperData: any) => Promise<any>;
@@ -26,9 +29,9 @@ export function AddPaperView({
   searchByDOI,
   searchByQuery,
 }: AddPaperViewProps) {
-  const [activeTab, setActiveTab] = useState<"doi" | "search" | "manual">(
-    "doi",
-  );
+  const [activeTab, setActiveTab] = useState<
+    "doi" | "search" | "manual" | "import"
+  >("doi");
   const [doiInput, setDoiInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [resultLimit, setResultLimit] = useState("10");
@@ -53,6 +56,20 @@ export function AddPaperView({
   const setSelectedPaper = useAppStore((state) => state.setSelectedPaper);
   const manualTitleInputRef = useRef<HTMLInputElement>(null);
 
+  // Import state
+  const [parsedEntries, setParsedEntries] = useState<BibTeXEntry[]>([]);
+  const [selectedEntryIds, setSelectedEntryIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [importProgress, setImportProgress] = useState<{
+    current: number;
+    total: number;
+  } | null>(null);
+  const [importStats, setImportStats] = useState<{
+    success: number;
+    failed: number;
+  } | null>(null);
+
   const buildPaperPayload = (paper: CrossrefPaper) => {
     const paperData: any = {
       title: paper.title,
@@ -66,6 +83,26 @@ export function AddPaperView({
       paperData.abstract = paper.abstract.trim();
     if (paper.publicationDate) {
       const year = paper.publicationDate.toString();
+      paperData.publication_date = /^\d{4}$/.test(year)
+        ? `${year}-01-01`
+        : year;
+    }
+
+    return paperData;
+  };
+
+  const buildPaperPayloadFromBibTeX = (entry: BibTeXEntry) => {
+    const paperData: any = {
+      title: entry.title || "Untitled",
+      authors: entry.authors || [],
+    };
+
+    if (entry.doi && entry.doi.trim()) paperData.doi = entry.doi.trim();
+    if (entry.url && entry.url.trim()) paperData.source_url = entry.url.trim();
+    if (entry.abstract && entry.abstract.trim())
+      paperData.abstract = entry.abstract.trim();
+    if (entry.year) {
+      const year = entry.year.toString();
       paperData.publication_date = /^\d{4}$/.test(year)
         ? `${year}-01-01`
         : year;
@@ -227,6 +264,90 @@ export function AddPaperView({
     }
   };
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setLoading(true);
+    setError("");
+    setParsedEntries([]);
+    setSelectedEntryIds(new Set());
+    setImportStats(null);
+
+    try {
+      const text = await file.text();
+      const entries = parseBibTeX(text);
+      if (entries.length === 0) {
+        setError("No valid BibTeX entries found in file.");
+      } else {
+        setParsedEntries(entries);
+        // Select all by default
+        setSelectedEntryIds(new Set(entries.map((e) => e.id)));
+      }
+    } catch (err) {
+      console.error("Failed to parse file:", err);
+      setError("Failed to parse BibTeX file.");
+    } finally {
+      setLoading(false);
+      // Reset file input
+      e.target.value = "";
+    }
+  };
+
+  const toggleEntrySelection = (id: string) => {
+    const newSelected = new Set(selectedEntryIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedEntryIds(newSelected);
+  };
+
+  const handleImportPapers = async () => {
+    if (selectedEntryIds.size === 0) return;
+
+    setLoading(true);
+    setImportProgress({ current: 0, total: selectedEntryIds.size });
+    let successCount = 0;
+    let failedCount = 0;
+
+    const entriesToImport = parsedEntries.filter((e) =>
+      selectedEntryIds.has(e.id),
+    );
+
+    for (let i = 0; i < entriesToImport.length; i++) {
+      const entry = entriesToImport[i];
+      try {
+        await onAdd(buildPaperPayloadFromBibTeX(entry));
+        successCount++;
+      } catch (err) {
+        console.error(`Failed to import paper ${entry.title}:`, err);
+        failedCount++;
+      }
+      setImportProgress({
+        current: i + 1,
+        total: entriesToImport.length,
+      });
+    }
+
+    setImportStats({ success: successCount, failed: failedCount });
+    setLoading(false);
+    setImportProgress(null);
+
+    if (successCount > 0) {
+      setSuccessMessage(
+        `Successfully imported ${successCount} papers! ${failedCount > 0 ? `(${failedCount} failed)` : ""}`,
+      );
+      setTimeout(() => setSuccessMessage(""), 5000);
+      // Clear selection after successful import
+      setSelectedEntryIds(new Set());
+      setParsedEntries([]); // Clear list or keep it? Clearing it to reset state.
+    } else if (failedCount > 0) {
+      setError(`Failed to import papers. (${failedCount} failed)`);
+    }
+  };
+
   return (
     <div className="p-6 max-w-5xl mx-auto">
       {/* Header */}
@@ -240,7 +361,7 @@ export function AddPaperView({
               Add Paper to Library
             </h1>
             <p className="text-text-secondary mt-1">
-              Search by DOI, keywords, or add manually
+              Search by DOI, keywords, import BibTeX, or add manually
             </p>
           </div>
         </div>
@@ -258,7 +379,7 @@ export function AddPaperView({
 
       {/* Tabs */}
       <div
-        className="flex gap-2 mb-6 border-b border-border-subtle"
+        className="flex gap-2 mb-6 border-b border-border-subtle overflow-x-auto"
         role="tablist"
       >
         <button
@@ -270,7 +391,7 @@ export function AddPaperView({
             setActiveTab("doi");
             setError("");
           }}
-          className={`px-6 py-3 text-sm font-medium transition-all relative ${
+          className={`px-6 py-3 text-sm font-medium transition-all relative whitespace-nowrap ${
             activeTab === "doi"
               ? "text-primary-600 dark:text-primary-400"
               : "text-text-secondary hover:text-text-primary"
@@ -290,7 +411,7 @@ export function AddPaperView({
             setActiveTab("search");
             setError("");
           }}
-          className={`px-6 py-3 text-sm font-medium transition-all relative ${
+          className={`px-6 py-3 text-sm font-medium transition-all relative whitespace-nowrap ${
             activeTab === "search"
               ? "text-primary-600 dark:text-primary-400"
               : "text-text-secondary hover:text-text-primary"
@@ -303,6 +424,26 @@ export function AddPaperView({
         </button>
         <button
           role="tab"
+          aria-selected={activeTab === "import"}
+          aria-controls="view-panel-import"
+          id="view-tab-import"
+          onClick={() => {
+            setActiveTab("import");
+            setError("");
+          }}
+          className={`px-6 py-3 text-sm font-medium transition-all relative whitespace-nowrap ${
+            activeTab === "import"
+              ? "text-primary-600 dark:text-primary-400"
+              : "text-text-secondary hover:text-text-primary"
+          }`}
+        >
+          Import BibTeX
+          {activeTab === "import" && (
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-500" />
+          )}
+        </button>
+        <button
+          role="tab"
           aria-selected={activeTab === "manual"}
           aria-controls="view-panel-manual"
           id="view-tab-manual"
@@ -310,7 +451,7 @@ export function AddPaperView({
             setActiveTab("manual");
             setError("");
           }}
-          className={`px-6 py-3 text-sm font-medium transition-all relative ${
+          className={`px-6 py-3 text-sm font-medium transition-all relative whitespace-nowrap ${
             activeTab === "manual"
               ? "text-primary-600 dark:text-primary-400"
               : "text-text-secondary hover:text-text-primary"
@@ -746,6 +887,159 @@ export function AddPaperView({
           </div>
         )}
 
+        {activeTab === "import" && (
+          <div
+            className="space-y-6"
+            role="tabpanel"
+            id="view-panel-import"
+            aria-labelledby="view-tab-import"
+          >
+            <div>
+              <label
+                htmlFor="view-import-file"
+                className="block text-sm font-medium text-text-primary mb-3"
+              >
+                Upload BibTeX File (.bib)
+              </label>
+              <div className="flex flex-col gap-4">
+                <div className="border-2 border-dashed border-border-subtle rounded-lg p-6 text-center hover:bg-bg-base transition-colors relative">
+                  <input
+                    id="view-import-file"
+                    type="file"
+                    accept=".bib"
+                    onChange={handleFileChange}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+                  <div className="flex flex-col items-center gap-2 text-text-secondary">
+                    <Upload className="w-8 h-8 text-primary-500" />
+                    <p className="font-medium">
+                      Click to upload or drag and drop
+                    </p>
+                    <p className="text-sm text-text-tertiary">
+                      Supported format: .bib
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {error && (
+              <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg flex items-center gap-2">
+                <AlertCircle className="w-5 h-5" />
+                {error}
+              </div>
+            )}
+
+            {parsedEntries.length > 0 && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-medium text-text-primary">
+                    Found {parsedEntries.length} entries
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        if (selectedEntryIds.size === parsedEntries.length) {
+                          setSelectedEntryIds(new Set());
+                        } else {
+                          setSelectedEntryIds(
+                            new Set(parsedEntries.map((e) => e.id)),
+                          );
+                        }
+                      }}
+                      className="text-sm text-primary-600 hover:text-primary-700 font-medium"
+                    >
+                      {selectedEntryIds.size === parsedEntries.length
+                        ? "Deselect All"
+                        : "Select All"}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="max-h-[400px] overflow-y-auto border border-border-subtle rounded-lg divide-y divide-border-subtle">
+                  {parsedEntries.map((entry) => (
+                    <div
+                      key={entry.id}
+                      className={`p-3 flex items-start gap-3 hover:bg-bg-base transition-colors ${
+                        selectedEntryIds.has(entry.id)
+                          ? "bg-primary-50 dark:bg-primary-900/10"
+                          : ""
+                      }`}
+                    >
+                      <div className="pt-1">
+                        <input
+                          type="checkbox"
+                          checked={selectedEntryIds.has(entry.id)}
+                          onChange={() => toggleEntrySelection(entry.id)}
+                          className="w-4 h-4 rounded border-border-subtle text-primary-600 focus:ring-primary-500"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-text-primary truncate">
+                          {entry.title || "Untitled"}
+                        </p>
+                        <p className="text-sm text-text-secondary truncate">
+                          {entry.authors?.join(", ") || "Unknown Author"}
+                        </p>
+                        <div className="flex items-center gap-3 mt-1 text-xs text-text-tertiary">
+                          {entry.year && <span>{entry.year}</span>}
+                          {entry.journal && <span>{entry.journal}</span>}
+                          {entry.type && (
+                            <span className="uppercase">{entry.type}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex items-center justify-between pt-4 border-t border-border-subtle">
+                  <div className="text-sm text-text-secondary">
+                    {selectedEntryIds.size} papers selected
+                  </div>
+                  <button
+                    onClick={handleImportPapers}
+                    disabled={loading || selectedEntryIds.size === 0}
+                    className="px-6 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {loading ? (
+                      <Loader className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Plus className="w-4 h-4" />
+                    )}
+                    {loading ? "Importing..." : "Import Selected"}
+                  </button>
+                </div>
+
+                {importProgress && (
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs text-text-secondary">
+                      <span>
+                        Importing {importProgress.current} of{" "}
+                        {importProgress.total}
+                      </span>
+                      <span>
+                        {Math.round(
+                          (importProgress.current / importProgress.total) * 100,
+                        )}
+                        %
+                      </span>
+                    </div>
+                    <div className="h-2 bg-bg-base rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-primary-500 transition-all duration-300"
+                        style={{
+                          width: `${(importProgress.current / importProgress.total) * 100}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {activeTab === "manual" && (
           <div
             className="space-y-6"
@@ -868,6 +1162,7 @@ export function AddPaperView({
         <ul className="text-sm text-blue-800 dark:text-blue-400 space-y-1 list-disc list-inside">
           <li>Use DOI search for the most accurate results</li>
           <li>Keyword search finds papers from CrossRef database</li>
+          <li>Import BibTeX files from other reference managers</li>
           <li>Manual entry is perfect for papers without a DOI</li>
         </ul>
       </div>
