@@ -10,12 +10,13 @@ import { useRelatedItems } from '../../hooks/useRelatedItems'
 import { useShallow } from 'zustand/react/shallow'
 
 export function RightSidebar() {
-  const { selectedNote, selectedPaper, selectedIdea, user, setSelectedNote, setSelectedPaper, setSelectedIdea, setCurrentView } = useAppStore(
+  const { selectedNote, selectedPaper, selectedIdea, user, isRightSidebarOpen, setSelectedNote, setSelectedPaper, setSelectedIdea, setCurrentView } = useAppStore(
     useShallow((state) => ({
       selectedNote: state.selectedNote,
       selectedPaper: state.selectedPaper,
       selectedIdea: state.selectedIdea,
       user: state.user,
+      isRightSidebarOpen: state.isRightSidebarOpen,
       setSelectedNote: state.setSelectedNote,
       setSelectedPaper: state.setSelectedPaper,
       setSelectedIdea: state.setSelectedIdea,
@@ -38,8 +39,8 @@ export function RightSidebar() {
   const currentEntityType = selectedNote ? 'note' : selectedPaper ? 'paper' : selectedIdea ? 'idea' : null
 
   // Fetch backlinks and related items
-  const { backlinks, loading: backlinksLoading } = useBacklinks(currentEntityId, currentEntityType, user?.id)
-  const { relatedItems, loading: relatedLoading } = useRelatedItems(currentEntityId, currentEntityType, user?.id)
+  const { backlinks, loading: backlinksLoading } = useBacklinks(currentEntityId, currentEntityType, user?.id, { enabled: isRightSidebarOpen })
+  const { relatedItems, loading: relatedLoading } = useRelatedItems(currentEntityId, currentEntityType, user?.id, { enabled: isRightSidebarOpen })
 
   useEffect(() => {
     let isMounted = true

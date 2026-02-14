@@ -16,7 +16,8 @@ interface RelatedLink {
   topicCount: number
 }
 
-export function useRelatedItems(entityId: string | null, entityType: 'note' | 'paper' | 'idea' | null, userId: string | undefined) {
+export function useRelatedItems(entityId: string | null, entityType: 'note' | 'paper' | 'idea' | null, userId: string | undefined, options: { enabled?: boolean } = {}) {
+  const { enabled = true } = options
   // Store only the structural relationship data (IDs and counts), not the full objects
   const [relatedLinks, setRelatedLinks] = useState<RelatedLink[]>([])
   const [loading, setLoading] = useState(false)
@@ -27,6 +28,8 @@ export function useRelatedItems(entityId: string | null, entityType: 'note' | 'p
   const ideas = useAppStore(state => state.ideas)
 
   const fetchRelatedLinks = useCallback(async () => {
+    if (!enabled) return
+
     if (!entityId || !entityType || !userId) {
       setRelatedLinks([])
       return
@@ -129,7 +132,7 @@ export function useRelatedItems(entityId: string | null, entityType: 'note' | 'p
     } finally {
       setLoading(false)
     }
-  }, [entityId, entityType, userId]) // No dependencies on store data!
+  }, [entityId, entityType, userId, enabled]) // No dependencies on store data!
 
   // Effect to fetch links. Only runs when entity changes (or userId).
   useEffect(() => {
