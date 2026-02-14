@@ -17,3 +17,8 @@
 **Vulnerability:** Note creation and updates lacked input length validation in `useNotes.ts`, allowing potentially unbounded strings to be sent to the database (DoS risk).
 **Learning:** Consistent input validation across all entity types is crucial. While Notes are often longer than other entities, they still require reasonable upper bounds to prevent abuse.
 **Prevention:** Added `NOTE_TITLE_MAX_LENGTH` (255) and `NOTE_BODY_MAX_LENGTH` (100000) constants and enforced them in `createNote` and `updateNote` before Supabase interactions.
+
+## 2026-02-14 - Insecure Direct Object Reference (IDOR) & Info Leakage in Tasks
+**Vulnerability:** The `useTasks` hook lacked `user_id` verification in `update`, `complete`, and `delete` operations, relying solely on RLS. Additionally, error handling exposed internal database `details` and `hint` to the UI, potentially leaking schema information.
+**Learning:** Defense-in-depth requires explicit `user_id` checks in mutation queries even if RLS is present. Fallback error messages must never expose `details` or `hint` properties from the database driver.
+**Prevention:** Added `.eq('user_id', userId)` to all mutation queries in `useTasks.ts` and sanitized error message construction to only show `message` or a generic error.
