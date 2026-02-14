@@ -27,6 +27,7 @@ export function IdeasBoard() {
   const [newIdeaDesc, setNewIdeaDesc] = useState("");
   const [ideaToDelete, setIdeaToDelete] = useState<Idea | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isTitleFocused, setIsTitleFocused] = useState(false);
 
   const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastDeletedRef = useRef<Idea | null>(null)
@@ -289,11 +290,17 @@ export function IdeasBoard() {
                   placeholder="e.g. Quantum Entanglement in Biology"
                   value={newIdeaTitle}
                   onChange={(e) => setNewIdeaTitle(e.target.value)}
+                  onFocus={() => setIsTitleFocused(true)}
+                  onBlur={() => setIsTitleFocused(false)}
                   maxLength={255}
                 />
-                <span className="text-xs text-slate-400 text-right mt-1 block">
-                  {newIdeaTitle.length}/255
-                </span>
+                <div className="flex justify-end h-5 mt-1">
+                  {isTitleFocused && (
+                    <span className="text-xs text-slate-400 animate-in fade-in duration-200">
+                      {newIdeaTitle.length}/255
+                    </span>
+                  )}
+                </div>
               </div>
               <div>
                 <label
