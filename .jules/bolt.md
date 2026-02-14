@@ -37,3 +37,7 @@
 ## 2025-05-25 - Parallelizing Independent Fetches
 **Learning:** Sequential `await` calls for independent data (like related notes, papers, ideas) create a "waterfall" effect, significantly increasing latency.
 **Action:** Use `Promise.all` to fetch independent resources concurrently. Verify parallelism with a test that mocks controlled promises and asserts all requests are initiated before any resolve.
+
+## 2026-02-14 - Conditional Fetching for Hidden UI
+**Learning:** Components hidden via CSS (e.g., sidebars with `w-0` or `opacity-0`) still mount and run effects, causing unnecessary data fetching.
+**Action:** Pass an `enabled` prop (controlled by visibility state) to data fetching hooks to skip work when the component is hidden.
