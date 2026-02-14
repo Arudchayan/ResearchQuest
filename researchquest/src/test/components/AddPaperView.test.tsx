@@ -618,4 +618,97 @@ describe('AddPaperView Component', () => {
       })
     })
   })
+
+  describe('Import BibTeX', () => {
+    it('should switch to Import tab', async () => {
+      render(
+        <AddPaperView
+          onAdd={mockOnAdd}
+          searchByDOI={mockSearchByDOI}
+          searchByQuery={mockSearchByQuery}
+        />
+      )
+
+      const importTab = screen.getByText('Import BibTeX')
+      await userEvent.click(importTab)
+
+      expect(screen.getByText(/upload bibtex file/i)).toBeInTheDocument()
+    })
+
+    it('should handle file upload and parsing', async () => {
+      render(
+        <AddPaperView
+          onAdd={mockOnAdd}
+          searchByDOI={mockSearchByDOI}
+          searchByQuery={mockSearchByQuery}
+        />
+      )
+
+      await userEvent.click(screen.getByText('Import BibTeX'))
+
+      const fileContent = `
+@article{key1,
+  title = {Test Paper},
+  author = {Test Author},
+  year = {2023}
+}
+      `
+      const file = new File([fileContent], 'test.bib', { type: 'text/plain' })
+      Object.defineProperty(file, 'text', {
+        value: async () => fileContent
+      })
+
+      const input = screen.getByLabelText(/upload bibtex file/i)
+      await userEvent.upload(input, file)
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Paper')).toBeInTheDocument()
+        expect(screen.getByText('Test Author')).toBeInTheDocument()
+      })
+
+      expect(screen.getByText(/1 papers selected/i)).toBeInTheDocument()
+    })
+
+    it('should import selected papers', async () => {
+       render(
+        <AddPaperView
+          onAdd={mockOnAdd}
+          searchByDOI={mockSearchByDOI}
+          searchByQuery={mockSearchByQuery}
+        />
+      )
+
+      await userEvent.click(screen.getByText('Import BibTeX'))
+
+      const fileContent = `
+@article{key1,
+  title = {Test Paper},
+  author = {Test Author},
+  year = {2023}
+}
+      `
+      const file = new File([fileContent], 'test.bib', { type: 'text/plain' })
+      Object.defineProperty(file, 'text', {
+        value: async () => fileContent
+      })
+
+      const input = screen.getByLabelText(/upload bibtex file/i)
+      await userEvent.upload(input, file)
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Paper')).toBeInTheDocument()
+      })
+
+      const importBtn = screen.getByRole('button', { name: /import selected/i })
+      await userEvent.click(importBtn)
+
+      await waitFor(() => {
+        expect(mockOnAdd).toHaveBeenCalledWith(expect.objectContaining({
+          title: 'Test Paper',
+          authors: ['Test Author'],
+        }))
+        expect(screen.getByText(/successfully imported 1 papers/i)).toBeInTheDocument()
+      })
+    })
+  })
 })
