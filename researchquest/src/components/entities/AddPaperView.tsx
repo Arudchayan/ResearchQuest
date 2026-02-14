@@ -52,6 +52,7 @@ export function AddPaperView({
   const [manualUrl, setManualUrl] = useState("");
   const setSelectedPaper = useAppStore((state) => state.setSelectedPaper);
   const manualTitleInputRef = useRef<HTMLInputElement>(null);
+  const [isTitleFocused, setIsTitleFocused] = useState(false);
 
   const buildPaperPayload = (paper: CrossrefPaper) => {
     const paperData: any = {
@@ -769,15 +770,21 @@ export function AddPaperView({
                   setManualTitle(e.target.value);
                   if (error) setError("");
                 }}
+                onFocus={() => setIsTitleFocused(true)}
+                onBlur={() => setIsTitleFocused(false)}
                 placeholder="Enter paper title"
                 maxLength={255}
                 aria-invalid={!manualTitle.trim() && error === "Title is required"}
                 aria-describedby={error ? "manual-entry-error" : undefined}
                 className="w-full px-4 py-3 bg-bg-base border border-border-subtle rounded-lg text-body focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
-              <span className="text-xs text-text-tertiary text-right mt-1 block">
-                {manualTitle.length}/255
-              </span>
+              <div className="flex justify-end h-5 mt-1">
+                {isTitleFocused && (
+                  <span className="text-xs text-text-tertiary animate-in fade-in duration-200">
+                    {manualTitle.length}/255
+                  </span>
+                )}
+              </div>
             </div>
 
             <div>
