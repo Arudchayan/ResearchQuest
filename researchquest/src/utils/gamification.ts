@@ -21,6 +21,7 @@ export const XP_REWARDS = {
   COMPLETE_GOAL: 100,
   COMPLETE_MILESTONE: 50,
   DAILY_LOGIN: 5,
+  FOCUS_SESSION_MINUTE: 2,
 }
 
 // Achievement types and rewards
