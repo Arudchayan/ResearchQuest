@@ -2,6 +2,7 @@ import { useState } from "react";
 import { X, Search, Plus, Loader } from "lucide-react";
 import type { CrossrefPaper } from "../../types/database";
 import { isValidUrl } from "../../utils/security";
+import { logger } from "../../utils/logger";
 
 interface AddPaperModalProps {
   isOpen: boolean;
@@ -66,14 +67,14 @@ export function AddPaperModal({
       publication_date: doiResult.publicationDate?.toString(),
     };
 
-    console.log("Adding paper via DOI:", paperData);
+    logger.log("Adding paper via DOI:", paperData);
 
     try {
       await onAdd(paperData);
-      console.log("Paper added successfully");
+      logger.log("Paper added successfully");
       handleClose();
     } catch (error) {
-      console.error("Failed to add paper:", error);
+      logger.error("Failed to add paper", error);
       setError(
         `Failed to add paper: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
@@ -106,14 +107,14 @@ export function AddPaperModal({
       publication_date: result.publicationDate?.toString(),
     };
 
-    console.log("Adding paper via search selection:", paperData);
+    logger.log("Adding paper via search selection:", paperData);
 
     try {
       await onAdd(paperData);
-      console.log("Paper added successfully");
+      logger.log("Paper added successfully");
       handleClose();
     } catch (error) {
-      console.error("Failed to add paper:", error);
+      logger.error("Failed to add paper", error);
       setError(
         `Failed to add paper: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
@@ -143,14 +144,14 @@ export function AddPaperModal({
       source_url: manualUrl || undefined,
     };
 
-    console.log("Adding paper via manual entry:", paperData);
+    logger.log("Adding paper via manual entry:", paperData);
 
     try {
       await onAdd(paperData);
-      console.log("Paper added successfully");
+      logger.log("Paper added successfully");
       handleClose();
     } catch (error) {
-      console.error("Failed to add paper:", error);
+      logger.error("Failed to add paper", error);
       setError(
         `Failed to add paper: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
