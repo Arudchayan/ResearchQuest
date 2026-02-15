@@ -5,6 +5,7 @@ import { useAppStore } from '../../store/appStore'
 import { supabase } from '../../lib/supabase'
 import { ACHIEVEMENTS, getLevelTitle, getXPForLevel } from '../../utils/gamification'
 import type { Achievement } from '../../types/database'
+import { Skeleton } from '../../components/ui/Skeleton'
 
 interface ProfileDialogProps {
   open: boolean
@@ -62,6 +63,27 @@ export function ProfileDialog({ open, onClose }: ProfileDialogProps) {
     return Object.values(ACHIEVEMENTS)
   }, [])
 
+  const AchievementsSkeleton = () => (
+    <>
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="p-4 rounded-xl border border-border-subtle bg-bg-base/50 space-y-3">
+          <div className="flex items-center gap-3">
+            <Skeleton className="w-10 h-10 rounded-lg flex-shrink-0" />
+            <div className="space-y-2 flex-1">
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-1/2" />
+            </div>
+          </div>
+          <Skeleton className="h-12 w-full rounded-md" />
+          <div className="flex justify-between pt-2">
+            <Skeleton className="h-3 w-12" />
+            <Skeleton className="h-3 w-20" />
+          </div>
+        </div>
+      ))}
+    </>
+  )
+
   return (
     <Dialog.Root open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <Dialog.Portal>
@@ -111,7 +133,14 @@ export function ProfileDialog({ open, onClose }: ProfileDialogProps) {
                     <span>{xpInLevel} XP</span>
                     <span>500 XP</span>
                   </div>
-                  <div className="h-2 bg-bg-elevated rounded-full overflow-hidden">
+                  <div
+                    className="h-2 bg-bg-elevated rounded-full overflow-hidden"
+                    role="progressbar"
+                    aria-valuenow={xpInLevel}
+                    aria-valuemin={0}
+                    aria-valuemax={500}
+                    aria-label="Level Progress"
+                  >
                     <div
                       className="h-full bg-primary-500 transition-all duration-500"
                       style={{ width: `${progressPercent}%` }}
@@ -162,53 +191,66 @@ export function ProfileDialog({ open, onClose }: ProfileDialogProps) {
               </h3>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {allAchievements.map((achievement) => {
-                  const isUnlocked = earnedAchievements.has(achievement.type)
-                  const earnedDate = achievementDates[achievement.type]
+                {loading ? (
+                  <AchievementsSkeleton />
+                ) : (
+                  allAchievements.map((achievement) => {
+                    const isUnlocked = earnedAchievements.has(achievement.type)
+                    const earnedDate = achievementDates[achievement.type]
 
-                  return (
-                    <div
-                      key={achievement.type}
-                      className={`relative p-4 rounded-xl border transition-all duration-200 ${
-                        isUnlocked
-                          ? 'bg-bg-surface border-primary-200 dark:border-primary-800 shadow-sm'
-                          : 'bg-bg-base/50 border-border-subtle opacity-70 grayscale-[0.5]'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-3 mb-2">
-                        <div className={`p-2 rounded-lg ${
-                          isUnlocked ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400' : 'bg-bg-elevated text-text-tertiary'
-                        }`}>
-                          <Medal className="w-5 h-5" />
+                    return (
+                      <article
+                        key={achievement.type}
+                        aria-label={`${achievement.title} - ${isUnlocked ? 'Unlocked' : 'Locked'}`}
+                        className={`relative p-4 rounded-xl border transition-all duration-200 ${
+                          isUnlocked
+                            ? 'bg-bg-surface border-primary-200 dark:border-primary-800 shadow-sm'
+                            : 'bg-bg-base/50 border-border-subtle opacity-70 grayscale-[0.5]'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3 mb-2">
+                          <div
+                            className={`p-2 rounded-lg ${
+                              isUnlocked
+                                ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400'
+                                : 'bg-bg-elevated text-text-tertiary'
+                            }`}
+                          >
+                            <Medal className="w-5 h-5" />
+                          </div>
+                          {isUnlocked && (
+                            <span className="text-xs font-bold px-2 py-1 rounded-full bg-success-bg text-success border border-success/20">
+                              Unlocked
+                            </span>
+                          )}
                         </div>
-                        {isUnlocked && (
-                          <span className="text-xs font-bold px-2 py-1 rounded-full bg-success-bg text-success border border-success/20">
-                            Unlocked
-                          </span>
-                        )}
-                      </div>
 
-                      <h4 className={`font-bold mb-1 ${isUnlocked ? 'text-text-primary' : 'text-text-secondary'}`}>
-                        {achievement.title}
-                      </h4>
-                      <p className="text-sm text-text-secondary mb-3 line-clamp-2">
-                        {achievement.description}
-                      </p>
+                        <h4
+                          className={`font-bold mb-1 ${isUnlocked ? 'text-text-primary' : 'text-text-secondary'}`}
+                        >
+                          {achievement.title}
+                        </h4>
+                        <p className="text-sm text-text-secondary mb-3 line-clamp-2">
+                          {achievement.description}
+                        </p>
 
-                      <div className="flex items-center justify-between text-caption pt-3 border-t border-border-subtle/50">
-                        <span className={`font-semibold ${isUnlocked ? 'text-primary-500' : 'text-text-tertiary'}`}>
-                          +{achievement.xp} XP
-                        </span>
-                        {isUnlocked && earnedDate && (
-                          <span className="text-text-tertiary flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
-                            {new Date(earnedDate).toLocaleDateString()}
+                        <div className="flex items-center justify-between text-caption pt-3 border-t border-border-subtle/50">
+                          <span
+                            className={`font-semibold ${isUnlocked ? 'text-primary-500' : 'text-text-tertiary'}`}
+                          >
+                            +{achievement.xp} XP
                           </span>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
+                          {isUnlocked && earnedDate && (
+                            <span className="text-text-tertiary flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              {new Date(earnedDate).toLocaleDateString()}
+                            </span>
+                          )}
+                        </div>
+                      </article>
+                    )
+                  })
+                )}
               </div>
             </section>
           </div>
