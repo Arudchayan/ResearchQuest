@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { awardXP, XP_REWARDS } from '../utils/gamification'
 import { toast } from 'sonner'
 import { parseDateInput } from '../utils/time'
+import { logger } from '../utils/logger'
 
 export interface Task {
   id: string
@@ -76,14 +77,14 @@ export function useTasks(userId: string | undefined) {
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'tasks', filter: `user_id=eq.${userId}` },
         (payload) => {
-          console.log('Tasks realtime update:', payload)
+          logger.log('Tasks realtime update:', payload)
           // Optimistic UI update based on event type
           if (payload.eventType === 'INSERT') {
             // Check if task already exists (from optimistic update) to avoid duplicates
             setTasks(prev => {
               const exists = prev.some(t => t.id === (payload.new as Task).id)
               if (exists) {
-                console.log('Task already exists (from optimistic update), skipping realtime insert')
+                logger.log('Task already exists (from optimistic update), skipping realtime insert')
                 return prev
               }
               return sortTasksByDueDate([...(prev ?? []), payload.new as Task])
@@ -98,7 +99,7 @@ export function useTasks(userId: string | undefined) {
         }
       )
       .subscribe((status) => {
-        console.log('Tasks subscription status:', status)
+        logger.log('Tasks subscription status:', status)
       })
 
     return () => {
@@ -157,7 +158,7 @@ export function useTasks(userId: string | undefined) {
       cleanData.project_id = taskData.project_id.trim()
     }
 
-    console.log('Creating task with cleaned data:', cleanData)
+    logger.log('Creating task with cleaned data:', cleanData)
 
     const { data, error: createError } = await supabase
       .from('tasks')
@@ -167,7 +168,7 @@ export function useTasks(userId: string | undefined) {
 
     if (createError) {
       // Sentinel: Prevent information leakage by logging only the message
-      console.error('Failed to create task:', createError.message || 'Unknown error')
+      logger.error('Failed to create task', createError)
       
       const errorMessage = createError.message || 'Unknown error occurred'
       setError(`Failed to create task: ${errorMessage}`)
@@ -175,14 +176,14 @@ export function useTasks(userId: string | undefined) {
       return null
     }
 
-    console.log('Task created successfully:', data)
+    logger.log('Task created successfully:', data)
     toast.success('Task created successfully')
 
     // Optimistic update - add to local state immediately
     setTasks(prev => sortTasksByDueDate([...(prev ?? []), data]))
 
     // Award XP (don't await to avoid blocking)
-    awardXP(userId, XP_REWARDS.CREATE_TASK, 'create_task').catch(console.error)
+    awardXP(userId, XP_REWARDS.CREATE_TASK, 'create_task').catch((e) => logger.error('Failed to award XP', e))
 
     void fetchTasks()
 
@@ -223,7 +224,7 @@ export function useTasks(userId: string | undefined) {
 
     if (updateError) {
       // Sentinel: Prevent information leakage
-      console.error('Failed to update task:', updateError.message || 'Unknown error')
+      logger.error('Failed to update task', updateError)
 
       const errorMessage = updateError.message || 'Unknown error occurred'
       setError(`Failed to update task: ${errorMessage}`)
@@ -257,7 +258,7 @@ export function useTasks(userId: string | undefined) {
 
     if (updateError) {
       // Sentinel: Prevent information leakage
-      console.error('Failed to complete/uncomplete task:', updateError.message || 'Unknown error')
+      logger.error('Failed to complete/uncomplete task', updateError)
       
       const errorMessage = updateError.message || 'Unknown error occurred'
       setError(`Failed to update task: ${errorMessage}`)
@@ -273,7 +274,7 @@ export function useTasks(userId: string | undefined) {
 
     // Award XP only when completing (not un-completing, don't await to avoid blocking)
     if (newCompletedStatus && userId) {
-      awardXP(userId, XP_REWARDS.COMPLETE_TASK, 'complete_task').catch(console.error)
+      awardXP(userId, XP_REWARDS.COMPLETE_TASK, 'complete_task').catch((e) => logger.error('Failed to award XP', e))
     }
 
     void fetchTasks()
@@ -293,7 +294,7 @@ export function useTasks(userId: string | undefined) {
 
     if (deleteError) {
       // Sentinel: Prevent information leakage
-      console.error('Failed to delete task:', deleteError.message || 'Unknown error')
+      logger.error('Failed to delete task', deleteError)
       
       const errorMessage = deleteError.message || 'Unknown error occurred'
       setError(`Failed to delete task: ${errorMessage}`)
