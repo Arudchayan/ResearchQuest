@@ -20,6 +20,8 @@ import { useAppStore } from '../../store/appStore'
 import type { Note, Paper } from '../../types/database'
 import type { Task } from '../../hooks/useTasks'
 import { ListSkeleton, Skeleton } from '../ui/Skeleton'
+import { awardXP, XP_REWARDS } from '../../utils/gamification'
+import { toast } from 'sonner'
 
 interface FocusWorkspaceProps {
   userId: string | undefined
@@ -111,6 +113,19 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
           window.clearInterval(timer)
           setIsRunning(false)
           setHasCompletedSession(true)
+
+          if (userId) {
+            const durationMinutes = Math.floor(sessionLength / 60)
+            const xpEarned = durationMinutes * XP_REWARDS.FOCUS_SESSION_MINUTE
+
+            if (xpEarned > 0) {
+              awardXP(userId, xpEarned, 'complete_focus_session')
+              toast.success('Focus session complete!', {
+                description: `You earned ${xpEarned} XP for ${durationMinutes} minutes of focus.`
+              })
+            }
+          }
+
           return 0
         }
         return prev - 1
@@ -118,7 +133,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     }, 1000)
 
     return () => window.clearInterval(timer)
-  }, [isRunning])
+  }, [isRunning, sessionLength, userId])
 
   const selectedItem = useMemo(() => {
     if (!selectedTarget) return null
