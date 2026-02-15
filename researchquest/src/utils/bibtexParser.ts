@@ -124,7 +124,7 @@ function parseFields(body: string, entry: BibTeXEntry) {
 
        // Parse key
        // Key is alphanumeric + - _ . :
-       const keyMatch = body.substring(cursor).match(/^([a-zA-Z0-9\-_\.:]+)\s*=/);
+       const keyMatch = body.substring(cursor).match(/^([a-zA-Z0-9\-_.:]+)\s*=/);
        if (!keyMatch) {
            cursor++; // Skip invalid character and try again
            continue;

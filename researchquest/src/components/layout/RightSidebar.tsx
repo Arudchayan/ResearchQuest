@@ -177,6 +177,14 @@ export function RightSidebar() {
       }
     }
 
+    // Optimization: Skip fetching and subscriptions if sidebar is closed
+    if (!isRightSidebarOpen) {
+      return () => {
+        isMounted = false
+        clearRealtimeChannels()
+      }
+    }
+
     const userId = user.id
 
     void syncSnapshot(userId)
@@ -233,7 +241,7 @@ export function RightSidebar() {
       isMounted = false
       clearRealtimeChannels()
     }
-  }, [user?.id])
+  }, [user?.id, isRightSidebarOpen])
   
   const hasSelection = selectedNote || selectedPaper || selectedIdea
   const nextDeadline = upcomingDeadlines[0]
