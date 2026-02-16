@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Lightbulb, Calendar, TrendingUp, Edit2, Save, X, Trash } from 'lucide-react'
+import { Lightbulb, Calendar, TrendingUp, Edit2, Save, X, Trash, FileText } from 'lucide-react'
 import type { Idea, IdeaStage } from '../../types/database'
 import { toast } from 'sonner'
 import { TopicSelector } from '../topics/TopicSelector'
@@ -21,6 +21,8 @@ export function IdeaDetailView({ idea, onUpdate, onDelete }: IdeaDetailViewProps
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const isMounted = useRef(true)
+
+  const { createNote } = useNotes(useAppStore.getState().user?.id)
 
   useEffect(() => {
     return () => {
@@ -103,6 +105,22 @@ export function IdeaDetailView({ idea, onUpdate, onDelete }: IdeaDetailViewProps
         setShowDeleteConfirm(false)
     }
   }
+
+  const handleCreateNote = async () => {
+    const newNote = await createNote({
+      title: `Notes on Idea: ${idea.title}`,
+      markdown_body: `# ${idea.title}\n\n**Stage:** ${idea.stage}\n\n${idea.description || ''}\n\n## Brainstorming\n`,
+      linked_entity_ids: [idea.id]
+    })
+
+    if (newNote) {
+      useAppStore.getState().setSelectedNote(newNote)
+      useAppStore.getState().setSelectedIdea(null)
+      useAppStore.getState().setCurrentView('notes')
+      window.history.pushState(null, '', `/notes/${newNote.id}`)
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    }
+  }
   
   const getStageColor = (stage: IdeaStage) => {
     switch (stage) {
@@ -181,6 +199,13 @@ export function IdeaDetailView({ idea, onUpdate, onDelete }: IdeaDetailViewProps
                       title="Edit idea"
                     >
                       <Edit2 className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={handleCreateNote}
+                      className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
+                      title="Create linked note"
+                    >
+                      <FileText className="w-5 h-5" />
                     </button>
                     {onDelete && (
                       <button
