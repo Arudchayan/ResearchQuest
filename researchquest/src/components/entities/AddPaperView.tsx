@@ -903,7 +903,7 @@ export function AddPaperView({
                 Upload BibTeX File (.bib)
               </label>
               <div className="flex flex-col gap-4">
-                <div className="border-2 border-dashed border-border-subtle rounded-lg p-6 text-center hover:bg-bg-base transition-colors relative">
+                <div className="border-2 border-dashed border-border-subtle rounded-lg p-6 text-center hover:bg-bg-base transition-colors relative focus-within:ring-2 focus-within:ring-primary-500 focus-within:border-primary-500">
                   <input
                     id="view-import-file"
                     type="file"
