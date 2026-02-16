@@ -41,5 +41,39 @@ export function isStrongPassword(password: string): {
       message: "Password must be at least 8 characters long.",
     };
   }
+
+  // Check for complexity
+  const hasUpperCase = /[A-Z]/.test(password);
+  const hasLowerCase = /[a-z]/.test(password);
+  const hasNumbers = /\d/.test(password);
+  // Optional: check for special characters
+  // Allow any non-alphanumeric character (including space, hyphen, underscore, etc.)
+  const hasSpecialChar = /[^A-Za-z0-9]/.test(password);
+
+  if (!hasUpperCase) {
+    return {
+      valid: false,
+      message: "Password must contain at least one uppercase letter.",
+    };
+  }
+  if (!hasLowerCase) {
+    return {
+      valid: false,
+      message: "Password must contain at least one lowercase letter.",
+    };
+  }
+  if (!hasNumbers) {
+    return {
+      valid: false,
+      message: "Password must contain at least one number.",
+    };
+  }
+  if (!hasSpecialChar) {
+    return {
+      valid: false,
+      message: "Password must contain at least one special character.",
+    };
+  }
+
   return { valid: true };
 }
