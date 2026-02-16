@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
-import { BookOpen, Calendar, ExternalLink, Edit2, Save, X, Link as LinkIcon, Sparkles, Trash, Quote } from 'lucide-react'
+import { BookOpen, Calendar, ExternalLink, Edit2, Save, X, Link as LinkIcon, Sparkles, Trash, Quote, FileText } from 'lucide-react'
 import type { Paper, ReadingStatus } from '../../types/database'
 import { toast } from 'sonner'
 import { isValidUrl } from '../../utils/security'
 import { TopicSelector } from '../topics/TopicSelector'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { CitationDialog } from '../papers/CitationDialog'
+import { useNotes } from '../../hooks/useNotes'
+import { useAppStore } from '../../store/appStore'
 
 interface PaperDetailViewProps {
   paper: Paper
@@ -23,6 +25,8 @@ export function PaperDetailView({ paper, onUpdate, onDelete }: PaperDetailViewPr
   const [showCitation, setShowCitation] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const isMounted = useRef(true)
+
+  const { createNote } = useNotes(useAppStore.getState().user?.id)
 
   useEffect(() => {
     return () => {
@@ -73,6 +77,22 @@ export function PaperDetailView({ paper, onUpdate, onDelete }: PaperDetailViewPr
     if (isMounted.current) {
         setDeleting(false)
         setShowDeleteConfirm(false)
+    }
+  }
+
+  const handleCreateNote = async () => {
+    const newNote = await createNote({
+      title: `Notes on: ${paper.title}`,
+      markdown_body: `# ${paper.title}\n\n[Paper Source](${paper.source_url || (paper.doi ? `https://doi.org/${paper.doi}` : '#')})\n\n## Summary\n${paper.abstract || ''}\n\n## Notes\n`,
+      linked_entity_ids: [paper.id]
+    })
+
+    if (newNote) {
+      useAppStore.getState().setSelectedNote(newNote)
+      useAppStore.getState().setSelectedPaper(null)
+      useAppStore.getState().setCurrentView('notes')
+      window.history.pushState(null, '', `/notes/${newNote.id}`)
+      window.dispatchEvent(new PopStateEvent('popstate'))
     }
   }
   
@@ -158,6 +178,13 @@ export function PaperDetailView({ paper, onUpdate, onDelete }: PaperDetailViewPr
                       title="Edit paper"
                     >
                       <Edit2 className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={handleCreateNote}
+                      className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
+                      title="Create linked note"
+                    >
+                      <FileText className="w-5 h-5" />
                     </button>
                     <button
                       onClick={() => setShowCitation(true)}
