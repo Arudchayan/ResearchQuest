@@ -17,6 +17,7 @@ import { useDataSync } from './hooks/useDataSync'
 import { OnboardingGuide } from './components/layout/OnboardingGuide'
 import { CommandPalette } from './components/layout/CommandPalette'
 import { ShortcutsDialog } from './components/layout/ShortcutsDialog'
+import { isStrongPassword } from './utils/security'
 
 export function AuthScreen() {
   const [email, setEmail] = useState('')
@@ -34,6 +35,11 @@ export function AuthScreen() {
 
     try {
       if (isSignUp) {
+        const passwordStrength = isStrongPassword(password)
+        if (!passwordStrength.valid) {
+          throw new Error(passwordStrength.message)
+        }
+
         const { error } = await supabase.auth.signUp({
           email,
           password,
