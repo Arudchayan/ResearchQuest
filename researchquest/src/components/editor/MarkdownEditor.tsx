@@ -22,6 +22,7 @@ import {
   AlignLeft,
   Clock,
 } from "lucide-react";
+import { useShallow } from "zustand/react/shallow";
 import { useAppStore } from "../../store/appStore";
 import { supabase } from "../../lib/supabase";
 import { awardXP, XP_REWARDS } from "../../utils/gamification";
@@ -62,7 +63,13 @@ const VIEW_OPTIONS: {
 ];
 
 export function MarkdownEditor() {
-  const { selectedNote, setSelectedNote, effectiveTheme } = useAppStore();
+  const { selectedNote, setSelectedNote, effectiveTheme } = useAppStore(
+    useShallow((state) => ({
+      selectedNote: state.selectedNote,
+      setSelectedNote: state.setSelectedNote,
+      effectiveTheme: state.effectiveTheme,
+    })),
+  );
   const [content, setContent] = useState("");
   const [title, setTitle] = useState("");
   const [saving, setSaving] = useState(false);
