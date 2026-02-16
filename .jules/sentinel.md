@@ -42,3 +42,8 @@
 **Vulnerability:** Export functionality in `researchquest/src/utils/export.ts` did not sanitize user input before creating CSV files. Malicious input starting with `=`, `+`, `-`, or `@` could be executed as formulas in spreadsheet software (like Excel).
 **Learning:** Data exported from the application is often treated as trusted by external tools (Excel). Developers must sanitize data for the consuming context (CSV), not just the application context (HTML/SQL).
 **Prevention:** Implemented `escapeCSV` with formula injection protection by prepending a single quote `'` to risky fields. Added regression test `researchquest/src/test/utils/export.test.ts`.
+
+## 2025-06-25 - Weak Password Policy
+**Vulnerability:** The application allowed users to sign up with weak passwords (e.g., "123456") by only enforcing a minimum length of 6 characters (default Supabase behavior) and not checking complexity in the frontend.
+**Learning:** Default backend constraints are often insufficient for modern security standards. Frontend validation provides immediate feedback and prevents weak credentials from ever reaching the database.
+**Prevention:** Enhanced `isStrongPassword` utility to enforce complexity (uppercase, lowercase, number, special char) and integrated it into the signup flow in `App.tsx`. Added comprehensive unit tests in `security.test.ts`.
