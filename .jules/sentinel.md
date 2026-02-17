@@ -47,3 +47,8 @@
 **Vulnerability:** The application allowed users to sign up with weak passwords (e.g., "123456") by only enforcing a minimum length of 6 characters (default Supabase behavior) and not checking complexity in the frontend.
 **Learning:** Default backend constraints are often insufficient for modern security standards. Frontend validation provides immediate feedback and prevents weak credentials from ever reaching the database.
 **Prevention:** Enhanced `isStrongPassword` utility to enforce complexity (uppercase, lowercase, number, special char) and integrated it into the signup flow in `App.tsx`. Added comprehensive unit tests in `security.test.ts`.
+
+## 2025-07-15 - Missing Authentication in Edge Function
+**Vulnerability:** The Supabase Edge Function `fetch-paper` was publicly accessible without any authentication check, allowing unauthorized users to execute code on the server and potentially abuse external API quotas.
+**Learning:** Default configurations in serverless environments (like "Enforce JWT") are often assumed but not verified in code. Business logic that incurs cost or accesses external resources must explicitly verify the caller's identity.
+**Prevention:** Implemented explicit JWT verification using `supabaseClient.auth.getUser()` inside the function handler. This ensures that only authenticated users can trigger the function.
