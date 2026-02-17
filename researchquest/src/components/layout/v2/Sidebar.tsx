@@ -15,7 +15,8 @@ import {
   Database,
   PanelRightOpen,
   PanelRightClose,
-  Keyboard
+  Keyboard,
+  LayoutDashboard
 } from 'lucide-react'
 import { useAppStore } from '../../../store/appStore'
 import { cn } from '../../../lib/utils'
@@ -48,6 +49,7 @@ export function Sidebar() {
   }, [])
 
   const navItems = [
+    { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
     { id: 'notes', label: 'Notes', icon: FileText },
     { id: 'papers', label: 'Papers', icon: BookOpen },
     { id: 'ideas', label: 'Ideas', icon: Lightbulb },
@@ -90,7 +92,7 @@ export function Sidebar() {
         {navItems.map((item) => (
           <a
             key={item.id}
-            href={`/${item.id}`}
+            href={item.id === 'dashboard' ? '/' : `/${item.id}`}
             onClick={(e) => {
               // Allow default behavior (new tab) if modifier keys are pressed
               if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
@@ -99,7 +101,7 @@ export function Sidebar() {
               e.preventDefault()
               setCurrentView(item.id)
               // Update URL without reload
-              window.history.pushState(null, '', `/${item.id}`)
+              window.history.pushState(null, '', item.id === 'dashboard' ? '/' : `/${item.id}`)
             }}
             className={cn(
               "w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
