@@ -12,7 +12,8 @@ import {
   Search,
   Download,
   Keyboard,
-  Database
+  Database,
+  LayoutDashboard
 } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { useNotes } from '../../hooks/useNotes'
@@ -63,9 +64,9 @@ export function CommandPalette() {
   }, [])
 
   // Navigation handlers using App's custom routing
-  const handleNavigate = (view: 'notes' | 'papers' | 'ideas' | 'tasks' | 'focus') => {
+  const handleNavigate = (view: 'dashboard' | 'notes' | 'papers' | 'ideas' | 'tasks' | 'focus') => {
     setCurrentView(view)
-    window.history.pushState(null, '', view === 'notes' ? '/' : `/${view}`)
+    window.history.pushState(null, '', view === 'dashboard' ? '/' : `/${view}`)
     // Trigger popstate event for other listeners if needed (App.tsx listens to it)
     window.dispatchEvent(new PopStateEvent('popstate'))
     setOpen(false)
@@ -147,6 +148,10 @@ export function CommandPalette() {
         <Command.Empty>No results found.</Command.Empty>
 
         <Command.Group heading="Navigation">
+          <Command.Item onSelect={() => handleNavigate('dashboard')}>
+            <LayoutDashboard />
+            <span>Go to Dashboard</span>
+          </Command.Item>
           <Command.Item onSelect={() => handleNavigate('notes')}>
             <FileText />
             <span>Go to Notes</span>

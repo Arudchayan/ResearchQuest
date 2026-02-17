@@ -13,8 +13,8 @@ interface AppState {
   setUser: (user: UserProfile | null) => void
   
   // Current view
-  currentView: 'notes' | 'papers' | 'ideas' | 'tasks' | 'focus'
-  setCurrentView: (view: 'notes' | 'papers' | 'ideas' | 'tasks' | 'focus') => void
+  currentView: 'dashboard' | 'notes' | 'papers' | 'ideas' | 'tasks' | 'focus'
+  setCurrentView: (view: 'dashboard' | 'notes' | 'papers' | 'ideas' | 'tasks' | 'focus') => void
   
   // Selected entity
   selectedNote: Note | null
@@ -79,7 +79,7 @@ export const useAppStore = create<AppState>()(
       setUser: (user) => set({ user }),
       
       // Current view
-      currentView: 'notes',
+      currentView: 'dashboard',
       setCurrentView: (currentView) => set({ currentView }),
       
       // Selected entities
