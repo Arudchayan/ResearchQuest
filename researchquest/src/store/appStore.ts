@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { ThemePreference, UserProfile, Note, Paper, Idea, TopicWithCounts } from '../types/database'
+import type { ThemePreference, UserProfile, Note, Paper, Idea, TopicWithCounts, Task } from '../types/database'
 
 interface AppState {
   // Theme
@@ -30,15 +30,19 @@ interface AppState {
   notes: Note[]
   papers: Paper[]
   ideas: Idea[]
+  tasks: Task[]
   notesLoading: boolean
   papersLoading: boolean
   ideasLoading: boolean
+  tasksLoading: boolean
   setNotes: (notes: Note[]) => void
   setPapers: (papers: Paper[]) => void
   setIdeas: (ideas: Idea[]) => void
+  setTasks: (tasks: Task[]) => void
   setNotesLoading: (loading: boolean) => void
   setPapersLoading: (loading: boolean) => void
   setIdeasLoading: (loading: boolean) => void
+  setTasksLoading: (loading: boolean) => void
 
   // Topics collection
   topics: TopicWithCounts[]
@@ -96,15 +100,19 @@ export const useAppStore = create<AppState>()(
       notes: [],
       papers: [],
       ideas: [],
+      tasks: [],
       notesLoading: false,
       papersLoading: false,
       ideasLoading: false,
+      tasksLoading: false,
       setNotes: (notes) => set({ notes }),
       setPapers: (papers) => set({ papers }),
       setIdeas: (ideas) => set({ ideas }),
+      setTasks: (tasks) => set({ tasks }),
       setNotesLoading: (notesLoading) => set({ notesLoading }),
       setPapersLoading: (papersLoading) => set({ papersLoading }),
       setIdeasLoading: (ideasLoading) => set({ ideasLoading }),
+      setTasksLoading: (tasksLoading) => set({ tasksLoading }),
 
       // Topics collection state
       topics: [],
