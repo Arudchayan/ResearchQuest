@@ -26,36 +26,67 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   const confirmButtonRef = useRef<HTMLButtonElement>(null)
   const cancelButtonRef = useRef<HTMLButtonElement>(null)
-  
+  const dialogRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
     if (isOpen) {
+      const trigger = document.activeElement as HTMLElement
+
       // Focus cancel button for destructive/warning actions, confirm for others
       if (variant === 'danger' || variant === 'warning') {
         cancelButtonRef.current?.focus()
       } else {
         confirmButtonRef.current?.focus()
       }
-      
+
       // Lock body scroll
       document.body.style.overflow = 'hidden'
-      
+
       return () => {
         document.body.style.overflow = 'unset'
+        // Restore focus
+        if (trigger && document.body.contains(trigger)) {
+          trigger.focus()
+        }
       }
     }
   }, [isOpen, variant])
-  
+
   useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen && !isLoading) {
+    if (!isOpen) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Tab') {
+        const focusableElements = dialogRef.current?.querySelectorAll(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        )
+        if (!focusableElements || focusableElements.length === 0) return
+
+        const firstElement = focusableElements[0] as HTMLElement
+        const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement
+
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement) {
+            e.preventDefault()
+            lastElement.focus()
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            e.preventDefault()
+            firstElement.focus()
+          }
+        }
+      }
+
+      if (e.key === 'Escape' && !isLoading) {
         onClose()
       }
     }
-    
-    window.addEventListener('keydown', handleEscape)
-    return () => window.removeEventListener('keydown', handleEscape)
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isOpen, isLoading, onClose])
-  
+
   if (!isOpen) return null
   
   const getVariantStyles = () => {
@@ -95,6 +126,7 @@ export function ConfirmDialog({
       onClick={onClose}
     >
       <div 
+        ref={dialogRef}
         className="w-full max-w-md bg-bg-surface rounded-lg shadow-lg border border-border-subtle animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
         role="alertdialog"
