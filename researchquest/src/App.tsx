@@ -18,6 +18,7 @@ import { OnboardingGuide } from './components/layout/OnboardingGuide'
 import { CommandPalette } from './components/layout/CommandPalette'
 import { ShortcutsDialog } from './components/layout/ShortcutsDialog'
 import { isStrongPassword } from './utils/security'
+import { Dashboard } from './components/dashboard/Dashboard'
 
 export function AuthScreen() {
   const [email, setEmail] = useState('')
@@ -325,7 +326,7 @@ function App() {
       
       // Handle root path
       if (path === '/' || path === '') {
-        setCurrentView('notes')
+        setCurrentView('dashboard')
         return
       }
       
@@ -335,12 +336,12 @@ function App() {
       const itemId = pathParts[1]
       
       // Validate view
-      if (['notes', 'papers', 'ideas', 'tasks', 'focus'].includes(view)) {
+      if (['dashboard', 'notes', 'papers', 'ideas', 'tasks', 'focus'].includes(view)) {
         setCurrentView(view)
       } else {
-        // Invalid route, redirect to notes
+        // Invalid route, redirect to dashboard
         window.history.replaceState(null, '', '/')
-        setCurrentView('notes')
+        setCurrentView('dashboard')
       }
     }
     
@@ -418,7 +419,11 @@ function App() {
       />
       
       <AppShell>
-        {currentView === 'notes' ? (
+        {currentView === 'dashboard' ? (
+          <div className="h-full overflow-auto">
+            <Dashboard />
+          </div>
+        ) : currentView === 'notes' ? (
           <NotesView />
         ) : currentView === 'papers' ? (
           <PapersView />
