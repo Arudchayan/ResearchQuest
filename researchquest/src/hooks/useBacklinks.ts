@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Idea, Note } from '../types/database'
+import { deriveTitleFromMarkdown } from '../utils/text'
 
 export interface BacklinkItem {
   id: string
@@ -14,20 +15,6 @@ export function useBacklinks(entityId: string | null, entityType: 'note' | 'pape
   const [backlinks, setBacklinks] = useState<BacklinkItem[]>([])
   const [loading, setLoading] = useState(false)
   const requestIdRef = useRef(0)
-
-  const deriveNoteTitle = useCallback((note: Pick<Note, 'title' | 'markdown_body'>) => {
-    if (note.title?.trim()) return note.title
-
-    const markdownHeading =
-      typeof note.markdown_body === 'string'
-        ? note.markdown_body
-            .split('\n')
-            .map((line) => line.trim())
-            .find((line) => line)
-        : null
-
-    return markdownHeading?.replace(/^#+\s*/, '').trim() || 'Untitled Note'
-  }, [])
 
   const fetchBacklinks = useCallback(async () => {
     requestIdRef.current += 1
@@ -78,7 +65,7 @@ export function useBacklinks(entityId: string | null, entityType: 'note' | 'pape
         results.push(
           ...notesResult.data.map((note) => ({
             id: note.id,
-            title: deriveNoteTitle(note),
+            title: note.title?.trim() || deriveTitleFromMarkdown(note.markdown_body),
             type: 'note' as const,
             updated_at: note.updated_at,
           })),
@@ -100,7 +87,11 @@ export function useBacklinks(entityId: string | null, entityType: 'note' | 'pape
         console.error('Error fetching idea backlinks:', ideasResult.error)
       }
 
-      results.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+      results.sort((a, b) => {
+        if (b.updated_at > a.updated_at) return 1
+        if (b.updated_at < a.updated_at) return -1
+        return 0
+      })
 
       setBacklinks(results)
     } catch (error) {
@@ -111,7 +102,7 @@ export function useBacklinks(entityId: string | null, entityType: 'note' | 'pape
         setLoading(false)
       }
     }
-  }, [deriveNoteTitle, entityId, entityType, userId, enabled])
+  }, [entityId, entityType, userId, enabled])
 
   useEffect(() => {
     void fetchBacklinks()

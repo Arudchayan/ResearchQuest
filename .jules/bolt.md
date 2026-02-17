@@ -41,3 +41,7 @@
 ## 2026-02-14 - Conditional Fetching for Hidden UI
 **Learning:** Components hidden via CSS (e.g., sidebars with `w-0` or `opacity-0`) still mount and run effects, causing unnecessary data fetching.
 **Action:** Pass an `enabled` prop (controlled by visibility state) to data fetching hooks to skip work when the component is hidden.
+
+## 2026-02-14 - Efficient String Processing in Render
+**Learning:** Repeatedly calling `split('\n')` on large strings in a list render loop (e.g., to derive a title) causes massive memory churn and CPU overhead (O(N*M) where N is list size and M is content length).
+**Action:** Use a dedicated utility function that iterates to find the first line without splitting the entire string.

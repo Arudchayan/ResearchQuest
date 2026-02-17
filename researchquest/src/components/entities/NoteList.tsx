@@ -5,6 +5,7 @@ import { ListSkeleton } from '../ui/Skeleton'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { toast } from 'sonner'
 import { highlightMatch } from '../../utils/highlight'
+import { deriveTitleFromMarkdown } from '../../utils/text'
 
 interface NoteCardProps {
   note: Note
@@ -16,7 +17,7 @@ interface NoteCardProps {
 
 const NoteCardComponent = ({ note, onSelect, onDelete, isSelected, searchQuery = '' }: NoteCardProps) => {
   // Extract title from markdown or use first line
-  const title = note.title || note.markdown_body.split('\n')[0]?.replace(/^#+ /, '').trim() || 'Untitled Note'
+  const title = note.title || deriveTitleFromMarkdown(note.markdown_body)
   const preview = note.markdown_body.slice(0, 100) + (note.markdown_body.length > 100 ? '...' : '')
 
   const handleDelete = useCallback((e: React.MouseEvent) => {
@@ -239,7 +240,7 @@ export function NoteList({
           void handleConfirmDelete()
         }}
         title="Delete note"
-        message={`Are you sure you want to delete "${noteToDelete?.title || noteToDelete?.markdown_body.split('\n')[0] || 'Untitled Note'}"? You can undo for a short time after deleting.`}
+        message={`Are you sure you want to delete "${noteToDelete?.title || (noteToDelete ? deriveTitleFromMarkdown(noteToDelete.markdown_body) : 'Untitled Note')}"? You can undo for a short time after deleting.`}
         confirmText="Delete"
         cancelText="Cancel"
         isLoading={deleting}
