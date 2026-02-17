@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAppStore } from '../store/appStore'
+import { deriveTitleFromMarkdown } from '../utils/text'
 
 export interface RelatedItem {
   id: string
@@ -153,7 +154,7 @@ export function useRelatedItems(entityId: string | null, entityType: 'note' | 'p
       if (link.type === 'note') {
         fullItem = notes.find(n => n.id === link.id)
         if (fullItem) {
-            title = fullItem.title || fullItem.markdown_body?.split('\n')[0]?.replace(/^#+ /, '').trim() || 'Untitled Note'
+            title = fullItem.title || deriveTitleFromMarkdown(fullItem.markdown_body)
             updated_at = fullItem.updated_at
         }
       } else if (link.type === 'paper') {
