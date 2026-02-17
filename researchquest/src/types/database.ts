@@ -82,6 +82,20 @@ export interface Idea {
   updated_at: string
 }
 
+export interface Task {
+  id: string
+  user_id: string
+  title: string
+  description?: string
+  priority: 'high' | 'medium' | 'low'
+  due_date?: string
+  completed: boolean
+  category?: string
+  project_id?: string
+  created_at: string
+  updated_at: string
+}
+
 export interface DailyLog {
   id: string
   user_id: string
