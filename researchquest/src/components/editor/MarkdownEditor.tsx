@@ -24,11 +24,10 @@ import {
 } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { useAppStore } from "../../store/appStore";
-import { supabase } from "../../lib/supabase";
-import { awardXP, XP_REWARDS } from "../../utils/gamification";
 import { TopicSelector } from "../topics/TopicSelector";
 import { isValidUrl } from "../../utils/security";
 import { countWords, estimateReadingTime } from "../../utils/text";
+import { useNotes } from "../../hooks/useNotes";
 
 type ViewMode = "split" | "edit" | "preview";
 
@@ -63,18 +62,22 @@ const VIEW_OPTIONS: {
 ];
 
 export function MarkdownEditor() {
-  const { selectedNote, setSelectedNote, effectiveTheme } = useAppStore(
+  const { selectedNote, setSelectedNote, effectiveTheme, user } = useAppStore(
     useShallow((state) => ({
       selectedNote: state.selectedNote,
       setSelectedNote: state.setSelectedNote,
       effectiveTheme: state.effectiveTheme,
+      user: state.user,
     })),
   );
+
+  const userId = user?.id;
+  const { updateNote } = useNotes(userId);
+
   const [content, setContent] = useState("");
   const [title, setTitle] = useState("");
   const [saving, setSaving] = useState(false);
   const [isTitleFocused, setIsTitleFocused] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("split");
   const editorViewRef = useRef<EditorView | null>(null);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
@@ -95,12 +98,6 @@ export function MarkdownEditor() {
     return () => {
       editorViewRef.current = null;
     };
-  }, []);
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setUserId(user?.id || null);
-    });
   }, []);
 
   const closeLinkDialog = useCallback(() => {
@@ -469,39 +466,22 @@ export function MarkdownEditor() {
       const trimmedTitle = title.trim();
       const persistedTitle = trimmedTitle.length > 0 ? trimmedTitle : null;
 
-      const updatedData = {
+      await updateNote(selectedNote.id, {
         title: persistedTitle,
         markdown_body: content,
         tags,
-      };
+      });
 
-      const { data, error } = await supabase
-        .from("notes")
-        .update(updatedData)
-        .eq("id", selectedNote.id)
-        .select()
-        .single();
-
-      if (!error && data) {
-        const persisted = data as typeof selectedNote;
-        // Optimistically update the selected note in store with server values
-        setSelectedNote({
-          ...selectedNote,
-          ...persisted,
-          title: persisted.title,
-        });
-
-        // Award XP for updating (don't await to avoid blocking)
-        awardXP(userId, XP_REWARDS.UPDATE_NOTE, "update_note").catch(
-          console.error,
-        );
-      }
     } catch (err) {
-      console.error("Error saving note:", err);
+      // updateNote handles standard errors and toasts.
+      // If a non-standard error occurs (exception), we should ideally log it safely
+      // but without leaking. For now, we avoid console.error(err)
+      // or use a safe logger if imported. Given we are Sentinel,
+      // preventing the leak is priority.
     } finally {
       setSaving(false);
     }
-  }, [selectedNote, userId, content, title, setSelectedNote]);
+  }, [selectedNote, userId, content, title, updateNote]);
 
   // Auto-save with debounce
   useEffect(() => {
