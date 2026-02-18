@@ -22,3 +22,8 @@
 **Vulnerability:** The `useTasks` hook lacked `user_id` verification in `update`, `complete`, and `delete` operations, relying solely on RLS. Additionally, error handling exposed internal database `details` and `hint` to the UI, potentially leaking schema information.
 **Learning:** Defense-in-depth requires explicit `user_id` checks in mutation queries even if RLS is present. Fallback error messages must never expose `details` or `hint` properties from the database driver.
 **Prevention:** Added `.eq('user_id', userId)` to all mutation queries in `useTasks.ts` and sanitized error message construction to only show `message` or a generic error.
+
+## 2026-03-01 - Bypassed Validation in Custom Components
+**Vulnerability:** The `MarkdownEditor` component implemented its own data mutation logic (`saveNote`) instead of using the centralized `useNotes` hook, bypassing critical input length validation (`NOTE_BODY_MAX_LENGTH`) and leaking raw error objects via `console.error`.
+**Learning:** Custom components should never implement direct data access if a centralized hook exists. Hooks act as the "security gateway" for frontend data operations, enforcing validation and safe error handling.
+**Prevention:** Refactored `MarkdownEditor` to use `useNotes().updateNote`, ensuring all security constraints are applied consistently and removing the insecure logging.
