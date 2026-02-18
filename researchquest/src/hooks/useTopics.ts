@@ -9,6 +9,7 @@ import type {
   TopicQuestWithTopic,
 } from '../types/database'
 import type { PostgrestError } from '@supabase/supabase-js'
+import { useShallow } from 'zustand/react/shallow'
 
 interface TopicRow extends TopicWithCounts {
   topic_notes?: { count: number | null }[]
@@ -38,19 +39,28 @@ const ENTITY_COLUMN: Record<TopicEntityType, string> = {
   idea: 'idea_id',
 }
 
+// Global caches to persist across hook instances/remounts
+const globalLinkCache = new Map<string, string[]>()
+const tableSupportCache = new Map<string, boolean>()
+const fetchedUsers = new Set<string>()
+
 async function tableSupportsUserId(table: string): Promise<boolean> {
+  if (tableSupportCache.has(table)) {
+    return tableSupportCache.get(table)!
+  }
+
   const { error } = await supabase.from(table).select('user_id').limit(1)
-  if (!error) {
-    return true
+
+  let supported = true
+  if (error) {
+    const normalized = `${error.message ?? ''} ${error.details ?? ''}`.toLowerCase()
+    if (normalized.includes('column') && normalized.includes('user_id')) {
+      supported = false
+    }
   }
 
-  const normalized = `${error.message ?? ''} ${error.details ?? ''}`.toLowerCase()
-  if (normalized.includes('column') && normalized.includes('user_id')) {
-    return false
-  }
-
-  // Assume support unless explicitly missing
-  return true
+  tableSupportCache.set(table, supported)
+  return supported
 }
 
 function coerceCount(value?: { count: number | null }[]): number {
@@ -125,12 +135,20 @@ export function useTopics(userId: string | undefined) {
     upsertTopic,
     removeTopic,
     setSelectedTopic,
-  } = useAppStore()
+  } = useAppStore(
+    useShallow((state) => ({
+      topics: state.topics,
+      setTopics: state.setTopics,
+      upsertTopic: state.upsertTopic,
+      removeTopic: state.removeTopic,
+      setSelectedTopic: state.setSelectedTopic,
+    }))
+  )
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [quests, setQuests] = useState<TopicQuestWithTopic[]>([])
   const [questsLoading, setQuestsLoading] = useState(false)
-  const linkCacheRef = useRef(new Map<string, string[]>())
+
   const supportsCountsRef = useRef(true)
   const linkSupportsUserIdRef = useRef<Record<TopicEntityType, boolean>>({
     note: false,
@@ -147,11 +165,22 @@ export function useTopics(userId: string | undefined) {
     return Boolean(match)
   }, [])
 
-  const fetchTopics = useCallback(async () => {
+  const fetchTopics = useCallback(async (force = false) => {
     if (!userId) {
       setTopics([])
       setLoading(false)
       return
+    }
+
+    // Optimization: Check if topics are already loaded
+    const currentTopics = useAppStore.getState().topics
+    if (!force) {
+      // If we have fetched for this user before, skip (handles empty state)
+      // Or if store has topics for this user (handles persistence)
+      if (fetchedUsers.has(userId) || (currentTopics.length > 0 && currentTopics[0]?.user_id === userId)) {
+        setLoading(false)
+        return
+      }
     }
 
     setLoading(true)
@@ -175,14 +204,15 @@ export function useTopics(userId: string | undefined) {
     if (fetchError) {
       console.error('Failed to fetch topics:', fetchError.message || 'Unknown error')
       setError(fetchError.message)
-      setTopics([])
     } else if (isTopicRowArray(data)) {
       const rows: TopicRow[] = data
       const mapped = rows.map((row) => mapTopicRow(row))
       setTopics(mapped)
+      fetchedUsers.add(userId)
       setError(null)
     } else {
       setTopics([])
+      fetchedUsers.add(userId)
       setError(null)
     }
 
@@ -282,10 +312,6 @@ export function useTopics(userId: string | undefined) {
       setQuests((prev) => [quest, ...prev])
     }
   }, [quests, topics, userId])
-
-  useEffect(() => {
-    linkCacheRef.current.clear()
-  }, [userId])
 
   useEffect(() => {
     if (!userId) {
@@ -511,14 +537,16 @@ export function useTopics(userId: string | undefined) {
       }
 
       removeTopic(topicId)
-      linkCacheRef.current.forEach((ids, key) => {
-        if (ids.includes(topicId)) {
-          linkCacheRef.current.set(
+
+      globalLinkCache.forEach((ids, key) => {
+        if (key.startsWith(userId + ':') && ids.includes(topicId)) {
+          globalLinkCache.set(
             key,
             ids.filter((id) => id !== topicId)
           )
         }
       })
+
       const currentSelected = useAppStore.getState().selectedTopic
       if (currentSelected?.id === topicId) {
         setSelectedTopic(null)
@@ -567,11 +595,13 @@ export function useTopics(userId: string | undefined) {
       }
 
       adjustCounts(topicId, { [entityType]: 1 })
-      const cacheKey = `${entityType}:${entityId}`
-      const cached = linkCacheRef.current.get(cacheKey) || []
+
+      const cacheKey = `${userId}:${entityType}:${entityId}`
+      const cached = globalLinkCache.get(cacheKey) || []
       if (!cached.includes(topicId)) {
-        linkCacheRef.current.set(cacheKey, [...cached, topicId])
+        globalLinkCache.set(cacheKey, [...cached, topicId])
       }
+
       await incrementQuestProgress(topicId)
       await awardXP(userId, XP_REWARDS.TAG_ENTITY_WITH_TOPIC, 'tag_entity_with_topic')
       return true
@@ -608,14 +638,16 @@ export function useTopics(userId: string | undefined) {
       }
 
       adjustCounts(topicId, { [entityType]: -1 })
-      const cacheKey = `${entityType}:${entityId}`
-      const cached = linkCacheRef.current.get(cacheKey)
+
+      const cacheKey = `${userId}:${entityType}:${entityId}`
+      const cached = globalLinkCache.get(cacheKey)
       if (cached) {
-        linkCacheRef.current.set(
+        globalLinkCache.set(
           cacheKey,
           cached.filter((id) => id !== topicId)
         )
       }
+
       return true
     },
     [adjustCounts, userId]
@@ -624,11 +656,13 @@ export function useTopics(userId: string | undefined) {
   const getTopicIdsForEntity = useCallback(
     async (entityId: string, entityType: TopicEntityType) => {
       if (!userId) return []
-      const cacheKey = `${entityType}:${entityId}`
-      const cached = linkCacheRef.current.get(cacheKey)
+
+      const cacheKey = `${userId}:${entityType}:${entityId}`
+      const cached = globalLinkCache.get(cacheKey)
       if (cached) {
         return cached
       }
+
       const table = ENTITY_TABLE[entityType]
       const column = ENTITY_COLUMN[entityType]
       let query = supabase
@@ -648,7 +682,12 @@ export function useTopics(userId: string | undefined) {
       }
 
       const topicIds = (data || []).map((row) => row.topic_id)
-      linkCacheRef.current.set(cacheKey, topicIds)
+
+      // Prevent memory leaks
+      if (globalLinkCache.size > 1000) {
+        globalLinkCache.clear()
+      }
+      globalLinkCache.set(cacheKey, topicIds)
       return topicIds
     },
     [userId]
