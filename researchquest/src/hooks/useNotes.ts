@@ -14,7 +14,16 @@ export function useNotes(userId: string | undefined) {
   const notes = useAppStore(state => state.notes)
   const loading = useAppStore(state => state.notesLoading)
   const setNotes = useAppStore(state => state.setNotes)
+  const setSelectedNote = useAppStore(state => state.setSelectedNote)
   const [error, setError] = useState<string | null>(null)
+
+  const syncSelectedNote = useCallback((updated: Note | null) => {
+    if (!updated) return
+    const current = useAppStore.getState().selectedNote
+    if (current?.id === updated.id) {
+      setSelectedNote(updated)
+    }
+  }, [setSelectedNote])
 
   // This function is now mainly for refreshing manually if needed,
   // but useDataSync handles the initial fetch and subscriptions.
@@ -121,10 +130,19 @@ export function useNotes(userId: string | undefined) {
     // Optimistic update
     const currentNotes = useAppStore.getState().notes
     const previousNotes = [...currentNotes]
+    let optimisticSnapshot: Note | null = null
 
-    setNotes(sortByUpdatedAt(currentNotes.map(note =>
-      note.id === noteId ? { ...note, ...updates, updated_at: new Date().toISOString() } : note
-    )))
+    setNotes(sortByUpdatedAt(currentNotes.map(note => {
+      if (note.id === noteId) {
+        optimisticSnapshot = { ...note, ...updates, updated_at: new Date().toISOString() }
+        return optimisticSnapshot
+      }
+      return note
+    })))
+
+    if (optimisticSnapshot) {
+      syncSelectedNote(optimisticSnapshot)
+    }
 
     const { error: updateError } = await supabase
       .from('notes')
@@ -149,6 +167,7 @@ export function useNotes(userId: string | undefined) {
 
       if (originalNote) {
           setNotes(sortByUpdatedAt(freshNotes.map(n => n.id === noteId ? originalNote : n)))
+          syncSelectedNote(originalNote)
       } else {
           // If note wasn't in previous state (unlikely for update), maybe we shouldn't do anything or re-fetch?
           void fetchNotes()
@@ -175,6 +194,11 @@ export function useNotes(userId: string | undefined) {
 
     // Optimistic delete
     setNotes(currentNotes.filter((note) => note.id !== noteId))
+
+    const currentSelected = useAppStore.getState().selectedNote
+    if (currentSelected?.id === noteId) {
+      setSelectedNote(null)
+    }
 
     const { error: deleteError } = await supabase
       .from('notes')
