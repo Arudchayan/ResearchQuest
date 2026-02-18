@@ -4,6 +4,8 @@ import type { Idea, IdeaStage } from '../../types/database'
 import { toast } from 'sonner'
 import { TopicSelector } from '../topics/TopicSelector'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
+import { useNotes } from '../../hooks/useNotes'
+import { useAppStore } from '../../store/appStore'
 
 interface IdeaDetailViewProps {
   idea: Idea
@@ -22,7 +24,8 @@ export function IdeaDetailView({ idea, onUpdate, onDelete }: IdeaDetailViewProps
   const [deleting, setDeleting] = useState(false)
   const isMounted = useRef(true)
 
-  const { createNote } = useNotes(useAppStore.getState().user?.id)
+  const userId = useAppStore(state => state.user?.id)
+  const { createNote } = useNotes(userId)
 
   useEffect(() => {
     return () => {
