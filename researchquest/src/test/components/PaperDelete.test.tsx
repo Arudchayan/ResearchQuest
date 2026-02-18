@@ -22,6 +22,7 @@ vi.mock('lucide-react', () => ({
   Plus: () => <span>PlusIcon</span>,
   Loader2: () => <span>Loader2Icon</span>,
   AlertTriangle: () => <span>AlertIcon</span>,
+  FileText: () => <span>FileTextIcon</span>,
 }))
 
 // Mock sub-components
