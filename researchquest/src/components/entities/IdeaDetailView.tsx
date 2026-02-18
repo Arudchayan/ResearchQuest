@@ -24,7 +24,8 @@ export function IdeaDetailView({ idea, onUpdate, onDelete }: IdeaDetailViewProps
   const [deleting, setDeleting] = useState(false)
   const isMounted = useRef(true)
 
-  const { createNote } = useNotes(useAppStore.getState().user?.id)
+  const userId = useAppStore(state => state.user?.id)
+  const { createNote } = useNotes(userId)
 
   useEffect(() => {
     return () => {
