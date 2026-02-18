@@ -4,6 +4,8 @@ import type { Idea, IdeaStage } from '../../types/database'
 import { toast } from 'sonner'
 import { TopicSelector } from '../topics/TopicSelector'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
+import { useNotes } from '../../hooks/useNotes'
+import { useAppStore } from '../../store/appStore'
 
 interface IdeaDetailViewProps {
   idea: Idea
