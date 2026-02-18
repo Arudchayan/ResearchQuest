@@ -21,6 +21,7 @@ import {
   Download,
   AlignLeft,
   Clock,
+  Printer,
 } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { useAppStore } from "../../store/appStore";
@@ -85,6 +86,7 @@ export function MarkdownEditor() {
   const [linkTextValue, setLinkTextValue] = useState("");
   const [linkUrlValue, setLinkUrlValue] = useState("");
   const linkUrlInputRef = useRef<HTMLInputElement>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
   const [linkError, setLinkError] = useState<string | null>(null);
 
   // Memoize word count and reading time to avoid recalculation on every render
@@ -298,6 +300,133 @@ export function MarkdownEditor() {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   }, [content, title]);
+
+  const handlePrint = useCallback(() => {
+    const previewElement = previewRef.current;
+    if (!previewElement) {
+      // Should not happen if the component structure is correct
+      return;
+    }
+
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      alert("Please allow popups to print.");
+      return;
+    }
+
+    const htmlContent = previewElement.innerHTML;
+    const rawTitle = title || "Untitled Note";
+    // Basic HTML escaping to prevent XSS in the new window title
+    const documentTitle = rawTitle
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>${documentTitle}</title>
+          <style>
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+              line-height: 1.6;
+              color: #333;
+              max-width: 800px;
+              margin: 0 auto;
+              padding: 2rem;
+            }
+            h1, h2, h3, h4, h5, h6 {
+              margin-top: 24px;
+              margin-bottom: 16px;
+              font-weight: 600;
+              line-height: 1.25;
+            }
+            h1 { font-size: 2em; padding-bottom: 0.3em; border-bottom: 1px solid #eaecef; }
+            h2 { font-size: 1.5em; padding-bottom: 0.3em; border-bottom: 1px solid #eaecef; }
+            p { margin-top: 0; margin-bottom: 16px; }
+            blockquote {
+              padding: 0 1em;
+              color: #6a737d;
+              border-left: 0.25em solid #dfe2e5;
+              margin: 0 0 16px 0;
+            }
+            ul, ol { padding-left: 2em; margin-bottom: 16px; }
+            li { margin: 0.25em 0; }
+            code {
+              padding: 0.2em 0.4em;
+              margin: 0;
+              font-size: 85%;
+              background-color: rgba(27,31,35,0.05);
+              border-radius: 3px;
+              font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+            }
+            pre {
+              padding: 16px;
+              overflow: auto;
+              font-size: 85%;
+              line-height: 1.45;
+              background-color: #f6f8fa;
+              border-radius: 3px;
+              margin-bottom: 16px;
+            }
+            pre code {
+              background-color: transparent;
+              padding: 0;
+            }
+            img {
+              max-width: 100%;
+              box-sizing: border-box;
+            }
+            table {
+              border-collapse: collapse;
+              width: 100%;
+              margin-bottom: 16px;
+            }
+            table th, table td {
+              padding: 6px 13px;
+              border: 1px solid #dfe2e5;
+            }
+            table tr {
+              background-color: #fff;
+              border-top: 1px solid #c6cbd1;
+            }
+            table tr:nth-child(2n) {
+              background-color: #f6f8fa;
+            }
+            a { color: #0366d6; text-decoration: none; }
+            a:hover { text-decoration: underline; }
+            hr {
+              height: 0.25em;
+              padding: 0;
+              margin: 24px 0;
+              background-color: #e1e4e8;
+              border: 0;
+            }
+            @media print {
+              body { padding: 0; margin: 1cm; }
+              a { text-decoration: none; color: #000; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>${documentTitle}</h1>
+          <div class="markdown-body">
+            ${htmlContent}
+          </div>
+          <script>
+            window.onload = function() {
+              window.print();
+              setTimeout(function() { window.close(); }, 500);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  }, [title]);
 
   const handleLinkSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
@@ -618,6 +747,15 @@ export function MarkdownEditor() {
           >
             <Download className="w-4 h-4 text-text-secondary" aria-hidden="true" />
           </button>
+          <button
+            type="button"
+            onClick={handlePrint}
+            className="p-2 rounded-md transition-colors hover:bg-bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
+            aria-label="Print Note"
+            title="Print Note"
+          >
+            <Printer className="w-4 h-4 text-text-secondary" aria-hidden="true" />
+          </button>
         </div>
 
         <div className="flex items-center gap-2">
@@ -721,7 +859,7 @@ export function MarkdownEditor() {
         <div
           className={`${viewMode === "split" ? "lg:w-2/5" : "w-full"} ${viewMode === "edit" ? "hidden" : "block"} h-full overflow-auto bg-bg-base p-6`}
         >
-          <div className="prose prose-sm max-w-none dark:prose-invert">
+          <div ref={previewRef} className="prose prose-sm max-w-none dark:prose-invert">
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               rehypePlugins={[rehypeSanitize, rehypeHighlight]}
