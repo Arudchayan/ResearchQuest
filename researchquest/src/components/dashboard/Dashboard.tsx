@@ -208,14 +208,14 @@ export function Dashboard() {
               </div>
             ) : (
               recentNotes.map(note => (
-                <div
+                <button
                   key={note.id}
                   onClick={() => {
                     setSelectedNote(note)
                     navigateTo('notes')
                     window.history.pushState(null, '', `/notes/${note.id}`)
                   }}
-                  className="group p-4 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl hover:border-blue-400 dark:hover:border-blue-600 cursor-pointer transition-all shadow-sm hover:shadow-md"
+                  className="w-full text-left group p-4 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl hover:border-blue-400 dark:hover:border-blue-600 cursor-pointer transition-all shadow-sm hover:shadow-md"
                 >
                   <h3 className="font-semibold text-slate-900 dark:text-white mb-1 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                     {note.title || 'Untitled Note'}
@@ -226,7 +226,7 @@ export function Dashboard() {
                   <div className="mt-3 text-xs text-slate-400">
                     Updated {new Date(note.updated_at).toLocaleDateString()}
                   </div>
-                </div>
+                </button>
               ))
             )}
           </div>
@@ -264,14 +264,14 @@ export function Dashboard() {
                 </div>
               ) : (
                 readingList.map(paper => (
-                   <div
+                   <button
                     key={paper.id}
                     onClick={() => {
                       setSelectedPaper(paper)
                       navigateTo('papers')
                       window.history.pushState(null, '', `/papers/${paper.id}`)
                     }}
-                    className="flex items-start gap-3 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors"
+                    className="w-full text-left flex items-start gap-3 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors"
                   >
                     <div className="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg shrink-0">
                       <BookOpen className="w-4 h-4" />
@@ -284,7 +284,7 @@ export function Dashboard() {
                         {paper.authors?.join(', ') || 'Unknown Author'}
                       </p>
                     </div>
-                  </div>
+                  </button>
                 ))
               )}
             </div>
@@ -314,10 +314,10 @@ export function Dashboard() {
                  </div>
                ) : (
                  upcomingTasks.map(task => (
-                   <div
+                   <button
                      key={task.id}
                      onClick={() => navigateTo('tasks')}
-                     className="flex items-center justify-between p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg hover:border-slate-300 dark:hover:border-slate-700 cursor-pointer transition-colors"
+                     className="w-full text-left flex items-center justify-between p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg hover:border-slate-300 dark:hover:border-slate-700 cursor-pointer transition-colors"
                    >
                      <div className="flex items-center gap-3 min-w-0">
                         <div className={`w-2 h-2 rounded-full shrink-0 ${
@@ -333,7 +333,7 @@ export function Dashboard() {
                          {new Date(task.due_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                        </span>
                      )}
-                   </div>
+                   </button>
                  ))
                )}
             </div>
