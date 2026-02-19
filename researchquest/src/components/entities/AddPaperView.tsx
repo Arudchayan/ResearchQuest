@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   Upload,
   AlertCircle,
+  X,
 } from "lucide-react";
 import type { CrossrefPaper } from "../../types/database";
 import { useAppStore } from "../../store/appStore";
@@ -55,6 +56,8 @@ export function AddPaperView({
   const [manualUrl, setManualUrl] = useState("");
   const setSelectedPaper = useAppStore((state) => state.setSelectedPaper);
   const manualTitleInputRef = useRef<HTMLInputElement>(null);
+  const doiInputRef = useRef<HTMLInputElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [isTitleFocused, setIsTitleFocused] = useState(false);
 
   // Import state
@@ -482,16 +485,31 @@ export function AddPaperView({
                 Enter DOI (Digital Object Identifier)
               </label>
               <div className="flex gap-3">
-                <input
-                  id="view-doi-input"
-                  type="text"
-                  value={doiInput}
-                  onChange={(e) => setDoiInput(e.target.value)}
-                  onKeyPress={(e) => e.key === "Enter" && handleDOISearch()}
-                  placeholder="e.g., 10.1038/nature12373"
-                  maxLength={255}
-                  className="flex-1 px-4 py-3 bg-bg-base border border-border-subtle rounded-lg text-body focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                />
+                <div className="relative flex-1">
+                  <input
+                    ref={doiInputRef}
+                    id="view-doi-input"
+                    type="text"
+                    value={doiInput}
+                    onChange={(e) => setDoiInput(e.target.value)}
+                    onKeyPress={(e) => e.key === "Enter" && handleDOISearch()}
+                    placeholder="e.g., 10.1038/nature12373"
+                    maxLength={255}
+                    className="w-full px-4 py-3 pr-10 bg-bg-base border border-border-subtle rounded-lg text-body focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  />
+                  {doiInput && (
+                    <button
+                      onClick={() => {
+                        setDoiInput("");
+                        doiInputRef.current?.focus();
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-text-tertiary hover:text-text-primary hover:bg-bg-elevated rounded-full transition-colors"
+                      aria-label="Clear search"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
                 <button
                   onClick={handleDOISearch}
                   disabled={loading || !doiInput.trim()}
@@ -599,16 +617,31 @@ export function AddPaperView({
                 Search by Keywords or Title
               </label>
               <div className="flex flex-col gap-3 lg:flex-row">
-                <input
-                  id="view-search-input"
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyPress={(e) => e.key === "Enter" && handleQuerySearch()}
-                  placeholder="e.g., CRISPR gene editing, quantum computing"
-                  maxLength={255}
-                  className="flex-1 px-4 py-3 bg-bg-base border border-border-subtle rounded-lg text-body focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                />
+                <div className="relative flex-1">
+                  <input
+                    ref={searchInputRef}
+                    id="view-search-input"
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyPress={(e) => e.key === "Enter" && handleQuerySearch()}
+                    placeholder="e.g., CRISPR gene editing, quantum computing"
+                    maxLength={255}
+                    className="w-full px-4 py-3 pr-10 bg-bg-base border border-border-subtle rounded-lg text-body focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => {
+                        setSearchQuery("");
+                        searchInputRef.current?.focus();
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-text-tertiary hover:text-text-primary hover:bg-bg-elevated rounded-full transition-colors"
+                      aria-label="Clear search"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
                 <div className="flex gap-3">
                   <button
                     onClick={handleQuerySearch}
