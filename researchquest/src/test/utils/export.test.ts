@@ -115,4 +115,26 @@ describe('Export Utils', () => {
     // Abstract is 6th column (index 5)
     expect(parts[5]).toBe("'-cmd /c calc");
   });
+
+  it('escapes CSV injection characters correctly, even with leading whitespace', () => {
+    const maliciousPapers: Paper[] = [
+      {
+        ...mockPapers[0],
+        id: 'bad2',
+        title: '   =1+1', // Leading spaces
+        authors: ['\t@evil'], // Leading tab
+        doi: '+cmd',
+      }
+    ];
+
+    const csv = convertPapersToCSV(maliciousPapers);
+    const lines = csv.split('\n');
+    const row = lines[1];
+
+    const parts = row.split(',');
+    // Title is first column
+    expect(parts[0]).toBe("'   =1+1");
+    // Authors is second column
+    expect(parts[1]).toBe("'\t@evil");
+  });
 });
