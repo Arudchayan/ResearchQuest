@@ -96,7 +96,7 @@ describe('MarkdownEditor Security', () => {
       user: { id: 'test-user' } as any,
       topics: [], // Ensure topics are empty to avoid complex rendering
     })
-    // @ts-ignore
+    // @ts-expect-error: mocking implementation
     supabase.from.mockImplementation(mockFrom)
     mockUpdate.mockImplementation(() => mockChain)
 
