@@ -1,6 +1,5 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
-import { supabase } from '../lib/supabase'
-import type { Idea, Note } from '../types/database'
+import { useMemo } from 'react'
+import { useAppStore } from '../store/appStore'
 import { deriveTitleFromMarkdown } from '../utils/text'
 
 export interface BacklinkItem {
@@ -12,105 +11,71 @@ export interface BacklinkItem {
 
 export function useBacklinks(entityId: string | null, entityType: 'note' | 'paper' | 'idea' | null, userId: string | undefined, options: { enabled?: boolean } = {}) {
   const { enabled = true } = options
-  const [backlinks, setBacklinks] = useState<BacklinkItem[]>([])
-  const [loading, setLoading] = useState(false)
-  const requestIdRef = useRef(0)
 
-  const fetchBacklinks = useCallback(async () => {
-    requestIdRef.current += 1
-    const requestId = requestIdRef.current
+  // ⚡ PERFORMANCE OPTIMIZATION: Use global store cache instead of redundant Supabase queries
+  // The app already loads all notes and ideas via useDataSync/useAppStore.
+  // We can filter them in memory which is instant and reactive to realtime updates.
+  const notes = useAppStore(state => state.notes)
+  const ideas = useAppStore(state => state.ideas)
+  const notesLoading = useAppStore(state => state.notesLoading)
+  const ideasLoading = useAppStore(state => state.ideasLoading)
 
-    if (!enabled) return
+  const backlinks = useMemo(() => {
+    if (!enabled || !entityId || !entityType || !userId) return []
 
-    if (!entityId || !entityType || !userId) {
-      setBacklinks([])
-      setLoading(false)
-      return
+    const results: BacklinkItem[] = []
+
+    // 1. Find notes that link to this entity
+    // notes have linked_entity_ids array
+    const linkingNotes = notes.filter(note =>
+      note.linked_entity_ids && note.linked_entity_ids.includes(entityId)
+    )
+
+    results.push(...linkingNotes.map(note => ({
+      id: note.id,
+      title: note.title?.trim() || deriveTitleFromMarkdown(note.markdown_body),
+      type: 'note' as const,
+      updated_at: note.updated_at,
+    })))
+
+    // 2. Find ideas that link to this entity
+    // ideas have linked_note_ids and linked_paper_ids
+    let linkingIdeas: typeof ideas = []
+
+    if (entityType === 'note') {
+      linkingIdeas = ideas.filter(idea =>
+        idea.linked_note_ids && idea.linked_note_ids.includes(entityId)
+      )
+    } else if (entityType === 'paper') {
+      linkingIdeas = ideas.filter(idea =>
+        idea.linked_paper_ids && idea.linked_paper_ids.includes(entityId)
+      )
     }
+    // ideas don't link to ideas in the current schema
 
-    setLoading(true)
+    results.push(...linkingIdeas.map(idea => ({
+      id: idea.id,
+      title: idea.title,
+      type: 'idea' as const,
+      updated_at: idea.updated_at,
+    })))
 
-    try {
-      const noteQuery = supabase
-        .from('notes')
-        .select('id, title, markdown_body, updated_at')
-        .eq('user_id', userId)
-        .contains('linked_entity_ids', [entityId])
+    // Sort by updated_at desc
+    return results.sort((a, b) => {
+      // Optimized string comparison for ISO dates
+      if (b.updated_at > a.updated_at) return 1
+      if (b.updated_at < a.updated_at) return -1
+      return 0
+    })
 
-      const ideaQuery =
-        entityType === 'note'
-          ? supabase
-              .from('ideas')
-              .select('id, title, updated_at')
-              .eq('user_id', userId)
-              .contains('linked_note_ids', [entityId])
-          : entityType === 'paper'
-            ? supabase
-                .from('ideas')
-                .select('id, title, updated_at')
-                .eq('user_id', userId)
-                .contains('linked_paper_ids', [entityId])
-            : null
-
-      const [notesResult, ideasResult] = await Promise.all([
-        noteQuery,
-        ideaQuery ?? Promise.resolve({ data: null, error: null }),
-      ])
-
-      if (requestId !== requestIdRef.current) return
-
-      const results: BacklinkItem[] = []
-
-      if (!notesResult.error && notesResult.data) {
-        results.push(
-          ...notesResult.data.map((note) => ({
-            id: note.id,
-            title: note.title?.trim() || deriveTitleFromMarkdown(note.markdown_body),
-            type: 'note' as const,
-            updated_at: note.updated_at,
-          })),
-        )
-      } else if (notesResult.error) {
-        console.error('Error fetching note backlinks:', notesResult.error)
-      }
-
-      if (ideasResult && !ideasResult.error && ideasResult.data) {
-        results.push(
-          ...ideasResult.data.map((idea: Idea) => ({
-            id: idea.id,
-            title: idea.title,
-            type: 'idea' as const,
-            updated_at: idea.updated_at,
-          })),
-        )
-      } else if (ideasResult?.error) {
-        console.error('Error fetching idea backlinks:', ideasResult.error)
-      }
-
-      results.sort((a, b) => {
-        if (b.updated_at > a.updated_at) return 1
-        if (b.updated_at < a.updated_at) return -1
-        return 0
-      })
-
-      setBacklinks(results)
-    } catch (error) {
-      console.error('Error fetching backlinks:', error)
-      setBacklinks([])
-    } finally {
-      if (requestId === requestIdRef.current) {
-        setLoading(false)
-      }
-    }
-  }, [entityId, entityType, userId, enabled])
-
-  useEffect(() => {
-    void fetchBacklinks()
-  }, [fetchBacklinks])
+  }, [entityId, entityType, userId, enabled, notes, ideas])
 
   return {
     backlinks,
-    loading,
-    refresh: fetchBacklinks,
+    // Show loading only if the store is still initializing the collections
+    loading: notesLoading || ideasLoading,
+    refresh: async () => {
+      // No-op: Data is reactive via store subscriptions
+    },
   }
 }
