@@ -91,7 +91,8 @@ function escapeCSV(str?: string | null): string {
   // Prevent CSV Injection (Formula Injection)
   // If the field starts with =, +, -, or @, it could be executed as a formula in Excel.
   // Prepending a single quote forces it to be treated as text.
-  if (/^[=+\-@]/.test(result)) {
+  // 🛡️ Sentinel: Also check for injection characters preceded by whitespace
+  if (/^\s*[=+\-@]/.test(result)) {
     result = "'" + result;
   }
 
