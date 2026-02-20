@@ -1,5 +1,5 @@
 import { AlertTriangle, X } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 
 interface ConfirmDialogProps {
   isOpen: boolean
@@ -203,7 +203,7 @@ export function useConfirmDialog() {
   const [isOpen, setIsOpen] = useState(false)
   const [config, setConfig] = useState<Partial<ConfirmDialogProps>>({})
 
-  const confirm = (options: Partial<ConfirmDialogProps> & { title: string; message: string }) => {
+  const confirm = useCallback((options: Partial<ConfirmDialogProps> & { title: string; message: string }) => {
     return new Promise<boolean>((resolve) => {
       setConfig({
         ...options,
@@ -218,7 +218,7 @@ export function useConfirmDialog() {
       })
       setIsOpen(true)
     })
-  }
+  }, [])
 
   return { confirm, isOpen, config }
 }
