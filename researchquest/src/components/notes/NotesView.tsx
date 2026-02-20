@@ -31,12 +31,15 @@ export function NotesView() {
     // Optimization: Skip filtering if query is empty
     if (!searchQuery) return notes
 
-    // Optimization: Calculate query lowercasing once outside the loop to avoid redundant operations
-    const query = searchQuery.toLowerCase()
+    // Optimization: Use Regex for case-insensitive matching to avoid allocating lowercased strings
+    // for large markdown bodies on every render.
+    const escapedQuery = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const regex = new RegExp(escapedQuery, 'i')
+
     return notes.filter(note => {
       return (
-        (note.title && note.title.toLowerCase().includes(query)) ||
-        (note.markdown_body && note.markdown_body.toLowerCase().includes(query))
+        (note.title && regex.test(note.title)) ||
+        (note.markdown_body && regex.test(note.markdown_body))
       )
     })
   }, [notes, searchQuery])
@@ -52,7 +55,10 @@ export function NotesView() {
   }
 
   const handleDeleteWithUndo = useCallback(async (noteId: string) => {
-    const note = notes.find(n => n.id === noteId)
+    // Optimization: Access state directly to verify note exists and capture it for undo
+    // This removes 'notes' dependency, stabilizing the callback and preventing re-renders
+    const currentNotes = useAppStore.getState().notes
+    const note = currentNotes.find(n => n.id === noteId)
     const success = await deleteNote(noteId)
 
     if (success && note) {
@@ -92,7 +98,7 @@ export function NotesView() {
         undoTimeoutRef.current = null
       }, 6000)
     }
-  }, [deleteNote, restoreNote, notes, setSelectedNote])
+  }, [deleteNote, restoreNote, setSelectedNote])
 
   const handleDeleteNote = useCallback(async (noteId: string) => {
     const shouldDelete = await confirm({
