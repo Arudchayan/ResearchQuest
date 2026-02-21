@@ -16,6 +16,11 @@ describe("Security Utils", () => {
       expect(isValidUrl("/foo/bar")).toBe(true);
     });
 
+    it("should reject protocol-relative urls", () => {
+      expect(isValidUrl("//google.com")).toBe(false);
+      expect(isValidUrl("//example.com/foo")).toBe(false);
+    });
+
     it("should reject javascript protocol", () => {
       expect(isValidUrl("javascript:alert(1)")).toBe(false);
     });
