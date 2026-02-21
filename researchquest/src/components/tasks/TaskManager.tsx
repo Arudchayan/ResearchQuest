@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import type { MouseEvent } from 'react'
-import { CheckCircle2, Circle, Clock, AlertCircle, Trash2, Plus, Search as SearchIcon } from 'lucide-react'
+import { CheckCircle2, Circle, Clock, AlertCircle, Trash2, Plus, Search as SearchIcon, X } from 'lucide-react'
 import { useTasks } from '../../hooks/useTasks'
 import type { Task } from '../../hooks/useTasks'
 import { supabase } from '../../lib/supabase'
@@ -50,6 +50,7 @@ export function TaskManager() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const [sortOption, setSortOption] = useState<SortOption>('due_date')
   const [compactView, setCompactView] = useState(false)
   
@@ -266,13 +267,27 @@ export function TaskManager() {
             <div className="relative w-full sm:w-64">
               <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-tertiary" />
               <input
+                ref={searchInputRef}
                 type="text"
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder="Search tasks..."
                 aria-label="Search tasks"
-                className="w-full pl-9 pr-3 py-2 bg-bg-base border border-border-subtle rounded-md text-small focus:outline-none focus:ring-2 focus:ring-primary-500"
+                className="w-full pl-9 pr-8 py-2 bg-bg-base border border-border-subtle rounded-md text-small focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('')
+                    searchInputRef.current?.focus()
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-tertiary hover:text-text-primary hover:bg-bg-elevated rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  aria-label="Clear search"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
             </div>
 
             <div className="flex items-center gap-2">

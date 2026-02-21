@@ -17,3 +17,7 @@
 ## 2024-05-27 - Client-Side Routing with Anchor Tags
 **Learning:** Using `<button>` for navigation in Single Page Applications (SPAs) prevents users from opening links in new tabs (Ctrl/Cmd+Click).
 **Action:** Replace navigation buttons with `<a>` tags using `href`. Implement a click handler that prevents default behavior ONLY when modifier keys are absent, ensuring both client-side routing and native browser features work.
+
+## 2026-02-21 - Search Input Clear Button
+**Learning:** Consistent search inputs (in TaskManager, NotesView) benefit from a UX pattern where a conditional "Clear" button appears when text is present. This button must restore focus to the input after clearing to maintain keyboard flow.
+**Action:** Implement search inputs with a relative container, an absolute-positioned 'X' icon button (using `aria-label="Clear search"`), and use `useRef` to programmatically focus the input after clearing.
