@@ -27,7 +27,7 @@ import { useShallow } from "zustand/react/shallow";
 import { useAppStore } from "../../store/appStore";
 import { TopicSelector } from "../topics/TopicSelector";
 import { isValidUrl } from "../../utils/security";
-import { countWords, estimateReadingTime } from "../../utils/text";
+import { countWords } from "../../utils/text";
 import { useNotes } from "../../hooks/useNotes";
 
 type ViewMode = "split" | "edit" | "preview";
@@ -94,7 +94,13 @@ export function MarkdownEditor() {
 
   // Memoize word count and reading time to avoid recalculation on every render
   const wordCount = useMemo(() => countWords(content), [content]);
-  const readingTime = useMemo(() => estimateReadingTime(content), [content]);
+  const readingTime = useMemo(() => {
+    const wordsPerMinute = 200;
+    const minutes = Math.ceil(wordCount / wordsPerMinute);
+    if (wordCount === 0) return "0 min read";
+    if (minutes <= 1) return "1 min read";
+    return `${minutes} min read`;
+  }, [wordCount]);
 
   useEffect(() => {
     return () => {
