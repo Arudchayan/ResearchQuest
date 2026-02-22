@@ -52,7 +52,8 @@ export function NotesView() {
   }
 
   const handleDeleteWithUndo = useCallback(async (noteId: string) => {
-    const note = notes.find(n => n.id === noteId)
+    // Optimization: Access state directly to prevent function recreation when notes array changes
+    const note = useAppStore.getState().notes.find(n => n.id === noteId)
     const success = await deleteNote(noteId)
 
     if (success && note) {
@@ -92,7 +93,7 @@ export function NotesView() {
         undoTimeoutRef.current = null
       }, 6000)
     }
-  }, [deleteNote, restoreNote, notes, setSelectedNote])
+  }, [deleteNote, restoreNote, setSelectedNote])
 
   const handleDeleteNote = useCallback(async (noteId: string) => {
     const shouldDelete = await confirm({
