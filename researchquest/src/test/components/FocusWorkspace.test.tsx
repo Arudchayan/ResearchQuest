@@ -4,6 +4,20 @@ import { FocusWorkspace } from '../../components/focus/FocusWorkspace'
 import { useAppStore } from '../../store/appStore'
 import { awardXP } from '../../utils/gamification'
 import { toast } from 'sonner'
+import {
+  playTimerCompleteSound,
+  showTimerCompleteNotification,
+  requestNotificationPermission,
+  warmupAudio,
+} from '../../utils/alerts'
+
+// Mock alerts
+vi.mock('../../utils/alerts', () => ({
+  playTimerCompleteSound: vi.fn(),
+  showTimerCompleteNotification: vi.fn(),
+  requestNotificationPermission: vi.fn(),
+  warmupAudio: vi.fn(),
+}))
 
 // Mock hooks
 vi.mock('../../hooks/useNotes', () => ({
@@ -97,5 +111,33 @@ describe('FocusWorkspace', () => {
     expect(toast.success).toHaveBeenCalledWith('Focus session complete!', expect.objectContaining({
         description: expect.stringContaining('50 XP')
     }))
+  })
+
+  it('triggers sound and notification when timer completes', async () => {
+    render(<FocusWorkspace userId={userId} />)
+
+    // Select note
+    const noteButton = screen.getByText('My Note')
+    fireEvent.click(noteButton)
+
+    // Start focus
+    const startButton = screen.getByText('Start focus')
+    fireEvent.click(startButton)
+
+    // Expect warmup and permission request
+    expect(warmupAudio).toHaveBeenCalled()
+    expect(requestNotificationPermission).toHaveBeenCalled()
+
+    // Fast forward timer
+    await act(async () => {
+      vi.advanceTimersByTime(25 * 60 * 1000 + 1000)
+    })
+
+    // Expect sound and notification
+    expect(playTimerCompleteSound).toHaveBeenCalled()
+    expect(showTimerCompleteNotification).toHaveBeenCalledWith(
+      'Focus session complete!',
+      expect.objectContaining({ body: expect.stringContaining('My Note') })
+    )
   })
 })
