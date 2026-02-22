@@ -12,6 +12,10 @@ import {
   ChevronDown,
   ChevronRight,
   Info,
+  Volume2,
+  VolumeX,
+  Bell,
+  BellOff,
 } from 'lucide-react'
 import { useNotes } from '../../hooks/useNotes'
 import { usePapers } from '../../hooks/usePapers'
@@ -21,6 +25,12 @@ import type { Note, Paper } from '../../types/database'
 import type { Task } from '../../hooks/useTasks'
 import { ListSkeleton, Skeleton } from '../ui/Skeleton'
 import { awardXP, XP_REWARDS } from '../../utils/gamification'
+import {
+  playTimerCompleteSound,
+  showTimerCompleteNotification,
+  requestNotificationPermission,
+  warmupAudio,
+} from '../../utils/alerts'
 import { toast } from 'sonner'
 
 interface FocusWorkspaceProps {
@@ -97,6 +107,22 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   const [collapsedPanels, setCollapsedPanels] = useState<Record<CollapsiblePanel, boolean>>({
     suggestions: false,
   })
+  const [isSoundEnabled, setIsSoundEnabled] = useState(true)
+  const [isNotificationEnabled, setIsNotificationEnabled] = useState(true)
+
+  const selectedItem = useMemo(() => {
+    if (!selectedTarget) return null
+    if (selectedTarget.type === 'note') {
+      return notes.find((note) => note.id === selectedTarget.id) || null
+    }
+    if (selectedTarget.type === 'paper') {
+      return papers.find((paper) => paper.id === selectedTarget.id) || null
+    }
+    if (selectedTarget.type === 'task') {
+      return tasks.find((task) => task.id === selectedTarget.id) || null
+    }
+    return null
+  }, [notes, papers, tasks, selectedTarget])
 
   useEffect(() => {
     setTimeLeft(sessionLength)
@@ -114,6 +140,22 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
           setIsRunning(false)
           setHasCompletedSession(true)
 
+          if (isSoundEnabled) {
+            playTimerCompleteSound()
+          }
+
+          if (isNotificationEnabled) {
+            const targetName = selectedItem
+              ? selectedTarget?.type === 'note'
+                ? extractNoteSummary(selectedItem as Note)
+                : (selectedItem as any).title
+              : 'Focus Session'
+
+            showTimerCompleteNotification('Focus session complete!', {
+              body: `You completed your session on ${targetName}.`,
+            })
+          }
+
           if (userId) {
             const durationMinutes = Math.floor(sessionLength / 60)
             const xpEarned = durationMinutes * XP_REWARDS.FOCUS_SESSION_MINUTE
@@ -121,7 +163,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
             if (xpEarned > 0) {
               awardXP(userId, xpEarned, 'complete_focus_session')
               toast.success('Focus session complete!', {
-                description: `You earned ${xpEarned} XP for ${durationMinutes} minutes of focus.`
+                description: `You earned ${xpEarned} XP for ${durationMinutes} minutes of focus.`,
               })
             }
           }
@@ -133,21 +175,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     }, 1000)
 
     return () => window.clearInterval(timer)
-  }, [isRunning, sessionLength, userId])
-
-  const selectedItem = useMemo(() => {
-    if (!selectedTarget) return null
-    if (selectedTarget.type === 'note') {
-      return notes.find((note) => note.id === selectedTarget.id) || null
-    }
-    if (selectedTarget.type === 'paper') {
-      return papers.find((paper) => paper.id === selectedTarget.id) || null
-    }
-    if (selectedTarget.type === 'task') {
-      return tasks.find((task) => task.id === selectedTarget.id) || null
-    }
-    return null
-  }, [notes, papers, tasks, selectedTarget])
+  }, [isRunning, sessionLength, userId, isSoundEnabled, isNotificationEnabled, selectedItem, selectedTarget])
 
   const isLoading = notesLoading || papersLoading || tasksLoading
   const effectiveTimeLeft = Math.max(0, timeLeft)
@@ -273,6 +301,19 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     setHasCompletedSession(false)
     setIsRunning(false)
     setTimeLeft(sessionLength)
+  }
+
+  const toggleTimer = () => {
+    setIsRunning((prev) => {
+      if (!prev) {
+        // Starting
+        warmupAudio()
+        if (isNotificationEnabled) {
+          requestNotificationPermission()
+        }
+      }
+      return !prev
+    })
   }
 
   const handleOpenInWorkspace = () => {
@@ -457,7 +498,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
 
               <div className="flex flex-wrap items-center justify-center gap-3">
                 <button
-                  onClick={() => setIsRunning((prev) => !prev)}
+                  onClick={toggleTimer}
                   disabled={!selectedItem || sessionLength === 0}
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary-500 text-white font-semibold hover:bg-primary-600 transition-colors disabled:opacity-50"
                   type="button"
@@ -476,12 +517,46 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                 >
                   <RotateCcw className="w-4 h-4" /> Reset
                 </button>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-center gap-2 pt-2 border-t border-border-subtle/50 w-full max-w-sm">
+                <button
+                  type="button"
+                  onClick={() => setIsSoundEnabled(!isSoundEnabled)}
+                  className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                    isSoundEnabled
+                      ? 'text-text-primary bg-bg-base hover:bg-bg-elevated'
+                      : 'text-text-tertiary hover:text-text-secondary'
+                  }`}
+                  title={isSoundEnabled ? 'Sound enabled' : 'Sound disabled'}
+                >
+                  {isSoundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                  <span className="sr-only">{isSoundEnabled ? 'Mute sound' : 'Unmute sound'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsNotificationEnabled(!isNotificationEnabled)}
+                  className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                    isNotificationEnabled
+                      ? 'text-text-primary bg-bg-base hover:bg-bg-elevated'
+                      : 'text-text-tertiary hover:text-text-secondary'
+                  }`}
+                  title={isNotificationEnabled ? 'Notifications enabled' : 'Notifications disabled'}
+                >
+                  {isNotificationEnabled ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
+                  <span className="sr-only">{isNotificationEnabled ? 'Disable notifications' : 'Enable notifications'}</span>
+                </button>
+
+                <div className="w-px h-4 bg-border-subtle mx-1" />
+
                 <button
                   type="button"
                   onClick={() => setShowOnboarding(true)}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-border-subtle text-text-secondary hover:border-primary-400 hover:text-primary-500 transition-colors"
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-bg-base transition-colors"
                 >
-                  <Info className="w-4 h-4" /> Session tips
+                  <Info className="w-4 h-4" />
+                  <span>Tips</span>
                 </button>
               </div>
             </div>
