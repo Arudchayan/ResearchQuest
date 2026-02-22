@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
-import { Plus, Search, FileText, X } from 'lucide-react'
+import { Plus, Search, FileText, X, Loader2 } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { useNotes } from '../../hooks/useNotes'
 import { MarkdownEditor } from '../editor/MarkdownEditor'
@@ -13,6 +13,7 @@ export function NotesView() {
   const { notes, selectedNote, setSelectedNote, notesLoading } = useAppStore()
   const { createNote, deleteNote, restoreNote } = useNotes(useAppStore.getState().user?.id)
   const [searchQuery, setSearchQuery] = useState('')
+  const [isCreating, setIsCreating] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const { confirm, isOpen, config } = useConfirmDialog()
 
@@ -42,12 +43,17 @@ export function NotesView() {
   }, [notes, searchQuery])
 
   const handleCreateNote = async () => {
-    const newNote = await createNote({
-      title: '',
-      markdown_body: '',
-    })
-    if (newNote) {
-      setSelectedNote(newNote)
+    setIsCreating(true)
+    try {
+      const newNote = await createNote({
+        title: '',
+        markdown_body: '',
+      })
+      if (newNote) {
+        setSelectedNote(newNote)
+      }
+    } finally {
+      setIsCreating(false)
     }
   }
 
@@ -121,10 +127,11 @@ export function NotesView() {
             <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Notes</h2>
             <button
               onClick={handleCreateNote}
-              className="p-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-              aria-label="Create new note"
+              disabled={isCreating}
+              className="p-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+              aria-label={isCreating ? "Creating note..." : "Create new note"}
             >
-              <Plus className="w-5 h-5" />
+              {isCreating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
             </button>
           </div>
 
