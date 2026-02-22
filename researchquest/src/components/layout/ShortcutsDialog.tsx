@@ -1,6 +1,7 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import { X, Keyboard } from 'lucide-react'
 import { useState, useEffect } from 'react'
+import { useAppStore } from '../../store/appStore'
 
 interface ShortcutItem {
   keys: string[]
@@ -42,7 +43,18 @@ const SHORTCUTS: ShortcutSection[] = [
     ],
   },
   {
-    title: 'Navigation',
+    title: 'Global Navigation',
+    shortcuts: [
+      { keys: [META_KEY, 'Alt', '1'], description: 'Go to Dashboard' },
+      { keys: [META_KEY, 'Alt', '2'], description: 'Go to Notes' },
+      { keys: [META_KEY, 'Alt', '3'], description: 'Go to Papers' },
+      { keys: [META_KEY, 'Alt', '4'], description: 'Go to Ideas' },
+      { keys: [META_KEY, 'Alt', '5'], description: 'Go to Tasks' },
+      { keys: [META_KEY, 'Alt', '6'], description: 'Go to Focus' },
+    ],
+  },
+  {
+    title: 'Interface',
     shortcuts: [
       { keys: ['Tab'], description: 'Navigate Focus' },
       { keys: ['Enter'], description: 'Select Item' },
@@ -56,7 +68,39 @@ export function ShortcutsDialog() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if typing in an input
+      const isMod = e.metaKey || e.ctrlKey
+
+      // Global Navigation (Mod+Alt+1-6)
+      if (isMod && e.altKey) {
+        let view = ''
+        let url = ''
+
+        switch (e.key) {
+          case '1': view = 'dashboard'; url = '/'; break
+          case '2': view = 'notes'; url = '/notes'; break
+          case '3': view = 'papers'; url = '/papers'; break
+          case '4': view = 'ideas'; url = '/ideas'; break
+          case '5': view = 'tasks'; url = '/tasks'; break
+          case '6': view = 'focus'; url = '/focus'; break
+        }
+
+        if (view) {
+          e.preventDefault()
+
+          const { setCurrentView, setSelectedNote, setSelectedPaper, setSelectedIdea } = useAppStore.getState()
+
+          // Clear selections when switching main views
+          if (view !== 'notes') setSelectedNote(null)
+          if (view !== 'papers') setSelectedPaper(null)
+          if (view !== 'ideas') setSelectedIdea(null)
+
+          setCurrentView(view as any)
+          window.history.pushState(null, '', url)
+          return
+        }
+      }
+
+      // Ignore if typing in an input for other shortcuts
       const target = e.target as HTMLElement
       const isInput =
         target.tagName === 'INPUT' ||
