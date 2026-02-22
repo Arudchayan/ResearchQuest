@@ -17,3 +17,7 @@
 ## 2024-05-27 - Client-Side Routing with Anchor Tags
 **Learning:** Using `<button>` for navigation in Single Page Applications (SPAs) prevents users from opening links in new tabs (Ctrl/Cmd+Click).
 **Action:** Replace navigation buttons with `<a>` tags using `href`. Implement a click handler that prevents default behavior ONLY when modifier keys are absent, ensuring both client-side routing and native browser features work.
+
+## 2024-05-28 - Search Input UX Consistency
+**Learning:** Inconsistent search input behavior (missing clear button) across views creates friction. Users expect a way to quickly reset search without backspacing.
+**Action:** Standardize search input components to always include a clear button when content is present, using `useRef` to restore focus to the input after clearing.
