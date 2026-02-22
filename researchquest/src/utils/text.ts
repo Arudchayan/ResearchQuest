@@ -1,13 +1,18 @@
 
 /**
  * Counts the number of words in a string.
- * Uses a simple regex to split by whitespace.
+ * Optimized to iterate over the string without allocating arrays for matches.
  */
 export function countWords(text: string): number {
   if (!text) return 0;
   // Match non-whitespace sequences
-  const matches = text.trim().match(/\S+/g);
-  return matches ? matches.length : 0;
+  const regex = /\S+/g;
+  let count = 0;
+  // Use test() in a loop with global flag to count matches without allocating array results
+  while (regex.test(text)) {
+    count++;
+  }
+  return count;
 }
 
 /**

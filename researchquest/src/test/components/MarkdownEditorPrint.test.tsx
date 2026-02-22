@@ -3,9 +3,18 @@ import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { MarkdownEditor } from '../../components/editor/MarkdownEditor'
 
 // Mock dependencies
-vi.mock('../../store/appStore', () => ({
-  useAppStore: vi.fn(),
-}))
+vi.mock('../../store/appStore', () => {
+  const fn = vi.fn()
+  ;(fn as any).getState = vi.fn().mockReturnValue({
+    topics: [],
+    notes: [],
+    papers: [],
+    ideas: [],
+  })
+  return {
+    useAppStore: fn,
+  }
+})
 
 vi.mock('zustand/react/shallow', () => ({
   useShallow: (fn: any) => fn,
