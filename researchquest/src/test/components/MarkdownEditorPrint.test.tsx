@@ -88,23 +88,24 @@ describe('MarkdownEditor Print', () => {
 
     // Mock store
     const { useAppStore } = await import('../../store/appStore')
+    const mockState = {
+        selectedNote: mockNote,
+        setSelectedNote: vi.fn(),
+        effectiveTheme: 'light',
+        topics: [],
+        setTopics: vi.fn(),
+        upsertTopic: vi.fn(),
+        removeTopic: vi.fn(),
+        setSelectedTopic: vi.fn(),
+        user: { id: 'test-user' },
+    }
     ;(useAppStore as any).mockImplementation((selector: any) => {
-        const state = {
-            selectedNote: mockNote,
-            setSelectedNote: vi.fn(),
-            effectiveTheme: 'light',
-            topics: [],
-            setTopics: vi.fn(),
-            upsertTopic: vi.fn(),
-            removeTopic: vi.fn(),
-            setSelectedTopic: vi.fn(),
-            user: { id: 'test-user' },
-        }
         if (selector && typeof selector === 'function') {
-            return selector(state)
+            return selector(mockState)
         }
-        return state
+        return mockState
     })
+    ;(useAppStore as any).getState = () => mockState
   })
 
   afterEach(() => {
