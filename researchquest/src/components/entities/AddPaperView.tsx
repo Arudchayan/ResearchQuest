@@ -278,6 +278,16 @@ export function AddPaperView({
     setSelectedEntryIds(new Set());
     setImportStats(null);
 
+    // 🛡️ Sentinel: Enforce file size limit (5MB) to prevent client-side DoS
+    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+    if (file.size > MAX_FILE_SIZE) {
+      setError("File too large (max 5MB). Please split your BibTeX file.");
+      setLoading(false);
+      // Reset file input
+      e.target.value = "";
+      return;
+    }
+
     try {
       const text = await file.text();
       const entries = parseBibTeX(text);
