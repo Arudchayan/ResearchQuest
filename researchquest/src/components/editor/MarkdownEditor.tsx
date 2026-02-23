@@ -22,6 +22,8 @@ import {
   AlignLeft,
   Clock,
   Printer,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { useAppStore } from "../../store/appStore";
@@ -63,12 +65,14 @@ const VIEW_OPTIONS: {
 ];
 
 export function MarkdownEditor() {
-  const { selectedNote, setSelectedNote, effectiveTheme, user } = useAppStore(
+  const { selectedNote, setSelectedNote, effectiveTheme, user, isZenMode, toggleZenMode } = useAppStore(
     useShallow((state) => ({
       selectedNote: state.selectedNote,
       setSelectedNote: state.setSelectedNote,
       effectiveTheme: state.effectiveTheme,
       user: state.user,
+      isZenMode: state.isZenMode,
+      toggleZenMode: state.toggleZenMode,
     })),
   );
 
@@ -544,9 +548,17 @@ export function MarkdownEditor() {
             return true;
           },
         },
+        {
+          key: "Mod-Shift-f",
+          preventDefault: true,
+          run: () => {
+            toggleZenMode();
+            return true;
+          },
+        },
       ]),
     ],
-    [applyFormatting, openLinkDialog],
+    [applyFormatting, openLinkDialog, toggleZenMode],
   );
 
   useEffect(() => {
@@ -579,12 +591,15 @@ export function MarkdownEditor() {
       } else if (key === "s") {
         setViewMode("split");
         event.preventDefault();
+      } else if (key === "f") {
+        toggleZenMode();
+        event.preventDefault();
       }
     };
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [linkDialogOpen]);
+  }, [linkDialogOpen, toggleZenMode]);
 
   const saveNote = useCallback(async () => {
     if (!selectedNote || !userId) return;
@@ -741,6 +756,22 @@ export function MarkdownEditor() {
             title="Print Note"
           >
             <Printer className="w-4 h-4 text-text-secondary" aria-hidden="true" />
+          </button>
+          <div className="w-px h-6 bg-border-subtle mx-1" aria-hidden="true" />
+          <button
+            type="button"
+            onClick={toggleZenMode}
+            className={`p-2 rounded-md transition-colors hover:bg-bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 ${
+              isZenMode ? "bg-primary-500/10 text-primary-500" : ""
+            }`}
+            aria-label={isZenMode ? "Exit Zen Mode" : "Enter Zen Mode (Ctrl/Cmd+Shift+F)"}
+            title={isZenMode ? "Exit Zen Mode" : "Enter Zen Mode (Ctrl/Cmd+Shift+F)"}
+          >
+            {isZenMode ? (
+              <Minimize2 className="w-4 h-4 text-text-secondary" aria-hidden="true" />
+            ) : (
+              <Maximize2 className="w-4 h-4 text-text-secondary" aria-hidden="true" />
+            )}
           </button>
         </div>
 
