@@ -373,7 +373,11 @@ export function AddPaperView({
 
       {/* Success Message */}
       {successMessage && (
-        <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-center gap-3">
+        <div
+          role="status"
+          aria-live="polite"
+          className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-center gap-3"
+        >
           <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />
           <p className="text-green-800 dark:text-green-300 font-medium">
             {successMessage}
@@ -530,6 +534,8 @@ export function AddPaperView({
 
             {error && (
               <div
+                role="alert"
+                aria-live="assertive"
                 data-testid="error-message"
                 className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg"
               >
@@ -726,7 +732,11 @@ export function AddPaperView({
             </div>
 
             {error && (
-              <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg">
+              <div
+                role="alert"
+                aria-live="assertive"
+                className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg"
+              >
                 {error}
               </div>
             )}
@@ -958,7 +968,11 @@ export function AddPaperView({
             </div>
 
             {error && (
-              <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg flex items-center gap-2">
+              <div
+                role="alert"
+                aria-live="assertive"
+                className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg flex items-center gap-2"
+              >
                 <AlertCircle className="w-5 h-5" />
                 {error}
               </div>
@@ -1086,7 +1100,10 @@ export function AddPaperView({
                 htmlFor="view-manual-title"
                 className="block text-sm font-medium text-text-primary mb-2"
               >
-                Title <span className="text-red-500">*</span>
+                Title{" "}
+                <span aria-hidden="true" className="text-red-500">
+                  *
+                </span>
               </label>
               <input
                 ref={manualTitleInputRef}
@@ -1101,8 +1118,11 @@ export function AddPaperView({
                 onBlur={() => setIsTitleFocused(false)}
                 placeholder="Enter paper title"
                 maxLength={255}
-                aria-invalid={!manualTitle.trim() && error === "Title is required"}
+                aria-invalid={
+                  !manualTitle.trim() && error === "Title is required"
+                }
                 aria-describedby={error ? "manual-entry-error" : undefined}
+                required
                 className="w-full px-4 py-3 bg-bg-base border border-border-subtle rounded-lg text-body focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
               <div className="flex justify-end h-5 mt-1">
@@ -1171,6 +1191,8 @@ export function AddPaperView({
 
             {error && (
               <div
+                role="alert"
+                aria-live="assertive"
                 id="manual-entry-error"
                 className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg"
               >
