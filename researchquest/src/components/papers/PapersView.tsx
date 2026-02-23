@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { Plus, Search, BookOpen, X, ArrowUpDown, Users, Download, FileText, FileJson, Table } from 'lucide-react'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { useAppStore } from '../../store/appStore'
+import { useShallow } from 'zustand/react/shallow'
 import { usePapers } from '../../hooks/usePapers'
 import { AddPaperView } from '../entities/AddPaperView'
 import { PaperDetailView } from '../entities/PaperDetailView'
@@ -25,7 +26,14 @@ type SortOption =
   | 'year_asc'
 
 export function PapersView() {
-  const { papers, papersLoading, selectedPaper, setSelectedPaper } = useAppStore()
+  const { papers, papersLoading, selectedPaper, setSelectedPaper } = useAppStore(
+    useShallow((state) => ({
+      papers: state.papers,
+      papersLoading: state.papersLoading,
+      selectedPaper: state.selectedPaper,
+      setSelectedPaper: state.setSelectedPaper,
+    })),
+  )
   const { createPaper, updatePaper, deletePaper, restorePaper, searchPaperByDOI, searchPapersByQuery } = usePapers(useAppStore.getState().user?.id)
   const [searchQuery, setSearchQuery] = useState('')
   const [sortOption, setSortOption] = useState<SortOption>('updated_desc')

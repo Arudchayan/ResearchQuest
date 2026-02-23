@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { Plus, Search, FileText, X, Loader2 } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
+import { useShallow } from 'zustand/react/shallow'
 import { useNotes } from '../../hooks/useNotes'
 import { MarkdownEditor } from '../editor/MarkdownEditor'
 import { NoteCard } from './NoteCard'
@@ -10,7 +11,14 @@ import type { Note } from '../../types/database'
 import { toast } from 'sonner'
 
 export function NotesView() {
-  const { notes, selectedNote, setSelectedNote, notesLoading } = useAppStore()
+  const { notes, selectedNote, setSelectedNote, notesLoading } = useAppStore(
+    useShallow((state) => ({
+      notes: state.notes,
+      selectedNote: state.selectedNote,
+      setSelectedNote: state.setSelectedNote,
+      notesLoading: state.notesLoading,
+    })),
+  )
   const { createNote, deleteNote, restoreNote } = useNotes(useAppStore.getState().user?.id)
   const [searchQuery, setSearchQuery] = useState('')
   const [isCreating, setIsCreating] = useState(false)
