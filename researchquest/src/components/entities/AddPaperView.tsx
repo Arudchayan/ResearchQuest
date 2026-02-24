@@ -13,7 +13,7 @@ import {
 import type { CrossrefPaper } from "../../types/database";
 import { useAppStore } from "../../store/appStore";
 import type { PaperSearchOptions } from "../../hooks/usePapers";
-import { isValidUrl } from "../../utils/security";
+import { isValidUrl, validateFileSize } from "../../utils/security";
 import { parseBibTeX, BibTeXEntry } from "../../utils/bibtexParser";
 
 interface AddPaperViewProps {
@@ -271,6 +271,14 @@ export function AddPaperView({
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // 🛡️ Sentinel: Validate file size to prevent DoS
+    const sizeValidation = validateFileSize(file);
+    if (!sizeValidation.valid) {
+      setError(sizeValidation.message || "File too large");
+      e.target.value = ""; // Reset input
+      return;
+    }
 
     setLoading(true);
     setError("");
