@@ -62,6 +62,10 @@ const VIEW_OPTIONS: {
   },
 ];
 
+// Define plugins outside component to ensure referential stability
+const REMARK_PLUGINS = [remarkGfm];
+const REHYPE_PLUGINS = [rehypeSanitize, rehypeHighlight];
+
 export function MarkdownEditor() {
   const { selectedNote, setSelectedNote, effectiveTheme, user } = useAppStore(
     useShallow((state) => ({
@@ -549,6 +553,16 @@ export function MarkdownEditor() {
     [applyFormatting, openLinkDialog],
   );
 
+  // Memoize extensions array to prevent unnecessary re-renders of CodeMirror
+  const extensions = useMemo(
+    () => [
+      markdown(),
+      EditorView.lineWrapping,
+      ...formattingExtensions,
+    ],
+    [formattingExtensions]
+  );
+
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       if (
@@ -796,11 +810,7 @@ export function MarkdownEditor() {
               value={content}
               height="100%"
               theme={effectiveTheme === "dark" ? githubDark : githubLight}
-              extensions={[
-                markdown(),
-                EditorView.lineWrapping,
-                ...formattingExtensions,
-              ]}
+              extensions={extensions}
               onChange={(value) => setContent(value)}
               className="h-full font-mono text-code"
               onCreateEditor={(view) => {
@@ -847,8 +857,8 @@ export function MarkdownEditor() {
         >
           <div ref={previewRef} className="prose prose-sm max-w-none dark:prose-invert">
             <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              rehypePlugins={[rehypeSanitize, rehypeHighlight]}
+              remarkPlugins={REMARK_PLUGINS}
+              rehypePlugins={REHYPE_PLUGINS}
             >
               {content || "*Start typing to see preview...*"}
             </ReactMarkdown>
