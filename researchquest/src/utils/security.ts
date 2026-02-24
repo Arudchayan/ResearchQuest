@@ -82,3 +82,25 @@ export function isStrongPassword(password: string): {
 
   return { valid: true };
 }
+
+/**
+ * Maximum file size for uploads (5MB)
+ * Prevents DoS attacks via large file uploads
+ */
+export const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
+
+/**
+ * Validates if a file exceeds the maximum allowed size.
+ */
+export function validateFileSize(file: File): {
+  valid: boolean;
+  message?: string;
+} {
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    return {
+      valid: false,
+      message: `File size exceeds the limit of ${MAX_FILE_SIZE_BYTES / (1024 * 1024)}MB.`,
+    };
+  }
+  return { valid: true };
+}
