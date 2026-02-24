@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
-import { Plus, Search, FileText, X, Loader2 } from 'lucide-react'
+import { Plus, Search, FileText, X, Loader2, Download, Table, FileJson } from 'lucide-react'
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { useAppStore } from '../../store/appStore'
 import { useNotes } from '../../hooks/useNotes'
 import { MarkdownEditor } from '../editor/MarkdownEditor'
@@ -8,6 +9,7 @@ import { ConfirmDialog, useConfirmDialog } from '../ui/ConfirmDialog'
 import { ListSkeleton } from '../ui/Skeleton'
 import type { Note } from '../../types/database'
 import { toast } from 'sonner'
+import { convertNotesToCSV, convertNotesToJSON, convertNotesToMarkdown, downloadFile } from '../../utils/export'
 
 export function NotesView() {
   const { notes, selectedNote, setSelectedNote, notesLoading } = useAppStore()
@@ -118,6 +120,44 @@ export function NotesView() {
      setSelectedNote(note)
   }, [setSelectedNote])
 
+  const handleExport = (format: 'markdown' | 'csv' | 'json') => {
+    if (filteredNotes.length === 0) {
+      toast.error('No notes to export')
+      return
+    }
+
+    const timestamp = new Date().toISOString().split('T')[0]
+    let content = ''
+    let filename = ''
+    let type = ''
+
+    try {
+      switch (format) {
+        case 'markdown':
+          content = convertNotesToMarkdown(filteredNotes)
+          filename = `research-notes-${timestamp}.md`
+          type = 'text/markdown'
+          break
+        case 'csv':
+          content = convertNotesToCSV(filteredNotes)
+          filename = `research-notes-${timestamp}.csv`
+          type = 'text/csv'
+          break
+        case 'json':
+          content = convertNotesToJSON(filteredNotes)
+          filename = `research-notes-${timestamp}.json`
+          type = 'application/json'
+          break
+      }
+
+      downloadFile(content, filename, type)
+      toast.success(`Exported ${filteredNotes.length} notes as ${format.toUpperCase()}`)
+    } catch (err) {
+      console.error('Export failed:', err)
+      toast.error('Failed to export notes')
+    }
+  }
+
   return (
     <div className="flex h-full bg-white dark:bg-slate-950">
       {/* Notes List Sidebar */}
@@ -125,14 +165,56 @@ export function NotesView() {
         <div className="p-4 border-b border-slate-200 dark:border-slate-800 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Notes</h2>
-            <button
-              onClick={handleCreateNote}
-              disabled={isCreating}
-              className="p-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
-              aria-label={isCreating ? "Creating note..." : "Create new note"}
-            >
-              {isCreating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
-            </button>
+            <div className="flex items-center gap-2">
+              <DropdownMenu.Root>
+                <DropdownMenu.Trigger asChild>
+                  <button
+                    className="p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-md transition-colors"
+                    title="Export notes"
+                  >
+                    <Download className="w-5 h-5" />
+                  </button>
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Portal>
+                  <DropdownMenu.Content
+                    className="min-w-[180px] bg-white dark:bg-slate-950 rounded-lg shadow-lg border border-slate-200 dark:border-slate-800 p-1 z-50 animate-in fade-in-0 zoom-in-95"
+                    align="start"
+                    sideOffset={5}
+                  >
+                    <DropdownMenu.Item
+                      onSelect={() => handleExport('markdown')}
+                      className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md cursor-pointer outline-none"
+                    >
+                      <FileText className="w-4 h-4" />
+                      Markdown (.md)
+                    </DropdownMenu.Item>
+                    <DropdownMenu.Item
+                      onSelect={() => handleExport('csv')}
+                      className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md cursor-pointer outline-none"
+                    >
+                      <Table className="w-4 h-4" />
+                      CSV (.csv)
+                    </DropdownMenu.Item>
+                    <DropdownMenu.Item
+                      onSelect={() => handleExport('json')}
+                      className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md cursor-pointer outline-none"
+                    >
+                      <FileJson className="w-4 h-4" />
+                      JSON (.json)
+                    </DropdownMenu.Item>
+                  </DropdownMenu.Content>
+                </DropdownMenu.Portal>
+              </DropdownMenu.Root>
+
+              <button
+                onClick={handleCreateNote}
+                disabled={isCreating}
+                className="p-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+                aria-label={isCreating ? "Creating note..." : "Create new note"}
+              >
+                {isCreating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
+              </button>
+            </div>
           </div>
 
           <div className="relative">

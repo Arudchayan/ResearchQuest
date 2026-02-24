@@ -83,6 +83,38 @@ export function convertPapersToCSV(papers: Paper[]): string {
   return [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
 }
 
+export function convertNotesToJSON(notes: Note[]): string {
+  return JSON.stringify(notes, null, 2);
+}
+
+export function convertNotesToCSV(notes: Note[]): string {
+  if (notes.length === 0) return '';
+  const headers = ['Title', 'Markdown Body', 'Tags', 'Created At', 'Updated At'];
+
+  const rows = notes.map(n => {
+    return [
+      escapeCSV(n.title),
+      escapeCSV(n.markdown_body),
+      escapeCSV(n.tags.join('; ')),
+      escapeCSV(n.created_at),
+      escapeCSV(n.updated_at)
+    ];
+  });
+
+  return [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+}
+
+export function convertNotesToMarkdown(notes: Note[]): string {
+  if (notes.length === 0) return '';
+  return notes.map(n => {
+    const title = n.title || 'Untitled Note';
+    const date = new Date(n.created_at).toLocaleDateString();
+    const tags = n.tags.length > 0 ? `\nTags: ${n.tags.join(', ')}` : '';
+
+    return `# ${title}\n*Created: ${date}*${tags}\n\n${n.markdown_body}`;
+  }).join('\n\n---\n\n');
+}
+
 function escapeCSV(str?: string | null): string {
   if (!str) return '';
 
