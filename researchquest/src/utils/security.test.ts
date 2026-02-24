@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isValidUrl, isStrongPassword } from "./security";
+import { isValidUrl, isStrongPassword, validateFileSize, MAX_FILE_SIZE_BYTES } from "./security";
 
 describe("Security Utils", () => {
   describe("isValidUrl", () => {
@@ -75,6 +75,25 @@ describe("Security Utils", () => {
       expect(isStrongPassword("Strong-Password-1").valid).toBe(true);
       expect(isStrongPassword("Pass_word_123").valid).toBe(true);
       expect(isStrongPassword("Space Password 123!").valid).toBe(true);
+    });
+  });
+
+  describe("validateFileSize", () => {
+    it("should allow files within the size limit", () => {
+      const file = { size: MAX_FILE_SIZE_BYTES } as File;
+      expect(validateFileSize(file).valid).toBe(true);
+    });
+
+    it("should allow small files", () => {
+      const file = { size: 1024 } as File;
+      expect(validateFileSize(file).valid).toBe(true);
+    });
+
+    it("should reject files exceeding the size limit", () => {
+      const file = { size: MAX_FILE_SIZE_BYTES + 1 } as File;
+      const result = validateFileSize(file);
+      expect(result.valid).toBe(false);
+      expect(result.message).toContain("File size exceeds the limit");
     });
   });
 });

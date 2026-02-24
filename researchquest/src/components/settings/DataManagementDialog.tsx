@@ -4,6 +4,7 @@ import * as Tabs from '@radix-ui/react-tabs'
 import { Download, Upload, X, Database, Check, AlertTriangle, FileJson, Loader2 } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { exportData } from '../../utils/export'
+import { validateFileSize } from '../../utils/security'
 import { supabase } from '../../lib/supabase'
 import { toast } from 'sonner'
 import type { ExportData } from '../../utils/export'
@@ -76,6 +77,14 @@ export function DataManagementDialog({ open, onClose }: DataManagementDialogProp
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+
+    // 🛡️ Sentinel: Validate file size to prevent DoS
+    const sizeValidation = validateFileSize(file)
+    if (!sizeValidation.valid) {
+      toast.error(sizeValidation.message || 'File too large')
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
 
     setImportFile(file)
     try {
