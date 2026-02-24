@@ -289,7 +289,11 @@ export function PapersView() {
         <div className="flex-1 overflow-auto p-6">
           <OnboardingGuide />
           {papersLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div
+              className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"
+              role="status"
+              aria-label="Loading papers..."
+            >
               {[...Array(6)].map((_, i) => (
                 <PaperCardSkeleton key={i} />
               ))}

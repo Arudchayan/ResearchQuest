@@ -21,3 +21,7 @@
 ## 2024-05-28 - Search Input UX Consistency
 **Learning:** Inconsistent search input behavior (missing clear button) across views creates friction. Users expect a way to quickly reset search without backspacing.
 **Action:** Standardize search input components to always include a clear button when content is present, using `useRef` to restore focus to the input after clearing.
+
+## 2025-02-23 - Accessibility of Loading Skeletons
+**Learning:** Repetitive skeleton loaders without proper grouping create significant noise for screen readers ("Loading..." x20).
+**Action:** Use a container with `role="status"` and a descriptive `aria-label` (e.g., "Loading papers...") for the entire list, and mark individual skeleton items as decorative (`aria-hidden="true"`).
