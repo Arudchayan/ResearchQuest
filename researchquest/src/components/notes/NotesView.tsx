@@ -262,8 +262,32 @@ export function NotesView() {
               <ListSkeleton count={6} itemType="note" />
             </div>
           ) : filteredNotes.length === 0 ? (
-            <div className="p-8 text-center text-slate-500 dark:text-slate-400">
-              <p className="text-sm">No notes found</p>
+            <div
+              className="flex flex-col items-center justify-center h-64 p-6 text-center animate-in fade-in duration-300"
+              role="status"
+              aria-live="polite"
+            >
+              <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-3">
+                <FileText className="w-6 h-6 text-slate-400" />
+              </div>
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-1">
+                {searchQuery ? 'No matching notes' : 'No notes yet'}
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 max-w-[200px]">
+                {searchQuery
+                  ? 'Try adjusting your search terms'
+                  : 'Create your first note to get started'}
+              </p>
+              {!searchQuery && (
+                <button
+                  onClick={handleCreateNote}
+                  disabled={isCreating}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-md hover:bg-blue-700 transition-colors disabled:opacity-70 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Create Note
+                </button>
+              )}
             </div>
           ) : (
             <div className="divide-y divide-slate-100 dark:divide-slate-800">
