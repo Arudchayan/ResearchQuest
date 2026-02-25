@@ -25,6 +25,9 @@ vi.mock('../../hooks/useNotes', () => ({
   useNotes: () => ({
     createNote: vi.fn(),
     deleteNote: vi.fn(),
+    restoreNote: vi.fn(), // Needed as it is destructured
+    notes: mockState.notes, // Provide notes
+    loading: mockState.notesLoading // Provide loading state
   })
 }))
 
