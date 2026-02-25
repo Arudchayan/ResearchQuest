@@ -56,6 +56,7 @@ const SHORTCUTS: ShortcutSection[] = [
   {
     title: 'Interface',
     shortcuts: [
+      { keys: [META_KEY, 'Shift', 'F'], description: 'Toggle Zen Mode' },
       { keys: ['Tab'], description: 'Navigate Focus' },
       { keys: ['Enter'], description: 'Select Item' },
       { keys: ['Esc'], description: 'Close Dialogs' },

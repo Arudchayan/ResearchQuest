@@ -16,7 +16,8 @@ import {
   PanelRightOpen,
   PanelRightClose,
   Keyboard,
-  LayoutDashboard
+  LayoutDashboard,
+  Maximize2
 } from 'lucide-react'
 import { useAppStore } from '../../../store/appStore'
 import { cn } from '../../../lib/utils'
@@ -27,7 +28,7 @@ import { DataManagementDialog } from '../../settings/DataManagementDialog'
 import { useShallow } from 'zustand/react/shallow'
 
 export function Sidebar() {
-  const { currentView, setCurrentView, user, effectiveTheme, setTheme, isRightSidebarOpen, setIsRightSidebarOpen } = useAppStore(
+  const { currentView, setCurrentView, user, effectiveTheme, setTheme, isRightSidebarOpen, setIsRightSidebarOpen, setZenMode } = useAppStore(
     useShallow((state) => ({
       currentView: state.currentView,
       setCurrentView: state.setCurrentView,
@@ -36,6 +37,7 @@ export function Sidebar() {
       setTheme: state.setTheme,
       isRightSidebarOpen: state.isRightSidebarOpen,
       setIsRightSidebarOpen: state.setIsRightSidebarOpen,
+      setZenMode: state.setZenMode,
     }))
   )
   const [showXpGuide, setShowXpGuide] = useState(false)
@@ -175,6 +177,14 @@ export function Sidebar() {
                title="Toggle Context Panel"
              >
                {isRightSidebarOpen ? <PanelRightClose className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
+             </button>
+             <button
+               onClick={() => setZenMode(true)}
+               className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
+               aria-label="Enter Zen Mode"
+               title="Enter Zen Mode (Ctrl+Shift+F)"
+             >
+               <Maximize2 className="w-4 h-4" />
              </button>
              <button
                onClick={toggleTheme}
