@@ -10,10 +10,23 @@ import { ListSkeleton } from '../ui/Skeleton'
 import type { Note } from '../../types/database'
 import { toast } from 'sonner'
 import { convertNotesToCSV, convertNotesToJSON, convertNotesToMarkdown, downloadFile } from '../../utils/export'
+import { useShallow } from 'zustand/react/shallow'
 
 export function NotesView() {
-  const { notes, selectedNote, setSelectedNote, notesLoading } = useAppStore()
-  const { createNote, deleteNote, restoreNote } = useNotes(useAppStore.getState().user?.id)
+  // Use useShallow to prevent re-renders when other store parts update
+  // Optimization: Select only required state slices instead of full store
+  const { selectedNote, setSelectedNote, userId } = useAppStore(
+    useShallow((state) => ({
+      selectedNote: state.selectedNote,
+      setSelectedNote: state.setSelectedNote,
+      userId: state.user?.id
+    }))
+  )
+
+  // Note: useNotes hook already uses specific selectors for notes and loading,
+  // so it won't cause re-renders on unrelated state changes.
+  const { notes, loading: notesLoading, createNote, deleteNote, restoreNote } = useNotes(userId)
+
   const [searchQuery, setSearchQuery] = useState('')
   const [isCreating, setIsCreating] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
