@@ -22,12 +22,19 @@ const { MockNoteCard, noteCardRenderCounts } = vi.hoisted(() => {
 })
 
 // Define stable mocks
-const { mockConfirm, mockCreateNote, mockDeleteNote, mockRestoreNote } = vi.hoisted(() => {
+const { mockConfirm, mockCreateNote, mockDeleteNote, mockRestoreNote, mockUseConfirmDialog } = vi.hoisted(() => {
+  const mockConfirmFn = vi.fn()
   return {
-    mockConfirm: vi.fn(),
+    mockConfirm: mockConfirmFn,
     mockCreateNote: vi.fn(),
     mockDeleteNote: vi.fn(),
-    mockRestoreNote: vi.fn()
+    mockRestoreNote: vi.fn(),
+    // We spy on this hook to count NotesView renders
+    mockUseConfirmDialog: vi.fn(() => ({
+      confirm: mockConfirmFn,
+      isOpen: false,
+      config: {}
+    }))
   }
 })
 
@@ -48,32 +55,39 @@ vi.mock('../../components/editor/MarkdownEditor', () => ({
 
 vi.mock('../../components/ui/ConfirmDialog', () => ({
   ConfirmDialog: () => null,
-  useConfirmDialog: () => ({
-    confirm: mockConfirm,
-    isOpen: false,
-    config: {}
-  })
+  useConfirmDialog: mockUseConfirmDialog
 }))
 
-vi.mock('../../hooks/useNotes', () => ({
-  useNotes: () => ({
-    createNote: mockCreateNote,
-    deleteNote: mockDeleteNote,
-    restoreNote: mockRestoreNote,
-    notesLoading: false
-  })
-}))
+// Mock useNotes to behave like the real hook (reading from store) or provide a way to inject notes
+vi.mock('../../hooks/useNotes', async () => {
+  const { useAppStore } = await import('../../store/appStore')
+  return {
+    useNotes: () => {
+      // Use the real store selector to ensure subscription works
+      const notes = useAppStore((state) => state.notes)
+      return {
+        createNote: mockCreateNote,
+        deleteNote: mockDeleteNote,
+        restoreNote: mockRestoreNote,
+        notesLoading: false,
+        notes: notes
+      }
+    }
+  }
+})
 
 describe('NotesView Performance', () => {
   beforeEach(() => {
     // Reset render counts
     Object.keys(noteCardRenderCounts).forEach(key => delete noteCardRenderCounts[key])
+    mockUseConfirmDialog.mockClear()
 
     // Reset store
     useAppStore.setState({
       notes: [],
       selectedNote: null,
-      user: { id: 'test-user', email: 'test@example.com' } as any
+      user: { id: 'test-user', email: 'test@example.com' } as any,
+      isMobileSidebarOpen: false
     })
   })
 
@@ -96,7 +110,6 @@ describe('NotesView Performance', () => {
     expect(noteCardRenderCounts['3']).toBe(1)
 
     // 3. Update ONE note in the store (simulating an edit)
-    // We update Note 2. Note 1 and 3 remain unchanged referentially.
     const updatedNotes = initialNotes.map(n =>
       n.id === '2' ? { ...n, title: 'Note 2 Updated' } : n
     )
@@ -106,12 +119,33 @@ describe('NotesView Performance', () => {
     })
 
     // 4. Check render counts again
-    // Note 2 should re-render because its prop `note` changed.
-    expect(noteCardRenderCounts['2']).toBe(2)
+    expect(noteCardRenderCounts['2']).toBe(2) // Should update
+    expect(noteCardRenderCounts['1']).toBe(1) // Should remain same
+    expect(noteCardRenderCounts['3']).toBe(1) // Should remain same
+  })
 
-    // Note 1 and 3 should NOT re-render if optimization works.
-    // If they re-render, it means `onDelete` (or other props) changed.
-    expect(noteCardRenderCounts['1']).toBe(1)
-    expect(noteCardRenderCounts['3']).toBe(1)
+  it('should NOT re-render NotesView when unrelated store state changes', () => {
+    const initialNotes = [
+      { id: '1', title: 'Note 1', markdown_body: 'Body 1', updated_at: '2023-01-01' }
+    ] as any[]
+
+    useAppStore.setState({ notes: initialNotes })
+
+    render(<NotesView />)
+
+    // Initial render
+    const initialRenderCount = mockUseConfirmDialog.mock.calls.length
+    expect(initialRenderCount).toBeGreaterThan(0)
+
+    // Update unrelated state
+    act(() => {
+      useAppStore.setState({ isMobileSidebarOpen: true })
+    })
+
+    // Check render count again
+    const finalRenderCount = mockUseConfirmDialog.mock.calls.length
+
+    // Expect NO re-render (count should be same)
+    expect(finalRenderCount).toBe(initialRenderCount)
   })
 })
