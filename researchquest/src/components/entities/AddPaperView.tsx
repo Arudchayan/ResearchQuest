@@ -102,7 +102,12 @@ export function AddPaperView({
     };
 
     if (entry.doi && entry.doi.trim()) paperData.doi = entry.doi.trim();
-    if (entry.url && entry.url.trim()) paperData.source_url = entry.url.trim();
+    if (entry.url && entry.url.trim()) {
+      const url = entry.url.trim();
+      if (isValidUrl(url)) {
+        paperData.source_url = url;
+      }
+    }
     if (entry.abstract && entry.abstract.trim())
       paperData.abstract = entry.abstract.trim();
     if (entry.year) {
