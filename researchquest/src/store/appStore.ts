@@ -53,8 +53,10 @@ interface AppState {
   // UI state
   isMobileSidebarOpen: boolean
   isRightSidebarOpen: boolean
+  isZenMode: boolean
   setIsMobileSidebarOpen: (open: boolean) => void
   setIsRightSidebarOpen: (open: boolean) => void
+  setZenMode: (isZenMode: boolean) => void
 }
 
 export const useAppStore = create<AppState>()(
@@ -133,8 +135,10 @@ export const useAppStore = create<AppState>()(
       // UI state
       isMobileSidebarOpen: false,
       isRightSidebarOpen: false,
+      isZenMode: false,
       setIsMobileSidebarOpen: (isMobileSidebarOpen) => set({ isMobileSidebarOpen }),
       setIsRightSidebarOpen: (isRightSidebarOpen) => set({ isRightSidebarOpen }),
+      setZenMode: (isZenMode) => set({ isZenMode }),
     }),
     {
       name: 'researchquest-storage',
