@@ -161,6 +161,29 @@ describe('Export Utils', () => {
       // Authors is second column
       expect(parts[1]).toBe("'\t@evil");
     });
+
+    it('escapes DDE injection triggers like Tab and Carriage Return', () => {
+      const maliciousPapers: Paper[] = [
+        {
+          ...mockPapers[0],
+          id: 'bad-dde',
+          title: '\tcmd /c calc', // Tab trigger
+          authors: ['\rshutdown -s'], // CR trigger
+        }
+      ];
+
+      const csv = convertPapersToCSV(maliciousPapers);
+      const lines = csv.split('\n');
+      const row = lines[1];
+
+      const parts = row.split(',');
+
+      // Title starts with \t, should be escaped
+      expect(parts[0]).toBe("'\tcmd /c calc");
+
+      // Authors starts with \r, should be escaped
+      expect(parts[1]).toBe("'\rshutdown -s");
+    });
   });
 
   describe('Notes', () => {
