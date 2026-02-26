@@ -7,12 +7,14 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
 import rehypeHighlight from "rehype-highlight";
+import { CitationPicker } from "./CitationPicker";
 import {
   Bold,
   Italic,
   Code,
   List,
   Link2,
+  Quote,
   Save,
   Columns,
   Eye,
@@ -85,6 +87,7 @@ export function MarkdownEditor() {
   const [isTitleFocused, setIsTitleFocused] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("split");
   const editorViewRef = useRef<EditorView | null>(null);
+  const [citationPickerOpen, setCitationPickerOpen] = useState(false);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [pendingLinkRange, setPendingLinkRange] = useState<{
     from: number;
@@ -173,6 +176,22 @@ export function MarkdownEditor() {
     setLinkUrlValue("");
     setLinkError(null);
     setLinkDialogOpen(true);
+  }, []);
+
+  const handleCitationSelect = useCallback((citation: string) => {
+    const view = editorViewRef.current;
+    if (!view) return;
+
+    const { state } = view;
+    const { from, to } = state.selection.main;
+
+    view.dispatch({
+      changes: { from, to, insert: citation },
+      selection: { anchor: from + citation.length },
+      scrollIntoView: true,
+    });
+    view.focus();
+    setCitationPickerOpen(false);
   }, []);
 
   const applyWrappedFormatting = useCallback(
@@ -525,6 +544,14 @@ export function MarkdownEditor() {
           },
         },
         {
+          key: "Mod-Shift-r",
+          preventDefault: true,
+          run: () => {
+            setCitationPickerOpen(true);
+            return true;
+          },
+        },
+        {
           key: "Mod-Shift-e",
           preventDefault: true,
           run: () => {
@@ -736,6 +763,15 @@ export function MarkdownEditor() {
             title="Insert link (Ctrl/Cmd+K)"
           >
             <Link2 className="w-4 h-4 text-text-secondary" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setCitationPickerOpen(true)}
+            className="p-2 rounded-md transition-colors hover:bg-bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
+            aria-label="Insert Citation (Ctrl/Cmd+Shift+R)"
+            title="Insert Citation (Ctrl/Cmd+Shift+R)"
+          >
+            <Quote className="w-4 h-4 text-text-secondary" aria-hidden="true" />
           </button>
           <div className="w-px h-6 bg-border-subtle mx-1" aria-hidden="true" />
           <button
@@ -975,6 +1011,14 @@ export function MarkdownEditor() {
             </form>
           </div>
         </div>
+      )}
+
+      {citationPickerOpen && (
+        <CitationPicker
+          open={citationPickerOpen}
+          onOpenChange={setCitationPickerOpen}
+          onSelect={handleCitationSelect}
+        />
       )}
     </div>
   );
