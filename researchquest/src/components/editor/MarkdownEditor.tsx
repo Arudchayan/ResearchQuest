@@ -81,8 +81,11 @@ export function MarkdownEditor() {
   const userId = user?.id;
   const { updateNote } = useNotes(userId);
 
-  const [content, setContent] = useState("");
-  const [title, setTitle] = useState("");
+  // Initialize with selectedNote data if available to avoid empty flash
+  const [content, setContent] = useState(selectedNote?.markdown_body || "");
+  const [title, setTitle] = useState(selectedNote?.title || "");
+  const [debouncedContent, setDebouncedContent] = useState(selectedNote?.markdown_body || "");
+
   const [saving, setSaving] = useState(false);
   const [isTitleFocused, setIsTitleFocused] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("split");
@@ -152,16 +155,32 @@ export function MarkdownEditor() {
     return () => window.removeEventListener("keydown", handleEscape);
   }, [closeLinkDialog, linkDialogOpen]);
 
-  // Load selected note
+  // Load selected note - handle navigation immediately
   useEffect(() => {
     if (selectedNote) {
       setContent(selectedNote.markdown_body);
       setTitle(selectedNote.title || "");
+      // Update preview immediately when switching notes to avoid showing stale content from previous note
+      setDebouncedContent(selectedNote.markdown_body);
     } else {
       setContent("");
       setTitle("");
+      setDebouncedContent("");
     }
   }, [selectedNote]);
+
+  // Debounce content updates for preview (typing only)
+  useEffect(() => {
+    // If content matches what we just set from selectedNote, don't debounce (already handled above)
+    // But since selectedNote effect runs first, we can just rely on this effect debouncing typing.
+    // The immediate update above handles the "switch" case.
+    // This effect handles the "typing" case.
+    const handler = setTimeout(() => {
+      setDebouncedContent(content);
+    }, 300);
+
+    return () => clearTimeout(handler);
+  }, [content]);
 
   const openLinkDialog = useCallback(() => {
     const view = editorViewRef.current;
@@ -896,7 +915,7 @@ export function MarkdownEditor() {
               remarkPlugins={REMARK_PLUGINS}
               rehypePlugins={REHYPE_PLUGINS}
             >
-              {content || "*Start typing to see preview...*"}
+              {debouncedContent || "*Start typing to see preview...*"}
             </ReactMarkdown>
           </div>
         </div>
