@@ -1,92 +1,92 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
-import { Sidebar } from '../../../components/layout/v2/Sidebar'
-import { useAppStore } from '../../../store/appStore'
-import '../../mocks/supabase' // This sets up the mock for lib/supabase
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
+import { Sidebar } from "../../../components/layout/v2/Sidebar";
+import { useAppStore } from "../../../store/appStore";
+import "../../mocks/supabase"; // This sets up the mock for lib/supabase
 
 // Mock other dependencies
-vi.mock('../XPExplainer', () => ({
-  XPExplainer: () => <div data-testid="xp-explainer" />
-}))
+vi.mock("../XPExplainer", () => ({
+  XPExplainer: () => <div data-testid="xp-explainer" />,
+}));
 
-vi.mock('../ProfileDialog', () => ({
-  ProfileDialog: () => <div data-testid="profile-dialog" />
-}))
+vi.mock("../ProfileDialog", () => ({
+  ProfileDialog: () => <div data-testid="profile-dialog" />,
+}));
 
-vi.mock('../../settings/DataManagementDialog', () => ({
-  DataManagementDialog: () => <div data-testid="data-dialog" />
-}))
+vi.mock("../../settings/DataManagementDialog", () => ({
+  DataManagementDialog: () => <div data-testid="data-dialog" />,
+}));
 
-describe('Sidebar (v2)', () => {
+describe("Sidebar (v2)", () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    vi.clearAllMocks();
     useAppStore.setState({
-      currentView: 'notes',
+      currentView: "notes",
       user: {
-        id: 'test-user',
-        email: 'test@example.com',
+        id: "test-user",
+        email: "test@example.com",
         total_xp: 100,
         current_level: 5,
-        theme: 'light',
-        created_at: '2024-01-01',
-        updated_at: '2024-01-01',
-        role: 'authenticated',
-        aud: 'authenticated',
+        theme: "light",
+        created_at: "2024-01-01",
+        updated_at: "2024-01-01",
+        role: "authenticated",
+        aud: "authenticated",
         app_metadata: {},
         user_metadata: {},
       },
-      isRightSidebarOpen: false
-    })
+      isRightSidebarOpen: false,
+    });
 
     // Mock window.history.pushState
-    vi.spyOn(window.history, 'pushState')
-  })
+    vi.spyOn(window.history, "pushState");
+  });
 
-  it('renders navigation links as <a> tags', () => {
-    render(<Sidebar />)
+  it("renders navigation links as <a> tags", () => {
+    render(<Sidebar />);
 
     // Check if Notes is an anchor tag
-    const notesLink = screen.getByText('Notes').closest('a')
-    expect(notesLink).toBeInTheDocument()
-    expect(notesLink).toHaveAttribute('href', '/notes')
+    const notesLink = screen.getByText("Notes").closest("a");
+    expect(notesLink).toBeInTheDocument();
+    expect(notesLink).toHaveAttribute("href", "/notes");
 
-    const papersLink = screen.getByText('Papers').closest('a')
-    expect(papersLink).toBeInTheDocument()
-    expect(papersLink).toHaveAttribute('href', '/papers')
-  })
+    const papersLink = screen.getByText("Papers").closest("a");
+    expect(papersLink).toBeInTheDocument();
+    expect(papersLink).toHaveAttribute("href", "/papers");
+  });
 
-  it('updates view and URL on click', () => {
-    render(<Sidebar />)
+  it("updates view and URL on click", () => {
+    render(<Sidebar />);
 
-    const papersLink = screen.getByText('Papers').closest('a')
-    expect(papersLink).toBeInTheDocument()
+    const papersLink = screen.getByText("Papers").closest("a");
+    expect(papersLink).toBeInTheDocument();
 
-    fireEvent.click(papersLink!)
+    fireEvent.click(papersLink!);
 
-    expect(useAppStore.getState().currentView).toBe('papers')
-    expect(window.history.pushState).toHaveBeenCalledWith(null, '', '/papers')
-  })
+    expect(useAppStore.getState().currentView).toBe("papers");
+    expect(window.history.pushState).toHaveBeenCalledWith(null, "", "/papers");
+  });
 
   it('marks current view with aria-current="page"', () => {
-    useAppStore.setState({ currentView: 'ideas' })
-    render(<Sidebar />)
+    useAppStore.setState({ currentView: "ideas" });
+    render(<Sidebar />);
 
-    const ideasLink = screen.getByText('Ideas').closest('a')
-    expect(ideasLink).toHaveAttribute('aria-current', 'page')
+    const ideasLink = screen.getByText("Ideas").closest("a");
+    expect(ideasLink).toHaveAttribute("aria-current", "page");
 
-    const notesLink = screen.getByText('Notes').closest('a')
-    expect(notesLink).not.toHaveAttribute('aria-current')
-  })
+    const notesLink = screen.getByText("Notes").closest("a");
+    expect(notesLink).not.toHaveAttribute("aria-current");
+  });
 
-  it('allows default behavior when modifier keys are pressed (Ctrl+Click)', () => {
-    render(<Sidebar />)
+  it("allows default behavior when modifier keys are pressed (Ctrl+Click)", () => {
+    render(<Sidebar />);
 
-    const papersLink = screen.getByText('Papers').closest('a')
-    expect(papersLink).toBeInTheDocument()
+    const papersLink = screen.getByText("Papers").closest("a");
+    expect(papersLink).toBeInTheDocument();
 
-    fireEvent.click(papersLink!, { ctrlKey: true })
+    fireEvent.click(papersLink!, { ctrlKey: true });
 
-    expect(useAppStore.getState().currentView).toBe('notes') // Should remain 'notes'
-    expect(window.history.pushState).not.toHaveBeenCalled()
-  })
-})
+    expect(useAppStore.getState().currentView).toBe("notes"); // Should remain 'notes'
+    expect(window.history.pushState).not.toHaveBeenCalled();
+  });
+});

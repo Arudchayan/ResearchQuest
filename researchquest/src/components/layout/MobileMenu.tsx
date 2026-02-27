@@ -1,9 +1,9 @@
-import { Menu, X } from 'lucide-react'
-import { useState } from 'react'
-import { LeftSidebar } from './LeftSidebar'
+import { Menu, X } from "lucide-react";
+import { useState } from "react";
+import { LeftSidebar } from "./LeftSidebar";
 
 export function MobileMenu() {
-  const [isOpen, setIsOpen] = useState(false)
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
     <>
@@ -28,7 +28,7 @@ export function MobileMenu() {
       {/* Mobile Drawer - Slide out from left */}
       <div
         className={`lg:hidden fixed top-0 left-0 bottom-0 w-80 max-w-[85vw] bg-bg-surface z-50 transform transition-transform duration-300 ease-in-out ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
+          isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         {/* Close Button */}
@@ -46,5 +46,5 @@ export function MobileMenu() {
         </div>
       </div>
     </>
-  )
+  );
 }

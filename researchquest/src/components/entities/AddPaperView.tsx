@@ -1114,7 +1114,9 @@ export function AddPaperView({
                 onBlur={() => setIsTitleFocused(false)}
                 placeholder="Enter paper title"
                 maxLength={255}
-                aria-invalid={!manualTitle.trim() && error === "Title is required"}
+                aria-invalid={
+                  !manualTitle.trim() && error === "Title is required"
+                }
                 aria-describedby={error ? "manual-entry-error" : undefined}
                 className="w-full px-4 py-3 bg-bg-base border border-border-subtle rounded-lg text-body focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
