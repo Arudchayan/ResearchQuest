@@ -190,6 +190,12 @@ function parseFields(body: string, entry: BibTeXEntry) {
        const cleanValue = value.replace(/[\r\n\s]+/g, ' ').trim();
 
        // Post-process specific fields
+       // 🛡️ Sentinel: Prevent prototype pollution
+       if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+           // Ignore these keys
+           continue;
+       }
+
        if (key === 'author') {
            entry.authors = parseAuthors(cleanValue);
        } else if (key === 'year' || key === 'date') {
