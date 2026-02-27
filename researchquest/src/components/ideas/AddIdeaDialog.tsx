@@ -1,64 +1,64 @@
-import { Lightbulb, X } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { Lightbulb, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 interface AddIdeaDialogProps {
-  isOpen: boolean
-  onClose: () => void
-  onConfirm: (data: { title: string; description?: string }) => void
-  isLoading?: boolean
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: (data: { title: string; description?: string }) => void;
+  isLoading?: boolean;
 }
 
 export function AddIdeaDialog({
   isOpen,
   onClose,
   onConfirm,
-  isLoading = false
+  isLoading = false,
 }: AddIdeaDialogProps) {
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const firstInputRef = useRef<HTMLInputElement>(null)
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const firstInputRef = useRef<HTMLInputElement>(null);
 
   // Reset form when opening
   useEffect(() => {
     if (isOpen) {
-      setTitle('')
-      setDescription('')
+      setTitle("");
+      setDescription("");
       // Focus first input
       setTimeout(() => {
-        firstInputRef.current?.focus()
-      }, 50)
+        firstInputRef.current?.focus();
+      }, 50);
 
       // Lock body scroll
-      document.body.style.overflow = 'hidden'
+      document.body.style.overflow = "hidden";
 
       return () => {
-        document.body.style.overflow = 'unset'
-      }
+        document.body.style.overflow = "unset";
+      };
     }
-  }, [isOpen])
+  }, [isOpen]);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen && !isLoading) {
-        onClose()
+      if (e.key === "Escape" && isOpen && !isLoading) {
+        onClose();
       }
-    }
+    };
 
-    window.addEventListener('keydown', handleEscape)
-    return () => window.removeEventListener('keydown', handleEscape)
-  }, [isOpen, isLoading, onClose])
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [isOpen, isLoading, onClose]);
 
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!title.trim() || isLoading) return
+    e.preventDefault();
+    if (!title.trim() || isLoading) return;
 
     onConfirm({
       title: title.trim(),
-      description: description.trim() || undefined
-    })
-  }
+      description: description.trim() || undefined,
+    });
+  };
 
   return (
     <div
@@ -105,7 +105,10 @@ export function AddIdeaDialog({
           {/* Body */}
           <div className="px-6 py-2 space-y-4">
             <div>
-              <label htmlFor="idea-title" className="block text-small font-medium text-text-primary mb-1.5">
+              <label
+                htmlFor="idea-title"
+                className="block text-small font-medium text-text-primary mb-1.5"
+              >
                 Title *
               </label>
               <input
@@ -123,7 +126,10 @@ export function AddIdeaDialog({
             </div>
 
             <div>
-              <label htmlFor="idea-description" className="block text-small font-medium text-text-primary mb-1.5">
+              <label
+                htmlFor="idea-description"
+                className="block text-small font-medium text-text-primary mb-1.5"
+              >
                 Description
               </label>
               <textarea
@@ -155,11 +161,11 @@ export function AddIdeaDialog({
               disabled={!title.trim() || isLoading}
               className="flex-1 px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoading ? 'Creating...' : 'Create Idea'}
+              {isLoading ? "Creating..." : "Create Idea"}
             </button>
           </div>
         </form>
       </div>
     </div>
-  )
+  );
 }

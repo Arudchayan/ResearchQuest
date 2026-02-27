@@ -1,72 +1,83 @@
-import { useEffect, useState, useMemo } from 'react'
-import * as Dialog from '@radix-ui/react-dialog'
-import { Trophy, X, Flame, Star, Medal, Award, Calendar } from 'lucide-react'
-import { useAppStore } from '../../store/appStore'
-import { supabase } from '../../lib/supabase'
-import { ACHIEVEMENTS, getLevelTitle, getXPForLevel } from '../../utils/gamification'
-import type { Achievement } from '../../types/database'
-import { Skeleton } from '../../components/ui/Skeleton'
+import { useEffect, useState, useMemo } from "react";
+import * as Dialog from "@radix-ui/react-dialog";
+import { Trophy, X, Flame, Star, Medal, Award, Calendar } from "lucide-react";
+import { useAppStore } from "../../store/appStore";
+import { supabase } from "../../lib/supabase";
+import {
+  ACHIEVEMENTS,
+  getLevelTitle,
+  getXPForLevel,
+} from "../../utils/gamification";
+import type { Achievement } from "../../types/database";
+import { Skeleton } from "../../components/ui/Skeleton";
 
 interface ProfileDialogProps {
-  open: boolean
-  onClose: () => void
+  open: boolean;
+  onClose: () => void;
 }
 
 export function ProfileDialog({ open, onClose }: ProfileDialogProps) {
-  const { user } = useAppStore()
-  const [earnedAchievements, setEarnedAchievements] = useState<Set<string>>(new Set())
-  const [achievementDates, setAchievementDates] = useState<Record<string, string>>({})
-  const [loading, setLoading] = useState(false)
+  const { user } = useAppStore();
+  const [earnedAchievements, setEarnedAchievements] = useState<Set<string>>(
+    new Set(),
+  );
+  const [achievementDates, setAchievementDates] = useState<
+    Record<string, string>
+  >({});
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (open && user) {
-      fetchAchievements()
+      fetchAchievements();
     }
-  }, [open, user])
+  }, [open, user]);
 
   const fetchAchievements = async () => {
-    if (!user) return
-    setLoading(true)
+    if (!user) return;
+    setLoading(true);
 
     try {
       const { data, error } = await supabase
-        .from('research_achievements')
-        .select('*')
-        .eq('user_id', user.id)
+        .from("research_achievements")
+        .select("*")
+        .eq("user_id", user.id);
 
-      if (error) throw error
+      if (error) throw error;
 
-      const earned = new Set<string>()
-      const dates: Record<string, string> = {}
+      const earned = new Set<string>();
+      const dates: Record<string, string> = {};
 
       data?.forEach((a: Achievement) => {
-        earned.add(a.achievement_type)
-        dates[a.achievement_type] = a.created_at
-      })
+        earned.add(a.achievement_type);
+        dates[a.achievement_type] = a.created_at;
+      });
 
-      setEarnedAchievements(earned)
-      setAchievementDates(dates)
+      setEarnedAchievements(earned);
+      setAchievementDates(dates);
     } catch (err) {
-      console.error('Failed to fetch achievements:', err)
+      console.error("Failed to fetch achievements:", err);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  const currentLevel = user?.current_level || 1
-  const totalXP = user?.total_xp || 0
-  const xpForNextLevel = getXPForLevel(currentLevel)
-  const xpInLevel = totalXP % 500 // Assuming 500 XP per level as per gamification.ts
-  const progressPercent = Math.min(100, (xpInLevel / 500) * 100)
+  const currentLevel = user?.current_level || 1;
+  const totalXP = user?.total_xp || 0;
+  const xpForNextLevel = getXPForLevel(currentLevel);
+  const xpInLevel = totalXP % 500; // Assuming 500 XP per level as per gamification.ts
+  const progressPercent = Math.min(100, (xpInLevel / 500) * 100);
 
   const allAchievements = useMemo(() => {
-    return Object.values(ACHIEVEMENTS)
-  }, [])
+    return Object.values(ACHIEVEMENTS);
+  }, []);
 
   const AchievementsSkeleton = () => (
     <>
       {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="p-4 rounded-xl border border-border-subtle bg-bg-base/50 space-y-3">
+        <div
+          key={i}
+          className="p-4 rounded-xl border border-border-subtle bg-bg-base/50 space-y-3"
+        >
           <div className="flex items-center gap-3">
             <Skeleton className="w-10 h-10 rounded-lg flex-shrink-0" />
             <div className="space-y-2 flex-1">
@@ -82,14 +93,13 @@ export function ProfileDialog({ open, onClose }: ProfileDialogProps) {
         </div>
       ))}
     </>
-  )
+  );
 
   return (
     <Dialog.Root open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm animate-in fade-in duration-200" />
         <Dialog.Content className="fixed left-[50%] top-[50%] z-[60] w-full max-w-4xl translate-x-[-50%] translate-y-[-50%] rounded-2xl bg-bg-surface shadow-2xl border border-border-subtle overflow-hidden outline-none animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
-
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-5 border-b border-border-subtle bg-bg-elevated sticky top-0 z-10">
             <div className="flex items-center gap-3">
@@ -121,12 +131,18 @@ export function ProfileDialog({ open, onClose }: ProfileDialogProps) {
               {/* Level Card */}
               <div className="p-4 rounded-xl border border-border-subtle bg-bg-base flex flex-col gap-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-text-secondary">Current Rank</span>
+                  <span className="text-sm font-semibold text-text-secondary">
+                    Current Rank
+                  </span>
                   <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-text-primary">{getLevelTitle(currentLevel)}</div>
-                  <div className="text-sm text-text-tertiary">Level {currentLevel}</div>
+                  <div className="text-2xl font-bold text-text-primary">
+                    {getLevelTitle(currentLevel)}
+                  </div>
+                  <div className="text-sm text-text-tertiary">
+                    Level {currentLevel}
+                  </div>
                 </div>
                 <div className="mt-auto pt-2 space-y-1">
                   <div className="flex justify-between text-caption text-text-secondary">
@@ -152,27 +168,42 @@ export function ProfileDialog({ open, onClose }: ProfileDialogProps) {
               {/* Streak Card */}
               <div className="p-4 rounded-xl border border-border-subtle bg-bg-base flex flex-col gap-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-text-secondary">Consistency</span>
+                  <span className="text-sm font-semibold text-text-secondary">
+                    Consistency
+                  </span>
                   <Flame className="w-4 h-4 text-orange-500 fill-orange-500" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-text-primary">{user?.current_streak || 0} Days</div>
-                  <div className="text-sm text-text-tertiary">Current Streak</div>
+                  <div className="text-2xl font-bold text-text-primary">
+                    {user?.current_streak || 0} Days
+                  </div>
+                  <div className="text-sm text-text-tertiary">
+                    Current Streak
+                  </div>
                 </div>
                 <div className="mt-auto text-caption text-text-secondary">
-                  Longest streak: <span className="font-semibold">{user?.longest_streak || 0} days</span>
+                  Longest streak:{" "}
+                  <span className="font-semibold">
+                    {user?.longest_streak || 0} days
+                  </span>
                 </div>
               </div>
 
               {/* Total XP Card */}
               <div className="p-4 rounded-xl border border-border-subtle bg-bg-base flex flex-col gap-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-text-secondary">Lifetime Impact</span>
+                  <span className="text-sm font-semibold text-text-secondary">
+                    Lifetime Impact
+                  </span>
                   <Award className="w-4 h-4 text-purple-500" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-text-primary">{totalXP.toLocaleString()} XP</div>
-                  <div className="text-sm text-text-tertiary">Total Experience</div>
+                  <div className="text-2xl font-bold text-text-primary">
+                    {totalXP.toLocaleString()} XP
+                  </div>
+                  <div className="text-sm text-text-tertiary">
+                    Total Experience
+                  </div>
                 </div>
                 <div className="mt-auto text-caption text-text-secondary">
                   Keep creating to level up
@@ -186,7 +217,8 @@ export function ProfileDialog({ open, onClose }: ProfileDialogProps) {
                 <Medal className="w-5 h-5 text-primary-500" />
                 Achievements
                 <span className="text-sm font-normal text-text-tertiary ml-2">
-                  ({earnedAchievements.size} / {allAchievements.length} unlocked)
+                  ({earnedAchievements.size} / {allAchievements.length}{" "}
+                  unlocked)
                 </span>
               </h3>
 
@@ -195,25 +227,25 @@ export function ProfileDialog({ open, onClose }: ProfileDialogProps) {
                   <AchievementsSkeleton />
                 ) : (
                   allAchievements.map((achievement) => {
-                    const isUnlocked = earnedAchievements.has(achievement.type)
-                    const earnedDate = achievementDates[achievement.type]
+                    const isUnlocked = earnedAchievements.has(achievement.type);
+                    const earnedDate = achievementDates[achievement.type];
 
                     return (
                       <article
                         key={achievement.type}
-                        aria-label={`${achievement.title} - ${isUnlocked ? 'Unlocked' : 'Locked'}`}
+                        aria-label={`${achievement.title} - ${isUnlocked ? "Unlocked" : "Locked"}`}
                         className={`relative p-4 rounded-xl border transition-all duration-200 ${
                           isUnlocked
-                            ? 'bg-bg-surface border-primary-200 dark:border-primary-800 shadow-sm'
-                            : 'bg-bg-base/50 border-border-subtle opacity-70 grayscale-[0.5]'
+                            ? "bg-bg-surface border-primary-200 dark:border-primary-800 shadow-sm"
+                            : "bg-bg-base/50 border-border-subtle opacity-70 grayscale-[0.5]"
                         }`}
                       >
                         <div className="flex items-start justify-between gap-3 mb-2">
                           <div
                             className={`p-2 rounded-lg ${
                               isUnlocked
-                                ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400'
-                                : 'bg-bg-elevated text-text-tertiary'
+                                ? "bg-primary-100 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400"
+                                : "bg-bg-elevated text-text-tertiary"
                             }`}
                           >
                             <Medal className="w-5 h-5" />
@@ -226,7 +258,7 @@ export function ProfileDialog({ open, onClose }: ProfileDialogProps) {
                         </div>
 
                         <h4
-                          className={`font-bold mb-1 ${isUnlocked ? 'text-text-primary' : 'text-text-secondary'}`}
+                          className={`font-bold mb-1 ${isUnlocked ? "text-text-primary" : "text-text-secondary"}`}
                         >
                           {achievement.title}
                         </h4>
@@ -236,7 +268,7 @@ export function ProfileDialog({ open, onClose }: ProfileDialogProps) {
 
                         <div className="flex items-center justify-between text-caption pt-3 border-t border-border-subtle/50">
                           <span
-                            className={`font-semibold ${isUnlocked ? 'text-primary-500' : 'text-text-tertiary'}`}
+                            className={`font-semibold ${isUnlocked ? "text-primary-500" : "text-text-tertiary"}`}
                           >
                             +{achievement.xp} XP
                           </span>
@@ -248,7 +280,7 @@ export function ProfileDialog({ open, onClose }: ProfileDialogProps) {
                           )}
                         </div>
                       </article>
-                    )
+                    );
                   })
                 )}
               </div>
@@ -257,5 +289,5 @@ export function ProfileDialog({ open, onClose }: ProfileDialogProps) {
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
-  )
+  );
 }

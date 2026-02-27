@@ -1,59 +1,61 @@
-const DATE_ONLY_REGEX = /^\d{4}-\d{2}-\d{2}$/
+const DATE_ONLY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
-export const parseDateInput = (dateString: string | undefined | null): Date | null => {
+export const parseDateInput = (
+  dateString: string | undefined | null,
+): Date | null => {
   if (!dateString) {
-    return null
+    return null;
   }
 
   if (DATE_ONLY_REGEX.test(dateString)) {
-    const [year, month, day] = dateString.split('-').map(Number)
+    const [year, month, day] = dateString.split("-").map(Number);
     if (!year || !month || !day) {
-      return null
+      return null;
     }
     // Construct the date in the user's local timezone to avoid UTC offset issues
-    return new Date(year, month - 1, day)
+    return new Date(year, month - 1, day);
   }
 
-  const parsed = new Date(dateString)
-  return Number.isNaN(parsed.getTime()) ? null : parsed
-}
+  const parsed = new Date(dateString);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
 
 export const formatTimeUntil = (dateString: string) => {
-  const due = parseDateInput(dateString)
+  const due = parseDateInput(dateString);
   if (!due) {
-    return 'unknown'
+    return "unknown";
   }
 
-  const now = new Date()
-  const diffMs = due.getTime() - now.getTime()
+  const now = new Date();
+  const diffMs = due.getTime() - now.getTime();
 
   if (diffMs <= 0) {
-    return 'due now'
+    return "due now";
   }
 
-  const diffMinutes = Math.floor(diffMs / (1000 * 60))
+  const diffMinutes = Math.floor(diffMs / (1000 * 60));
   if (diffMinutes < 60) {
-    return `${diffMinutes}m`
+    return `${diffMinutes}m`;
   }
 
-  const diffHours = Math.floor(diffMinutes / 60)
+  const diffHours = Math.floor(diffMinutes / 60);
   if (diffHours < 24) {
-    return `${diffHours}h`
+    return `${diffHours}h`;
   }
 
-  const diffDays = Math.floor(diffHours / 24)
-  return `${diffDays}d`
-}
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays}d`;
+};
 
 export const formatDateLabel = (dateString: string) => {
-  const due = parseDateInput(dateString)
+  const due = parseDateInput(dateString);
   if (!due) {
-    return 'N/A'
+    return "N/A";
   }
 
   return due.toLocaleDateString(undefined, {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  })
-}
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+};

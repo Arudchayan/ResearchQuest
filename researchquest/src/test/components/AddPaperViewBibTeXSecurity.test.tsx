@@ -59,9 +59,11 @@ describe("AddPaperView BibTeX Security", () => {
 }
     `;
 
-    const file = new File([maliciousBibTeX], "malicious.bib", { type: "text/plain" });
-    Object.defineProperty(file, 'text', {
-      value: async () => maliciousBibTeX
+    const file = new File([maliciousBibTeX], "malicious.bib", {
+      type: "text/plain",
+    });
+    Object.defineProperty(file, "text", {
+      value: async () => maliciousBibTeX,
     });
 
     render(
@@ -69,7 +71,7 @@ describe("AddPaperView BibTeX Security", () => {
         onAdd={mockOnAdd}
         searchByDOI={mockSearchByDOI}
         searchByQuery={mockSearchByQuery}
-      />
+      />,
     );
 
     const importTab = screen.getByText("Import BibTeX");
@@ -85,12 +87,14 @@ describe("AddPaperView BibTeX Security", () => {
 
     // Select and import
     // Note: Items are selected by default, so we don't need to click "Select All"
-    const importButton = screen.getByRole("button", { name: /Import Selected/i });
+    const importButton = screen.getByRole("button", {
+      name: /Import Selected/i,
+    });
     await userEvent.click(importButton);
 
     // Verify onAdd was called
     await waitFor(() => {
-        expect(mockOnAdd).toHaveBeenCalled();
+      expect(mockOnAdd).toHaveBeenCalled();
     });
 
     const calledArg = mockOnAdd.mock.calls[0][0];
