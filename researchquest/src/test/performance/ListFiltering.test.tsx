@@ -3,6 +3,7 @@ import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { NotesView } from '../../components/notes/NotesView'
 import { PapersView } from '../../components/papers/PapersView'
 import { useAppStore } from '../../store/appStore'
+import { useNotes } from '../../hooks/useNotes'
 
 // Mock dependencies
 vi.mock('../../store/appStore', () => ({
@@ -90,12 +91,26 @@ describe('ListFiltering Performance', () => {
         notes: mockNotes,
         papers: mockPapers
     });
+    // Mock useNotes to return notes
+    (useNotes as any).mockReturnValue({
+        notes: mockNotes,
+        loading: false,
+        createNote: vi.fn(),
+        deleteNote: vi.fn(),
+    });
   })
 
   it('should verify optimization: filter is NOT called on notes when search query is empty', () => {
     const filterSpy = vi.spyOn(Array.prototype, 'filter')
     render(<NotesView />)
     const calledOnMockNotes = filterSpy.mock.instances.some(instance => instance === mockNotes)
+    // When using useShallow/useMemo, filter might be called but on empty query it returns original
+    // The previous test logic assumed 'filter' method is not called at all.
+    // However, in NotesView.tsx:
+    // const filteredNotes = useMemo(() => {
+    //   if (!searchQuery) return notes
+    //   ...
+    // so it should return notes directly without calling .filter()
     expect(calledOnMockNotes).toBe(false)
     filterSpy.mockRestore()
   })
