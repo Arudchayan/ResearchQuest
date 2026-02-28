@@ -16,9 +16,14 @@ interface NoteCardProps {
 }
 
 const NoteCardComponent = ({ note, onSelect, onDelete, isSelected, searchQuery = '' }: NoteCardProps) => {
-  // Extract title from markdown or use first line
-  const title = note.title || deriveTitleFromMarkdown(note.markdown_body)
-  const preview = note.markdown_body.slice(0, 100) + (note.markdown_body.length > 100 ? '...' : '')
+  // Optimization: Memoize title derivation and preview generation to avoid expensive string operations on every render
+  // (e.g., when the note is selected or search query changes)
+  const { title, preview } = useMemo(() => {
+    return {
+      title: note.title || deriveTitleFromMarkdown(note.markdown_body),
+      preview: note.markdown_body.slice(0, 100) + (note.markdown_body.length > 100 ? '...' : '')
+    }
+  }, [note.title, note.markdown_body])
 
   const handleDelete = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
