@@ -11,6 +11,8 @@ vi.mock('../../store/appStore', () => ({
 
 vi.mock('../../hooks/useNotes', () => ({
   useNotes: vi.fn(() => ({
+    notes: [],
+    loading: false,
     createNote: vi.fn(),
     deleteNote: vi.fn(),
   })),
@@ -73,6 +75,7 @@ describe('ListFiltering Performance', () => {
     (useAppStore as any).mockImplementation((selector: any) => {
         const state = {
             notes: mockNotes,
+            notesLoading: false,
             papers: mockPapers,
             papersLoading: false,
             selectedNote: null,
@@ -88,7 +91,9 @@ describe('ListFiltering Performance', () => {
         selectedNote: null,
         selectedPaper: null,
         notes: mockNotes,
-        papers: mockPapers
+        notesLoading: false,
+        papers: mockPapers,
+        papersLoading: false
     });
   })
 
