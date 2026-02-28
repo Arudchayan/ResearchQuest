@@ -9,8 +9,15 @@ vi.mock('../../store/appStore', () => ({
   useAppStore: vi.fn(),
 }))
 
+const mockNotes = [
+  { id: '1', title: 'Note 1', markdown_body: 'Body content ONE', updated_at: new Date().toISOString() },
+  { id: '2', title: 'Note 2', markdown_body: 'Body content TWO', updated_at: new Date().toISOString() },
+]
+
 vi.mock('../../hooks/useNotes', () => ({
   useNotes: vi.fn(() => ({
+    notes: mockNotes,
+    loading: false,
     createNote: vi.fn(),
     deleteNote: vi.fn(),
   })),
@@ -58,11 +65,6 @@ vi.mock('../../components/layout/OnboardingGuide', () => ({
 }))
 
 describe('ListFiltering Performance', () => {
-  const mockNotes = [
-    { id: '1', title: 'Note 1', markdown_body: 'Body content ONE', updated_at: new Date().toISOString() },
-    { id: '2', title: 'Note 2', markdown_body: 'Body content TWO', updated_at: new Date().toISOString() },
-  ]
-
   const mockPapers = [
     { id: 'p1', title: 'Paper 1', authors: ['Author A'], updated_at: new Date().toISOString() },
     { id: 'p2', title: 'Paper 2', authors: ['Author B'], updated_at: new Date().toISOString() },
