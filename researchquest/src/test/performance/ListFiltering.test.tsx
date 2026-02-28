@@ -68,8 +68,18 @@ describe('ListFiltering Performance', () => {
     { id: 'p2', title: 'Paper 2', authors: ['Author B'], updated_at: new Date().toISOString() },
   ]
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
+
+    // Reset the useNotes hook mock implementation directly using the imported reference
+    const { useNotes } = await import('../../hooks/useNotes');
+    (useNotes as any).mockReturnValue({
+      notes: mockNotes,
+      loading: false,
+      createNote: vi.fn(),
+      deleteNote: vi.fn(),
+    });
+
     (useAppStore as any).mockImplementation((selector: any) => {
         const state = {
             notes: mockNotes,
