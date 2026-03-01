@@ -136,7 +136,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
         try {
           channel.unsubscribe()
         } catch (unsubscribeError) {
-          console.error('Failed to unsubscribe from Supabase channel', unsubscribeError)
+          console.error('Failed to unsubscribe from Supabase channel', (unsubscribeError as Error)?.message || 'Unknown error')
         }
       })
       realtimeChannelsRef.current = []
@@ -156,7 +156,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
       }
 
       if (error) {
-        console.error('Failed to fetch today\'s XP:', error)
+        console.error('Failed to fetch today\'s XP:', (error as Error)?.message || 'Unknown error')
         return
       }
 
@@ -189,7 +189,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
       }
 
       if (error) {
-        console.error('Failed to load upcoming deadlines:', error)
+        console.error('Failed to load upcoming deadlines:', (error as Error)?.message || 'Unknown error')
         return
       }
 
@@ -213,7 +213,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
       }
 
       if (error) {
-        console.error('Failed to get user:', error)
+        console.error('Failed to get user:', (error as Error)?.message || 'Unknown error')
         return
       }
 

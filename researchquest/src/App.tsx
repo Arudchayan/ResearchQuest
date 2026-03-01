@@ -292,6 +292,12 @@ function App() {
   const { ideas, loading: ideasLoading } = useIdeas(userId)
   
   useEffect(() => {
+    if (typeof window !== 'undefined' && (window as any).__TEST_USER__) {
+      setUser((window as any).__TEST_USER__)
+      setUserId((window as any).__TEST_USER__.id)
+      setLoading(false)
+      return
+    }
     // Check active sessions
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)

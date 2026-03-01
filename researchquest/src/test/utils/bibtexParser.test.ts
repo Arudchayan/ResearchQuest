@@ -120,4 +120,56 @@ describe('parseBibTeX', () => {
     expect(result[0].title).toBe('Title 1');
     expect(result[1].title).toBe('Title 2');
   });
+
+  describe('Security: Prototype Pollution Prevention', () => {
+    it('should ignore __proto__ field in BibTeX input', () => {
+      const input = `
+@article{pollute1,
+  __proto__ = {polluted: "yes"},
+  title = {Safe Title}
+}
+      `;
+      const result = parseBibTeX(input);
+      const entry = result[0];
+
+      // Verify normal property exists
+      expect(entry.title).toBe('Safe Title');
+
+      // Verify no pollution on the object instance
+      // "constructor" in entry -> false for plain object, but let's check for specific polluted prop
+      expect((entry as any).polluted).toBeUndefined();
+
+      // Verify no pollution on Object.prototype
+      expect((Object.prototype as any).polluted).toBeUndefined();
+
+      // Depending on implementation, __proto__ key might be present as own property or ignored.
+      // Ideally it should be ignored or harmless.
+      // If it exists as own property, it shouldn't affect prototype chain if created properly.
+      // However, safest is to strip it.
+    });
+
+    it('should ignore constructor field to prevent overwriting', () => {
+      const input = `
+@article{pollute2,
+  constructor = {polluted: "yes"}
+}
+      `;
+      const result = parseBibTeX(input);
+      const entry = result[0];
+
+      // Should not overwrite the constructor property
+      expect(entry.constructor).toBe(Object);
+    });
+
+    it('should ignore prototype field', () => {
+       const input = `
+@article{pollute3,
+  prototype = {polluted: "yes"}
+}
+      `;
+      const result = parseBibTeX(input);
+      const entry = result[0];
+      expect((entry as any).prototype).toBeUndefined();
+    });
+  });
 });
