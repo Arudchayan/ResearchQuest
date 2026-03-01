@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
-import { Plus, Search, FileText, X, Loader2, Download, Table, FileJson } from 'lucide-react'
+import { Plus, Search, FileText, X, Loader2, Download, Table, FileJson, ArrowUpDown } from 'lucide-react'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { useAppStore } from '../../store/appStore'
 import { useNotes } from '../../hooks/useNotes'
@@ -11,6 +11,14 @@ import type { Note } from '../../types/database'
 import { toast } from 'sonner'
 import { convertNotesToCSV, convertNotesToJSON, convertNotesToMarkdown, downloadFile } from '../../utils/export'
 import { useShallow } from 'zustand/react/shallow'
+
+type SortOption =
+  | 'updated_desc'
+  | 'updated_asc'
+  | 'created_desc'
+  | 'created_asc'
+  | 'title_asc'
+  | 'title_desc'
 
 export function NotesView() {
   // Use useShallow to prevent re-renders when other store parts update
@@ -28,6 +36,7 @@ export function NotesView() {
   const { notes, loading: notesLoading, createNote, deleteNote, restoreNote } = useNotes(userId)
 
   const [searchQuery, setSearchQuery] = useState('')
+  const [sortOption, setSortOption] = useState<SortOption>('updated_desc')
   const [isCreating, setIsCreating] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const { confirm, isOpen, config } = useConfirmDialog()
@@ -44,18 +53,47 @@ export function NotesView() {
   }, [])
 
   const filteredNotes = useMemo(() => {
-    // Optimization: Skip filtering if query is empty
-    if (!searchQuery) return notes
+    // Optimization: Skip filtering if query is empty and sort order matches default
+    if (!searchQuery && sortOption === 'updated_desc') {
+      return notes
+    }
 
-    // Optimization: Calculate query lowercasing once outside the loop to avoid redundant operations
-    const query = searchQuery.toLowerCase()
-    return notes.filter(note => {
-      return (
-        (note.title && note.title.toLowerCase().includes(query)) ||
-        (note.markdown_body && note.markdown_body.toLowerCase().includes(query))
-      )
+    let filtered = notes
+
+    if (searchQuery) {
+      // Optimization: Calculate query lowercasing once outside the loop to avoid redundant operations
+      const query = searchQuery.toLowerCase()
+      filtered = notes.filter(note => {
+        return (
+          (note.title && note.title.toLowerCase().includes(query)) ||
+          (note.markdown_body && note.markdown_body.toLowerCase().includes(query))
+        )
+      })
+    } else {
+      // Create a shallow copy if we need to sort but not filter
+      // (to avoid mutating the store)
+      filtered = [...notes]
+    }
+
+    return filtered.sort((a, b) => {
+      switch (sortOption) {
+        case 'updated_desc':
+          return (b.updated_at || b.created_at) > (a.updated_at || a.created_at) ? 1 : -1
+        case 'updated_asc':
+          return (a.updated_at || a.created_at) > (b.updated_at || b.created_at) ? 1 : -1
+        case 'created_desc':
+          return b.created_at > a.created_at ? 1 : -1
+        case 'created_asc':
+          return a.created_at > b.created_at ? 1 : -1
+        case 'title_asc':
+          return (a.title || 'Untitled').localeCompare(b.title || 'Untitled')
+        case 'title_desc':
+          return (b.title || 'Untitled').localeCompare(a.title || 'Untitled')
+        default:
+          return 0
+      }
     })
-  }, [notes, searchQuery])
+  }, [notes, searchQuery, sortOption])
 
   const handleCreateNote = async () => {
     setIsCreating(true)
@@ -179,6 +217,70 @@ export function NotesView() {
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Notes</h2>
             <div className="flex items-center gap-2">
+              <DropdownMenu.Root>
+                <DropdownMenu.Trigger asChild>
+                  <button
+                    className="p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-md transition-colors"
+                    title="Sort notes"
+                  >
+                    <ArrowUpDown className="w-5 h-5" />
+                  </button>
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Portal>
+                  <DropdownMenu.Content
+                    className="min-w-[180px] bg-white dark:bg-slate-950 rounded-lg shadow-lg border border-slate-200 dark:border-slate-800 p-1 z-50 animate-in fade-in-0 zoom-in-95"
+                    align="end"
+                  >
+                    <DropdownMenu.Label className="px-2 py-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                      Sort by
+                    </DropdownMenu.Label>
+                    <DropdownMenu.Item
+                      className="flex items-center gap-2 px-2 py-1.5 text-sm text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 outline-none cursor-pointer"
+                      onClick={() => setSortOption('updated_desc')}
+                    >
+                      <div className={`w-1.5 h-1.5 rounded-full ${sortOption === 'updated_desc' ? 'bg-blue-500' : 'bg-transparent'}`} />
+                      Last Updated (Newest)
+                    </DropdownMenu.Item>
+                    <DropdownMenu.Item
+                      className="flex items-center gap-2 px-2 py-1.5 text-sm text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 outline-none cursor-pointer"
+                      onClick={() => setSortOption('updated_asc')}
+                    >
+                      <div className={`w-1.5 h-1.5 rounded-full ${sortOption === 'updated_asc' ? 'bg-blue-500' : 'bg-transparent'}`} />
+                      Last Updated (Oldest)
+                    </DropdownMenu.Item>
+                    <DropdownMenu.Item
+                      className="flex items-center gap-2 px-2 py-1.5 text-sm text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 outline-none cursor-pointer"
+                      onClick={() => setSortOption('created_desc')}
+                    >
+                      <div className={`w-1.5 h-1.5 rounded-full ${sortOption === 'created_desc' ? 'bg-blue-500' : 'bg-transparent'}`} />
+                      Date Created (Newest)
+                    </DropdownMenu.Item>
+                    <DropdownMenu.Item
+                      className="flex items-center gap-2 px-2 py-1.5 text-sm text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 outline-none cursor-pointer"
+                      onClick={() => setSortOption('created_asc')}
+                    >
+                      <div className={`w-1.5 h-1.5 rounded-full ${sortOption === 'created_asc' ? 'bg-blue-500' : 'bg-transparent'}`} />
+                      Date Created (Oldest)
+                    </DropdownMenu.Item>
+                    <DropdownMenu.Separator className="h-px bg-slate-200 dark:bg-slate-800 my-1" />
+                    <DropdownMenu.Item
+                      className="flex items-center gap-2 px-2 py-1.5 text-sm text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 outline-none cursor-pointer"
+                      onClick={() => setSortOption('title_asc')}
+                    >
+                      <div className={`w-1.5 h-1.5 rounded-full ${sortOption === 'title_asc' ? 'bg-blue-500' : 'bg-transparent'}`} />
+                      Title (A-Z)
+                    </DropdownMenu.Item>
+                    <DropdownMenu.Item
+                      className="flex items-center gap-2 px-2 py-1.5 text-sm text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 outline-none cursor-pointer"
+                      onClick={() => setSortOption('title_desc')}
+                    >
+                      <div className={`w-1.5 h-1.5 rounded-full ${sortOption === 'title_desc' ? 'bg-blue-500' : 'bg-transparent'}`} />
+                      Title (Z-A)
+                    </DropdownMenu.Item>
+                  </DropdownMenu.Content>
+                </DropdownMenu.Portal>
+              </DropdownMenu.Root>
+
               <DropdownMenu.Root>
                 <DropdownMenu.Trigger asChild>
                   <button
