@@ -106,6 +106,7 @@ export function Dashboard() {
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigateTo('focus')}
+            aria-label="Start a new focus session"
             className="flex items-center gap-2 px-4 py-2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-lg font-medium hover:opacity-90 transition-opacity"
           >
             <Target className="w-4 h-4" />
@@ -190,6 +191,7 @@ export function Dashboard() {
             </h2>
             <button
               onClick={() => navigateTo('notes')}
+              aria-label="View all recent notes"
               className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 font-medium flex items-center gap-1"
             >
               View all <ArrowRight className="w-4 h-4" />
@@ -204,6 +206,7 @@ export function Dashboard() {
                 <p className="text-slate-500 mb-3">No notes yet</p>
                 <button
                   onClick={() => navigateTo('notes')}
+                  aria-label="Create a new note"
                   className="inline-flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium hover:border-blue-500 transition-colors"
                 >
                   <Plus className="w-4 h-4" /> Create Note
@@ -218,6 +221,7 @@ export function Dashboard() {
                     navigateTo('notes')
                     window.history.pushState(null, '', `/notes/${note.id}`)
                   }}
+                  aria-label={`Open note: ${note.title || 'Untitled Note'}`}
                   className="w-full text-left group p-4 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl hover:border-blue-400 dark:hover:border-blue-600 cursor-pointer transition-all shadow-sm hover:shadow-md"
                 >
                   <h3 className="font-semibold text-slate-900 dark:text-white mb-1 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
@@ -246,6 +250,7 @@ export function Dashboard() {
               </h2>
               <button
                 onClick={() => navigateTo('papers')}
+                aria-label="View complete reading library"
                 className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 font-medium flex items-center gap-1"
               >
                 View Library <ArrowRight className="w-4 h-4" />
@@ -260,6 +265,7 @@ export function Dashboard() {
                   <p className="text-slate-500 mb-3">Your reading list is empty!</p>
                   <button
                     onClick={() => navigateTo('papers')}
+                    aria-label="Add a new paper to your reading list"
                     className="inline-flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium hover:border-blue-500 transition-colors"
                   >
                     <Plus className="w-4 h-4" /> Add Paper
@@ -274,6 +280,7 @@ export function Dashboard() {
                       navigateTo('papers')
                       window.history.pushState(null, '', `/papers/${paper.id}`)
                     }}
+                    aria-label={`Open paper: ${paper.title}`}
                     className="w-full text-left flex items-start gap-3 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors"
                   >
                     <div className="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg shrink-0">
@@ -302,6 +309,7 @@ export function Dashboard() {
               </h2>
               <button
                 onClick={() => navigateTo('tasks')}
+                aria-label="View all tasks"
                 className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 font-medium flex items-center gap-1"
               >
                 All Tasks <ArrowRight className="w-4 h-4" />
@@ -320,6 +328,7 @@ export function Dashboard() {
                    <button
                      key={task.id}
                      onClick={() => navigateTo('tasks')}
+                     aria-label={`Open task: ${task.title}`}
                      className="w-full text-left flex items-center justify-between p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg hover:border-slate-300 dark:hover:border-slate-700 cursor-pointer transition-colors"
                    >
                      <div className="flex items-center gap-3 min-w-0">
