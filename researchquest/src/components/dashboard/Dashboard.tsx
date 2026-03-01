@@ -53,14 +53,16 @@ export function Dashboard() {
 
   const recentNotes = useMemo(() => {
     return [...notes]
-      .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+      // Optimization: Use string comparison for ISO dates to avoid expensive localeCompare
+      .sort((a, b) => b.updated_at > a.updated_at ? 1 : b.updated_at < a.updated_at ? -1 : 0)
       .slice(0, 3)
   }, [notes])
 
   const readingList = useMemo(() => {
     return papers
       .filter(p => p.status === 'To Read')
-      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+      // Optimization: Use string comparison for ISO dates to avoid expensive localeCompare
+      .sort((a, b) => b.created_at > a.created_at ? 1 : b.created_at < a.created_at ? -1 : 0)
       .slice(0, 3)
   }, [papers])
 
@@ -70,7 +72,8 @@ export function Dashboard() {
       .sort((a, b) => {
         if (!a.due_date) return 1
         if (!b.due_date) return -1
-        return a.due_date.localeCompare(b.due_date)
+        // Optimization: Use string comparison for ISO dates to avoid expensive localeCompare
+        return a.due_date > b.due_date ? 1 : a.due_date < b.due_date ? -1 : 0
       })
       .slice(0, 3)
   }, [tasks])
