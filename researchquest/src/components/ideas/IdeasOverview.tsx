@@ -34,7 +34,8 @@ export function IdeasOverview({ ideas, loading, onCreate, onSelect }: IdeasOverv
     return STAGES.reduce<Record<IdeaStage, Idea[]>>((acc, currentStage) => {
       acc[currentStage] = ideas
         .filter((idea) => idea.stage === currentStage)
-        .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+        // Optimization: Use string comparison for ISO dates to avoid expensive Date object creation
+        .sort((a, b) => b.updated_at > a.updated_at ? 1 : b.updated_at < a.updated_at ? -1 : 0)
       return acc
     }, {
       Seed: [],
