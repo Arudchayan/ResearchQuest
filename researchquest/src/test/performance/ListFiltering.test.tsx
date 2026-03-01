@@ -3,15 +3,21 @@ import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { NotesView } from '../../components/notes/NotesView'
 import { PapersView } from '../../components/papers/PapersView'
 import { useAppStore } from '../../store/appStore'
+import { useNotes } from '../../hooks/useNotes'
 
 // Mock dependencies
 vi.mock('../../store/appStore', () => ({
   useAppStore: vi.fn(),
 }))
 
+const mockNotes = [
+  { id: '1', title: 'Note 1', markdown_body: 'Body content ONE', updated_at: new Date().toISOString() },
+  { id: '2', title: 'Note 2', markdown_body: 'Body content TWO', updated_at: new Date().toISOString() },
+]
+
 vi.mock('../../hooks/useNotes', () => ({
   useNotes: vi.fn(() => ({
-    notes: [],
+    notes: mockNotes,
     loading: false,
     createNote: vi.fn(),
     deleteNote: vi.fn(),
@@ -60,18 +66,23 @@ vi.mock('../../components/layout/OnboardingGuide', () => ({
 }))
 
 describe('ListFiltering Performance', () => {
-  const mockNotes = [
-    { id: '1', title: 'Note 1', markdown_body: 'Body content ONE', updated_at: new Date().toISOString() },
-    { id: '2', title: 'Note 2', markdown_body: 'Body content TWO', updated_at: new Date().toISOString() },
-  ]
-
   const mockPapers = [
     { id: 'p1', title: 'Paper 1', authors: ['Author A'], updated_at: new Date().toISOString() },
     { id: 'p2', title: 'Paper 2', authors: ['Author B'], updated_at: new Date().toISOString() },
   ]
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
+
+    // Reset the useNotes hook mock implementation directly using the imported reference
+    const { useNotes } = await import('../../hooks/useNotes');
+    (useNotes as any).mockReturnValue({
+      notes: mockNotes,
+      loading: false,
+      createNote: vi.fn(),
+      deleteNote: vi.fn(),
+    });
+
     (useAppStore as any).mockImplementation((selector: any) => {
         const state = {
             notes: mockNotes,
@@ -95,12 +106,26 @@ describe('ListFiltering Performance', () => {
         papers: mockPapers,
         papersLoading: false
     });
+    // Mock useNotes to return notes
+    (useNotes as any).mockReturnValue({
+        notes: mockNotes,
+        loading: false,
+        createNote: vi.fn(),
+        deleteNote: vi.fn(),
+    });
   })
 
   it('should verify optimization: filter is NOT called on notes when search query is empty', () => {
     const filterSpy = vi.spyOn(Array.prototype, 'filter')
     render(<NotesView />)
     const calledOnMockNotes = filterSpy.mock.instances.some(instance => instance === mockNotes)
+    // When using useShallow/useMemo, filter might be called but on empty query it returns original
+    // The previous test logic assumed 'filter' method is not called at all.
+    // However, in NotesView.tsx:
+    // const filteredNotes = useMemo(() => {
+    //   if (!searchQuery) return notes
+    //   ...
+    // so it should return notes directly without calling .filter()
     expect(calledOnMockNotes).toBe(false)
     filterSpy.mockRestore()
   })

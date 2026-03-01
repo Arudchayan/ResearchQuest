@@ -128,7 +128,7 @@ export function useRelatedItems(entityId: string | null, entityType: 'note' | 'p
 
       setRelatedLinks(Array.from(linkMap.values()))
     } catch (error) {
-      console.error('Error fetching related items:', error)
+      console.error('Error fetching related items:', (error as Error)?.message || 'Unknown error')
       setRelatedLinks([])
     } finally {
       setLoading(false)
