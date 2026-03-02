@@ -81,7 +81,7 @@ export function AddPaperView({
     };
 
     if (paper.doi && paper.doi.trim()) paperData.doi = paper.doi.trim();
-    if (paper.sourceUrl && paper.sourceUrl.trim())
+    if (paper.sourceUrl && paper.sourceUrl.trim() && isValidUrl(paper.sourceUrl))
       paperData.source_url = paper.sourceUrl.trim();
     if (paper.abstract && paper.abstract.trim())
       paperData.abstract = paper.abstract.trim();
@@ -291,6 +291,16 @@ export function AddPaperView({
     setSelectedEntryIds(new Set());
     setImportStats(null);
 
+    // 🛡️ Sentinel: Enforce file size limit (5MB) to prevent client-side DoS
+    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+    if (file.size > MAX_FILE_SIZE) {
+      setError("File too large (max 5MB). Please split your BibTeX file.");
+      setLoading(false);
+      // Reset file input
+      e.target.value = "";
+      return;
+    }
+
     try {
       const text = await file.text();
       const entries = parseBibTeX(text);
@@ -386,7 +396,11 @@ export function AddPaperView({
 
       {/* Success Message */}
       {successMessage && (
-        <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-center gap-3">
+        <div
+          role="status"
+          aria-live="polite"
+          className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-center gap-3"
+        >
           <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />
           <p className="text-green-800 dark:text-green-300 font-medium">
             {successMessage}
@@ -543,6 +557,8 @@ export function AddPaperView({
 
             {error && (
               <div
+                role="alert"
+                aria-live="assertive"
                 data-testid="error-message"
                 className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg"
               >
@@ -576,7 +592,7 @@ export function AddPaperView({
                             <span>{doiResult.publicationDate}</span>
                           </div>
                         )}
-                        {doiResult.sourceUrl && (
+                        {doiResult.sourceUrl && isValidUrl(doiResult.sourceUrl) && (
                           <a
                             href={doiResult.sourceUrl}
                             target="_blank"
@@ -739,7 +755,11 @@ export function AddPaperView({
             </div>
 
             {error && (
-              <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg">
+              <div
+                role="alert"
+                aria-live="assertive"
+                className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg"
+              >
                 {error}
               </div>
             )}
@@ -895,7 +915,7 @@ export function AddPaperView({
                           </p>
                         </div>
                         <div className="flex items-center justify-between gap-3 flex-wrap border-t border-border-subtle pt-4 mt-auto">
-                          {selectedResult.sourceUrl ? (
+                          {selectedResult.sourceUrl && isValidUrl(selectedResult.sourceUrl) ? (
                             <a
                               href={selectedResult.sourceUrl}
                               target="_blank"
@@ -971,7 +991,11 @@ export function AddPaperView({
             </div>
 
             {error && (
-              <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg flex items-center gap-2">
+              <div
+                role="alert"
+                aria-live="assertive"
+                className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg flex items-center gap-2"
+              >
                 <AlertCircle className="w-5 h-5" />
                 {error}
               </div>
@@ -1099,7 +1123,10 @@ export function AddPaperView({
                 htmlFor="view-manual-title"
                 className="block text-sm font-medium text-text-primary mb-2"
               >
-                Title <span className="text-red-500">*</span>
+                Title{" "}
+                <span aria-hidden="true" className="text-red-500">
+                  *
+                </span>
               </label>
               <input
                 ref={manualTitleInputRef}
@@ -1118,6 +1145,7 @@ export function AddPaperView({
                   !manualTitle.trim() && error === "Title is required"
                 }
                 aria-describedby={error ? "manual-entry-error" : undefined}
+                required
                 className="w-full px-4 py-3 bg-bg-base border border-border-subtle rounded-lg text-body focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
               <div className="flex justify-end h-5 mt-1">
@@ -1186,6 +1214,8 @@ export function AddPaperView({
 
             {error && (
               <div
+                role="alert"
+                aria-live="assertive"
                 id="manual-entry-error"
                 className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg"
               >
