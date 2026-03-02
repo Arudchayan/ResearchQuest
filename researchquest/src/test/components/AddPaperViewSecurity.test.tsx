@@ -96,12 +96,12 @@ describe("AddPaperView Security", () => {
     // Create a mock large file
     const largeFile = new File(["a"], "large.bib", { type: "text/plain" });
     // Mock the size property to be > 5MB (5 * 1024 * 1024 + 1)
-    Object.defineProperty(largeFile, 'size', { value: 5 * 1024 * 1024 + 1 });
+    Object.defineProperty(largeFile, 'size', { get: () => 5 * 1024 * 1024 + 1, configurable: true });
 
     await userEvent.upload(fileInput, largeFile);
 
     await waitFor(() => {
-      expect(screen.getByText(/File too large \(max 5MB\)/i)).toBeInTheDocument();
+      expect(screen.getByText(/File size exceeds the limit of 5MB\./i)).toBeInTheDocument();
     });
   });
 });
