@@ -17,7 +17,12 @@ vi.mock("../../components/papers/CitationDialog", () => ({
 }));
 
 // Mock Store and Hooks
-const { mockSetSelectedNote, mockSetSelectedPaper, mockSetCurrentView, mockCreateNote } = vi.hoisted(() => ({
+const {
+  mockSetSelectedNote,
+  mockSetSelectedPaper,
+  mockSetCurrentView,
+  mockCreateNote,
+} = vi.hoisted(() => ({
   mockSetSelectedNote: vi.fn(),
   mockSetSelectedPaper: vi.fn(),
   mockSetCurrentView: vi.fn(),
@@ -65,7 +70,13 @@ describe("PaperDetailView Actions", () => {
   });
 
   it("should render the Create Linked Note button", () => {
-    render(<PaperDetailView paper={mockPaper} onUpdate={mockOnUpdate} onDelete={mockOnDelete} />);
+    render(
+      <PaperDetailView
+        paper={mockPaper}
+        onUpdate={mockOnUpdate}
+        onDelete={mockOnDelete}
+      />,
+    );
 
     // Look for the button by title
     const createButton = screen.getByTitle("Create linked note");
@@ -76,7 +87,13 @@ describe("PaperDetailView Actions", () => {
     const newNote = { id: "note1", title: "Notes on: Test Paper" };
     mockCreateNote.mockResolvedValue(newNote);
 
-    render(<PaperDetailView paper={mockPaper} onUpdate={mockOnUpdate} onDelete={mockOnDelete} />);
+    render(
+      <PaperDetailView
+        paper={mockPaper}
+        onUpdate={mockOnUpdate}
+        onDelete={mockOnDelete}
+      />,
+    );
 
     const createButton = screen.getByTitle("Create linked note");
     fireEvent.click(createButton);

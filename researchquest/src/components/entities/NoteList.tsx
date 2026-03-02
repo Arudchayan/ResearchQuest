@@ -1,46 +1,55 @@
-import { useState, memo, useCallback, useMemo, useRef, useEffect } from 'react'
-import { Clock, Hash, Link2, Trash2, FileText } from 'lucide-react'
-import type { Note } from '../../types/database'
-import { ListSkeleton } from '../ui/Skeleton'
-import { ConfirmDialog } from '../ui/ConfirmDialog'
-import { toast } from 'sonner'
-import { highlightMatch } from '../../utils/highlight'
-import { deriveTitleFromMarkdown } from '../../utils/text'
+import { useState, memo, useCallback, useMemo, useRef, useEffect } from "react";
+import { Clock, Hash, Link2, Trash2, FileText } from "lucide-react";
+import type { Note } from "../../types/database";
+import { ListSkeleton } from "../ui/Skeleton";
+import { ConfirmDialog } from "../ui/ConfirmDialog";
+import { toast } from "sonner";
+import { highlightMatch } from "../../utils/highlight";
+import { deriveTitleFromMarkdown } from "../../utils/text";
 
 interface NoteCardProps {
-  note: Note
-  onSelect: (note: Note) => void
-  onDelete: (note: Note) => void
-  isSelected: boolean
-  searchQuery?: string
+  note: Note;
+  onSelect: (note: Note) => void;
+  onDelete: (note: Note) => void;
+  isSelected: boolean;
+  searchQuery?: string;
 }
 
-const NoteCardComponent = ({ note, onSelect, onDelete, isSelected, searchQuery = '' }: NoteCardProps) => {
-  // Optimization: Memoize title derivation and preview generation to avoid expensive string operations on every render
-  // (e.g., when the note is selected or search query changes)
-  const { title, preview } = useMemo(() => {
-    return {
-      title: note.title || deriveTitleFromMarkdown(note.markdown_body),
-      preview: note.markdown_body.slice(0, 100) + (note.markdown_body.length > 100 ? '...' : '')
-    }
-  }, [note.title, note.markdown_body])
+const NoteCardComponent = ({
+  note,
+  onSelect,
+  onDelete,
+  isSelected,
+  searchQuery = "",
+}: NoteCardProps) => {
+  // Extract title from markdown or use first line
+  const title = note.title || deriveTitleFromMarkdown(note.markdown_body);
+  const preview =
+    note.markdown_body.slice(0, 100) +
+    (note.markdown_body.length > 100 ? "..." : "");
 
-  const handleDelete = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation()
-    onDelete(note)
-  }, [onDelete, note])
-  
+  const handleDelete = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onDelete(note);
+    },
+    [onDelete, note],
+  );
+
   const handleSelect = useCallback(() => {
-    onSelect(note)
-  }, [onSelect, note])
+    onSelect(note);
+  }, [onSelect, note]);
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault()
-      onSelect(note)
-    }
-  }, [onSelect, note])
-  
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        onSelect(note);
+      }
+    },
+    [onSelect, note],
+  );
+
   return (
     <div
       onClick={handleSelect}
@@ -48,8 +57,8 @@ const NoteCardComponent = ({ note, onSelect, onDelete, isSelected, searchQuery =
       tabIndex={0}
       className={`p-3 rounded-md border cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-primary-500 ${
         isSelected
-          ? 'bg-bg-elevated border-primary-500'
-          : 'bg-bg-surface border-border-subtle hover:border-border-moderate hover:shadow-sm'
+          ? "bg-bg-elevated border-primary-500"
+          : "bg-bg-surface border-border-subtle hover:border-border-moderate hover:shadow-sm"
       }`}
     >
       <div className="flex items-start justify-between gap-2 mb-1.5">
@@ -72,7 +81,7 @@ const NoteCardComponent = ({ note, onSelect, onDelete, isSelected, searchQuery =
       <p className="text-caption text-text-secondary line-clamp-2 mb-2">
         {highlightMatch(preview, searchQuery)}
       </p>
-      
+
       <div className="flex items-center gap-3 text-caption text-text-tertiary">
         {note.tags && note.tags.length > 0 && (
           <div className="flex items-center gap-1">
@@ -92,20 +101,20 @@ const NoteCardComponent = ({ note, onSelect, onDelete, isSelected, searchQuery =
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export const NoteCard = memo(NoteCardComponent)
+export const NoteCard = memo(NoteCardComponent);
 
 interface NoteListProps {
-  notes: Note[]
-  onSelectNote: (note: Note) => void
-  onDeleteNote: (note: Note) => Promise<boolean>
-  onRestoreNote: (note: Note) => Promise<Note | null>
-  selectedNoteId?: string
-  selectedNote?: Note | null
-  loading?: boolean
-  searchQuery?: string
+  notes: Note[];
+  onSelectNote: (note: Note) => void;
+  onDeleteNote: (note: Note) => Promise<boolean>;
+  onRestoreNote: (note: Note) => Promise<Note | null>;
+  selectedNoteId?: string;
+  selectedNote?: Note | null;
+  loading?: boolean;
+  searchQuery?: string;
 }
 
 export function NoteList({
@@ -116,45 +125,49 @@ export function NoteList({
   selectedNoteId,
   selectedNote,
   loading = false,
-  searchQuery = '',
+  searchQuery = "",
 }: NoteListProps) {
-  const [noteToDelete, setNoteToDelete] = useState<Note | null>(null)
-  const [deleting, setDeleting] = useState(false)
-  const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const lastDeletedRef = useRef<Note | null>(null)
+  const [noteToDelete, setNoteToDelete] = useState<Note | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastDeletedRef = useRef<Note | null>(null);
 
   useEffect(() => {
     return () => {
       if (undoTimeoutRef.current) {
-        clearTimeout(undoTimeoutRef.current)
+        clearTimeout(undoTimeoutRef.current);
       }
-    }
-  }, [])
+    };
+  }, []);
 
   const mergedNotes = useMemo(
     () =>
       notes.map((note) => {
         if (selectedNote && note.id === selectedNote.id) {
-          return { ...note, ...selectedNote }
+          return { ...note, ...selectedNote };
         }
-        return note
+        return note;
       }),
-    [notes, selectedNote]
-  )
+    [notes, selectedNote],
+  );
 
   const emptyState = useMemo(() => {
     if (notes.length > 0) {
-      return null
+      return null;
     }
 
     if (searchQuery) {
       return (
         <div className="text-center py-12 text-text-tertiary">
           <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
-          <p className="text-small font-semibold text-text-secondary">No matches found</p>
-          <p className="text-caption mt-1">Try a different keyword or clear your search.</p>
+          <p className="text-small font-semibold text-text-secondary">
+            No matches found
+          </p>
+          <p className="text-caption mt-1">
+            Try a different keyword or clear your search.
+          </p>
         </div>
-      )
+      );
     }
 
     return (
@@ -163,60 +176,60 @@ export function NoteList({
         <p className="text-small">No notes yet</p>
         <p className="text-caption mt-1">Create your first note above</p>
       </div>
-    )
-  }, [notes.length, searchQuery])
+    );
+  }, [notes.length, searchQuery]);
 
   const handleDeleteRequest = useCallback((candidate: Note) => {
-    setNoteToDelete(candidate)
-  }, [])
+    setNoteToDelete(candidate);
+  }, []);
 
   const handleConfirmDelete = useCallback(async () => {
-    if (!noteToDelete) return
-    setDeleting(true)
-    const note = noteToDelete
-    const success = await onDeleteNote(note)
-    setDeleting(false)
-    setNoteToDelete(null)
+    if (!noteToDelete) return;
+    setDeleting(true);
+    const note = noteToDelete;
+    const success = await onDeleteNote(note);
+    setDeleting(false);
+    setNoteToDelete(null);
 
     if (success) {
-      lastDeletedRef.current = note
+      lastDeletedRef.current = note;
       if (undoTimeoutRef.current) {
-        clearTimeout(undoTimeoutRef.current)
+        clearTimeout(undoTimeoutRef.current);
       }
 
-      const toastId = toast.success('Note deleted', {
-        description: 'Undo within 6 seconds to restore it.',
+      const toastId = toast.success("Note deleted", {
+        description: "Undo within 6 seconds to restore it.",
         duration: 6000,
         action: {
-          label: 'Undo',
+          label: "Undo",
           onClick: async () => {
             if (lastDeletedRef.current) {
-              await onRestoreNote(lastDeletedRef.current)
-              lastDeletedRef.current = null
+              await onRestoreNote(lastDeletedRef.current);
+              lastDeletedRef.current = null;
               if (undoTimeoutRef.current) {
-                clearTimeout(undoTimeoutRef.current)
-                undoTimeoutRef.current = null
+                clearTimeout(undoTimeoutRef.current);
+                undoTimeoutRef.current = null;
               }
-              toast.dismiss(toastId)
+              toast.dismiss(toastId);
             }
           },
         },
-      })
+      });
 
       undoTimeoutRef.current = setTimeout(() => {
-        lastDeletedRef.current = null
-        toast.dismiss(toastId)
-        undoTimeoutRef.current = null
-      }, 6000)
+        lastDeletedRef.current = null;
+        toast.dismiss(toastId);
+        undoTimeoutRef.current = null;
+      }, 6000);
     }
-  }, [noteToDelete, onDeleteNote, onRestoreNote])
+  }, [noteToDelete, onDeleteNote, onRestoreNote]);
 
   if (loading) {
-    return <ListSkeleton count={5} itemType="note" />
+    return <ListSkeleton count={5} itemType="note" />;
   }
 
   if (emptyState) {
-    return emptyState
+    return emptyState;
   }
 
   return (
@@ -238,18 +251,18 @@ export function NoteList({
         isOpen={Boolean(noteToDelete)}
         onClose={() => {
           if (!deleting) {
-            setNoteToDelete(null)
+            setNoteToDelete(null);
           }
         }}
         onConfirm={() => {
-          void handleConfirmDelete()
+          void handleConfirmDelete();
         }}
         title="Delete note"
-        message={`Are you sure you want to delete "${noteToDelete?.title || (noteToDelete ? deriveTitleFromMarkdown(noteToDelete.markdown_body) : 'Untitled Note')}"? You can undo for a short time after deleting.`}
+        message={`Are you sure you want to delete "${noteToDelete?.title || (noteToDelete ? deriveTitleFromMarkdown(noteToDelete.markdown_body) : "Untitled Note")}"? You can undo for a short time after deleting.`}
         confirmText="Delete"
         cancelText="Cancel"
         isLoading={deleting}
       />
     </>
-  )
+  );
 }

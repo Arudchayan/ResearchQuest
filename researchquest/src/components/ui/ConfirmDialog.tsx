@@ -1,16 +1,16 @@
-import { AlertTriangle, X } from 'lucide-react'
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { AlertTriangle, X } from "lucide-react";
+import { useEffect, useRef, useState, useCallback } from "react";
 
 interface ConfirmDialogProps {
-  isOpen: boolean
-  onClose: () => void
-  onConfirm: () => void
-  title: string
-  message: string
-  confirmText?: string
-  cancelText?: string
-  variant?: 'danger' | 'warning' | 'info'
-  isLoading?: boolean
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title: string;
+  message: string;
+  confirmText?: string;
+  cancelText?: string;
+  variant?: "danger" | "warning" | "info";
+  isLoading?: boolean;
 }
 
 export function ConfirmDialog({
@@ -19,113 +19,117 @@ export function ConfirmDialog({
   onConfirm,
   title,
   message,
-  confirmText = 'Confirm',
-  cancelText = 'Cancel',
-  variant = 'danger',
-  isLoading = false
+  confirmText = "Confirm",
+  cancelText = "Cancel",
+  variant = "danger",
+  isLoading = false,
 }: ConfirmDialogProps) {
-  const confirmButtonRef = useRef<HTMLButtonElement>(null)
-  const cancelButtonRef = useRef<HTMLButtonElement>(null)
-  const dialogRef = useRef<HTMLDivElement>(null)
+  const confirmButtonRef = useRef<HTMLButtonElement>(null);
+  const cancelButtonRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isOpen) {
-      const trigger = document.activeElement as HTMLElement
+      const trigger = document.activeElement as HTMLElement;
 
       // Focus cancel button for destructive/warning actions, confirm for others
-      if (variant === 'danger' || variant === 'warning') {
-        cancelButtonRef.current?.focus()
+      if (variant === "danger" || variant === "warning") {
+        cancelButtonRef.current?.focus();
       } else {
-        confirmButtonRef.current?.focus()
+        confirmButtonRef.current?.focus();
       }
 
       // Lock body scroll
-      document.body.style.overflow = 'hidden'
+      document.body.style.overflow = "hidden";
 
       return () => {
-        document.body.style.overflow = 'unset'
+        document.body.style.overflow = "unset";
         // Restore focus
         if (trigger && document.body.contains(trigger)) {
-          trigger.focus()
+          trigger.focus();
         }
-      }
+      };
     }
-  }, [isOpen, variant])
+  }, [isOpen, variant]);
 
   useEffect(() => {
-    if (!isOpen) return
+    if (!isOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Tab') {
+      if (e.key === "Tab") {
         const focusableElements = dialogRef.current?.querySelectorAll(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        )
-        if (!focusableElements || focusableElements.length === 0) return
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        );
+        if (!focusableElements || focusableElements.length === 0) return;
 
-        const firstElement = focusableElements[0] as HTMLElement
-        const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement
+        const firstElement = focusableElements[0] as HTMLElement;
+        const lastElement = focusableElements[
+          focusableElements.length - 1
+        ] as HTMLElement;
 
         if (e.shiftKey) {
           if (document.activeElement === firstElement) {
-            e.preventDefault()
-            lastElement.focus()
+            e.preventDefault();
+            lastElement.focus();
           }
         } else {
           if (document.activeElement === lastElement) {
-            e.preventDefault()
-            firstElement.focus()
+            e.preventDefault();
+            firstElement.focus();
           }
         }
       }
 
-      if (e.key === 'Escape' && !isLoading) {
-        onClose()
+      if (e.key === "Escape" && !isLoading) {
+        onClose();
       }
-    }
+    };
 
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen, isLoading, onClose])
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, isLoading, onClose]);
 
-  if (!isOpen) return null
-  
+  if (!isOpen) return null;
+
   const getVariantStyles = () => {
     switch (variant) {
-      case 'danger':
+      case "danger":
         return {
-          icon: 'text-red-600 dark:text-red-400',
-          iconBg: 'bg-red-100 dark:bg-red-900/20',
-          button: 'bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800'
-        }
-      case 'warning':
+          icon: "text-red-600 dark:text-red-400",
+          iconBg: "bg-red-100 dark:bg-red-900/20",
+          button:
+            "bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800",
+        };
+      case "warning":
         return {
-          icon: 'text-orange-600 dark:text-orange-400',
-          iconBg: 'bg-orange-100 dark:bg-orange-900/20',
-          button: 'bg-orange-600 hover:bg-orange-700 dark:bg-orange-700 dark:hover:bg-orange-800'
-        }
-      case 'info':
+          icon: "text-orange-600 dark:text-orange-400",
+          iconBg: "bg-orange-100 dark:bg-orange-900/20",
+          button:
+            "bg-orange-600 hover:bg-orange-700 dark:bg-orange-700 dark:hover:bg-orange-800",
+        };
+      case "info":
         return {
-          icon: 'text-primary-600 dark:text-primary-400',
-          iconBg: 'bg-primary-100 dark:bg-primary-900/20',
-          button: 'bg-primary-600 hover:bg-primary-700'
-        }
+          icon: "text-primary-600 dark:text-primary-400",
+          iconBg: "bg-primary-100 dark:bg-primary-900/20",
+          button: "bg-primary-600 hover:bg-primary-700",
+        };
     }
-  }
-  
-  const styles = getVariantStyles()
-  
+  };
+
+  const styles = getVariantStyles();
+
   const handleConfirm = () => {
     if (!isLoading) {
-      onConfirm()
+      onConfirm();
     }
-  }
-  
+  };
+
   return (
-    <div 
+    <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
       onClick={onClose}
     >
-      <div 
+      <div
         ref={dialogRef}
         className="w-full max-w-md bg-bg-surface rounded-lg shadow-lg border border-border-subtle animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
@@ -135,25 +139,27 @@ export function ConfirmDialog({
       >
         {/* Header */}
         <div className="flex items-start gap-4 p-6 pb-4">
-          <div className={`w-12 h-12 rounded-full ${styles.iconBg} flex items-center justify-center flex-shrink-0`}>
+          <div
+            className={`w-12 h-12 rounded-full ${styles.iconBg} flex items-center justify-center flex-shrink-0`}
+          >
             <AlertTriangle className={`w-6 h-6 ${styles.icon}`} />
           </div>
-          
+
           <div className="flex-1 min-w-0">
-            <h3 
+            <h3
               id="dialog-title"
               className="text-lg font-semibold text-text-primary mb-2"
             >
               {title}
             </h3>
-            <p 
+            <p
               id="dialog-description"
               className="text-body text-text-secondary"
             >
               {message}
             </p>
           </div>
-          
+
           <button
             onClick={onClose}
             disabled={isLoading}
@@ -163,7 +169,7 @@ export function ConfirmDialog({
             <X className="w-5 h-5" />
           </button>
         </div>
-        
+
         {/* Actions */}
         <div className="flex gap-3 px-6 py-4 bg-bg-elevated border-t border-border-subtle">
           <button
@@ -174,7 +180,7 @@ export function ConfirmDialog({
           >
             {cancelText}
           </button>
-          
+
           <button
             ref={confirmButtonRef}
             onClick={handleConfirm}
@@ -193,32 +199,37 @@ export function ConfirmDialog({
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 /**
  * Hook to manage confirm dialog state
  */
 export function useConfirmDialog() {
-  const [isOpen, setIsOpen] = useState(false)
-  const [config, setConfig] = useState<Partial<ConfirmDialogProps>>({})
+  const [isOpen, setIsOpen] = useState(false);
+  const [config, setConfig] = useState<Partial<ConfirmDialogProps>>({});
 
-  const confirm = useCallback((options: Partial<ConfirmDialogProps> & { title: string; message: string }) => {
-    return new Promise<boolean>((resolve) => {
-      setConfig({
-        ...options,
-        onConfirm: () => {
-          resolve(true)
-          setIsOpen(false)
-        },
-        onClose: () => {
-          resolve(false)
-          setIsOpen(false)
-        }
-      })
-      setIsOpen(true)
-    })
-  }, [])
+  const confirm = useCallback(
+    (
+      options: Partial<ConfirmDialogProps> & { title: string; message: string },
+    ) => {
+      return new Promise<boolean>((resolve) => {
+        setConfig({
+          ...options,
+          onConfirm: () => {
+            resolve(true);
+            setIsOpen(false);
+          },
+          onClose: () => {
+            resolve(false);
+            setIsOpen(false);
+          },
+        });
+        setIsOpen(true);
+      });
+    },
+    [],
+  );
 
-  return { confirm, isOpen, config }
+  return { confirm, isOpen, config };
 }

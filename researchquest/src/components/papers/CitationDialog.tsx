@@ -1,59 +1,81 @@
-import * as Dialog from '@radix-ui/react-dialog'
-import * as Tabs from '@radix-ui/react-tabs'
-import { X, Copy, Check } from 'lucide-react'
-import { useState, useEffect } from 'react'
-import { Paper } from '../../types/database'
-import { generateBibTeX, generateAPA, generateMLA, generateChicago, generateHarvard } from '../../utils/citation'
-import { toast } from 'sonner'
+import * as Dialog from "@radix-ui/react-dialog";
+import * as Tabs from "@radix-ui/react-tabs";
+import { X, Copy, Check } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Paper } from "../../types/database";
+import {
+  generateBibTeX,
+  generateAPA,
+  generateMLA,
+  generateChicago,
+  generateHarvard,
+} from "../../utils/citation";
+import { toast } from "sonner";
 
 interface CitationDialogProps {
-  paper: Paper
-  isOpen: boolean
-  onOpenChange: (open: boolean) => void
+  paper: Paper;
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
-type CitationFormat = 'bibtex' | 'apa' | 'mla' | 'chicago' | 'harvard'
+type CitationFormat = "bibtex" | "apa" | "mla" | "chicago" | "harvard";
 
-export function CitationDialog({ paper, isOpen, onOpenChange }: CitationDialogProps) {
-  const [format, setFormat] = useState<CitationFormat>('bibtex')
-  const [citation, setCitation] = useState('')
-  const [copied, setCopied] = useState(false)
+export function CitationDialog({
+  paper,
+  isOpen,
+  onOpenChange,
+}: CitationDialogProps) {
+  const [format, setFormat] = useState<CitationFormat>("bibtex");
+  const [citation, setCitation] = useState("");
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      setCopied(false)
-      updateCitation(format)
+      setCopied(false);
+      updateCitation(format);
     }
-  }, [isOpen, paper, format])
+  }, [isOpen, paper, format]);
 
   const updateCitation = (fmt: CitationFormat) => {
-    let text = ''
+    let text = "";
     switch (fmt) {
-      case 'bibtex': text = generateBibTeX(paper); break;
-      case 'apa': text = generateAPA(paper); break;
-      case 'mla': text = generateMLA(paper); break;
-      case 'chicago': text = generateChicago(paper); break;
-      case 'harvard': text = generateHarvard(paper); break;
+      case "bibtex":
+        text = generateBibTeX(paper);
+        break;
+      case "apa":
+        text = generateAPA(paper);
+        break;
+      case "mla":
+        text = generateMLA(paper);
+        break;
+      case "chicago":
+        text = generateChicago(paper);
+        break;
+      case "harvard":
+        text = generateHarvard(paper);
+        break;
     }
-    setCitation(text)
-  }
+    setCitation(text);
+  };
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(citation)
-      setCopied(true)
-      toast.success(`${format === 'bibtex' ? 'BibTeX' : format.toUpperCase()} copied to clipboard`)
-      setTimeout(() => setCopied(false), 2000)
+      await navigator.clipboard.writeText(citation);
+      setCopied(true);
+      toast.success(
+        `${format === "bibtex" ? "BibTeX" : format.toUpperCase()} copied to clipboard`,
+      );
+      setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      toast.error('Failed to copy to clipboard')
-      console.error('Clipboard error:', err)
+      toast.error("Failed to copy to clipboard");
+      console.error("Clipboard error:", err);
     }
-  }
+  };
 
   const handleTabChange = (val: string) => {
-    setFormat(val as CitationFormat)
-    setCopied(false)
-  }
+    setFormat(val as CitationFormat);
+    setCopied(false);
+  };
 
   return (
     <Dialog.Root open={isOpen} onOpenChange={onOpenChange}>
@@ -72,38 +94,42 @@ export function CitationDialog({ paper, isOpen, onOpenChange }: CitationDialogPr
             </Dialog.Close>
           </div>
 
-          <Tabs.Root value={format} onValueChange={handleTabChange} className="flex flex-col flex-1">
+          <Tabs.Root
+            value={format}
+            onValueChange={handleTabChange}
+            className="flex flex-col flex-1"
+          >
             <div className="px-6 border-b border-border-subtle">
               <Tabs.List className="flex gap-4 overflow-x-auto no-scrollbar">
-                 {['bibtex', 'apa', 'mla', 'chicago', 'harvard'].map((fmt) => (
-                    <Tabs.Trigger
-                        key={fmt}
-                        value={fmt}
-                        className="pb-3 px-1 text-sm font-medium text-text-secondary data-[state=active]:text-primary-600 dark:data-[state=active]:text-primary-400 data-[state=active]:border-b-2 data-[state=active]:border-primary-600 dark:data-[state=active]:border-primary-400 transition-all outline-none capitalize whitespace-nowrap hover:text-text-primary"
-                    >
-                        {fmt === 'bibtex' ? 'BibTeX' : fmt.toUpperCase()}
-                    </Tabs.Trigger>
-                 ))}
+                {["bibtex", "apa", "mla", "chicago", "harvard"].map((fmt) => (
+                  <Tabs.Trigger
+                    key={fmt}
+                    value={fmt}
+                    className="pb-3 px-1 text-sm font-medium text-text-secondary data-[state=active]:text-primary-600 dark:data-[state=active]:text-primary-400 data-[state=active]:border-b-2 data-[state=active]:border-primary-600 dark:data-[state=active]:border-primary-400 transition-all outline-none capitalize whitespace-nowrap hover:text-text-primary"
+                  >
+                    {fmt === "bibtex" ? "BibTeX" : fmt.toUpperCase()}
+                  </Tabs.Trigger>
+                ))}
               </Tabs.List>
             </div>
 
             <div className="p-6 pt-4 flex-1">
-                <div className="relative">
-                    <pre className="w-full p-4 bg-bg-elevated border border-border-subtle rounded-lg text-sm font-mono text-text-secondary overflow-x-auto whitespace-pre-wrap max-h-[400px]">
-                    {citation}
-                    </pre>
-                    <button
-                    onClick={handleCopy}
-                    className="absolute top-2 right-2 p-2 bg-bg-surface border border-border-subtle rounded-md shadow-sm hover:bg-bg-base transition-colors"
-                    title="Copy to clipboard"
-                    >
-                    {copied ? (
-                        <Check className="w-4 h-4 text-green-500" />
-                    ) : (
-                        <Copy className="w-4 h-4 text-text-tertiary" />
-                    )}
-                    </button>
-                </div>
+              <div className="relative">
+                <pre className="w-full p-4 bg-bg-elevated border border-border-subtle rounded-lg text-sm font-mono text-text-secondary overflow-x-auto whitespace-pre-wrap max-h-[400px]">
+                  {citation}
+                </pre>
+                <button
+                  onClick={handleCopy}
+                  className="absolute top-2 right-2 p-2 bg-bg-surface border border-border-subtle rounded-md shadow-sm hover:bg-bg-base transition-colors"
+                  title="Copy to clipboard"
+                >
+                  {copied ? (
+                    <Check className="w-4 h-4 text-green-500" />
+                  ) : (
+                    <Copy className="w-4 h-4 text-text-tertiary" />
+                  )}
+                </button>
+              </div>
             </div>
           </Tabs.Root>
 
@@ -115,12 +141,18 @@ export function CitationDialog({ paper, isOpen, onOpenChange }: CitationDialogPr
               onClick={handleCopy}
               className="px-4 py-2 text-sm font-medium text-white bg-primary-500 hover:bg-primary-600 rounded-lg transition-colors flex items-center gap-2"
             >
-              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-              {copied ? 'Copied!' : `Copy ${format === 'bibtex' ? 'BibTeX' : format.toUpperCase()}`}
+              {copied ? (
+                <Check className="w-4 h-4" />
+              ) : (
+                <Copy className="w-4 h-4" />
+              )}
+              {copied
+                ? "Copied!"
+                : `Copy ${format === "bibtex" ? "BibTeX" : format.toUpperCase()}`}
             </button>
           </div>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
-  )
+  );
 }

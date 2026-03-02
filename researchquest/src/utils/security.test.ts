@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { isValidUrl, isStrongPassword, validateFileSize, MAX_FILE_SIZE_BYTES } from "./security";
+import {
+  isValidUrl,
+  isStrongPassword,
+  validateFileSize,
+  MAX_FILE_SIZE_BYTES,
+} from "./security";
 
 describe("Security Utils", () => {
   describe("isValidUrl", () => {
@@ -52,12 +57,16 @@ describe("Security Utils", () => {
 
     it("should reject passwords without uppercase", () => {
       expect(isStrongPassword("longpassword123!").valid).toBe(false);
-      expect(isStrongPassword("longpassword123!").message).toContain("uppercase");
+      expect(isStrongPassword("longpassword123!").message).toContain(
+        "uppercase",
+      );
     });
 
     it("should reject passwords without lowercase", () => {
       expect(isStrongPassword("LONGPASSWORD123!").valid).toBe(false);
-      expect(isStrongPassword("LONGPASSWORD123!").message).toContain("lowercase");
+      expect(isStrongPassword("LONGPASSWORD123!").message).toContain(
+        "lowercase",
+      );
     });
 
     it("should reject passwords without numbers", () => {
@@ -67,7 +76,9 @@ describe("Security Utils", () => {
 
     it("should reject passwords without special characters", () => {
       expect(isStrongPassword("LongPassword123").valid).toBe(false);
-      expect(isStrongPassword("LongPassword123").message).toContain("special character");
+      expect(isStrongPassword("LongPassword123").message).toContain(
+        "special character",
+      );
     });
 
     it("should accept strong passwords", () => {

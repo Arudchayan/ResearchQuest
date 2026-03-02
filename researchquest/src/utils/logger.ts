@@ -1,4 +1,3 @@
-
 /**
  * Sentinel Logger
  *
@@ -42,8 +41,12 @@ export const logger = {
     } else {
       // In production, sanitize the error object
       // Only log the message if available, otherwise just the initial message
-      const errorMessage = error instanceof Error ? error.message :
-                           (typeof error === 'string' ? error : undefined);
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : typeof error === "string"
+            ? error
+            : undefined;
 
       if (errorMessage) {
         console.error(`${message}: ${errorMessage}`);
@@ -51,5 +54,5 @@ export const logger = {
         console.error(message);
       }
     }
-  }
+  },
 };
