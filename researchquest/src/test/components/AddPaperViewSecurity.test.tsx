@@ -78,4 +78,30 @@ describe("AddPaperView Security", () => {
       expect(mockOnAdd).not.toHaveBeenCalled();
     });
   });
+
+  it("should prevent uploading a file larger than 5MB", async () => {
+    render(
+      <AddPaperView
+        onAdd={mockOnAdd}
+        searchByDOI={mockSearchByDOI}
+        searchByQuery={mockSearchByQuery}
+      />,
+    );
+
+    const importTab = screen.getByText("Import BibTeX");
+    await userEvent.click(importTab);
+
+    const fileInput = screen.getByLabelText(/upload bibtex file/i);
+
+    // Create a mock large file
+    const largeFile = new File(["a"], "large.bib", { type: "text/plain" });
+    // Mock the size property to be > 5MB (5 * 1024 * 1024 + 1)
+    Object.defineProperty(largeFile, 'size', { get: () => 5 * 1024 * 1024 + 1, configurable: true });
+
+    await userEvent.upload(fileInput, largeFile);
+
+    await waitFor(() => {
+      expect(screen.getByText(/File size exceeds the limit of 5MB\./i)).toBeInTheDocument();
+    });
+  });
 });
