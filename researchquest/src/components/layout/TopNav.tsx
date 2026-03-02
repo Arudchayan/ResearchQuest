@@ -1,48 +1,60 @@
-import { useState } from 'react'
-import { Sun, Moon, Flame, User, Sparkles, Snowflake, Coffee, LogOut, HelpCircle } from 'lucide-react'
-import { useAppStore } from '../../store/appStore'
-import { useGamificationStore } from '../../store/gamificationStore'
-import { supabase } from '../../lib/supabase'
-import { toast } from 'sonner'
-import { XPExplainer } from './XPExplainer'
+import { useState } from "react";
+import {
+  Sun,
+  Moon,
+  Flame,
+  User,
+  Sparkles,
+  Snowflake,
+  Coffee,
+  LogOut,
+  HelpCircle,
+} from "lucide-react";
+import { useAppStore } from "../../store/appStore";
+import { useGamificationStore } from "../../store/gamificationStore";
+import { supabase } from "../../lib/supabase";
+import { toast } from "sonner";
+import { XPExplainer } from "./XPExplainer";
 
 export function TopNav() {
-  const { theme, setTheme, user, effectiveTheme } = useAppStore()
-  const activeBoost = useGamificationStore((state) => state.activeBoost)
-  const boostCountdown = useGamificationStore((state) => state.boostCountdown)
-  const streakFreezeTokens = useGamificationStore((state) => state.streakFreezeTokens)
-  const restDays = useGamificationStore((state) => state.restDays)
-  const [signingOut, setSigningOut] = useState(false)
-  const [showXpGuide, setShowXpGuide] = useState(false)
+  const { theme, setTheme, user, effectiveTheme } = useAppStore();
+  const activeBoost = useGamificationStore((state) => state.activeBoost);
+  const boostCountdown = useGamificationStore((state) => state.boostCountdown);
+  const streakFreezeTokens = useGamificationStore(
+    (state) => state.streakFreezeTokens,
+  );
+  const restDays = useGamificationStore((state) => state.restDays);
+  const [signingOut, setSigningOut] = useState(false);
+  const [showXpGuide, setShowXpGuide] = useState(false);
 
   const toggleTheme = () => {
-    const newTheme = effectiveTheme === 'light' ? 'dark' : 'light'
-    document.body.classList.add('theme-transitioning')
-    setTheme(newTheme)
+    const newTheme = effectiveTheme === "light" ? "dark" : "light";
+    document.body.classList.add("theme-transitioning");
+    setTheme(newTheme);
     setTimeout(() => {
-      document.body.classList.remove('theme-transitioning')
-    }, 300)
-  }
+      document.body.classList.remove("theme-transitioning");
+    }, 300);
+  };
 
   const handleSignOut = async () => {
-    if (signingOut) return
+    if (signingOut) return;
 
-    setSigningOut(true)
+    setSigningOut(true);
     try {
-      const { error } = await supabase.auth.signOut()
-      if (error) throw error
-      toast.success('Signed out')
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      toast.success("Signed out");
     } catch (error: any) {
-      console.error('Failed to sign out', error)
-      toast.error(error?.message ?? 'Could not sign out. Please try again.')
+      console.error("Failed to sign out", error);
+      toast.error(error?.message ?? "Could not sign out. Please try again.");
     } finally {
-      setSigningOut(false)
+      setSigningOut(false);
     }
-  }
+  };
 
-  const xpProgress = user ? (user.total_xp % 500) / 500 * 100 : 0
-  const currentLevel = user?.current_level || 1
-  const xpInLevel = user ? user.total_xp % 500 : 0
+  const xpProgress = user ? ((user.total_xp % 500) / 500) * 100 : 0;
+  const currentLevel = user?.current_level || 1;
+  const xpInLevel = user ? user.total_xp % 500 : 0;
 
   return (
     <nav className="fixed top-0 left-0 right-0 h-16 bg-bg-surface/80 backdrop-blur-lg border-b border-border-subtle shadow-sm z-50 px-4 sm:px-6">
@@ -52,7 +64,9 @@ export function TopNav() {
           <div className="w-8 h-8 bg-primary-500 rounded-md flex items-center justify-center text-white font-bold">
             RQ
           </div>
-          <h1 className="text-lg font-semibold text-text-primary">ResearchQuest</h1>
+          <h1 className="text-lg font-semibold text-text-primary">
+            ResearchQuest
+          </h1>
         </div>
 
         {/* Center - XP Progress (hidden on mobile) */}
@@ -81,7 +95,9 @@ export function TopNav() {
 
         {/* Mobile XP summary */}
         <div className="md:hidden flex items-center gap-2 text-caption text-text-secondary">
-          <span className="font-semibold text-text-primary">Lvl {currentLevel}</span>
+          <span className="font-semibold text-text-primary">
+            Lvl {currentLevel}
+          </span>
           <span>• {xpInLevel}/500 XP</span>
         </div>
 
@@ -98,7 +114,7 @@ export function TopNav() {
           {activeBoost && (
             <span className="hidden md:inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-primary-100 text-primary-700 dark:bg-primary-900/40 dark:text-primary-200 text-caption font-semibold">
               <Sparkles className="w-3 h-3" />
-              {activeBoost.label ?? 'Boost'}
+              {activeBoost.label ?? "Boost"}
               {boostCountdown && <span>{boostCountdown}</span>}
             </span>
           )}
@@ -116,9 +132,9 @@ export function TopNav() {
           <button
             onClick={toggleTheme}
             className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-bg-elevated transition-colors"
-            aria-label={`Switch to ${effectiveTheme === 'light' ? 'dark' : 'light'} mode`}
+            aria-label={`Switch to ${effectiveTheme === "light" ? "dark" : "light"} mode`}
           >
-            {effectiveTheme === 'light' ? (
+            {effectiveTheme === "light" ? (
               <Moon className="w-5 h-5 text-text-secondary" />
             ) : (
               <Sun className="w-5 h-5 text-text-secondary" />
@@ -140,7 +156,9 @@ export function TopNav() {
             aria-label="Sign out"
           >
             <LogOut className="w-4 h-4" aria-hidden="true" />
-            <span className="hidden sm:inline">{signingOut ? 'Signing out…' : 'Sign out'}</span>
+            <span className="hidden sm:inline">
+              {signingOut ? "Signing out…" : "Sign out"}
+            </span>
           </button>
         </div>
       </div>
@@ -152,5 +170,5 @@ export function TopNav() {
         totalXP={user?.total_xp || 0}
       />
     </nav>
-  )
+  );
 }

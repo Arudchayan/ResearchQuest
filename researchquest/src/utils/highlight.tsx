@@ -1,18 +1,18 @@
-import { Fragment, type ReactNode } from 'react'
+import { Fragment, type ReactNode } from "react";
 
 function normalizeQuery(query: string) {
-  return query.trim().replace(/\s+/g, ' ')
+  return query.trim().replace(/\s+/g, " ");
 }
 
 export function highlightMatch(text: string, query: string): ReactNode {
-  const normalized = normalizeQuery(query)
+  const normalized = normalizeQuery(query);
   if (!normalized) {
-    return text
+    return text;
   }
 
-  const escaped = normalized.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const regex = new RegExp(`(${escaped})`, 'gi')
-  const parts = text.split(regex)
+  const escaped = normalized.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const regex = new RegExp(`(${escaped})`, "gi");
+  const parts = text.split(regex);
 
   return parts.map((part, index) => {
     if (part.toLowerCase() === normalized.toLowerCase()) {
@@ -23,8 +23,8 @@ export function highlightMatch(text: string, query: string): ReactNode {
         >
           {part}
         </mark>
-      )
+      );
     }
-    return <Fragment key={`text-${index}`}>{part}</Fragment>
-  })
+    return <Fragment key={`text-${index}`}>{part}</Fragment>;
+  });
 }

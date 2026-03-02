@@ -1,85 +1,85 @@
-import { render, screen, fireEvent } from '@testing-library/react'
-import { vi, describe, it, expect, beforeEach } from 'vitest'
-import { AppShell } from '../../../components/layout/v2/AppShell'
-import { useAppStore } from '../../../store/appStore'
+import { render, screen, fireEvent } from "@testing-library/react";
+import { vi, describe, it, expect, beforeEach } from "vitest";
+import { AppShell } from "../../../components/layout/v2/AppShell";
+import { useAppStore } from "../../../store/appStore";
 
 // Mock dependencies
-vi.mock('../../../components/layout/v2/Sidebar', () => ({
+vi.mock("../../../components/layout/v2/Sidebar", () => ({
   Sidebar: () => <div data-testid="sidebar">Sidebar</div>,
-}))
-vi.mock('../../../components/layout/RightSidebar', () => ({
+}));
+vi.mock("../../../components/layout/RightSidebar", () => ({
   RightSidebar: () => <div data-testid="right-sidebar">RightSidebar</div>,
-}))
+}));
 
 // Mock lucide-react icons
-vi.mock('lucide-react', () => ({
+vi.mock("lucide-react", () => ({
   Menu: () => <svg data-testid="icon-menu" />,
   X: () => <svg data-testid="icon-x" />,
   Minimize2: () => <svg data-testid="icon-minimize" />,
   PanelRightClose: () => <svg data-testid="icon-panel-close" />,
   PanelRightOpen: () => <svg data-testid="icon-panel-open" />,
-}))
+}));
 
-describe('AppShell Zen Mode', () => {
+describe("AppShell Zen Mode", () => {
   beforeEach(() => {
     useAppStore.setState({
       isZenMode: false,
       isMobileSidebarOpen: false,
       isRightSidebarOpen: true,
-    })
-  })
+    });
+  });
 
-  it('renders sidebars by default', () => {
-    render(<AppShell>Content</AppShell>)
+  it("renders sidebars by default", () => {
+    render(<AppShell>Content</AppShell>);
     // Should find 2 sidebars (desktop and mobile)
-    expect(screen.getAllByTestId('sidebar')).toHaveLength(2)
-    expect(screen.getByTestId('right-sidebar')).toBeInTheDocument()
-    expect(screen.queryByTestId('icon-minimize')).not.toBeInTheDocument()
-  })
+    expect(screen.getAllByTestId("sidebar")).toHaveLength(2);
+    expect(screen.getByTestId("right-sidebar")).toBeInTheDocument();
+    expect(screen.queryByTestId("icon-minimize")).not.toBeInTheDocument();
+  });
 
-  it('hides sidebars when Zen Mode is active', () => {
-    useAppStore.setState({ isZenMode: true })
-    render(<AppShell>Content</AppShell>)
+  it("hides sidebars when Zen Mode is active", () => {
+    useAppStore.setState({ isZenMode: true });
+    render(<AppShell>Content</AppShell>);
 
-    expect(screen.queryByTestId('sidebar')).not.toBeInTheDocument()
-    expect(screen.queryByTestId('right-sidebar')).not.toBeInTheDocument()
-    expect(screen.getByTestId('icon-minimize')).toBeInTheDocument()
-  })
+    expect(screen.queryByTestId("sidebar")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("right-sidebar")).not.toBeInTheDocument();
+    expect(screen.getByTestId("icon-minimize")).toBeInTheDocument();
+  });
 
-  it('exits Zen Mode when exit button is clicked', () => {
-    useAppStore.setState({ isZenMode: true })
-    render(<AppShell>Content</AppShell>)
+  it("exits Zen Mode when exit button is clicked", () => {
+    useAppStore.setState({ isZenMode: true });
+    render(<AppShell>Content</AppShell>);
 
-    const exitButton = screen.getByTitle(/Exit Zen Mode/)
-    fireEvent.click(exitButton)
+    const exitButton = screen.getByTitle(/Exit Zen Mode/);
+    fireEvent.click(exitButton);
 
-    expect(useAppStore.getState().isZenMode).toBe(false)
-  })
+    expect(useAppStore.getState().isZenMode).toBe(false);
+  });
 
-  it('toggles Zen Mode with keyboard shortcut (Ctrl+Shift+F)', () => {
-    render(<AppShell>Content</AppShell>)
+  it("toggles Zen Mode with keyboard shortcut (Ctrl+Shift+F)", () => {
+    render(<AppShell>Content</AppShell>);
 
     // Default: Zen Mode OFF
-    expect(useAppStore.getState().isZenMode).toBe(false)
+    expect(useAppStore.getState().isZenMode).toBe(false);
 
     // Press Ctrl+Shift+F
     fireEvent.keyDown(window, {
-      key: 'F',
-      code: 'KeyF',
+      key: "F",
+      code: "KeyF",
       ctrlKey: true,
       shiftKey: true,
-    })
+    });
 
-    expect(useAppStore.getState().isZenMode).toBe(true)
+    expect(useAppStore.getState().isZenMode).toBe(true);
 
     // Press again to toggle off
     fireEvent.keyDown(window, {
-      key: 'F',
-      code: 'KeyF',
+      key: "F",
+      code: "KeyF",
       ctrlKey: true,
       shiftKey: true,
-    })
+    });
 
-    expect(useAppStore.getState().isZenMode).toBe(false)
-  })
-})
+    expect(useAppStore.getState().isZenMode).toBe(false);
+  });
+});
