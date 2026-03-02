@@ -86,6 +86,7 @@ describe('ListFiltering Performance', () => {
     (useAppStore as any).mockImplementation((selector: any) => {
         const state = {
             notes: mockNotes,
+            notesLoading: false,
             papers: mockPapers,
             papersLoading: false,
             selectedNote: null,
@@ -101,7 +102,9 @@ describe('ListFiltering Performance', () => {
         selectedNote: null,
         selectedPaper: null,
         notes: mockNotes,
-        papers: mockPapers
+        notesLoading: false,
+        papers: mockPapers,
+        papersLoading: false
     });
     // Mock useNotes to return notes
     (useNotes as any).mockReturnValue({
