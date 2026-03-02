@@ -45,3 +45,11 @@
 ## 2026-02-14 - Efficient String Processing in Render
 **Learning:** Repeatedly calling `split('\n')` on large strings in a list render loop (e.g., to derive a title) causes massive memory churn and CPU overhead (O(N*M) where N is list size and M is content length).
 **Action:** Use a dedicated utility function that iterates to find the first line without splitting the entire string.
+
+## 2026-02-14 - Debouncing Expensive Previews
+**Learning:** Real-time markdown previews (using `ReactMarkdown` or similar parsers) re-parse and re-render the entire document AST on every keystroke, causing significant input lag on large documents.
+**Action:** Decouple the editor input state from the preview render state. Use a `useDebounce` hook (e.g., 300ms) to throttle updates to the heavy preview component while keeping the editor input responsive.
+
+## 2026-02-14 - Redundant String Operations in Lists
+**Learning:** Extracting derived content (like markdown previews or titles) inside a list item component forces heavy string parsing on every render of that component, which occurs on unrelated state changes (like hovering or selecting an item).
+**Action:** Use `useMemo` to wrap derived string or markdown parsing operations inside list item components so they only run when the actual text content changes.

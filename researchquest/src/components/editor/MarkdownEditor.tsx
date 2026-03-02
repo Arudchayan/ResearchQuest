@@ -7,12 +7,14 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
 import rehypeHighlight from "rehype-highlight";
+import { CitationPicker } from "./CitationPicker";
 import {
   Bold,
   Italic,
   Code,
   List,
   Link2,
+  Quote,
   Save,
   Columns,
   Eye,
@@ -27,7 +29,7 @@ import { useShallow } from "zustand/react/shallow";
 import { useAppStore } from "../../store/appStore";
 import { TopicSelector } from "../topics/TopicSelector";
 import { isValidUrl } from "../../utils/security";
-import { countWords, estimateReadingTime } from "../../utils/text";
+import { countWords } from "../../utils/text";
 import { useNotes } from "../../hooks/useNotes";
 
 type ViewMode = "split" | "edit" | "preview";
@@ -62,6 +64,10 @@ const VIEW_OPTIONS: {
   },
 ];
 
+// Define plugins outside component to ensure referential stability
+const REMARK_PLUGINS = [remarkGfm];
+const REHYPE_PLUGINS = [rehypeSanitize, rehypeHighlight];
+
 export function MarkdownEditor() {
   const { selectedNote, setSelectedNote, effectiveTheme, user } = useAppStore(
     useShallow((state) => ({
@@ -75,12 +81,18 @@ export function MarkdownEditor() {
   const userId = user?.id;
   const { updateNote } = useNotes(userId);
 
-  const [content, setContent] = useState("");
-  const [title, setTitle] = useState("");
+  // Initialize with selectedNote data if available to avoid empty flash
+  const [content, setContent] = useState(selectedNote?.markdown_body || "");
+  const [title, setTitle] = useState(selectedNote?.title || "");
+  const [debouncedContent, setDebouncedContent] = useState(
+    selectedNote?.markdown_body || "",
+  );
+
   const [saving, setSaving] = useState(false);
   const [isTitleFocused, setIsTitleFocused] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("split");
   const editorViewRef = useRef<EditorView | null>(null);
+  const [citationPickerOpen, setCitationPickerOpen] = useState(false);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [pendingLinkRange, setPendingLinkRange] = useState<{
     from: number;
@@ -94,7 +106,13 @@ export function MarkdownEditor() {
 
   // Memoize word count and reading time to avoid recalculation on every render
   const wordCount = useMemo(() => countWords(content), [content]);
-  const readingTime = useMemo(() => estimateReadingTime(content), [content]);
+  const readingTime = useMemo(() => {
+    const wordsPerMinute = 200;
+    const minutes = Math.ceil(wordCount / wordsPerMinute);
+    if (wordCount === 0) return "0 min read";
+    if (minutes <= 1) return "1 min read";
+    return `${minutes} min read`;
+  }, [wordCount]);
 
   useEffect(() => {
     return () => {
@@ -139,16 +157,32 @@ export function MarkdownEditor() {
     return () => window.removeEventListener("keydown", handleEscape);
   }, [closeLinkDialog, linkDialogOpen]);
 
-  // Load selected note
+  // Load selected note - handle navigation immediately
   useEffect(() => {
     if (selectedNote) {
       setContent(selectedNote.markdown_body);
       setTitle(selectedNote.title || "");
+      // Update preview immediately when switching notes to avoid showing stale content from previous note
+      setDebouncedContent(selectedNote.markdown_body);
     } else {
       setContent("");
       setTitle("");
+      setDebouncedContent("");
     }
   }, [selectedNote]);
+
+  // Debounce content updates for preview (typing only)
+  useEffect(() => {
+    // If content matches what we just set from selectedNote, don't debounce (already handled above)
+    // But since selectedNote effect runs first, we can just rely on this effect debouncing typing.
+    // The immediate update above handles the "switch" case.
+    // This effect handles the "typing" case.
+    const handler = setTimeout(() => {
+      setDebouncedContent(content);
+    }, 300);
+
+    return () => clearTimeout(handler);
+  }, [content]);
 
   const openLinkDialog = useCallback(() => {
     const view = editorViewRef.current;
@@ -163,6 +197,22 @@ export function MarkdownEditor() {
     setLinkUrlValue("");
     setLinkError(null);
     setLinkDialogOpen(true);
+  }, []);
+
+  const handleCitationSelect = useCallback((citation: string) => {
+    const view = editorViewRef.current;
+    if (!view) return;
+
+    const { state } = view;
+    const { from, to } = state.selection.main;
+
+    view.dispatch({
+      changes: { from, to, insert: citation },
+      selection: { anchor: from + citation.length },
+      scrollIntoView: true,
+    });
+    view.focus();
+    setCitationPickerOpen(false);
   }, []);
 
   const applyWrappedFormatting = useCallback(
@@ -284,7 +334,9 @@ export function MarkdownEditor() {
 
     const exportTitle = title.trim() || "Untitled Note";
     // Sanitize filename: replace non-alphanumeric chars with underscore, keep nice format
-    const safeTitle = exportTitle.replace(/[^a-z0-9\s-_]/gi, "").replace(/\s+/g, "_");
+    const safeTitle = exportTitle
+      .replace(/[^a-z0-9\s-_]/gi, "")
+      .replace(/\s+/g, "_");
     const filename = `${safeTitle || "note"}.md`;
 
     const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
@@ -515,6 +567,14 @@ export function MarkdownEditor() {
           },
         },
         {
+          key: "Mod-Shift-r",
+          preventDefault: true,
+          run: () => {
+            setCitationPickerOpen(true);
+            return true;
+          },
+        },
+        {
           key: "Mod-Shift-e",
           preventDefault: true,
           run: () => {
@@ -541,6 +601,12 @@ export function MarkdownEditor() {
       ]),
     ],
     [applyFormatting, openLinkDialog],
+  );
+
+  // Memoize extensions array to prevent unnecessary re-renders of CodeMirror
+  const extensions = useMemo(
+    () => [markdown(), EditorView.lineWrapping, ...formattingExtensions],
+    [formattingExtensions],
   );
 
   useEffect(() => {
@@ -600,7 +666,6 @@ export function MarkdownEditor() {
         markdown_body: content,
         tags,
       });
-
     } catch (err) {
       // updateNote handles standard errors and toasts.
       // If a non-standard error occurs (exception), we should ideally log it safely
@@ -717,6 +782,15 @@ export function MarkdownEditor() {
           >
             <Link2 className="w-4 h-4 text-text-secondary" aria-hidden="true" />
           </button>
+          <button
+            type="button"
+            onClick={() => setCitationPickerOpen(true)}
+            className="p-2 rounded-md transition-colors hover:bg-bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
+            aria-label="Insert Citation (Ctrl/Cmd+Shift+R)"
+            title="Insert Citation (Ctrl/Cmd+Shift+R)"
+          >
+            <Quote className="w-4 h-4 text-text-secondary" aria-hidden="true" />
+          </button>
           <div className="w-px h-6 bg-border-subtle mx-1" aria-hidden="true" />
           <button
             type="button"
@@ -725,7 +799,10 @@ export function MarkdownEditor() {
             aria-label="Export to Markdown"
             title="Export to Markdown"
           >
-            <Download className="w-4 h-4 text-text-secondary" aria-hidden="true" />
+            <Download
+              className="w-4 h-4 text-text-secondary"
+              aria-hidden="true"
+            />
           </button>
           <button
             type="button"
@@ -734,7 +811,10 @@ export function MarkdownEditor() {
             aria-label="Print Note"
             title="Print Note"
           >
-            <Printer className="w-4 h-4 text-text-secondary" aria-hidden="true" />
+            <Printer
+              className="w-4 h-4 text-text-secondary"
+              aria-hidden="true"
+            />
           </button>
         </div>
 
@@ -790,11 +870,7 @@ export function MarkdownEditor() {
               value={content}
               height="100%"
               theme={effectiveTheme === "dark" ? githubDark : githubLight}
-              extensions={[
-                markdown(),
-                EditorView.lineWrapping,
-                ...formattingExtensions,
-              ]}
+              extensions={extensions}
               onChange={(value) => setContent(value)}
               className="h-full font-mono text-code"
               onCreateEditor={(view) => {
@@ -839,12 +915,15 @@ export function MarkdownEditor() {
         <div
           className={`${viewMode === "split" ? "lg:w-2/5" : "w-full"} ${viewMode === "edit" ? "hidden" : "block"} h-full overflow-auto bg-bg-base p-6`}
         >
-          <div ref={previewRef} className="prose prose-sm max-w-none dark:prose-invert">
+          <div
+            ref={previewRef}
+            className="prose prose-sm max-w-none dark:prose-invert"
+          >
             <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              rehypePlugins={[rehypeSanitize, rehypeHighlight]}
+              remarkPlugins={REMARK_PLUGINS}
+              rehypePlugins={REHYPE_PLUGINS}
             >
-              {content || "*Start typing to see preview...*"}
+              {debouncedContent || "*Start typing to see preview...*"}
             </ReactMarkdown>
           </div>
         </div>
@@ -856,7 +935,10 @@ export function MarkdownEditor() {
             <AlignLeft className="w-4 h-4" aria-hidden="true" />
             <span>{wordCount} words</span>
           </div>
-          <div className="flex items-center gap-1.5" title="Estimated reading time">
+          <div
+            className="flex items-center gap-1.5"
+            title="Estimated reading time"
+          >
             <Clock className="w-4 h-4" aria-hidden="true" />
             <span>{readingTime}</span>
           </div>
@@ -864,9 +946,7 @@ export function MarkdownEditor() {
 
         <div className="flex items-center gap-2 hidden sm:flex">
           <Sparkles className="w-4 h-4" aria-hidden="true" />
-          <span>
-            Markdown supported. Use Ctrl/Cmd shortcuts.
-          </span>
+          <span>Markdown supported. Use Ctrl/Cmd shortcuts.</span>
         </div>
       </div>
 
@@ -959,6 +1039,14 @@ export function MarkdownEditor() {
             </form>
           </div>
         </div>
+      )}
+
+      {citationPickerOpen && (
+        <CitationPicker
+          open={citationPickerOpen}
+          onOpenChange={setCitationPickerOpen}
+          onSelect={handleCitationSelect}
+        />
       )}
     </div>
   );

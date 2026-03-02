@@ -1,131 +1,155 @@
-import { useState, useEffect, useRef } from 'react'
-import { BookOpen, Calendar, ExternalLink, Edit2, Save, X, Link as LinkIcon, Sparkles, Trash, Quote, FileText } from 'lucide-react'
-import type { Paper, ReadingStatus } from '../../types/database'
-import { toast } from 'sonner'
-import { isValidUrl } from '../../utils/security'
-import { TopicSelector } from '../topics/TopicSelector'
-import { ConfirmDialog } from '../ui/ConfirmDialog'
-import { CitationDialog } from '../papers/CitationDialog'
-import { useNotes } from '../../hooks/useNotes'
-import { useAppStore } from '../../store/appStore'
+import { useState, useEffect, useRef } from "react";
+import {
+  BookOpen,
+  Calendar,
+  ExternalLink,
+  Edit2,
+  Save,
+  X,
+  Link as LinkIcon,
+  Sparkles,
+  Trash,
+  Quote,
+  FileText,
+} from "lucide-react";
+import type { Paper, ReadingStatus } from "../../types/database";
+import { toast } from "sonner";
+import { isValidUrl } from "../../utils/security";
+import { TopicSelector } from "../topics/TopicSelector";
+import { ConfirmDialog } from "../ui/ConfirmDialog";
+import { CitationDialog } from "../papers/CitationDialog";
+import { useNotes } from "../../hooks/useNotes";
+import { useAppStore } from "../../store/appStore";
 
 interface PaperDetailViewProps {
-  paper: Paper
-  onUpdate: (paperId: string, updates: Partial<Paper>) => Promise<boolean>
-  onDelete?: (paperId: string) => Promise<boolean>
+  paper: Paper;
+  onUpdate: (paperId: string, updates: Partial<Paper>) => Promise<boolean>;
+  onDelete?: (paperId: string) => Promise<boolean>;
 }
 
-export function PaperDetailView({ paper, onUpdate, onDelete }: PaperDetailViewProps) {
-  const [isEditing, setIsEditing] = useState(false)
-  const [editedTitle, setEditedTitle] = useState(paper.title)
-  const [editedAuthors, setEditedAuthors] = useState(paper.authors.join(', '))
-  const [editedAbstract, setEditedAbstract] = useState(paper.abstract || '')
-  const [editedStatus, setEditedStatus] = useState(paper.status)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [showCitation, setShowCitation] = useState(false)
-  const [deleting, setDeleting] = useState(false)
-  const isMounted = useRef(true)
+export function PaperDetailView({
+  paper,
+  onUpdate,
+  onDelete,
+}: PaperDetailViewProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedTitle, setEditedTitle] = useState(paper.title);
+  const [editedAuthors, setEditedAuthors] = useState(paper.authors.join(", "));
+  const [editedAbstract, setEditedAbstract] = useState(paper.abstract || "");
+  const [editedStatus, setEditedStatus] = useState(paper.status);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showCitation, setShowCitation] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const isMounted = useRef(true);
 
-  const { createNote } = useNotes(useAppStore.getState().user?.id)
+  const { createNote } = useNotes(useAppStore.getState().user?.id);
 
   useEffect(() => {
     return () => {
-      isMounted.current = false
-    }
-  }, [])
-  
+      isMounted.current = false;
+    };
+  }, []);
+
   useEffect(() => {
-    setEditedTitle(paper.title)
-    setEditedAuthors(paper.authors.join(', '))
-    setEditedAbstract(paper.abstract || '')
-    setEditedStatus(paper.status)
-    setIsEditing(false)
-  }, [paper.id, paper.title, paper.authors, paper.abstract, paper.status])
-  
+    setEditedTitle(paper.title);
+    setEditedAuthors(paper.authors.join(", "));
+    setEditedAbstract(paper.abstract || "");
+    setEditedStatus(paper.status);
+    setIsEditing(false);
+  }, [paper.id, paper.title, paper.authors, paper.abstract, paper.status]);
+
   const handleSave = async () => {
     const updates: Partial<Paper> = {
       title: editedTitle,
-      authors: editedAuthors.split(',').map(a => a.trim()).filter(Boolean),
+      authors: editedAuthors
+        .split(",")
+        .map((a) => a.trim())
+        .filter(Boolean),
       abstract: editedAbstract || undefined,
       status: editedStatus,
-    }
-    
-    const success = await onUpdate(paper.id, updates)
+    };
+
+    const success = await onUpdate(paper.id, updates);
     if (success) {
-      setIsEditing(false)
-      toast.success('Paper updated successfully')
+      setIsEditing(false);
+      toast.success("Paper updated successfully");
     }
-  }
-  
+  };
+
   const handleCancel = () => {
-    setEditedTitle(paper.title)
-    setEditedAuthors(paper.authors.join(', '))
-    setEditedAbstract(paper.abstract || '')
-    setEditedStatus(paper.status)
-    setIsEditing(false)
-  }
+    setEditedTitle(paper.title);
+    setEditedAuthors(paper.authors.join(", "));
+    setEditedAbstract(paper.abstract || "");
+    setEditedStatus(paper.status);
+    setIsEditing(false);
+  };
 
   const handleDeleteClick = () => {
-    setShowDeleteConfirm(true)
-  }
+    setShowDeleteConfirm(true);
+  };
 
   const handleConfirmDelete = async () => {
-    if (!onDelete) return
-    setDeleting(true)
-    await onDelete(paper.id)
+    if (!onDelete) return;
+    setDeleting(true);
+    await onDelete(paper.id);
 
     if (isMounted.current) {
-        setDeleting(false)
-        setShowDeleteConfirm(false)
+      setDeleting(false);
+      setShowDeleteConfirm(false);
     }
-  }
+  };
 
   const handleCreateNote = async () => {
     const newNote = await createNote({
       title: `Notes on: ${paper.title}`,
-      markdown_body: `# ${paper.title}\n\n[Paper Source](${paper.source_url || (paper.doi ? `https://doi.org/${paper.doi}` : '#')})\n\n## Summary\n${paper.abstract || ''}\n\n## Notes\n`,
-      linked_entity_ids: [paper.id]
-    })
+      markdown_body: `# ${paper.title}\n\n[Paper Source](${paper.source_url || (paper.doi ? `https://doi.org/${paper.doi}` : "#")})\n\n## Summary\n${paper.abstract || ""}\n\n## Notes\n`,
+      linked_entity_ids: [paper.id],
+    });
 
     if (newNote) {
-      useAppStore.getState().setSelectedNote(newNote)
-      useAppStore.getState().setSelectedPaper(null)
-      useAppStore.getState().setCurrentView('notes')
-      window.history.pushState(null, '', `/notes/${newNote.id}`)
-      window.dispatchEvent(new PopStateEvent('popstate'))
+      useAppStore.getState().setSelectedNote(newNote);
+      useAppStore.getState().setSelectedPaper(null);
+      useAppStore.getState().setCurrentView("notes");
+      window.history.pushState(null, "", `/notes/${newNote.id}`);
+      window.dispatchEvent(new PopStateEvent("popstate"));
     }
-  }
-  
+  };
+
   const getStatusColor = (status: ReadingStatus) => {
     switch (status) {
-      case 'Read':
-        return 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-300 dark:border-green-700'
-      case 'Reading':
-        return 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-300 dark:border-blue-700'
+      case "Read":
+        return "bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-300 dark:border-green-700";
+      case "Reading":
+        return "bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-300 dark:border-blue-700";
       default:
-        return 'bg-gray-100 dark:bg-gray-900/20 text-gray-700 dark:text-gray-400 border-gray-300 dark:border-gray-700'
+        return "bg-gray-100 dark:bg-gray-900/20 text-gray-700 dark:text-gray-400 border-gray-300 dark:border-gray-700";
     }
-  }
+  };
 
   const statusCopy: Record<ReadingStatus, { title: string; helper: string }> = {
-    'To Read': {
-      title: 'Queue it up',
-      helper: 'Skim the abstract and block a quick focus session to unlock your first XP for this paper.',
+    "To Read": {
+      title: "Queue it up",
+      helper:
+        "Skim the abstract and block a quick focus session to unlock your first XP for this paper.",
     },
-    'Reading': {
-      title: 'Stay in flow',
-      helper: 'Log highlights or open questions while you read—updating progress keeps Focus Studio in sync.',
+    Reading: {
+      title: "Stay in flow",
+      helper:
+        "Log highlights or open questions while you read—updating progress keeps Focus Studio in sync.",
     },
-    'Read': {
-      title: 'Wrap and reflect',
-      helper: 'Capture a short summary or next action. Marking papers as read awards bonus XP streak credit.',
+    Read: {
+      title: "Wrap and reflect",
+      helper:
+        "Capture a short summary or next action. Marking papers as read awards bonus XP streak credit.",
     },
-  }
+  };
 
-  const statusOrder: ReadingStatus[] = ['To Read', 'Reading', 'Read']
-  const statusForProgress = isEditing ? editedStatus : paper.status
-  const statusIndex = Math.max(0, statusOrder.indexOf(statusForProgress))
-  const progressPercent = Math.round(((statusIndex + 1) / statusOrder.length) * 100)
+  const statusOrder: ReadingStatus[] = ["To Read", "Reading", "Read"];
+  const statusForProgress = isEditing ? editedStatus : paper.status;
+  const statusIndex = Math.max(0, statusOrder.indexOf(statusForProgress));
+  const progressPercent = Math.round(
+    ((statusIndex + 1) / statusOrder.length) * 100,
+  );
 
   return (
     <>
@@ -148,7 +172,9 @@ export function PaperDetailView({ paper, onUpdate, onDelete }: PaperDetailViewPr
                     placeholder="Paper title..."
                   />
                 ) : (
-                  <h1 className="text-2xl font-bold text-text-primary">{paper.title}</h1>
+                  <h1 className="text-2xl font-bold text-text-primary">
+                    {paper.title}
+                  </h1>
                 )}
               </div>
 
@@ -222,10 +248,12 @@ export function PaperDetailView({ paper, onUpdate, onDelete }: PaperDetailViewPr
                   placeholder="Author 1, Author 2, et al."
                 />
               ) : (
-                <p className="text-lg text-text-secondary">{paper.authors.join(', ')}</p>
+                <p className="text-lg text-text-secondary">
+                  {paper.authors.join(", ")}
+                </p>
               )}
             </div>
-            
+
             {/* Status Selector */}
             <div className="space-y-2">
               <label className="block text-sm font-medium text-text-secondary">
@@ -234,7 +262,9 @@ export function PaperDetailView({ paper, onUpdate, onDelete }: PaperDetailViewPr
               {isEditing ? (
                 <select
                   value={editedStatus}
-                  onChange={(e) => setEditedStatus(e.target.value as ReadingStatus)}
+                  onChange={(e) =>
+                    setEditedStatus(e.target.value as ReadingStatus)
+                  }
                   className={`px-4 py-2 rounded-md border text-sm font-medium ${getStatusColor(editedStatus)} focus:outline-none focus:ring-2 focus:ring-primary-500`}
                 >
                   <option value="To Read">📚 To Read</option>
@@ -248,18 +278,23 @@ export function PaperDetailView({ paper, onUpdate, onDelete }: PaperDetailViewPr
                     className={`inline-flex items-center px-4 py-2 rounded-md border text-sm font-medium transition-all ${getStatusColor(paper.status)} hover:ring-2 hover:ring-primary-500`}
                     title="Click to change status"
                   >
-                    {paper.status === 'To Read' && '📚'}
-                    {paper.status === 'Reading' && '📖'}
-                    {paper.status === 'Read' && '✅'}
+                    {paper.status === "To Read" && "📚"}
+                    {paper.status === "Reading" && "📖"}
+                    {paper.status === "Read" && "✅"}
                     <span className="ml-2">{paper.status}</span>
                   </button>
                   <button
                     onClick={async () => {
                       // Cycle through statuses
-                      const statusOrder: ReadingStatus[] = ['To Read', 'Reading', 'Read']
-                      const currentIndex = statusOrder.indexOf(paper.status)
-                      const nextStatus = statusOrder[(currentIndex + 1) % statusOrder.length]
-                      await onUpdate(paper.id, { status: nextStatus })
+                      const statusOrder: ReadingStatus[] = [
+                        "To Read",
+                        "Reading",
+                        "Read",
+                      ];
+                      const currentIndex = statusOrder.indexOf(paper.status);
+                      const nextStatus =
+                        statusOrder[(currentIndex + 1) % statusOrder.length];
+                      await onUpdate(paper.id, { status: nextStatus });
                     }}
                     className="px-3 py-2 text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 font-medium transition-colors"
                   >
@@ -279,12 +314,15 @@ export function PaperDetailView({ paper, onUpdate, onDelete }: PaperDetailViewPr
                     aria-hidden
                   />
                 </div>
-                <p className="text-sm text-text-secondary leading-relaxed">{statusCopy[statusForProgress].helper}</p>
+                <p className="text-sm text-text-secondary leading-relaxed">
+                  {statusCopy[statusForProgress].helper}
+                </p>
                 <div className="flex items-start gap-3 rounded-lg border border-border-subtle bg-bg-elevated/60 p-3">
                   <Sparkles className="w-4 h-4 text-primary-500 mt-0.5" />
                   <p className="text-sm text-text-secondary leading-relaxed">
-                    Updating statuses, linking topics, or finishing summaries all grant XP. Every change is reflected instantly in
-                    Focus Studio so you can track your research momentum.
+                    Updating statuses, linking topics, or finishing summaries
+                    all grant XP. Every change is reflected instantly in Focus
+                    Studio so you can track your research momentum.
                   </p>
                 </div>
               </div>
@@ -294,7 +332,9 @@ export function PaperDetailView({ paper, onUpdate, onDelete }: PaperDetailViewPr
           {/* Abstract */}
           {(paper.abstract || isEditing) && (
             <div className="p-6 border-b border-border-subtle">
-              <h2 className="text-lg font-semibold text-text-primary mb-3">Abstract</h2>
+              <h2 className="text-lg font-semibold text-text-primary mb-3">
+                Abstract
+              </h2>
               {isEditing ? (
                 <textarea
                   value={editedAbstract}
@@ -323,7 +363,9 @@ export function PaperDetailView({ paper, onUpdate, onDelete }: PaperDetailViewPr
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 text-text-tertiary">
                     <Calendar className="w-4 h-4" />
-                    <span className="text-sm font-medium">Publication Date</span>
+                    <span className="text-sm font-medium">
+                      Publication Date
+                    </span>
                   </div>
                   <p className="text-text-primary">{paper.publication_date}</p>
                 </div>
@@ -334,14 +376,16 @@ export function PaperDetailView({ paper, onUpdate, onDelete }: PaperDetailViewPr
                   <Calendar className="w-4 h-4" />
                   <span className="text-sm font-medium">Added to Library</span>
                 </div>
-                <p className="text-text-primary">{new Date(paper.created_at).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                })}</p>
+                <p className="text-text-primary">
+                  {new Date(paper.created_at).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </p>
               </div>
             </div>
-            
+
             {/* External Links */}
             <div className="pt-4 border-t border-border-subtle">
               <div className="flex flex-wrap gap-3">
@@ -374,9 +418,12 @@ export function PaperDetailView({ paper, onUpdate, onDelete }: PaperDetailViewPr
 
         {/* Tips Card */}
         <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-lg">
-          <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-2">💡 Pro Tip</h3>
+          <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-2">
+            💡 Pro Tip
+          </h3>
           <p className="text-sm text-blue-800 dark:text-blue-400">
-            Update the reading status as you progress through the paper. This helps track your research progress and earns you XP!
+            Update the reading status as you progress through the paper. This
+            helps track your research progress and earns you XP!
           </p>
         </div>
       </div>
@@ -398,5 +445,5 @@ export function PaperDetailView({ paper, onUpdate, onDelete }: PaperDetailViewPr
         onOpenChange={setShowCitation}
       />
     </>
-  )
+  );
 }
