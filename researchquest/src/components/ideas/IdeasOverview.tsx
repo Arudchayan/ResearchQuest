@@ -137,8 +137,9 @@ export function IdeasOverview({ ideas, loading, onCreate, onSelect }: IdeasOverv
           </div>
           <form onSubmit={handleCreateIdea} className="space-y-4">
             <div>
-              <label className="block text-sm font-semibold text-text-secondary mb-1">Idea title</label>
+              <label htmlFor="idea-title-input" className="block text-sm font-semibold text-text-secondary mb-1">Idea title</label>
               <input
+                id="idea-title-input"
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
                 placeholder="e.g. Adaptive question ranking for literature reviews"
@@ -146,8 +147,9 @@ export function IdeasOverview({ ideas, loading, onCreate, onSelect }: IdeasOverv
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-text-secondary mb-1">Description</label>
+              <label htmlFor="idea-description-input" className="block text-sm font-semibold text-text-secondary mb-1">Description</label>
               <textarea
+                id="idea-description-input"
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
                 placeholder="What problem does this idea solve? How might you test it?"
@@ -157,8 +159,9 @@ export function IdeasOverview({ ideas, loading, onCreate, onSelect }: IdeasOverv
             </div>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div className="flex items-center gap-3">
-                <label className="text-sm font-semibold text-text-secondary">Stage</label>
+                <label htmlFor="idea-stage-select" className="text-sm font-semibold text-text-secondary">Stage</label>
                 <select
+                  id="idea-stage-select"
                   value={stage}
                   onChange={(event) => setStage(event.target.value as IdeaStage)}
                   className="px-3 py-2 border border-border-subtle rounded-md bg-bg-base text-sm"
