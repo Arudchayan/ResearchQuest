@@ -1,4 +1,3 @@
-
 /**
  * Counts the number of words in a string.
  * Optimized to iterate over the string without allocating arrays for matches.
@@ -74,26 +73,26 @@ export function estimateReadingTime(text: string): string {
  * Strips leading '#' characters.
  */
 export function deriveTitleFromMarkdown(markdownBody: string): string {
-  if (!markdownBody) return 'Untitled Note'
+  if (!markdownBody) return "Untitled Note";
 
   // Find first non-empty line without splitting the whole string
-  let start = 0
-  let end = markdownBody.indexOf('\n')
+  let start = 0;
+  let end = markdownBody.indexOf("\n");
 
   while (end !== -1) {
-    const line = markdownBody.slice(start, end).trim()
+    const line = markdownBody.slice(start, end).trim();
     if (line) {
-      return line.replace(/^#+\s*/, '').trim() || 'Untitled Note'
+      return line.replace(/^#+\s*/, "").trim() || "Untitled Note";
     }
-    start = end + 1
-    end = markdownBody.indexOf('\n', start)
+    start = end + 1;
+    end = markdownBody.indexOf("\n", start);
   }
 
   // Handle the last line (or if no newlines)
-  const lastLine = markdownBody.slice(start).trim()
+  const lastLine = markdownBody.slice(start).trim();
   if (lastLine) {
-    return lastLine.replace(/^#+\s*/, '').trim() || 'Untitled Note'
+    return lastLine.replace(/^#+\s*/, "").trim() || "Untitled Note";
   }
 
-  return 'Untitled Note'
+  return "Untitled Note";
 }

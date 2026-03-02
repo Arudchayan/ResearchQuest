@@ -21,7 +21,9 @@ const STAGES: { id: IdeaStage; label: string; color: string }[] = [
 
 export function IdeasBoard() {
   const { ideas, selectedIdea, setSelectedIdea, ideasLoading } = useAppStore();
-  const { createIdea, updateIdea, deleteIdea, restoreIdea } = useIdeas(useAppStore.getState().user?.id);
+  const { createIdea, updateIdea, deleteIdea, restoreIdea } = useIdeas(
+    useAppStore.getState().user?.id,
+  );
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newIdeaTitle, setNewIdeaTitle] = useState("");
   const [newIdeaDesc, setNewIdeaDesc] = useState("");
@@ -29,54 +31,57 @@ export function IdeasBoard() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isTitleFocused, setIsTitleFocused] = useState(false);
 
-  const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const lastDeletedRef = useRef<Idea | null>(null)
+  const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastDeletedRef = useRef<Idea | null>(null);
 
   useEffect(() => {
     return () => {
       if (undoTimeoutRef.current) {
-        clearTimeout(undoTimeoutRef.current)
+        clearTimeout(undoTimeoutRef.current);
       }
-    }
-  }, [])
+    };
+  }, []);
 
-  const handleDeleteWithUndo = useCallback(async (ideaId: string) => {
-    const idea = ideas.find(i => i.id === ideaId)
-    const success = await deleteIdea(ideaId)
+  const handleDeleteWithUndo = useCallback(
+    async (ideaId: string) => {
+      const idea = ideas.find((i) => i.id === ideaId);
+      const success = await deleteIdea(ideaId);
 
-    if (success && idea) {
-      lastDeletedRef.current = idea
-      if (undoTimeoutRef.current) {
-        clearTimeout(undoTimeoutRef.current)
-      }
+      if (success && idea) {
+        lastDeletedRef.current = idea;
+        if (undoTimeoutRef.current) {
+          clearTimeout(undoTimeoutRef.current);
+        }
 
-      const toastId = toast.success('Idea deleted', {
-        description: 'Undo within 6 seconds to restore it.',
-        duration: 6000,
-        action: {
-          label: 'Undo',
-          onClick: async () => {
-            if (lastDeletedRef.current) {
-              await restoreIdea(lastDeletedRef.current)
-              lastDeletedRef.current = null
-              if (undoTimeoutRef.current) {
-                clearTimeout(undoTimeoutRef.current)
-                undoTimeoutRef.current = null
+        const toastId = toast.success("Idea deleted", {
+          description: "Undo within 6 seconds to restore it.",
+          duration: 6000,
+          action: {
+            label: "Undo",
+            onClick: async () => {
+              if (lastDeletedRef.current) {
+                await restoreIdea(lastDeletedRef.current);
+                lastDeletedRef.current = null;
+                if (undoTimeoutRef.current) {
+                  clearTimeout(undoTimeoutRef.current);
+                  undoTimeoutRef.current = null;
+                }
+                toast.dismiss(toastId);
               }
-              toast.dismiss(toastId)
-            }
+            },
           },
-        },
-      })
+        });
 
-      undoTimeoutRef.current = setTimeout(() => {
-        lastDeletedRef.current = null
-        toast.dismiss(toastId)
-        undoTimeoutRef.current = null
-      }, 6000)
-    }
-    return success
-  }, [deleteIdea, restoreIdea, ideas])
+        undoTimeoutRef.current = setTimeout(() => {
+          lastDeletedRef.current = null;
+          toast.dismiss(toastId);
+          undoTimeoutRef.current = null;
+        }, 6000);
+      }
+      return success;
+    },
+    [deleteIdea, restoreIdea, ideas],
+  );
 
   const handleCreate = async () => {
     if (!newIdeaTitle.trim()) return;
@@ -204,7 +209,8 @@ export function IdeasBoard() {
                               </div>
 
                               <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-3 mb-3">
-                                {idea.description || "No description provided..."}
+                                {idea.description ||
+                                  "No description provided..."}
                               </p>
 
                               {stage.id !== "Mature" && (
@@ -256,7 +262,11 @@ export function IdeasBoard() {
             </button>
           </div>
           <div className="flex-1 overflow-y-auto p-4">
-            <IdeaDetailView idea={selectedIdea} onUpdate={updateIdea} onDelete={handleDeleteWithUndo} />
+            <IdeaDetailView
+              idea={selectedIdea}
+              onUpdate={updateIdea}
+              onDelete={handleDeleteWithUndo}
+            />
           </div>
         </div>
       )}

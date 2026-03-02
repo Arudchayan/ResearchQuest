@@ -36,9 +36,12 @@ export function CitationPicker({
       }
     }
 
-    const authorText = paper.authors?.length > 1 ? `${firstAuthor} et al.` : firstAuthor;
+    const authorText =
+      paper.authors?.length > 1 ? `${firstAuthor} et al.` : firstAuthor;
     const citationText = `(${authorText}, ${year})`;
-    const link = paper.doi ? `https://doi.org/${paper.doi}` : paper.source_url || "";
+    const link = paper.doi
+      ? `https://doi.org/${paper.doi}`
+      : paper.source_url || "";
 
     // Markdown link format: [(Smith et al., 2023)](https://doi.org/...)
     // If no link, just text: (Smith et al., 2023)
@@ -54,9 +57,15 @@ export function CitationPicker({
       onOpenChange={onOpenChange}
       label="Insert Citation"
     >
-      <div className="flex items-center border-b border-border-subtle px-3" cmdk-input-wrapper="">
+      <div
+        className="flex items-center border-b border-border-subtle px-3"
+        cmdk-input-wrapper=""
+      >
         <Search className="w-5 h-5 text-text-tertiary mr-2" />
-        <Command.Input placeholder="Search papers by title, author, or year..." autoFocus />
+        <Command.Input
+          placeholder="Search papers by title, author, or year..."
+          autoFocus
+        />
       </div>
 
       <Command.List>
@@ -75,7 +84,8 @@ export function CitationPicker({
               <div className="flex flex-col overflow-hidden">
                 <span className="truncate font-medium">{paper.title}</span>
                 <span className="text-xs text-text-tertiary truncate">
-                  {paper.authors?.join(", ") || "Unknown Author"} • {extractYear(paper.publication_date)}
+                  {paper.authors?.join(", ") || "Unknown Author"} •{" "}
+                  {extractYear(paper.publication_date)}
                 </span>
               </div>
             </Command.Item>

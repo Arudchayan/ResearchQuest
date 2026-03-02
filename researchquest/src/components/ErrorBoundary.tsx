@@ -1,5 +1,5 @@
-import React from 'react';
-import { ErrorFallback } from './ui/ErrorFallback';
+import React from "react";
+import { ErrorFallback } from "./ui/ErrorFallback";
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -12,7 +12,10 @@ interface ErrorBoundaryProps {
   onError?: (error: Error, errorInfo: React.ErrorInfo) => void;
 }
 
-export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+export class ErrorBoundary extends React.Component<
+  ErrorBoundaryProps,
+  ErrorBoundaryState
+> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false, error: null };
@@ -24,13 +27,13 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     // Log error to console in development
-    if (process.env.NODE_ENV === 'development') {
-      console.error('ErrorBoundary caught an error:', error, errorInfo);
+    if (process.env.NODE_ENV === "development") {
+      console.error("ErrorBoundary caught an error:", error, errorInfo);
     }
-    
+
     // Call optional error handler
     this.props.onError?.(error, errorInfo);
-    
+
     // In production, you might want to send this to an error tracking service
     // like Sentry, LogRocket, etc.
     // Example: logErrorToService(error, errorInfo);
@@ -38,21 +41,23 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
   resetError = () => {
     this.setState({ hasError: false, error: null });
-  }
+  };
 
   render() {
     if (this.state.hasError && this.state.error) {
       const FallbackComponent = this.props.fallback;
-      
+
       if (FallbackComponent) {
-        return <FallbackComponent error={this.state.error} resetError={this.resetError} />;
+        return (
+          <FallbackComponent
+            error={this.state.error}
+            resetError={this.resetError}
+          />
+        );
       }
-      
+
       return (
-        <ErrorFallback 
-          error={this.state.error} 
-          resetError={this.resetError}
-        />
+        <ErrorFallback error={this.state.error} resetError={this.resetError} />
       );
     }
 
