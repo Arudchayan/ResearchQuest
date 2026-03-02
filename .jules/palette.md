@@ -17,3 +17,15 @@
 ## 2024-05-27 - Client-Side Routing with Anchor Tags
 **Learning:** Using `<button>` for navigation in Single Page Applications (SPAs) prevents users from opening links in new tabs (Ctrl/Cmd+Click).
 **Action:** Replace navigation buttons with `<a>` tags using `href`. Implement a click handler that prevents default behavior ONLY when modifier keys are absent, ensuring both client-side routing and native browser features work.
+
+## 2024-05-28 - Search Input UX Consistency
+**Learning:** Inconsistent search input behavior (missing clear button) across views creates friction. Users expect a way to quickly reset search without backspacing.
+**Action:** Standardize search input components to always include a clear button when content is present, using `useRef` to restore focus to the input after clearing.
+
+## 2025-02-23 - Accessibility of Loading Skeletons
+**Learning:** Repetitive skeleton loaders without proper grouping create significant noise for screen readers ("Loading..." x20).
+**Action:** Use a container with `role="status"` and a descriptive `aria-label` (e.g., "Loading papers...") for the entire list, and mark individual skeleton items as decorative (`aria-hidden="true"`).
+
+## 2025-02-23 - Empty State Accessibility & Labeling
+**Learning:** Empty states are opportunities for delight and guidance. Using `role="status"` and `aria-live="polite"` ensures screen readers announce the state change (e.g., after filtering). Crucially, adding `aria-label` to a button overrides its visible text content, which can confuse testing libraries looking for the visible name.
+**Action:** Enhance empty states with icons and actionable buttons. Avoid redundant `aria-label` on buttons that already have descriptive visible text.
