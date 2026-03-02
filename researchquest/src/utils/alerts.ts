@@ -1,4 +1,4 @@
-import { logger } from './logger';
+import { logger } from "./logger";
 
 // --- Sound Utilities ---
 
@@ -6,7 +6,8 @@ let audioCtx: AudioContext | null = null;
 
 function getAudioContext(): AudioContext | null {
   if (!audioCtx) {
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    const AudioContextClass =
+      window.AudioContext || (window as any).webkitAudioContext;
     if (AudioContextClass) {
       audioCtx = new AudioContextClass();
     }
@@ -22,11 +23,13 @@ function getAudioContext(): AudioContext | null {
 export function warmupAudio(): void {
   try {
     const ctx = getAudioContext();
-    if (ctx && ctx.state === 'suspended') {
-      ctx.resume().catch((e) => logger.error('Failed to resume audio context', e));
+    if (ctx && ctx.state === "suspended") {
+      ctx
+        .resume()
+        .catch((e) => logger.error("Failed to resume audio context", e));
     }
   } catch (error) {
-    logger.error('Failed to warm up audio', error);
+    logger.error("Failed to warm up audio", error);
   }
 }
 
@@ -38,7 +41,7 @@ export function playTimerCompleteSound(): void {
   try {
     const ctx = getAudioContext();
     if (!ctx) {
-      logger.warn('AudioContext not supported');
+      logger.warn("AudioContext not supported");
       return;
     }
 
@@ -50,7 +53,7 @@ export function playTimerCompleteSound(): void {
     gain.connect(ctx.destination);
 
     // Set oscillator parameters (Sine wave sweeping up slightly)
-    osc.type = 'sine';
+    osc.type = "sine";
 
     // C5 (523.25 Hz)
     const startTime = ctx.currentTime;
@@ -65,12 +68,10 @@ export function playTimerCompleteSound(): void {
     // Start and stop
     osc.start(startTime);
     osc.stop(startTime + 1.5);
-
   } catch (error) {
-    logger.error('Failed to play timer completion sound', error);
+    logger.error("Failed to play timer completion sound", error);
   }
 }
-
 
 // --- Notification Utilities ---
 
@@ -79,17 +80,17 @@ export function playTimerCompleteSound(): void {
  * Returns the permission status ('granted', 'denied', or 'default').
  */
 export async function requestNotificationPermission(): Promise<NotificationPermission> {
-  if (!('Notification' in window)) {
-    logger.warn('Notifications not supported');
-    return 'denied';
+  if (!("Notification" in window)) {
+    logger.warn("Notifications not supported");
+    return "denied";
   }
 
   try {
     const permission = await Notification.requestPermission();
     return permission;
   } catch (error) {
-    logger.error('Failed to request notification permission', error);
-    return 'denied';
+    logger.error("Failed to request notification permission", error);
+    return "denied";
   }
 }
 
@@ -98,24 +99,27 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
  * @param title The title of the notification
  * @param options Additional options (body, icon, etc.)
  */
-export function showTimerCompleteNotification(title: string, options?: NotificationOptions): void {
-  if (!('Notification' in window)) {
+export function showTimerCompleteNotification(
+  title: string,
+  options?: NotificationOptions,
+): void {
+  if (!("Notification" in window)) {
     return;
   }
 
-  if (Notification.permission === 'granted') {
+  if (Notification.permission === "granted") {
     try {
       // Create notification
       // We don't store the instance as we don't need to close it programmatically (system handles it)
       new Notification(title, {
-        icon: '/favicon.svg', // Use app icon if available
+        icon: "/favicon.svg", // Use app icon if available
         silent: true, // We play our own custom sound via Web Audio API
-        ...options
+        ...options,
       });
     } catch (error) {
-      logger.error('Failed to show notification', error);
+      logger.error("Failed to show notification", error);
     }
   } else {
-    logger.warn('Notification permission not granted');
+    logger.warn("Notification permission not granted");
   }
 }

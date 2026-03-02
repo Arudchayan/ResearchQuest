@@ -1,39 +1,49 @@
-import { ReactNode, useEffect } from 'react'
-import { Sidebar } from './Sidebar'
-import { RightSidebar } from '../RightSidebar'
-import { Menu, X, Minimize2 } from 'lucide-react'
-import { useAppStore } from '../../../store/appStore'
-import { cn } from '../../../lib/utils'
-import { useShallow } from 'zustand/react/shallow'
+import { ReactNode, useEffect } from "react";
+import { Sidebar } from "./Sidebar";
+import { RightSidebar } from "../RightSidebar";
+import { Menu, X, Minimize2 } from "lucide-react";
+import { useAppStore } from "../../../store/appStore";
+import { cn } from "../../../lib/utils";
+import { useShallow } from "zustand/react/shallow";
 
 interface AppShellProps {
-  children: ReactNode
+  children: ReactNode;
 }
 
 export function AppShell({ children }: AppShellProps) {
   // OPTIMIZATION: Use shallow selector to prevent unnecessary re-renders when other parts of the store change
-  const { isMobileSidebarOpen, setIsMobileSidebarOpen, isRightSidebarOpen, isZenMode, setZenMode } = useAppStore(
+  const {
+    isMobileSidebarOpen,
+    setIsMobileSidebarOpen,
+    isRightSidebarOpen,
+    isZenMode,
+    setZenMode,
+  } = useAppStore(
     useShallow((state) => ({
       isMobileSidebarOpen: state.isMobileSidebarOpen,
       setIsMobileSidebarOpen: state.setIsMobileSidebarOpen,
       isRightSidebarOpen: state.isRightSidebarOpen,
       isZenMode: state.isZenMode,
       setZenMode: state.setZenMode,
-    }))
-  )
+    })),
+  );
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Toggle Zen Mode: Ctrl+Shift+F (or Cmd+Shift+F)
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'F' || e.key === 'f')) {
-        e.preventDefault()
-        setZenMode(!isZenMode)
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.shiftKey &&
+        (e.key === "F" || e.key === "f")
+      ) {
+        e.preventDefault();
+        setZenMode(!isZenMode);
       }
-    }
+    };
 
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isZenMode, setZenMode])
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isZenMode, setZenMode]);
 
   return (
     <div className="flex h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans overflow-hidden relative">
@@ -62,10 +72,12 @@ export function AppShell({ children }: AppShellProps) {
 
       {/* Mobile Sidebar */}
       {!isZenMode && (
-        <div className={cn(
-          "fixed inset-y-0 left-0 z-50 w-64 bg-slate-50 dark:bg-slate-900 shadow-xl transition-transform duration-300 lg:hidden",
-          isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full"
-        )}>
+        <div
+          className={cn(
+            "fixed inset-y-0 left-0 z-50 w-64 bg-slate-50 dark:bg-slate-900 shadow-xl transition-transform duration-300 lg:hidden",
+            isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full",
+          )}
+        >
           <Sidebar />
           <button
             onClick={() => setIsMobileSidebarOpen(false)}
@@ -101,10 +113,14 @@ export function AppShell({ children }: AppShellProps) {
 
       {/* Right Sidebar (Context Panel) */}
       {!isZenMode && (
-        <div className={cn(
-          "hidden xl:block h-full shrink-0 bg-slate-50 dark:bg-slate-900 transition-all duration-300 ease-in-out overflow-hidden",
-          isRightSidebarOpen ? "w-80 border-l border-slate-200 dark:border-slate-800" : "w-0 border-l-0"
-        )}>
+        <div
+          className={cn(
+            "hidden xl:block h-full shrink-0 bg-slate-50 dark:bg-slate-900 transition-all duration-300 ease-in-out overflow-hidden",
+            isRightSidebarOpen
+              ? "w-80 border-l border-slate-200 dark:border-slate-800"
+              : "w-0 border-l-0",
+          )}
+        >
           <div className="w-80 h-full">
             <RightSidebar />
           </div>
@@ -123,5 +139,5 @@ export function AppShell({ children }: AppShellProps) {
         </button>
       )}
     </div>
-  )
+  );
 }

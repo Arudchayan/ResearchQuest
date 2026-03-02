@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect } from "react";
 import {
   BookOpen,
   FileText,
@@ -17,18 +17,27 @@ import {
   PanelRightClose,
   Keyboard,
   LayoutDashboard,
-  Maximize2
-} from 'lucide-react'
-import { useAppStore } from '../../../store/appStore'
-import { cn } from '../../../lib/utils'
-import { supabase } from '../../../lib/supabase'
-import { XPExplainer } from '../XPExplainer'
-import { ProfileDialog } from '../ProfileDialog'
-import { DataManagementDialog } from '../../settings/DataManagementDialog'
-import { useShallow } from 'zustand/react/shallow'
+  Maximize2,
+} from "lucide-react";
+import { useAppStore } from "../../../store/appStore";
+import { cn } from "../../../lib/utils";
+import { supabase } from "../../../lib/supabase";
+import { XPExplainer } from "../XPExplainer";
+import { ProfileDialog } from "../ProfileDialog";
+import { DataManagementDialog } from "../../settings/DataManagementDialog";
+import { useShallow } from "zustand/react/shallow";
 
 export function Sidebar() {
-  const { currentView, setCurrentView, user, effectiveTheme, setTheme, isRightSidebarOpen, setIsRightSidebarOpen, setZenMode } = useAppStore(
+  const {
+    currentView,
+    setCurrentView,
+    user,
+    effectiveTheme,
+    setTheme,
+    isRightSidebarOpen,
+    setIsRightSidebarOpen,
+    setZenMode,
+  } = useAppStore(
     useShallow((state) => ({
       currentView: state.currentView,
       setCurrentView: state.setCurrentView,
@@ -38,44 +47,48 @@ export function Sidebar() {
       isRightSidebarOpen: state.isRightSidebarOpen,
       setIsRightSidebarOpen: state.setIsRightSidebarOpen,
       setZenMode: state.setZenMode,
-    }))
-  )
-  const [showXpGuide, setShowXpGuide] = useState(false)
-  const [showProfile, setShowProfile] = useState(false)
-  const [showDataDialog, setShowDataDialog] = useState(false)
+    })),
+  );
+  const [showXpGuide, setShowXpGuide] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [showDataDialog, setShowDataDialog] = useState(false);
 
   useEffect(() => {
-    const handleOpenDataManagement = () => setShowDataDialog(true)
-    document.addEventListener('open-data-management', handleOpenDataManagement)
-    return () => document.removeEventListener('open-data-management', handleOpenDataManagement)
-  }, [])
+    const handleOpenDataManagement = () => setShowDataDialog(true);
+    document.addEventListener("open-data-management", handleOpenDataManagement);
+    return () =>
+      document.removeEventListener(
+        "open-data-management",
+        handleOpenDataManagement,
+      );
+  }, []);
 
   const navItems = [
-    { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
-    { id: 'notes', label: 'Notes', icon: FileText },
-    { id: 'papers', label: 'Papers', icon: BookOpen },
-    { id: 'ideas', label: 'Ideas', icon: Lightbulb },
-    { id: 'tasks', label: 'Tasks', icon: CheckSquare },
-    { id: 'focus', label: 'Focus', icon: Clock },
-  ] as const
+    { id: "dashboard", label: "Home", icon: LayoutDashboard },
+    { id: "notes", label: "Notes", icon: FileText },
+    { id: "papers", label: "Papers", icon: BookOpen },
+    { id: "ideas", label: "Ideas", icon: Lightbulb },
+    { id: "tasks", label: "Tasks", icon: CheckSquare },
+    { id: "focus", label: "Focus", icon: Clock },
+  ] as const;
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
+    await supabase.auth.signOut();
     // State update handled by auth listener in App.tsx
-  }
+  };
 
   const toggleTheme = () => {
-    const newTheme = effectiveTheme === 'light' ? 'dark' : 'light'
-    setTheme(newTheme)
-  }
+    const newTheme = effectiveTheme === "light" ? "dark" : "light";
+    setTheme(newTheme);
+  };
 
   const handleOpenShortcuts = () => {
-    document.dispatchEvent(new CustomEvent('open-shortcuts-help'))
-  }
+    document.dispatchEvent(new CustomEvent("open-shortcuts-help"));
+  };
 
-  const xpProgress = user ? (user.total_xp % 500) / 500 * 100 : 0
-  const currentLevel = user?.current_level || 1
-  const xpInLevel = user ? user.total_xp % 500 : 0
+  const xpProgress = user ? ((user.total_xp % 500) / 500) * 100 : 0;
+  const currentLevel = user?.current_level || 1;
+  const xpInLevel = user ? user.total_xp % 500 : 0;
 
   return (
     <aside className="w-64 bg-slate-50 dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col h-full transition-colors duration-300">
@@ -94,24 +107,28 @@ export function Sidebar() {
         {navItems.map((item) => (
           <a
             key={item.id}
-            href={item.id === 'dashboard' ? '/' : `/${item.id}`}
+            href={item.id === "dashboard" ? "/" : `/${item.id}`}
             onClick={(e) => {
               // Allow default behavior (new tab) if modifier keys are pressed
               if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
-                return
+                return;
               }
-              e.preventDefault()
-              setCurrentView(item.id)
+              e.preventDefault();
+              setCurrentView(item.id);
               // Update URL without reload
-              window.history.pushState(null, '', item.id === 'dashboard' ? '/' : `/${item.id}`)
+              window.history.pushState(
+                null,
+                "",
+                item.id === "dashboard" ? "/" : `/${item.id}`,
+              );
             }}
             className={cn(
               "w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
               currentView === item.id
                 ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
-                : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+                : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800",
             )}
-            aria-current={currentView === item.id ? 'page' : undefined}
+            aria-current={currentView === item.id ? "page" : undefined}
           >
             <item.icon className="w-5 h-5" />
             {item.label}
@@ -123,77 +140,101 @@ export function Sidebar() {
         <div className="px-4 py-4 space-y-4">
           {/* XP Card */}
           <div className="p-3 bg-white dark:bg-slate-950 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm">
-             <div className="flex items-center justify-between mb-2">
-               <span className="text-xs font-semibold text-slate-900 dark:text-white">Level {currentLevel}</span>
-               <button
-                 onClick={() => setShowXpGuide(true)}
-                 className="text-slate-400 hover:text-blue-500"
-                 aria-label="Learn about XP and Levels"
-               >
-                 <HelpCircle className="w-3.5 h-3.5" />
-               </button>
-             </div>
-             <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden mb-1">
-               <div className="h-full bg-blue-500 rounded-full" style={{ width: `${xpProgress}%` }} />
-             </div>
-             <div className="flex justify-between text-[10px] text-slate-500">
-               <span>{xpInLevel} XP</span>
-               <span>500 XP</span>
-             </div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-slate-900 dark:text-white">
+                Level {currentLevel}
+              </span>
+              <button
+                onClick={() => setShowXpGuide(true)}
+                className="text-slate-400 hover:text-blue-500"
+                aria-label="Learn about XP and Levels"
+              >
+                <HelpCircle className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden mb-1">
+              <div
+                className="h-full bg-blue-500 rounded-full"
+                style={{ width: `${xpProgress}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-[10px] text-slate-500">
+              <span>{xpInLevel} XP</span>
+              <span>500 XP</span>
+            </div>
           </div>
         </div>
       )}
 
       <div className="p-4 border-t border-slate-200 dark:border-slate-800 space-y-1">
         <div className="flex items-center justify-between px-3 py-2">
-           <button
-             onClick={() => setShowProfile(true)}
-             className="flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md p-1 -ml-1 transition-colors text-left"
-             aria-label="User profile"
-           >
-             <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-               <User className="w-4 h-4" />
-             </div>
-             <div className="text-xs">
-               <span className="block font-medium text-slate-900 dark:text-white truncate max-w-[80px]">User</span>
-               <span className="flex items-center gap-1 text-slate-500">
-                 <Flame className="w-3 h-3 text-orange-500" /> {user?.current_streak || 0}
-               </span>
-             </div>
-           </button>
-           <div className="flex items-center gap-1">
-             <button
-               onClick={handleOpenShortcuts}
-               className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
-               aria-label="Keyboard Shortcuts"
-               title="Keyboard Shortcuts"
-             >
-               <Keyboard className="w-4 h-4" />
-             </button>
-             <button
-               onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
-               className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
-               aria-label={isRightSidebarOpen ? 'Close context panel' : 'Open context panel'}
-               title="Toggle Context Panel"
-             >
-               {isRightSidebarOpen ? <PanelRightClose className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
-             </button>
-             <button
-               onClick={() => setZenMode(true)}
-               className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
-               aria-label="Enter Zen Mode"
-               title="Enter Zen Mode (Ctrl+Shift+F)"
-             >
-               <Maximize2 className="w-4 h-4" />
-             </button>
-             <button
-               onClick={toggleTheme}
-               className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
-               aria-label={effectiveTheme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
-             >
-               {effectiveTheme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-             </button>
-           </div>
+          <button
+            onClick={() => setShowProfile(true)}
+            className="flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md p-1 -ml-1 transition-colors text-left"
+            aria-label="User profile"
+          >
+            <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+              <User className="w-4 h-4" />
+            </div>
+            <div className="text-xs">
+              <span className="block font-medium text-slate-900 dark:text-white truncate max-w-[80px]">
+                User
+              </span>
+              <span className="flex items-center gap-1 text-slate-500">
+                <Flame className="w-3 h-3 text-orange-500" />{" "}
+                {user?.current_streak || 0}
+              </span>
+            </div>
+          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={handleOpenShortcuts}
+              className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
+              aria-label="Keyboard Shortcuts"
+              title="Keyboard Shortcuts"
+            >
+              <Keyboard className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
+              className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
+              aria-label={
+                isRightSidebarOpen
+                  ? "Close context panel"
+                  : "Open context panel"
+              }
+              title="Toggle Context Panel"
+            >
+              {isRightSidebarOpen ? (
+                <PanelRightClose className="w-4 h-4" />
+              ) : (
+                <PanelRightOpen className="w-4 h-4" />
+              )}
+            </button>
+            <button
+              onClick={() => setZenMode(true)}
+              className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
+              aria-label="Enter Zen Mode"
+              title="Enter Zen Mode (Ctrl+Shift+F)"
+            >
+              <Maximize2 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={toggleTheme}
+              className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
+              aria-label={
+                effectiveTheme === "light"
+                  ? "Switch to dark mode"
+                  : "Switch to light mode"
+              }
+            >
+              {effectiveTheme === "light" ? (
+                <Moon className="w-4 h-4" />
+              ) : (
+                <Sun className="w-4 h-4" />
+              )}
+            </button>
+          </div>
         </div>
 
         <button
@@ -220,15 +261,12 @@ export function Sidebar() {
         totalXP={user?.total_xp || 0}
       />
 
-      <ProfileDialog
-        open={showProfile}
-        onClose={() => setShowProfile(false)}
-      />
+      <ProfileDialog open={showProfile} onClose={() => setShowProfile(false)} />
 
       <DataManagementDialog
         open={showDataDialog}
         onClose={() => setShowDataDialog(false)}
       />
     </aside>
-  )
+  );
 }

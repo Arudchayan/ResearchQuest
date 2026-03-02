@@ -84,7 +84,9 @@ export function MarkdownEditor() {
   // Initialize with selectedNote data if available to avoid empty flash
   const [content, setContent] = useState(selectedNote?.markdown_body || "");
   const [title, setTitle] = useState(selectedNote?.title || "");
-  const [debouncedContent, setDebouncedContent] = useState(selectedNote?.markdown_body || "");
+  const [debouncedContent, setDebouncedContent] = useState(
+    selectedNote?.markdown_body || "",
+  );
 
   const [saving, setSaving] = useState(false);
   const [isTitleFocused, setIsTitleFocused] = useState(false);
@@ -332,7 +334,9 @@ export function MarkdownEditor() {
 
     const exportTitle = title.trim() || "Untitled Note";
     // Sanitize filename: replace non-alphanumeric chars with underscore, keep nice format
-    const safeTitle = exportTitle.replace(/[^a-z0-9\s-_]/gi, "").replace(/\s+/g, "_");
+    const safeTitle = exportTitle
+      .replace(/[^a-z0-9\s-_]/gi, "")
+      .replace(/\s+/g, "_");
     const filename = `${safeTitle || "note"}.md`;
 
     const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
@@ -601,12 +605,8 @@ export function MarkdownEditor() {
 
   // Memoize extensions array to prevent unnecessary re-renders of CodeMirror
   const extensions = useMemo(
-    () => [
-      markdown(),
-      EditorView.lineWrapping,
-      ...formattingExtensions,
-    ],
-    [formattingExtensions]
+    () => [markdown(), EditorView.lineWrapping, ...formattingExtensions],
+    [formattingExtensions],
   );
 
   useEffect(() => {
@@ -666,7 +666,6 @@ export function MarkdownEditor() {
         markdown_body: content,
         tags,
       });
-
     } catch (err) {
       // updateNote handles standard errors and toasts.
       // If a non-standard error occurs (exception), we should ideally log it safely
@@ -800,7 +799,10 @@ export function MarkdownEditor() {
             aria-label="Export to Markdown"
             title="Export to Markdown"
           >
-            <Download className="w-4 h-4 text-text-secondary" aria-hidden="true" />
+            <Download
+              className="w-4 h-4 text-text-secondary"
+              aria-hidden="true"
+            />
           </button>
           <button
             type="button"
@@ -809,7 +811,10 @@ export function MarkdownEditor() {
             aria-label="Print Note"
             title="Print Note"
           >
-            <Printer className="w-4 h-4 text-text-secondary" aria-hidden="true" />
+            <Printer
+              className="w-4 h-4 text-text-secondary"
+              aria-hidden="true"
+            />
           </button>
         </div>
 
@@ -910,7 +915,10 @@ export function MarkdownEditor() {
         <div
           className={`${viewMode === "split" ? "lg:w-2/5" : "w-full"} ${viewMode === "edit" ? "hidden" : "block"} h-full overflow-auto bg-bg-base p-6`}
         >
-          <div ref={previewRef} className="prose prose-sm max-w-none dark:prose-invert">
+          <div
+            ref={previewRef}
+            className="prose prose-sm max-w-none dark:prose-invert"
+          >
             <ReactMarkdown
               remarkPlugins={REMARK_PLUGINS}
               rehypePlugins={REHYPE_PLUGINS}
@@ -927,7 +935,10 @@ export function MarkdownEditor() {
             <AlignLeft className="w-4 h-4" aria-hidden="true" />
             <span>{wordCount} words</span>
           </div>
-          <div className="flex items-center gap-1.5" title="Estimated reading time">
+          <div
+            className="flex items-center gap-1.5"
+            title="Estimated reading time"
+          >
             <Clock className="w-4 h-4" aria-hidden="true" />
             <span>{readingTime}</span>
           </div>
@@ -935,9 +946,7 @@ export function MarkdownEditor() {
 
         <div className="flex items-center gap-2 hidden sm:flex">
           <Sparkles className="w-4 h-4" aria-hidden="true" />
-          <span>
-            Markdown supported. Use Ctrl/Cmd shortcuts.
-          </span>
+          <span>Markdown supported. Use Ctrl/Cmd shortcuts.</span>
         </div>
       </div>
 
