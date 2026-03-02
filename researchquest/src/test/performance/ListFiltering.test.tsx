@@ -11,6 +11,11 @@ vi.mock("../../store/appStore", () => ({
 
 vi.mock("../../hooks/useNotes", () => ({
   useNotes: vi.fn(() => ({
+    notes: [
+      { id: '1', title: 'Note 1', markdown_body: 'Body content ONE', updated_at: '2023-01-01T00:00:00.000Z' },
+      { id: '2', title: 'Note 2', markdown_body: 'Body content TWO', updated_at: '2023-01-02T00:00:00.000Z' },
+    ],
+    loading: false,
     createNote: vi.fn(),
     deleteNote: vi.fn(),
   })),
