@@ -81,7 +81,7 @@ export function AddPaperView({
     };
 
     if (paper.doi && paper.doi.trim()) paperData.doi = paper.doi.trim();
-    if (paper.sourceUrl && paper.sourceUrl.trim())
+    if (paper.sourceUrl && paper.sourceUrl.trim() && isValidUrl(paper.sourceUrl))
       paperData.source_url = paper.sourceUrl.trim();
     if (paper.abstract && paper.abstract.trim())
       paperData.abstract = paper.abstract.trim();
@@ -592,7 +592,7 @@ export function AddPaperView({
                             <span>{doiResult.publicationDate}</span>
                           </div>
                         )}
-                        {doiResult.sourceUrl && (
+                        {doiResult.sourceUrl && isValidUrl(doiResult.sourceUrl) && (
                           <a
                             href={doiResult.sourceUrl}
                             target="_blank"
@@ -915,7 +915,7 @@ export function AddPaperView({
                           </p>
                         </div>
                         <div className="flex items-center justify-between gap-3 flex-wrap border-t border-border-subtle pt-4 mt-auto">
-                          {selectedResult.sourceUrl ? (
+                          {selectedResult.sourceUrl && isValidUrl(selectedResult.sourceUrl) ? (
                             <a
                               href={selectedResult.sourceUrl}
                               target="_blank"
