@@ -70,16 +70,28 @@ export function Dashboard() {
 
   const recentNotes = useMemo(() => {
     return [...notes]
-      // Optimization: Use direct string comparison for ISO dates instead of localeCompare
-      .sort((a, b) => (b.updated_at > a.updated_at ? 1 : b.updated_at < a.updated_at ? -1 : 0))
+      .sort((a, b) => {
+        // Optimization: Use direct string comparison for ISO dates instead of localeCompare
+        return b.updated_at > a.updated_at
+          ? 1
+          : b.updated_at < a.updated_at
+            ? -1
+            : 0;
+      })
       .slice(0, 3);
   }, [notes]);
 
   const readingList = useMemo(() => {
     return papers
       .filter((p) => p.status === "To Read")
-      // Optimization: Use direct string comparison for ISO dates instead of localeCompare
-      .sort((a, b) => (b.created_at > a.created_at ? 1 : b.created_at < a.created_at ? -1 : 0))
+      .sort((a, b) => {
+        // Optimization: Use direct string comparison for ISO dates instead of localeCompare
+        return b.created_at > a.created_at
+          ? 1
+          : b.created_at < a.created_at
+            ? -1
+            : 0;
+      })
       .slice(0, 3);
   }, [papers]);
 
@@ -90,7 +102,11 @@ export function Dashboard() {
         if (!a.due_date) return 1;
         if (!b.due_date) return -1;
         // Optimization: Use direct string comparison for ISO dates instead of localeCompare
-        return a.due_date > b.due_date ? 1 : a.due_date < b.due_date ? -1 : 0;
+        return a.due_date > b.due_date
+          ? 1
+          : a.due_date < b.due_date
+            ? -1
+            : 0;
       })
       .slice(0, 3);
   }, [tasks]);

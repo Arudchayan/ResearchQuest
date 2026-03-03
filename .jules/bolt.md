@@ -6,6 +6,10 @@
 **Learning:** Chaining filters (e.g., Parent component filters -> Child component filters again) is a common anti-pattern that doubles iteration costs.
 **Action:** When a child component receives an already filtered list, ensure its internal filtering is optimized to skip work (e.g., return the prop directly) when its own local filters are inactive.
 
+## 2024-05-24 - String.prototype.localeCompare on ISO Dates
+**Learning:** Using `String.prototype.localeCompare()` to sort ISO-8601 date strings introduces significant, unnecessary overhead because `localeCompare` performs complex locale-aware collation rules that are completely redundant for predictable ISO strings.
+**Action:** When sorting arrays by ISO-8601 date strings, always use direct lexicographical operators (`a > b ? 1 : a < b ? -1 : 0`) instead of `localeCompare()`.
+
 ## 2025-05-23 - Redundant Data Fetching with Sync Hooks
 **Learning:** When a parent component already manages data lists (notes, papers, etc.), using a separate hook (`useFocusEntityCounts`) to fetch counts for those same lists results in redundant network requests and duplicate realtime subscriptions.
 **Action:** Always check if the required data (or its derived stats like length) is already available in the parent component before introducing a new hook that fetches the same data. Pass the data down instead.
@@ -44,7 +48,7 @@
 
 ## 2026-02-14 - Efficient String Processing in Render
 **Learning:** Repeatedly calling `split('\n')` on large strings in a list render loop (e.g., to derive a title) causes massive memory churn and CPU overhead (O(N*M) where N is list size and M is content length).
-**Action:** Use a dedicated utility function (`deriveTitleFromMarkdown`) consistently everywhere throughout the app instead of inline `split('\n')` to ensure optimal performance when handling markdown strings.
+**Action:** Use a dedicated utility function that iterates to find the first line without splitting the entire string.
 
 ## 2026-02-14 - Debouncing Expensive Previews
 **Learning:** Real-time markdown previews (using `ReactMarkdown` or similar parsers) re-parse and re-render the entire document AST on every keystroke, causing significant input lag on large documents.
@@ -54,6 +58,6 @@
 **Learning:** Extracting derived content (like markdown previews or titles) inside a list item component forces heavy string parsing on every render of that component, which occurs on unrelated state changes (like hovering or selecting an item).
 **Action:** Use `useMemo` to wrap derived string or markdown parsing operations inside list item components so they only run when the actual text content changes.
 
-## 2024-05-24 - String.prototype.localeCompare on ISO Dates
-**Learning:** Using `String.prototype.localeCompare()` to sort ISO-8601 date strings introduces significant, unnecessary overhead because `localeCompare` performs complex locale-aware collation rules that are completely redundant for predictable ISO strings.
-**Action:** When sorting arrays by ISO-8601 date strings, always use direct lexicographical operators (`a > b ? 1 : a < b ? -1 : 0`) instead of `localeCompare()`.
+## 2026-03-03 - targeted performance optimizations
+**Learning:** When performing targeted enhancements (e.g., performance optimizations or accessibility fixes), strictly isolate the changes. Bundling unrelated backend logic changes, security fixes, or regex optimizations into the same commit pollutes the commit history and violates strict task boundaries.
+**Action:** Do not include unrelated fixes, scratchpads, or diagnostic scripts in the final submitted patch. Always revert unrelated files and delete temporary scripts before verifying and submitting the single targeted improvement.
