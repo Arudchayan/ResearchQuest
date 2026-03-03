@@ -69,7 +69,7 @@ export function NotesView() {
     
     // Optimization: Use Regex for case-insensitive matching to avoid allocating lowercased strings
     // for large markdown bodies on every render.
-    const escapedQuery = searchQuery.replace(/[.*+?^${}()|[\]\]/g, "\$&");
+    const escapedQuery = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const regex = new RegExp(escapedQuery, "i");
     
     return notes.filter((note) => {
