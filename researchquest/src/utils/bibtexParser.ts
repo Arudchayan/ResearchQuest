@@ -206,6 +206,12 @@ function parseFields(body: string, entry: BibTeXEntry) {
       if (processed.startsWith("{") && processed.endsWith("}")) {
         processed = processed.substring(1, processed.length - 1);
       }
+
+      // Prevent prototype pollution
+      if (key === "__proto__" || key === "constructor" || key === "prototype") {
+        continue;
+      }
+
       entry[key] = processed;
     }
   }

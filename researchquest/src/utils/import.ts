@@ -34,7 +34,7 @@ export async function importData(file: File, userId: string) {
       }));
       const { error } = await supabase.from("topics").upsert(topics);
       if (error) {
-        console.error("Error importing topics:", error);
+        console.error("Error importing topics:", (error as Error)?.message || "Unknown error");
         throw error;
       }
     }
@@ -44,7 +44,7 @@ export async function importData(file: File, userId: string) {
       const notes = data.notes.map((n) => ({ ...n, user_id: userId }));
       const { error } = await supabase.from("notes").upsert(notes);
       if (error) {
-        console.error("Error importing notes:", error);
+        console.error("Error importing notes:", (error as Error)?.message || "Unknown error");
         throw error;
       }
     }
@@ -54,7 +54,7 @@ export async function importData(file: File, userId: string) {
       const papers = data.papers.map((p) => ({ ...p, user_id: userId }));
       const { error } = await supabase.from("papers").upsert(papers);
       if (error) {
-        console.error("Error importing papers:", error);
+        console.error("Error importing papers:", (error as Error)?.message || "Unknown error");
         throw error;
       }
     }
@@ -64,14 +64,14 @@ export async function importData(file: File, userId: string) {
       const ideas = data.ideas.map((i) => ({ ...i, user_id: userId }));
       const { error } = await supabase.from("ideas").upsert(ideas);
       if (error) {
-        console.error("Error importing ideas:", error);
+        console.error("Error importing ideas:", (error as Error)?.message || "Unknown error");
         throw error;
       }
     }
 
     toast.success("Data imported successfully", { id: toastId });
   } catch (error) {
-    console.error("Import failed:", error);
+    console.error("Import failed:", (error as Error)?.message || "Unknown error");
     toast.error(
       "Failed to import data: " +
         (error instanceof Error ? error.message : "Unknown error"),
