@@ -335,6 +335,7 @@ function App() {
       setUser((window as any).__TEST_USER__)
       setUserId((window as any).__TEST_USER__.id)
       setLoading(false)
+      ;(window as any).__APP_STORE__ = useAppStore
       return
     }
     // Check active sessions
