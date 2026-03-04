@@ -185,15 +185,17 @@ export function PaperDetailView({
                       onClick={handleSave}
                       className="p-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors"
                       title="Save changes"
+                      aria-label="Save changes"
                     >
-                      <Save className="w-5 h-5" />
+                      <Save className="w-5 h-5" aria-hidden="true" />
                     </button>
                     <button
                       onClick={handleCancel}
                       className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
                       title="Cancel"
+                      aria-label="Cancel"
                     >
-                      <X className="w-5 h-5" />
+                      <X className="w-5 h-5" aria-hidden="true" />
                     </button>
                   </>
                 ) : (
@@ -202,30 +204,34 @@ export function PaperDetailView({
                       onClick={() => setIsEditing(true)}
                       className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
                       title="Edit paper"
+                      aria-label="Edit paper"
                     >
-                      <Edit2 className="w-5 h-5" />
+                      <Edit2 className="w-5 h-5" aria-hidden="true" />
                     </button>
                     <button
                       onClick={handleCreateNote}
                       className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
                       title="Create linked note"
+                      aria-label="Create linked note"
                     >
-                      <FileText className="w-5 h-5" />
+                      <FileText className="w-5 h-5" aria-hidden="true" />
                     </button>
                     <button
                       onClick={() => setShowCitation(true)}
                       className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
                       title="Cite paper"
+                      aria-label="Cite paper"
                     >
-                      <Quote className="w-5 h-5" />
+                      <Quote className="w-5 h-5" aria-hidden="true" />
                     </button>
                     {onDelete && (
                       <button
                         onClick={handleDeleteClick}
                         className="p-2 bg-bg-elevated text-red-600 dark:text-red-400 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                         title="Delete paper"
+                        aria-label="Delete paper"
                       >
-                        <Trash className="w-5 h-5" />
+                        <Trash className="w-5 h-5" aria-hidden="true" />
                       </button>
                     )}
                   </div>
