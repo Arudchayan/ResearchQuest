@@ -206,15 +206,17 @@ export function IdeaDetailView({
                       disabled={saving}
                       className="p-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                       title="Save changes"
+                      aria-label="Save changes"
                     >
-                      <Save className="w-5 h-5" />
+                      <Save className="w-5 h-5" aria-hidden="true" />
                     </button>
                     <button
                       onClick={handleCancel}
                       className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
                       title="Cancel"
+                      aria-label="Cancel"
                     >
-                      <X className="w-5 h-5" />
+                      <X className="w-5 h-5" aria-hidden="true" />
                     </button>
                   </>
                 ) : (
@@ -223,23 +225,26 @@ export function IdeaDetailView({
                       onClick={() => setIsEditing(true)}
                       className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
                       title="Edit idea"
+                      aria-label="Edit idea"
                     >
-                      <Edit2 className="w-5 h-5" />
+                      <Edit2 className="w-5 h-5" aria-hidden="true" />
                     </button>
                     <button
                       onClick={handleCreateNote}
                       className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
                       title="Create linked note"
+                      aria-label="Create linked note"
                     >
-                      <FileText className="w-5 h-5" />
+                      <FileText className="w-5 h-5" aria-hidden="true" />
                     </button>
                     {onDelete && (
                       <button
                         onClick={handleDeleteClick}
                         className="p-2 bg-bg-elevated text-red-600 dark:text-red-400 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                         title="Delete idea"
+                        aria-label="Delete idea"
                       >
-                        <Trash className="w-5 h-5" />
+                        <Trash className="w-5 h-5" aria-hidden="true" />
                       </button>
                     )}
                   </div>
