@@ -5,6 +5,7 @@ import { sortByUpdatedAt } from "../utils/sort";
 import { isValidUrl } from "../utils/security";
 import { toast } from "sonner";
 import type { Paper, CrossrefPaper } from "../types/database";
+import { logger } from "../utils/logger";
 import { useAppStore } from "../store/appStore";
 
 const PAPER_TITLE_MAX_LENGTH = 255;
@@ -49,7 +50,7 @@ async function createReadingTaskForPaper(
 
     if (error) {
       // 🛡️ Security: Log only the message, not the full error object
-      console.error("Failed to create reading task:", error.message);
+      logger.error("Failed to create reading task", error);
     } else {
       toast.success("Reading task created", {
         description: `Due in 7 days - check your Tasks`,
@@ -58,9 +59,9 @@ async function createReadingTaskForPaper(
     }
   } catch (error: any) {
     // 🛡️ Security: Log only the message, not the full error object
-    console.error(
-      "Error creating reading task:",
-      error?.message || "Unknown error",
+    logger.error(
+      "Error creating reading task",
+      error,
     );
   }
 }
@@ -325,7 +326,7 @@ export function usePapers(userId: string | undefined) {
       setPapers(sortByUpdatedAt([data, ...useAppStore.getState().papers]));
 
       awardXP(userId, XP_REWARDS.CREATE_PAPER, "create_paper").catch((e) =>
-        console.error(e?.message),
+        logger.error("Failed to award XP", e),
       );
 
       void createReadingTaskForPaper(userId, data);
@@ -436,7 +437,7 @@ export function usePapers(userId: string | undefined) {
           userId,
           XP_REWARDS.UPDATE_PAPER_STATUS,
           "update_paper_status",
-        ).catch((e) => console.error(e?.message));
+        ).catch((e) => logger.error("Failed to award XP", e));
       }
 
       return true;
