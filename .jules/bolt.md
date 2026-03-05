@@ -53,3 +53,7 @@
 ## 2026-02-14 - Redundant String Operations in Lists
 **Learning:** Extracting derived content (like markdown previews or titles) inside a list item component forces heavy string parsing on every render of that component, which occurs on unrelated state changes (like hovering or selecting an item).
 **Action:** Use `useMemo` to wrap derived string or markdown parsing operations inside list item components so they only run when the actual text content changes.
+
+## 2024-05-24 - String.prototype.localeCompare on ISO Dates
+**Learning:** Using `String.prototype.localeCompare()` to sort ISO-8601 date strings introduces significant, unnecessary overhead because `localeCompare` performs complex locale-aware collation rules that are completely redundant for predictable ISO strings.
+**Action:** When sorting arrays by ISO-8601 date strings, always use direct lexicographical operators (`a > b ? 1 : a < b ? -1 : 0`) instead of `localeCompare()`.
