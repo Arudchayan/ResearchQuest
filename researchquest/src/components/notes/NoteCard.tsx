@@ -68,6 +68,19 @@ export const NoteCard = React.memo(function NoteCard({
         {note.markdown_body || "No content..."}
       </p>
 
+      {note.tags && note.tags.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-2">
+          {note.tags.map((tag) => (
+            <span
+              key={tag}
+              className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700"
+            >
+              #{tag}
+            </span>
+          ))}
+        </div>
+      )}
+
       <div className="flex items-center gap-2 text-[10px] text-slate-400">
         <Clock className="w-3 h-3" />
         <span>
