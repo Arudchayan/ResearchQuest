@@ -48,6 +48,7 @@ export function NotesView() {
   } = useNotes(userId);
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { confirm, isOpen, config } = useConfirmDialog();
@@ -63,22 +64,37 @@ export function NotesView() {
     };
   }, []);
 
+  const allTags = useMemo(() => {
+    const tags = new Set<string>();
+    notes.forEach((note) => {
+      if (note.tags && Array.isArray(note.tags)) {
+        note.tags.forEach((tag) => tags.add(tag));
+      }
+    });
+    return Array.from(tags).sort();
+  }, [notes]);
+
   const filteredNotes = useMemo(() => {
-    // Optimization: Skip filtering if query is empty
-    if (!searchQuery) return notes;
+    let filtered = notes;
+
+    if (selectedTag) {
+      filtered = filtered.filter(
+        (note) => note.tags && note.tags.includes(selectedTag)
+      );
+    }
+
+    if (!searchQuery) return filtered;
     
-    // Optimization: Use Regex for case-insensitive matching to avoid allocating lowercased strings
-    // for large markdown bodies on every render.
     const escapedQuery = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const regex = new RegExp(escapedQuery, "i");
     
-    return notes.filter((note) => {
+    return filtered.filter((note) => {
       return (
         (note.title && regex.test(note.title)) ||
         (note.markdown_body && regex.test(note.markdown_body))
       );
     });
-  }, [notes, searchQuery]);
+  }, [notes, searchQuery, selectedTag]);
 
   const handleCreateNote = async () => {
     setIsCreating(true);
@@ -296,6 +312,24 @@ export function NotesView() {
               </button>
             )}
           </div>
+
+          {allTags.length > 0 && (
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+              {allTags.map((tag) => (
+                <button
+                  key={tag}
+                  onClick={() => setSelectedTag((t) => (t === tag ? null : tag))}
+                  className={`px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap border transition-colors ${
+                    selectedTag === tag
+                      ? "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-800"
+                      : "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700 dark:hover:bg-slate-700"
+                  }`}
+                >
+                  #{tag}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto">
