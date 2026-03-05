@@ -182,7 +182,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
         } catch (unsubscribeError) {
           console.error(
             "Failed to unsubscribe from Supabase channel",
-            unsubscribeError,
+            unsubscribeError instanceof Error ? unsubscribeError.message : "Unknown error",
           );
         }
       });
@@ -203,7 +203,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
       }
 
       if (error) {
-        console.error("Failed to fetch today's XP:", error);
+        console.error("Failed to fetch today's XP:", error instanceof Error ? error.message : "Unknown error");
         return;
       }
 
@@ -236,7 +236,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
       }
 
       if (error) {
-        console.error("Failed to load upcoming deadlines:", error);
+        console.error("Failed to load upcoming deadlines:", error instanceof Error ? error.message : "Unknown error");
         return;
       }
 
@@ -263,7 +263,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
       }
 
       if (error) {
-        console.error("Failed to get user:", error);
+        console.error("Failed to get user:", error instanceof Error ? error.message : "Unknown error");
         return;
       }
 

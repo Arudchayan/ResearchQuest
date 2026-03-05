@@ -45,7 +45,7 @@ export function TopNav() {
       if (error) throw error;
       toast.success("Signed out");
     } catch (error: any) {
-      console.error("Failed to sign out", error);
+      console.error("Failed to sign out", error instanceof Error ? error.message : "Unknown error");
       toast.error(error?.message ?? "Could not sign out. Please try again.");
     } finally {
       setSigningOut(false);
