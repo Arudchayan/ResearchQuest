@@ -92,7 +92,7 @@ export function RightSidebar() {
         try {
           channel.unsubscribe();
         } catch (error) {
-          console.error("Failed to unsubscribe from Supabase channel", error);
+          console.error("Failed to unsubscribe from Supabase channel", error instanceof Error ? error.message : "Unknown error");
         }
       });
       realtimeChannelsRef.current = [];
@@ -112,7 +112,7 @@ export function RightSidebar() {
       }
 
       if (error) {
-        console.error("Failed to fetch today's XP:", error);
+        console.error("Failed to fetch today's XP:", error instanceof Error ? error.message : "Unknown error");
         return;
       }
 
@@ -134,7 +134,7 @@ export function RightSidebar() {
       }
 
       if (error) {
-        console.error("Failed to fetch weekly paper count:", error);
+        console.error("Failed to fetch weekly paper count:", error instanceof Error ? error.message : "Unknown error");
         return;
       }
 
@@ -153,7 +153,7 @@ export function RightSidebar() {
       }
 
       if (error) {
-        console.error("Failed to fetch active ideas count:", error);
+        console.error("Failed to fetch active ideas count:", error instanceof Error ? error.message : "Unknown error");
         return;
       }
 
@@ -182,7 +182,7 @@ export function RightSidebar() {
       }
 
       if (error) {
-        console.error("Failed to load upcoming deadlines:", error);
+        console.error("Failed to load upcoming deadlines:", error instanceof Error ? error.message : "Unknown error");
         return;
       }
 
@@ -336,7 +336,7 @@ export function RightSidebar() {
             window.history.pushState(null, "", `/notes/${itemId}`);
           }
         } catch (error) {
-          console.error("Error navigating to note:", error);
+          console.error("Error navigating to note:", error instanceof Error ? error.message : "Unknown error");
         }
       };
       void fetchNote();
@@ -355,7 +355,7 @@ export function RightSidebar() {
             window.history.pushState(null, "", `/papers/${itemId}`);
           }
         } catch (error) {
-          console.error("Error navigating to paper:", error);
+          console.error("Error navigating to paper:", error instanceof Error ? error.message : "Unknown error");
         }
       };
       void fetchPaper();
@@ -374,7 +374,7 @@ export function RightSidebar() {
             window.history.pushState(null, "", `/ideas/${itemId}`);
           }
         } catch (error) {
-          console.error("Error navigating to idea:", error);
+          console.error("Error navigating to idea:", error instanceof Error ? error.message : "Unknown error");
         }
       };
       void fetchIdea();

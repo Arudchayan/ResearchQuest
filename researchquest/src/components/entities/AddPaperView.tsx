@@ -157,7 +157,7 @@ export function AddPaperView({
         setTimeout(() => setSuccessMessage(""), 4000);
       }
     } catch (error) {
-      console.error("Failed to add paper:", error);
+      console.error("Failed to add paper:", error instanceof Error ? error.message : "Unknown error");
       setError(
         `Failed to add paper: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
@@ -212,7 +212,7 @@ export function AddPaperView({
         setTimeout(() => setSuccessMessage(""), 4000);
       }
     } catch (error) {
-      console.error("Failed to add paper:", error);
+      console.error("Failed to add paper:", error instanceof Error ? error.message : "Unknown error");
       setError(
         `Failed to add paper: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
@@ -264,7 +264,7 @@ export function AddPaperView({
         setTimeout(() => setSuccessMessage(""), 4000);
       }
     } catch (error) {
-      console.error("Failed to add paper:", error);
+      console.error("Failed to add paper:", error instanceof Error ? error.message : "Unknown error");
       setError(
         `Failed to add paper: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
@@ -312,7 +312,7 @@ export function AddPaperView({
         setSelectedEntryIds(new Set(entries.map((e) => e.id)));
       }
     } catch (err) {
-      console.error("Failed to parse file:", err);
+      console.error("Failed to parse file:", err instanceof Error ? err.message : "Unknown error");
       setError("Failed to parse BibTeX file.");
     } finally {
       setLoading(false);
@@ -349,7 +349,7 @@ export function AddPaperView({
         await onAdd(buildPaperPayloadFromBibTeX(entry));
         successCount++;
       } catch (err) {
-        console.error(`Failed to import paper ${entry.title}:`, err);
+        console.error(`Failed to import paper ${entry.title}:`, err instanceof Error ? err.message : "Unknown error");
         failedCount++;
       }
       setImportProgress({
