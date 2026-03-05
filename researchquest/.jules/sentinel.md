@@ -1,4 +1,5 @@
-## 2024-05-20 - Prevent Sensitive Information Leakage in Console Output
-**Vulnerability:** Supabase and database-related errors (e.g., `PostgrestError`) were being passed directly to `console.error` in catch blocks (e.g., `console.error('Failed to fetch:', error)`).
-**Learning:** Passing entire error objects from database operations or network requests to client-side logging (like `console.error`) can inadvertently expose sensitive internal details. Supabase errors often contain fields like `details`, `hint`, `code`, and sometimes internal stack traces or connection details that should not be visible in the user's browser console.
-**Prevention:** Always extract safely sanitizable parts of the error object, such as `error.message`, before logging to the console. Use a pattern like `console.error('Error message:', (error as Error)?.message || 'Unknown error')` to ensure only the general error description is logged without exposing the full object payload.
+## 2024-05-24 - Stop console.error from leaking raw error objects
+
+**Vulnerability:** Many components like `AddPaperView`, `LeftSidebar`, and `RightSidebar` were catching errors and logging the raw `error` object using `console.error("...", error)`.
+**Learning:** This is an information disclosure vulnerability. If an error is an instance of `PostgrestError` (Supabase API error) or a low-level library error, the full object can leak database schema details, API keys embedded in request configs, or stack traces directly to the client's console.
+**Prevention:** Always sanitize the error object before logging it to the console on the frontend. Use the pattern `error instanceof Error ? error.message : "Unknown error"` when calling `console.error()`, or ideally use the `logger` wrapper in `src/utils/logger.ts` which is designed to handle this in a structured way.
