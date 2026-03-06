@@ -168,8 +168,11 @@ export function ShortcutsDialog() {
                 Keyboard Shortcuts
               </Dialog.Title>
             </div>
-            <Dialog.Close className="p-2 hover:bg-bg-elevated rounded-full transition-colors">
-              <X className="w-5 h-5 text-text-tertiary" />
+            <Dialog.Close
+              className="p-2 hover:bg-bg-elevated rounded-full transition-colors"
+              aria-label="Close dialog"
+            >
+              <X className="w-5 h-5 text-text-tertiary" aria-hidden="true" />
             </Dialog.Close>
           </div>
 
