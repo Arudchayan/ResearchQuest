@@ -301,9 +301,9 @@ export function useTopics(userId: string | undefined) {
     const existingActive = quests.find((quest) => quest.status === "active");
     if (existingActive) return;
 
-    const sortedTopics = [...topics].sort(
-      (a, b) =>
-        new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime(),
+    const sortedTopics = [...topics].sort((a, b) =>
+      // Optimization: Use direct string comparison for ISO dates
+      a.updated_at > b.updated_at ? 1 : a.updated_at < b.updated_at ? -1 : 0
     );
     const targetTopic = sortedTopics[0];
     const objective = `Review and enrich "${targetTopic.name}"`;
