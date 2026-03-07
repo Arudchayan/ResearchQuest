@@ -97,8 +97,8 @@ export function Sidebar() {
 
   return (
     <aside className="w-64 bg-slate-50 dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col h-full transition-colors duration-300">
-      <div className="p-6">
-        <div className="flex items-center gap-3 text-blue-600 dark:text-blue-400">
+      <div className="p-6 pb-4">
+        <div className="flex items-center gap-3 text-blue-600 dark:text-blue-400 mb-6">
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-lg">
             RQ
           </div>
@@ -106,6 +106,20 @@ export function Sidebar() {
             ResearchQuest
           </span>
         </div>
+
+        <button
+          onClick={handleOpenSearch}
+          className="w-full flex items-center justify-between px-3 py-2 rounded-md bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:border-slate-300 dark:hover:border-slate-700 transition-colors shadow-sm"
+          aria-label="Search or type a command"
+        >
+          <div className="flex items-center gap-2">
+            <Search className="w-4 h-4" />
+            <span>Search...</span>
+          </div>
+          <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-medium text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 rounded-md border border-slate-200 dark:border-slate-700">
+            <span className="mr-0.5">⌘</span>K
+          </kbd>
+        </button>
       </div>
 
 
