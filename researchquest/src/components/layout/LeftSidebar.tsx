@@ -9,6 +9,7 @@ import {
   X,
 } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
+import { useShallow } from "zustand/react/shallow";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "../../lib/supabase";
@@ -88,17 +89,32 @@ function parseQuickIdeaInput(
 }
 
 export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
+  // ⚡ PERFORMANCE OPTIMIZATION:
+  // Using useShallow to prevent unnecessary re-renders of the entire LeftSidebar
+  // when unrelated properties in the global appStore change.
   const {
     currentView,
     setCurrentView,
-    setUser: setUserProfile,
+    setUserProfile,
     setSelectedNote,
     setSelectedPaper,
     setSelectedIdea,
     selectedNote,
     selectedPaper,
     selectedIdea,
-  } = useAppStore();
+  } = useAppStore(
+    useShallow((state) => ({
+      currentView: state.currentView,
+      setCurrentView: state.setCurrentView,
+      setUserProfile: state.setUser,
+      setSelectedNote: state.setSelectedNote,
+      setSelectedPaper: state.setSelectedPaper,
+      setSelectedIdea: state.setSelectedIdea,
+      selectedNote: state.selectedNote,
+      selectedPaper: state.selectedPaper,
+      selectedIdea: state.selectedIdea,
+    }))
+  );
   const activeBoost = useGamificationStore((state) => state.activeBoost);
   const boostCountdown = useGamificationStore((state) => state.boostCountdown);
   const hydrateFromProfile = useGamificationStore(
