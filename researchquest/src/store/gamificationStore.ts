@@ -123,7 +123,10 @@ export const useGamificationStore = create<GamificationState>((set, get) => {
         .eq("id", userId);
 
       if (error) {
-        console.error("Failed to activate boost", error);
+        console.error(
+          "Failed to activate boost:",
+          error.message || "Unknown error",
+        );
         return;
       }
 
@@ -142,7 +145,10 @@ export const useGamificationStore = create<GamificationState>((set, get) => {
         .eq("id", userId);
 
       if (error) {
-        console.error("Failed to consume streak freeze token", error);
+        console.error(
+          "Failed to consume streak freeze token:",
+          error.message || "Unknown error",
+        );
         return false;
       }
 
@@ -161,7 +167,10 @@ export const useGamificationStore = create<GamificationState>((set, get) => {
         .eq("id", userId);
 
       if (error) {
-        console.error("Failed to consume rest day", error);
+        console.error(
+          "Failed to consume rest day:",
+          error.message || "Unknown error",
+        );
         return false;
       }
 
