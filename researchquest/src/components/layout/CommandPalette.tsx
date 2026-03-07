@@ -59,8 +59,17 @@ export function CommandPalette() {
       }
     };
 
+    const handleOpenCommandPalette = () => {
+      setOpen(true);
+    };
+
     document.addEventListener("keydown", down);
-    return () => document.removeEventListener("keydown", down);
+    document.addEventListener("open-command-palette", handleOpenCommandPalette);
+
+    return () => {
+      document.removeEventListener("keydown", down);
+      document.removeEventListener("open-command-palette", handleOpenCommandPalette);
+    };
   }, []);
 
   // Navigation handlers using App's custom routing
