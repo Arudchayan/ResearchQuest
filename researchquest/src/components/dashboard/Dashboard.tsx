@@ -13,10 +13,13 @@ import {
   CheckSquare,
 } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
+import { useShallow } from "zustand/react/shallow";
 import { getLevelTitle } from "../../utils/gamification";
 import { ListSkeleton } from "../ui/Skeleton";
 
 export function Dashboard() {
+  // Optimization: Use useShallow to select only needed state to prevent
+  // unnecessary re-renders when other parts of the app store update
   const {
     user,
     notes,
@@ -28,7 +31,20 @@ export function Dashboard() {
     setCurrentView,
     setSelectedNote,
     setSelectedPaper,
-  } = useAppStore();
+  } = useAppStore(
+    useShallow((state) => ({
+      user: state.user,
+      notes: state.notes,
+      papers: state.papers,
+      tasks: state.tasks,
+      notesLoading: state.notesLoading,
+      papersLoading: state.papersLoading,
+      tasksLoading: state.tasksLoading,
+      setCurrentView: state.setCurrentView,
+      setSelectedNote: state.setSelectedNote,
+      setSelectedPaper: state.setSelectedPaper,
+    }))
+  );
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
