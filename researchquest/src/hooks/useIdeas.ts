@@ -1,3 +1,4 @@
+import { logger } from "../utils/logger";
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import { awardXP, XP_REWARDS } from "../utils/gamification";
@@ -155,7 +156,7 @@ export function useIdeas(userId: string | undefined) {
       setIdeas([createdIdea, ...useAppStore.getState().ideas]);
 
       awardXP(userId, XP_REWARDS.CREATE_IDEA, "create_idea").catch(
-        console.error,
+        (err) => logger.error("Failed to award XP", err),
       );
 
       return createdIdea;
@@ -338,7 +339,7 @@ export function useIdeas(userId: string | undefined) {
             userId,
             XP_REWARDS.ADVANCE_IDEA_STAGE,
             "advance_idea_stage",
-          ).catch(console.error);
+          ).catch((err) => logger.error("Failed to award XP", err));
         }
       }
 
