@@ -130,7 +130,7 @@ export function Sidebar() {
             )}
             aria-current={currentView === item.id ? "page" : undefined}
           >
-            <item.icon className="w-5 h-5" />
+            <item.icon className="w-5 h-5" aria-hidden="true" />
             {item.label}
           </a>
         ))}
@@ -149,7 +149,7 @@ export function Sidebar() {
                 className="text-slate-400 hover:text-blue-500"
                 aria-label="Learn about XP and Levels"
               >
-                <HelpCircle className="w-3.5 h-3.5" />
+                <HelpCircle className="w-3.5 h-3.5" aria-hidden="true" />
               </button>
             </div>
             <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden mb-1">
@@ -174,14 +174,14 @@ export function Sidebar() {
             aria-label="User profile"
           >
             <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-              <User className="w-4 h-4" />
+              <User className="w-4 h-4" aria-hidden="true" />
             </div>
             <div className="text-xs">
               <span className="block font-medium text-slate-900 dark:text-white truncate max-w-[80px]">
                 User
               </span>
               <span className="flex items-center gap-1 text-slate-500">
-                <Flame className="w-3 h-3 text-orange-500" />{" "}
+                <Flame className="w-3 h-3 text-orange-500" aria-hidden="true" />{" "}
                 {user?.current_streak || 0}
               </span>
             </div>
@@ -193,7 +193,7 @@ export function Sidebar() {
               aria-label="Keyboard Shortcuts"
               title="Keyboard Shortcuts"
             >
-              <Keyboard className="w-4 h-4" />
+              <Keyboard className="w-4 h-4" aria-hidden="true" />
             </button>
             <button
               onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
@@ -206,9 +206,9 @@ export function Sidebar() {
               title="Toggle Context Panel"
             >
               {isRightSidebarOpen ? (
-                <PanelRightClose className="w-4 h-4" />
+                <PanelRightClose className="w-4 h-4" aria-hidden="true" />
               ) : (
-                <PanelRightOpen className="w-4 h-4" />
+                <PanelRightOpen className="w-4 h-4" aria-hidden="true" />
               )}
             </button>
             <button
@@ -217,7 +217,7 @@ export function Sidebar() {
               aria-label="Enter Zen Mode"
               title="Enter Zen Mode (Ctrl+Shift+F)"
             >
-              <Maximize2 className="w-4 h-4" />
+              <Maximize2 className="w-4 h-4" aria-hidden="true" />
             </button>
             <button
               onClick={toggleTheme}
@@ -229,9 +229,9 @@ export function Sidebar() {
               }
             >
               {effectiveTheme === "light" ? (
-                <Moon className="w-4 h-4" />
+                <Moon className="w-4 h-4" aria-hidden="true" />
               ) : (
-                <Sun className="w-4 h-4" />
+                <Sun className="w-4 h-4" aria-hidden="true" />
               )}
             </button>
           </div>
@@ -241,7 +241,7 @@ export function Sidebar() {
           onClick={() => setShowDataDialog(true)}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 transition-colors"
         >
-          <Database className="w-5 h-5" />
+          <Database className="w-5 h-5" aria-hidden="true" />
           Data & Backup
         </button>
 
@@ -249,7 +249,7 @@ export function Sidebar() {
           onClick={handleLogout}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 transition-colors"
         >
-          <LogOut className="w-5 h-5" />
+          <LogOut className="w-5 h-5" aria-hidden="true" />
           Sign Out
         </button>
       </div>
