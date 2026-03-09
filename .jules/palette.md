@@ -29,3 +29,7 @@
 ## 2025-02-23 - Empty State Accessibility & Labeling
 **Learning:** Empty states are opportunities for delight and guidance. Using `role="status"` and `aria-live="polite"` ensures screen readers announce the state change (e.g., after filtering). Crucially, adding `aria-label` to a button overrides its visible text content, which can confuse testing libraries looking for the visible name.
 **Action:** Enhance empty states with icons and actionable buttons. Avoid redundant `aria-label` on buttons that already have descriptive visible text.
+
+## 2026-03-09 - Decorative Icon Accessibility
+**Learning:** Decorative icons (like those from `lucide-react`) placed alongside visible text or within buttons with `aria-label` attributes create redundant noise for screen readers if not explicitly hidden.
+**Action:** Always append `aria-hidden="true"` to decorative icons to ensure screen readers only announce the meaningful, associated text or accessible labels.
