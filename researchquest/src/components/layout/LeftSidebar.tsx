@@ -30,6 +30,7 @@ import { formatTimeUntil } from "../../utils/time";
 import { toast } from "sonner";
 import { FocusStudioWidget } from "./FocusStudioWidget";
 import { AddIdeaDialog } from "../ideas/AddIdeaDialog";
+import { useShallow } from "zustand/react/shallow";
 
 const TABS = [
   { id: "notes" as const, label: "Notes", icon: FileText },
@@ -91,14 +92,26 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   const {
     currentView,
     setCurrentView,
-    setUser: setUserProfile,
+    setUserProfile,
     setSelectedNote,
     setSelectedPaper,
     setSelectedIdea,
     selectedNote,
     selectedPaper,
     selectedIdea,
-  } = useAppStore();
+  } = useAppStore(
+    useShallow((state) => ({
+      currentView: state.currentView,
+      setCurrentView: state.setCurrentView,
+      setUserProfile: state.setUser,
+      setSelectedNote: state.setSelectedNote,
+      setSelectedPaper: state.setSelectedPaper,
+      setSelectedIdea: state.setSelectedIdea,
+      selectedNote: state.selectedNote,
+      selectedPaper: state.selectedPaper,
+      selectedIdea: state.selectedIdea,
+    }))
+  );
   const activeBoost = useGamificationStore((state) => state.activeBoost);
   const boostCountdown = useGamificationStore((state) => state.boostCountdown);
   const hydrateFromProfile = useGamificationStore(
