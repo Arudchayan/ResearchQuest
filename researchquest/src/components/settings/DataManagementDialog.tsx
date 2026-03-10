@@ -1,3 +1,4 @@
+import { logger } from "../../utils/logger";
 import { useState, useRef } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Tabs from "@radix-ui/react-tabs";
@@ -120,7 +121,7 @@ export function DataManagementDialog({
         topics: !!data.topics?.length,
       });
     } catch (err) {
-      console.error("Parse error", err);
+      logger.error("Parse error", err);
       toast.error("Failed to parse JSON file");
       setImportFile(null);
     }
@@ -206,7 +207,7 @@ export function DataManagementDialog({
 
       onClose();
     } catch (err) {
-      console.error("Import failed", err);
+      logger.error("Import failed", err);
       toast.error(
         "Import failed: " +
           (err instanceof Error ? err.message : "Unknown error"),
