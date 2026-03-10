@@ -58,6 +58,7 @@ const IdeaCardComponent = ({
 
   return (
     <div
+      role="button"
       onClick={() => onSelect(idea)}
       onKeyDown={handleKeyDown}
       tabIndex={0}
