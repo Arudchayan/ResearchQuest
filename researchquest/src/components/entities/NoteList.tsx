@@ -52,6 +52,7 @@ const NoteCardComponent = ({
 
   return (
     <div
+      role="button"
       onClick={handleSelect}
       onKeyDown={handleKeyDown}
       tabIndex={0}

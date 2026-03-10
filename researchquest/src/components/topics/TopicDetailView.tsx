@@ -1,9 +1,11 @@
 import { ConfirmDialog, useConfirmDialog } from "../ui/ConfirmDialog";
+import { logger } from "../../utils/logger";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "../../lib/supabase";
 import { useAppStore } from "../../store/appStore";
 import type { TopicWithCounts, Note, Paper, Idea } from "../../types/database";
+import { deriveTitleFromMarkdown } from "../../utils/text";
 import {
   Pencil,
   Save,
@@ -74,7 +76,7 @@ export function TopicDetailView({
         .eq("topic_id", topic.id);
 
       if (error) {
-        console.error(`Failed to load ${table}:`, error);
+        logger.error(`Failed to load ${table}`, error);
         return [];
       }
 
@@ -194,7 +196,7 @@ export function TopicDetailView({
         onConfirm={config.onConfirm!}
         onCancel={config.onCancel!}
       />
-    <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-6">
+      <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-6">
       <div className="bg-bg-surface border border-border-subtle rounded-xl shadow-sm p-4 sm:p-6 space-y-4">
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
           <div className="flex-1 space-y-2">
@@ -352,8 +354,7 @@ export function TopicDetailView({
                             {"title" in item && item.title
                               ? item.title
                               : label === "Notes"
-                                ? (item as Note).markdown_body.split("\n")[0] ||
-                                  "Untitled note"
+                                ? deriveTitleFromMarkdown((item as Note).markdown_body)
                                 : "Untitled"}
                           </p>
                           <p className="text-caption text-text-secondary line-clamp-2">
