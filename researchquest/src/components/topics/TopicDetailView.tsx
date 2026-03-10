@@ -1,3 +1,4 @@
+import { logger } from "../../utils/logger";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "../../lib/supabase";
@@ -72,7 +73,7 @@ export function TopicDetailView({
         .eq("topic_id", topic.id);
 
       if (error) {
-        console.error(`Failed to load ${table}:`, error);
+        logger.error(`Failed to load ${table}`, error);
         return [];
       }
 

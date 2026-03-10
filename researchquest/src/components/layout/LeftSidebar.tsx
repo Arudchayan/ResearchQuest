@@ -1,3 +1,4 @@
+import { logger } from "../../utils/logger";
 import {
   FileText,
   BookOpen,
@@ -180,7 +181,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
         try {
           channel.unsubscribe();
         } catch (unsubscribeError) {
-          console.error(
+          logger.error(
             "Failed to unsubscribe from Supabase channel",
             unsubscribeError instanceof Error ? unsubscribeError.message : "Unknown error",
           );
@@ -203,7 +204,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
       }
 
       if (error) {
-        console.error("Failed to fetch today's XP:", error instanceof Error ? error.message : "Unknown error");
+        logger.error("Failed to fetch today's XP:", error instanceof Error ? error.message : "Unknown error");
         return;
       }
 
@@ -236,7 +237,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
       }
 
       if (error) {
-        console.error("Failed to load upcoming deadlines:", error instanceof Error ? error.message : "Unknown error");
+        logger.error("Failed to load upcoming deadlines:", error instanceof Error ? error.message : "Unknown error");
         return;
       }
 
@@ -263,7 +264,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
       }
 
       if (error) {
-        console.error("Failed to get user:", error instanceof Error ? error.message : "Unknown error");
+        logger.error("Failed to get user:", error instanceof Error ? error.message : "Unknown error");
         return;
       }
 

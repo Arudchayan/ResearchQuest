@@ -1,3 +1,4 @@
+import { logger } from "../../utils/logger";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Tabs from "@radix-ui/react-tabs";
 import { X, Copy, Check } from "lucide-react";
@@ -68,7 +69,7 @@ export function CitationDialog({
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       toast.error("Failed to copy to clipboard");
-      console.error("Clipboard error:", err);
+      logger.error("Clipboard error", err);
     }
   };
 
