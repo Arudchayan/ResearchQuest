@@ -10,6 +10,7 @@ import {
   X,
 } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
+import { useShallow } from "zustand/react/shallow";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "../../lib/supabase";
@@ -91,6 +92,9 @@ function parseQuickIdeaInput(
 }
 
 export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
+  // ⚡ PERFORMANCE OPTIMIZATION:
+  // Using useShallow to prevent unnecessary re-renders of the entire LeftSidebar
+  // when unrelated properties in the global appStore change.
   const {
     currentView,
     setCurrentView,

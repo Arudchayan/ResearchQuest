@@ -13,11 +13,15 @@ import {
   CheckSquare,
 } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
+import { useShallow } from "zustand/react/shallow";
 import { getLevelTitle } from "../../utils/gamification";
 import { ListSkeleton } from "../ui/Skeleton";
 import { useShallow } from "zustand/react/shallow";
 
 export function Dashboard() {
+  // ⚡ PERFORMANCE OPTIMIZATION:
+  // Using useShallow to prevent unnecessary re-renders of the entire Dashboard
+  // when unrelated properties in the global appStore change.
   const {
     user,
     notes,
