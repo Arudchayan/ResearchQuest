@@ -42,10 +42,9 @@ export function IdeasOverview({
       (acc, currentStage) => {
         acc[currentStage] = ideas
           .filter((idea) => idea.stage === currentStage)
-          .sort(
-            (a, b) =>
-              new Date(b.updated_at).getTime() -
-              new Date(a.updated_at).getTime(),
+          .sort((a, b) =>
+            // Optimization: Use direct string comparison for ISO dates
+            b.updated_at > a.updated_at ? 1 : b.updated_at < a.updated_at ? -1 : 0
           );
         return acc;
       },

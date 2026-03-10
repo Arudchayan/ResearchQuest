@@ -32,11 +32,6 @@ describe("TopicList", () => {
 
   beforeEach(() => {
     useAppStore.setState({ selectedTopic: null });
-    vi.spyOn(window, "confirm").mockReturnValue(true);
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
   });
 
   it("renders topics and highlights the selected one", () => {
@@ -104,8 +99,15 @@ describe("TopicList", () => {
     const deleteButton = screen.getAllByTitle("Delete topic")[0];
     fireEvent.click(deleteButton);
 
-    expect(window.confirm).toHaveBeenCalled();
-    expect(handleDelete).toHaveBeenCalledWith("topic-1");
+    // Wait for ConfirmDialog to appear and click confirm
+    const confirmButton = await screen.findByRole("button", { name: "Delete" });
+    fireEvent.click(confirmButton);
+
+    // Wait for the async click handler and the delete promise
+    await vi.waitFor(() => {
+      expect(handleDelete).toHaveBeenCalledWith("topic-1");
+    });
+
     expect(handleSelect).not.toHaveBeenCalled();
   });
 });

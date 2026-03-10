@@ -1,3 +1,4 @@
+import { logger } from "../../utils/logger";
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import {
   Plus,
@@ -216,7 +217,7 @@ export function PapersView() {
         `Exported ${filteredPapers.length} papers as ${format.toUpperCase()}`,
       );
     } catch (err) {
-      console.error("Export failed:", err);
+      logger.error("Export failed", err);
       toast.error("Failed to export papers");
     }
   };

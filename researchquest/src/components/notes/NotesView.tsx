@@ -1,3 +1,4 @@
+import { logger } from "../../utils/logger";
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import {
   Plus,
@@ -218,7 +219,7 @@ export function NotesView() {
         `Exported ${filteredNotes.length} notes as ${format.toUpperCase()}`,
       );
     } catch (err) {
-      console.error("Export failed:", err);
+      logger.error("Export failed", err);
       toast.error("Failed to export notes");
     }
   };

@@ -18,8 +18,9 @@ import { getLevelTitle } from "../../utils/gamification";
 import { ListSkeleton } from "../ui/Skeleton";
 
 export function Dashboard() {
-  // Optimization: Use useShallow to select only needed state to prevent
-  // unnecessary re-renders when other parts of the app store update
+  // ⚡ PERFORMANCE OPTIMIZATION:
+  // Using useShallow to prevent unnecessary re-renders of the entire Dashboard
+  // when unrelated properties in the global appStore change.
   const {
     user,
     notes,
