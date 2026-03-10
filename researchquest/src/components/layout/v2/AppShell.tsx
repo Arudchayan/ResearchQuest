@@ -1,7 +1,7 @@
 import { ReactNode, useEffect } from "react";
 import { Sidebar } from "./Sidebar";
 import { RightSidebar } from "../RightSidebar";
-import { Menu, X, Minimize2 } from "lucide-react";
+import { Menu, X, Minimize2, Search } from "lucide-react";
 import { useAppStore } from "../../../store/appStore";
 import { cn } from "../../../lib/utils";
 import { useShallow } from "zustand/react/shallow";
@@ -91,17 +91,26 @@ export function AppShell({ children }: AppShellProps) {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Mobile Header */}
+                {/* Mobile Header */}
         {!isZenMode && (
-          <header className="lg:hidden h-16 flex items-center px-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 shrink-0">
+          <header className="lg:hidden h-16 flex items-center justify-between px-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 shrink-0">
+            <div className="flex items-center">
+              <button
+                onClick={() => setIsMobileSidebarOpen(true)}
+                className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 rounded-md"
+                aria-label="Open sidebar"
+              >
+                <Menu className="w-6 h-6" />
+              </button>
+              <span className="ml-3 font-semibold text-lg">ResearchQuest</span>
+            </div>
             <button
-              onClick={() => setIsMobileSidebarOpen(true)}
-              className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 rounded-md"
-              aria-label="Open sidebar"
+              onClick={() => document.dispatchEvent(new CustomEvent('open-command-palette'))}
+              className="p-2 -mr-2 text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 rounded-md"
+              aria-label="Open search"
             >
-              <Menu className="w-6 h-6" />
+              <Search className="w-5 h-5" />
             </button>
-            <span className="ml-3 font-semibold text-lg">ResearchQuest</span>
           </header>
         )}
 

@@ -1,3 +1,4 @@
+import { logger } from "../../utils/logger";
 import {
   FileText,
   BookOpen,
@@ -9,6 +10,7 @@ import {
   X,
 } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
+import { useShallow } from "zustand/react/shallow";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "../../lib/supabase";
@@ -27,6 +29,7 @@ import type {
 } from "../../types/database";
 import { useGamificationStore } from "../../store/gamificationStore";
 import { formatTimeUntil } from "../../utils/time";
+import { deriveTitleFromMarkdown } from "../../utils/text";
 import { toast } from "sonner";
 import { FocusStudioWidget } from "./FocusStudioWidget";
 import { AddIdeaDialog } from "../ideas/AddIdeaDialog";
@@ -88,17 +91,32 @@ function parseQuickIdeaInput(
 }
 
 export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
+  // ⚡ PERFORMANCE OPTIMIZATION:
+  // Using useShallow to prevent unnecessary re-renders of the entire LeftSidebar
+  // when unrelated properties in the global appStore change.
   const {
     currentView,
     setCurrentView,
-    setUser: setUserProfile,
+    setUserProfile,
     setSelectedNote,
     setSelectedPaper,
     setSelectedIdea,
     selectedNote,
     selectedPaper,
     selectedIdea,
-  } = useAppStore();
+  } = useAppStore(
+    useShallow((state) => ({
+      currentView: state.currentView,
+      setCurrentView: state.setCurrentView,
+      setUserProfile: state.setUser,
+      setSelectedNote: state.setSelectedNote,
+      setSelectedPaper: state.setSelectedPaper,
+      setSelectedIdea: state.setSelectedIdea,
+      selectedNote: state.selectedNote,
+      selectedPaper: state.selectedPaper,
+      selectedIdea: state.selectedIdea,
+    }))
+  );
   const activeBoost = useGamificationStore((state) => state.activeBoost);
   const boostCountdown = useGamificationStore((state) => state.boostCountdown);
   const hydrateFromProfile = useGamificationStore(
@@ -180,7 +198,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
         try {
           channel.unsubscribe();
         } catch (unsubscribeError) {
-          console.error(
+          logger.error(
             "Failed to unsubscribe from Supabase channel",
             unsubscribeError instanceof Error ? unsubscribeError.message : "Unknown error",
           );
@@ -203,7 +221,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
       }
 
       if (error) {
-        console.error("Failed to fetch today's XP:", error instanceof Error ? error.message : "Unknown error");
+        logger.error("Failed to fetch today's XP:", error instanceof Error ? error.message : "Unknown error");
         return;
       }
 
@@ -236,7 +254,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
       }
 
       if (error) {
-        console.error("Failed to load upcoming deadlines:", error instanceof Error ? error.message : "Unknown error");
+        logger.error("Failed to load upcoming deadlines:", error instanceof Error ? error.message : "Unknown error");
         return;
       }
 
@@ -263,7 +281,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
       }
 
       if (error) {
-        console.error("Failed to get user:", error instanceof Error ? error.message : "Unknown error");
+        logger.error("Failed to get user:", error instanceof Error ? error.message : "Unknown error");
         return;
       }
 
@@ -475,7 +493,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
         return true;
       }
 
-      const title = note.title || note.markdown_body.split("\n")[0] || "";
+      const title = note.title || deriveTitleFromMarkdown(note.markdown_body) || "";
       const tags = (note.tags || []).join(" ");
       return (
         title.toLowerCase().includes(normalizedQuery) ||

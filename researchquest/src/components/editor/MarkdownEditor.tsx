@@ -24,7 +24,10 @@ import {
   AlignLeft,
   Clock,
   Printer,
+  Copy,
+  ClipboardList,
 } from "lucide-react";
+import { toast } from "sonner";
 import { useShallow } from "zustand/react/shallow";
 import { useAppStore } from "../../store/appStore";
 import { TopicSelector } from "../topics/TopicSelector";
@@ -328,6 +331,45 @@ export function MarkdownEditor() {
     },
     [applyListFormatting, applyWrappedFormatting],
   );
+
+  const handleCopyMarkdown = useCallback(() => {
+    if (!content) return;
+    navigator.clipboard.writeText(content).then(() => {
+      toast.success("Markdown copied to clipboard");
+    }).catch(() => {
+      toast.error("Failed to copy Markdown");
+    });
+  }, [content]);
+
+  const handleCopyRichText = useCallback(() => {
+    const previewElement = previewRef.current;
+    if (!previewElement) {
+      toast.error("Preview must be visible to copy rich text");
+      return;
+    }
+
+    const html = previewElement.innerHTML;
+    const text = previewElement.innerText;
+
+    try {
+      const clipboardItem = new ClipboardItem({
+        "text/html": new Blob([html], { type: "text/html" }),
+        "text/plain": new Blob([text], { type: "text/plain" }),
+      });
+      navigator.clipboard.write([clipboardItem]).then(() => {
+        toast.success("Rich text copied to clipboard");
+      }).catch(() => {
+        toast.error("Failed to copy rich text");
+      });
+    } catch (err) {
+      // Fallback for browsers that don't support ClipboardItem fully
+      navigator.clipboard.writeText(text).then(() => {
+        toast.success("Plain text copied (Rich text not supported by browser)");
+      }).catch(() => {
+        toast.error("Failed to copy text");
+      });
+    }
+  }, []);
 
   const handleExport = useCallback(() => {
     if (!content) return;
@@ -762,6 +804,28 @@ export function MarkdownEditor() {
             title="Inline code (Ctrl/Cmd+Shift+C)"
           >
             <Code className="w-4 h-4 text-text-secondary" aria-hidden="true" />
+          </button>
+          <div className="w-px h-6 bg-border-subtle mx-1" aria-hidden="true" />
+          <button
+            type="button"
+            onClick={handleCopyMarkdown}
+            className="p-2 rounded-md transition-colors hover:bg-bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
+            aria-label="Copy Markdown"
+            title="Copy Markdown"
+          >
+            <Copy className="w-4 h-4 text-text-secondary" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={handleCopyRichText}
+            className="p-2 rounded-md transition-colors hover:bg-bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
+            aria-label="Copy Rich Text"
+            title="Copy Rich Text"
+          >
+            <ClipboardList
+              className="w-4 h-4 text-text-secondary"
+              aria-hidden="true"
+            />
           </button>
           <div className="w-px h-6 bg-border-subtle mx-1" aria-hidden="true" />
           <button

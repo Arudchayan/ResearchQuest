@@ -1,3 +1,4 @@
+import { ConfirmDialog, useConfirmDialog } from "../ui/ConfirmDialog";
 import { Loader2, Trash2, Notebook, BookOpen, Lightbulb } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
 import type { TopicWithCounts } from "../../types/database";
@@ -17,6 +18,7 @@ export function TopicList({
   onDeleteTopic,
 }: TopicListProps) {
   const selectedTopic = useAppStore((state) => state.selectedTopic);
+  const { confirm: confirmDialog, isOpen, config } = useConfirmDialog();
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>, topic: TopicWithCounts) => {
@@ -48,6 +50,17 @@ export function TopicList({
   }
 
   return (
+    <>
+      <ConfirmDialog
+        isOpen={isOpen}
+        title={config.title || "Confirm Action"}
+        message={config.message || "Are you sure?"}
+        confirmText={config.confirmText}
+        cancelText={config.cancelText}
+        isDestructive={config.isDestructive}
+        onConfirm={config.onConfirm!}
+        onCancel={config.onCancel!}
+      />
     <div className="space-y-2">
       {topics.map((topic) => {
         const isActive = selectedTopic?.id === topic.id;
@@ -79,13 +92,15 @@ export function TopicList({
               <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
                   type="button"
-                  onClick={(event) => {
+                  onClick={async (event) => {
                     event.stopPropagation();
-                    if (
-                      confirm(
-                        `Delete "${topic.name}"? This will remove its links.`,
-                      )
-                    ) {
+                    const shouldDelete = await confirmDialog({
+                      title: "Delete Topic",
+                      message: `Delete "${topic.name}"? This will remove its links.`,
+                      confirmText: "Delete",
+                      isDestructive: true,
+                    });
+                    if (shouldDelete) {
                       void onDeleteTopic(topic.id);
                     }
                   }}
@@ -115,5 +130,6 @@ export function TopicList({
         );
       })}
     </div>
+    </>
   );
 }
