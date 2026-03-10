@@ -2,6 +2,7 @@ import { logger } from "../utils/logger";
 import { create } from "zustand";
 import { supabase } from "../lib/supabase";
 import type { ActiveBoost, UserProfile } from "../types/database";
+import { logger } from "../utils/logger";
 
 interface BoostConfig {
   type: string;
