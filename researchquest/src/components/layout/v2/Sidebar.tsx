@@ -17,6 +17,7 @@ import {
   PanelRightClose,
   Keyboard,
   LayoutDashboard,
+  Search,
   Maximize2,
 } from "lucide-react";
 import { useAppStore } from "../../../store/appStore";
@@ -82,6 +83,10 @@ export function Sidebar() {
     setTheme(newTheme);
   };
 
+  const handleOpenSearch = () => {
+    document.dispatchEvent(new CustomEvent("open-command-palette"));
+  };
+
   const handleOpenShortcuts = () => {
     document.dispatchEvent(new CustomEvent("open-shortcuts-help"));
   };
@@ -101,6 +106,21 @@ export function Sidebar() {
             ResearchQuest
           </span>
         </div>
+      </div>
+
+
+      <div className="px-4 pb-4">
+        <button
+          onClick={handleOpenSearch}
+          className="w-full flex items-center gap-2 px-3 py-2 bg-slate-200/50 dark:bg-slate-800/50 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-md text-sm transition-colors border border-slate-200 dark:border-slate-700/50"
+          aria-label="Search"
+        >
+          <Search className="w-4 h-4" />
+          <span className="flex-1 text-left">Search...</span>
+          <kbd className="hidden sm:inline-block text-[10px] font-medium text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">
+            {navigator.platform.includes("Mac") ? "⌘K" : "Ctrl+K"}
+          </kbd>
+        </button>
       </div>
 
       <nav className="flex-1 px-4 space-y-1">

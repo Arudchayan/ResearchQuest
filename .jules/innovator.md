@@ -16,3 +16,8 @@ Prevention: Always check if a component unmounts before setting state in async h
 Opportunity: Integrating XP rewards into the `FocusWorkspace` timer required careful testing of the completion callback.
 Learning: `FocusWorkspace` relies on `setInterval` for its timer. Testing this requires mocking hooks (`useNotes`, `useAppStore`) and `awardXP` function, along with using `vi.useFakeTimers()` to verify the exact moment of completion and subsequent XP award.
 Prevention: When adding features that depend on time-based logic, always use `fakeTimers` in tests to ensure deterministic execution and prevent flaky tests.
+
+2024-05-24 — Global Search Discoverability
+Opportunity: The Command Palette is a powerful feature for global search, but its discoverability was low as it was only accessible via keyboard shortcuts (Cmd/Ctrl+K).
+Learning: When migrating to a new layout (e.g., from v1 LeftSidebar to v2 Sidebar), visual affordances for core features like search can accidentally be dropped. Adding a persistent, clickable search button to the sidebar and mobile header that triggers the `open-command-palette` custom event significantly improves UX for non-power users.
+Prevention: Always audit visual affordances for core features during layout migrations. Ensure functionality accessible via keyboard shortcuts also has a visible UI trigger unless intentionally hidden.
