@@ -44,7 +44,7 @@
 
 ## 2026-02-14 - Efficient String Processing in Render
 **Learning:** Repeatedly calling `split('\n')` on large strings in a list render loop (e.g., to derive a title) causes massive memory churn and CPU overhead (O(N*M) where N is list size and M is content length).
-**Action:** Use a dedicated utility function that iterates to find the first line without splitting the entire string.
+**Action:** Use a dedicated utility function (`deriveTitleFromMarkdown`) consistently everywhere throughout the app instead of inline `split('\n')` to ensure optimal performance when handling markdown strings.
 
 ## 2026-02-14 - Debouncing Expensive Previews
 **Learning:** Real-time markdown previews (using `ReactMarkdown` or similar parsers) re-parse and re-render the entire document AST on every keystroke, causing significant input lag on large documents.
