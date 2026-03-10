@@ -1,3 +1,4 @@
+import { ConfirmDialog, useConfirmDialog } from "../ui/ConfirmDialog";
 import { logger } from "../../utils/logger";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -35,6 +36,7 @@ export function TopicDetailView({
   const [name, setName] = useState(topic.name);
   const [description, setDescription] = useState(topic.description || "");
   const [isEditing, setIsEditing] = useState(false);
+  const { confirm: confirmDialog, isOpen, config } = useConfirmDialog();
   const [loadingAssociations, setLoadingAssociations] = useState(false);
   const [notes, setNotes] = useState<Note[]>([]);
   const [papers, setPapers] = useState<Paper[]>([]);
@@ -117,13 +119,14 @@ export function TopicDetailView({
   };
 
   const handleDelete = async () => {
-    if (
-      !confirm(
-        "Delete this topic? This will remove its links to notes, papers, and ideas.",
-      )
-    ) {
-      return;
-    }
+    const shouldDelete = await confirmDialog({
+      title: "Delete Topic",
+      message: "Delete this topic? This will remove its links to notes, papers, and ideas.",
+      confirmText: "Delete",
+      isDestructive: true,
+    });
+    if (!shouldDelete) return;
+
     const success = await onDelete(topic.id);
     if (success) {
       toast.success("Topic deleted");
@@ -182,7 +185,18 @@ export function TopicDetailView({
   );
 
   return (
-    <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-6">
+    <>
+      <ConfirmDialog
+        isOpen={isOpen}
+        title={config.title || "Confirm Action"}
+        message={config.message || "Are you sure?"}
+        confirmText={config.confirmText}
+        cancelText={config.cancelText}
+        isDestructive={config.isDestructive}
+        onConfirm={config.onConfirm!}
+        onCancel={config.onCancel!}
+      />
+      <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-6">
       <div className="bg-bg-surface border border-border-subtle rounded-xl shadow-sm p-4 sm:p-6 space-y-4">
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
           <div className="flex-1 space-y-2">
@@ -368,5 +382,6 @@ export function TopicDetailView({
         </div>
       </div>
     </div>
+    </>
   );
 }
