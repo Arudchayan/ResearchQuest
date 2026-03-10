@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { supabase } from "../../lib/supabase";
 import { useAppStore } from "../../store/appStore";
 import type { TopicWithCounts, Note, Paper, Idea } from "../../types/database";
+import { deriveTitleFromMarkdown } from "../../utils/text";
 import {
   Pencil,
   Save,
@@ -338,8 +339,7 @@ export function TopicDetailView({
                             {"title" in item && item.title
                               ? item.title
                               : label === "Notes"
-                                ? (item as Note).markdown_body.split("\n")[0] ||
-                                  "Untitled note"
+                                ? deriveTitleFromMarkdown((item as Note).markdown_body)
                                 : "Untitled"}
                           </p>
                           <p className="text-caption text-text-secondary line-clamp-2">
