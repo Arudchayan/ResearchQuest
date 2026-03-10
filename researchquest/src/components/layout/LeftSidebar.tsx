@@ -33,7 +33,6 @@ import { deriveTitleFromMarkdown } from "../../utils/text";
 import { toast } from "sonner";
 import { FocusStudioWidget } from "./FocusStudioWidget";
 import { AddIdeaDialog } from "../ideas/AddIdeaDialog";
-import { useShallow } from "zustand/react/shallow";
 
 const TABS = [
   { id: "notes" as const, label: "Notes", icon: FileText },
