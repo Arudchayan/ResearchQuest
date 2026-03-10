@@ -15,6 +15,7 @@ import {
 import { useAppStore } from "../../store/appStore";
 import { getLevelTitle } from "../../utils/gamification";
 import { ListSkeleton } from "../ui/Skeleton";
+import { useShallow } from "zustand/react/shallow";
 
 export function Dashboard() {
   const {
@@ -28,7 +29,20 @@ export function Dashboard() {
     setCurrentView,
     setSelectedNote,
     setSelectedPaper,
-  } = useAppStore();
+  } = useAppStore(
+    useShallow((state) => ({
+      user: state.user,
+      notes: state.notes,
+      papers: state.papers,
+      tasks: state.tasks,
+      notesLoading: state.notesLoading,
+      papersLoading: state.papersLoading,
+      tasksLoading: state.tasksLoading,
+      setCurrentView: state.setCurrentView,
+      setSelectedNote: state.setSelectedNote,
+      setSelectedPaper: state.setSelectedPaper,
+    }))
+  );
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
