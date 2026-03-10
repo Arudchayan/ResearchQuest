@@ -1,3 +1,4 @@
+import { logger } from "../utils/logger";
 import { useState, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import { awardXP, XP_REWARDS } from "../utils/gamification";
@@ -110,7 +111,7 @@ export function useNotes(userId: string | undefined) {
       setNotes(sortByUpdatedAt([data, ...useAppStore.getState().notes]));
 
       awardXP(userId, XP_REWARDS.CREATE_NOTE, "create_note").catch(
-        console.error,
+        (err) => logger.error("Failed to award XP", err),
       );
 
       return data;
@@ -205,7 +206,7 @@ export function useNotes(userId: string | undefined) {
 
       if (userId) {
         awardXP(userId, XP_REWARDS.UPDATE_NOTE, "update_note").catch(
-          console.error,
+          (err) => logger.error("Failed to award XP", err),
         );
       }
 

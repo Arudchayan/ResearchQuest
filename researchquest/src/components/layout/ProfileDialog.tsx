@@ -1,3 +1,4 @@
+import { logger } from "../../utils/logger";
 import { useEffect, useState, useMemo } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Trophy, X, Flame, Star, Medal, Award, Calendar } from "lucide-react";
@@ -55,7 +56,7 @@ export function ProfileDialog({ open, onClose }: ProfileDialogProps) {
       setEarnedAchievements(earned);
       setAchievementDates(dates);
     } catch (err) {
-      console.error("Failed to fetch achievements:", err);
+      logger.error("Failed to fetch achievements", err);
     } finally {
       setLoading(false);
     }
