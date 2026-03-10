@@ -1,3 +1,4 @@
+import { logger } from "./logger";
 import { supabase } from "../lib/supabase";
 import type { UserProfile } from "../types/database";
 
@@ -125,7 +126,7 @@ export async function awardXP(
   if (fetchError || !profile) {
     // Optimization: avoid logging the full error object to prevent sensitive data leakage
     // Only log the message if available
-    console.error(
+    logger.error(
       "Failed to fetch user profile:",
       fetchError?.message || "Profile not found",
     );
@@ -173,7 +174,7 @@ export async function awardXP(
     .eq("id", userId);
 
   if (updateError) {
-    console.error("Failed to update user profile:", updateError.message);
+    logger.error("Failed to update user profile", updateError);
     return;
   }
 
@@ -288,7 +289,7 @@ async function awardAchievement(
     });
 
   if (insertError) {
-    console.error("Failed to award achievement:", insertError.message);
+    logger.error("Failed to award achievement", insertError);
     return;
   }
 
@@ -312,7 +313,7 @@ async function awardAchievement(
       .eq("id", userId);
 
     if (xpError) {
-      console.error("Failed to award achievement XP:", xpError.message);
+      logger.error("Failed to award achievement XP", xpError);
     }
   }
 }
@@ -347,7 +348,7 @@ async function updateDailyLog(
       .eq("id", existingLog.id);
 
     if (updateLogError) {
-      console.error("Failed to update daily log:", updateLogError.message);
+      logger.error("Failed to update daily log", updateLogError);
     }
   } else {
     // Create new log
@@ -359,7 +360,7 @@ async function updateDailyLog(
     });
 
     if (insertLogError) {
-      console.error("Failed to create daily log:", insertLogError.message);
+      logger.error("Failed to create daily log", insertLogError);
     }
   }
 }
