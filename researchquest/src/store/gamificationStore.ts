@@ -1,3 +1,4 @@
+import { logger } from "../utils/logger";
 import { create } from "zustand";
 import { supabase } from "../lib/supabase";
 import type { ActiveBoost, UserProfile } from "../types/database";
@@ -123,7 +124,7 @@ export const useGamificationStore = create<GamificationState>((set, get) => {
         .eq("id", userId);
 
       if (error) {
-        console.error(
+        logger.error(
           "Failed to activate boost:",
           error.message || "Unknown error",
         );
@@ -145,7 +146,7 @@ export const useGamificationStore = create<GamificationState>((set, get) => {
         .eq("id", userId);
 
       if (error) {
-        console.error(
+        logger.error(
           "Failed to consume streak freeze token:",
           error.message || "Unknown error",
         );
@@ -167,7 +168,7 @@ export const useGamificationStore = create<GamificationState>((set, get) => {
         .eq("id", userId);
 
       if (error) {
-        console.error(
+        logger.error(
           "Failed to consume rest day:",
           error.message || "Unknown error",
         );
