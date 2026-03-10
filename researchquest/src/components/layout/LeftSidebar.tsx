@@ -27,6 +27,7 @@ import type {
 } from "../../types/database";
 import { useGamificationStore } from "../../store/gamificationStore";
 import { formatTimeUntil } from "../../utils/time";
+import { deriveTitleFromMarkdown } from "../../utils/text";
 import { toast } from "sonner";
 import { FocusStudioWidget } from "./FocusStudioWidget";
 import { AddIdeaDialog } from "../ideas/AddIdeaDialog";
@@ -475,7 +476,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
         return true;
       }
 
-      const title = note.title || note.markdown_body.split("\n")[0] || "";
+      const title = note.title || deriveTitleFromMarkdown(note.markdown_body) || "";
       const tags = (note.tags || []).join(" ");
       return (
         title.toLowerCase().includes(normalizedQuery) ||

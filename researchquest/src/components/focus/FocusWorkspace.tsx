@@ -25,6 +25,7 @@ import type { Note, Paper } from "../../types/database";
 import type { Task } from "../../hooks/useTasks";
 import { ListSkeleton, Skeleton } from "../ui/Skeleton";
 import { awardXP, XP_REWARDS } from "../../utils/gamification";
+import { deriveTitleFromMarkdown } from "../../utils/text";
 import {
   playTimerCompleteSound,
   showTimerCompleteNotification,
@@ -56,7 +57,7 @@ function formatTime(seconds: number) {
 
 function extractNoteSummary(note: Note) {
   const raw =
-    note.title || note.markdown_body.split("\n")[0] || "Untitled note";
+    note.title || deriveTitleFromMarkdown(note.markdown_body);
   return raw.replace(/[#*_`>-]/g, "").trim() || "Untitled note";
 }
 

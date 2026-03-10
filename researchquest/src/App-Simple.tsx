@@ -14,6 +14,7 @@ import { useNotes } from "./hooks/useNotes";
 import { usePapers } from "./hooks/usePapers";
 import { useIdeas } from "./hooks/useIdeas";
 import type { User } from "@supabase/supabase-js";
+import { deriveTitleFromMarkdown } from "./utils/text";
 
 function AuthScreen() {
   const [email, setEmail] = useState("");
@@ -281,11 +282,7 @@ function App() {
                     className="p-3 bg-bg-elevated rounded-md border"
                   >
                     <h4 className="font-medium text-sm">
-                      {note.title ||
-                        note.markdown_body
-                          .split("\n")[0]
-                          ?.replace(/^#+\s*/, "") ||
-                        "Untitled"}
+                      {note.title || deriveTitleFromMarkdown(note.markdown_body)}
                     </h4>
                   </div>
                 ))}
@@ -337,11 +334,7 @@ function App() {
                         className="p-4 bg-bg-surface rounded-lg border"
                       >
                         <h3 className="font-semibold mb-2">
-                          {note.title ||
-                            note.markdown_body
-                              .split("\n")[0]
-                              ?.replace(/^#+\s*/, "") ||
-                            "Untitled Note"}
+                          {note.title || deriveTitleFromMarkdown(note.markdown_body)}
                         </h3>
                         <div className="text-sm text-text-secondary whitespace-pre-wrap">
                           {note.markdown_body}
