@@ -33,3 +33,6 @@
 ## 2026-03-09 - Decorative Icon Accessibility
 **Learning:** Decorative icons (like those from `lucide-react`) placed alongside visible text or within buttons with `aria-label` attributes create redundant noise for screen readers if not explicitly hidden.
 **Action:** Always append `aria-hidden="true"` to decorative icons to ensure screen readers only announce the meaningful, associated text or accessible labels.
+## 2024-05-20 - Icon-Only Buttons Require Explicit ARIA Attributes
+**Learning:** Icon-only buttons that rely solely on the `title` attribute for tooltip text may not be sufficiently accessible across all screen reader configurations. The `title` attribute is often insufficient for a primary accessible name.
+**Action:** Always provide an explicit `aria-label` on icon-only buttons, even if a `title` is present. Additionally, explicitly hide the decorative/informative icons inside these buttons from screen readers by adding `aria-hidden="true"` to the icon component (e.g., `<Icon aria-hidden="true" />`) to prevent redundant or confusing announcements.
