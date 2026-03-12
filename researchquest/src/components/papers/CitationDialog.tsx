@@ -123,11 +123,12 @@ export function CitationDialog({
                   onClick={handleCopy}
                   className="absolute top-2 right-2 p-2 bg-bg-surface border border-border-subtle rounded-md shadow-sm hover:bg-bg-base transition-colors"
                   title="Copy to clipboard"
+                  aria-label="Copy to clipboard"
                 >
                   {copied ? (
-                    <Check className="w-4 h-4 text-green-500" />
+                    <Check className="w-4 h-4 text-green-500" aria-hidden="true" />
                   ) : (
-                    <Copy className="w-4 h-4 text-text-tertiary" />
+                    <Copy className="w-4 h-4 text-text-tertiary" aria-hidden="true" />
                   )}
                 </button>
               </div>

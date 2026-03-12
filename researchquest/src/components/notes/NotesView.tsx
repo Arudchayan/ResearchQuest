@@ -239,8 +239,9 @@ export function NotesView() {
                   <button
                     className="p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-md transition-colors"
                     title="Export notes"
+                    aria-label="Export notes"
                   >
-                    <Download className="w-5 h-5" />
+                    <Download className="w-5 h-5" aria-hidden="true" />
                   </button>
                 </DropdownMenu.Trigger>
                 <DropdownMenu.Portal>
