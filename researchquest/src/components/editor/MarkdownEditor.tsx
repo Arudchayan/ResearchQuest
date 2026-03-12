@@ -11,6 +11,7 @@ import { CitationPicker } from "./CitationPicker";
 import {
   Bold,
   Italic,
+  Heading,
   Code,
   List,
   Link2,
@@ -263,6 +264,49 @@ export function MarkdownEditor() {
     [],
   );
 
+  const applyHeadingFormatting = useCallback(() => {
+    const view = editorViewRef.current;
+    if (!view) return;
+
+    const { state } = view;
+
+    const lineNumbers = new Set<number>();
+    state.selection.ranges.forEach((currentRange) => {
+      let line = state.doc.lineAt(currentRange.from);
+      lineNumbers.add(line.number);
+
+      while (line.to < currentRange.to) {
+        line = state.doc.line(line.number + 1);
+        lineNumbers.add(line.number);
+      }
+    });
+
+    const changes = Array.from(lineNumbers)
+      .map((lineNumber) => {
+        const line = state.doc.line(lineNumber);
+        const text = line.text;
+        const match = text.match(/^(#{1,3})\s/);
+
+        if (match) {
+          const level = match[1].length;
+          if (level === 3) {
+            return { from: line.from, to: line.from + 4, insert: "" };
+          } else {
+            return { from: line.from, to: line.from, insert: "#" };
+          }
+        } else {
+          return { from: line.from, to: line.from, insert: "# " };
+        }
+      })
+      .sort((a, b) => a.from - b.from);
+
+    if (changes.length > 0) {
+      view.dispatch({ changes, scrollIntoView: true });
+    }
+
+    view.focus();
+  }, []);
+
   const applyListFormatting = useCallback(() => {
     const view = editorViewRef.current;
     if (!view) return;
@@ -313,7 +357,7 @@ export function MarkdownEditor() {
   }, []);
 
   const applyFormatting = useCallback(
-    (format: "bold" | "italic" | "code" | "list") => {
+    (format: "bold" | "italic" | "code" | "list" | "heading") => {
       switch (format) {
         case "bold":
           applyWrappedFormatting("**", "**", "bold text");
@@ -327,9 +371,12 @@ export function MarkdownEditor() {
         case "list":
           applyListFormatting();
           break;
+        case "heading":
+          applyHeadingFormatting();
+          break;
       }
     },
-    [applyListFormatting, applyWrappedFormatting],
+    [applyListFormatting, applyWrappedFormatting, applyHeadingFormatting],
   );
 
   const handleCopyMarkdown = useCallback(() => {
@@ -601,6 +648,14 @@ export function MarkdownEditor() {
           },
         },
         {
+          key: "Mod-Shift-h",
+          preventDefault: true,
+          run: () => {
+            applyFormatting("heading");
+            return true;
+          },
+        },
+        {
           key: "Mod-k",
           preventDefault: true,
           run: () => {
@@ -792,6 +847,18 @@ export function MarkdownEditor() {
             title="Italic (Ctrl/Cmd+I)"
           >
             <Italic
+              className="w-4 h-4 text-text-secondary"
+              aria-hidden="true"
+            />
+          </button>
+          <button
+            type="button"
+            onClick={() => applyFormatting("heading")}
+            className="p-2 rounded-md transition-colors hover:bg-bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
+            aria-label="Toggle Heading (Ctrl/Cmd+Shift+H)"
+            title="Toggle Heading (Ctrl/Cmd+Shift+H)"
+          >
+            <Heading
               className="w-4 h-4 text-text-secondary"
               aria-hidden="true"
             />
