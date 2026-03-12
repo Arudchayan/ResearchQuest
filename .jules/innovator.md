@@ -21,3 +21,8 @@ Prevention: When adding features that depend on time-based logic, always use `fa
 Opportunity: The Command Palette is a powerful feature for global search, but its discoverability was low as it was only accessible via keyboard shortcuts (Cmd/Ctrl+K).
 Learning: When migrating to a new layout (e.g., from v1 LeftSidebar to v2 Sidebar), visual affordances for core features like search can accidentally be dropped. Adding a persistent, clickable search button to the sidebar and mobile header that triggers the `open-command-palette` custom event significantly improves UX for non-power users.
 Prevention: Always audit visual affordances for core features during layout migrations. Ensure functionality accessible via keyboard shortcuts also has a visible UI trigger unless intentionally hidden.
+
+2024-05-25 — Markdown Editor Heading Formatting
+Opportunity: The MarkdownEditor lacked a simple UI affordance and shortcut for creating and toggling headings.
+Learning: CodeMirror programmatic text manipulation via `view.dispatch` requires mapping line numbers and extracting matches on the text content to cycle values.
+Prevention: When manipulating multi-line editor selections, always retrieve the lines via `state.doc.line(lineNumber)` and ensure `scrollIntoView` is applied so the user focus doesn't detach.
