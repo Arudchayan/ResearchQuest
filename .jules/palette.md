@@ -36,3 +36,7 @@
 ## 2024-05-20 - Icon-Only Buttons Require Explicit ARIA Attributes
 **Learning:** Icon-only buttons that rely solely on the `title` attribute for tooltip text may not be sufficiently accessible across all screen reader configurations. The `title` attribute is often insufficient for a primary accessible name.
 **Action:** Always provide an explicit `aria-label` on icon-only buttons, even if a `title` is present. Additionally, explicitly hide the decorative/informative icons inside these buttons from screen readers by adding `aria-hidden="true"` to the icon component (e.g., `<Icon aria-hidden="true" />`) to prevent redundant or confusing announcements.
+
+## 2024-11-20 - Inline Form Edit Accessibility
+**Learning:** Inputs that are used for inline editing of titles, descriptions, and metadata (like author lists) within detail views frequently omit `aria-label` attributes because they lack visual `<label>` elements and rely on placeholder text or context. This breaks screen reader accessibility since the placeholder is not a robust accessible name.
+**Action:** When implementing or reviewing inline editing states (e.g., swapping a heading for an input), always explicitly provide an `aria-label` attribute (e.g. `aria-label="Idea title"`) to ensure context is maintained for assistive technologies.

@@ -190,6 +190,7 @@ export function IdeaDetailView({
                     onChange={(e) => setEditedTitle(e.target.value)}
                     className="flex-1 text-2xl font-bold text-text-primary bg-bg-base border border-border-subtle rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                     placeholder="Idea title..."
+                    aria-label="Idea title"
                   />
                 ) : (
                   <h1 className="text-2xl font-bold text-text-primary">
@@ -302,6 +303,7 @@ export function IdeaDetailView({
                 rows={8}
                 className="w-full px-4 py-3 bg-bg-base border border-border-subtle rounded-md text-body text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
                 placeholder="Describe your idea in detail..."
+                aria-label="Idea description"
               />
             ) : (
               <div className="prose prose-sm max-w-none dark:prose-invert">
