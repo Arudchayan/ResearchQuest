@@ -15,6 +15,7 @@ import { useAppStore } from "../../store/appStore";
 import type { PaperSearchOptions } from "../../hooks/usePapers";
 import { isValidUrl, validateFileSize } from "../../utils/security";
 import { parseBibTeX, BibTeXEntry } from "../../utils/bibtexParser";
+import { logger } from "../../utils/logger";
 
 interface AddPaperViewProps {
   onAdd: (paperData: any) => Promise<any>;
@@ -157,7 +158,7 @@ export function AddPaperView({
         setTimeout(() => setSuccessMessage(""), 4000);
       }
     } catch (error) {
-      console.error("Failed to add paper:", error instanceof Error ? error.message : "Unknown error");
+      logger.error("Failed to add paper", error);
       setError(
         `Failed to add paper: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
@@ -212,7 +213,7 @@ export function AddPaperView({
         setTimeout(() => setSuccessMessage(""), 4000);
       }
     } catch (error) {
-      console.error("Failed to add paper:", error instanceof Error ? error.message : "Unknown error");
+      logger.error("Failed to add paper", error);
       setError(
         `Failed to add paper: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
@@ -264,7 +265,7 @@ export function AddPaperView({
         setTimeout(() => setSuccessMessage(""), 4000);
       }
     } catch (error) {
-      console.error("Failed to add paper:", error instanceof Error ? error.message : "Unknown error");
+      logger.error("Failed to add paper", error);
       setError(
         `Failed to add paper: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
@@ -312,7 +313,7 @@ export function AddPaperView({
         setSelectedEntryIds(new Set(entries.map((e) => e.id)));
       }
     } catch (err) {
-      console.error("Failed to parse file:", err instanceof Error ? err.message : "Unknown error");
+      logger.error("Failed to parse file", err);
       setError("Failed to parse BibTeX file.");
     } finally {
       setLoading(false);
@@ -349,7 +350,7 @@ export function AddPaperView({
         await onAdd(buildPaperPayloadFromBibTeX(entry));
         successCount++;
       } catch (err) {
-        console.error(`Failed to import paper ${entry.title}:`, err instanceof Error ? err.message : "Unknown error");
+        logger.error(`Failed to import paper ${entry.title}`, err);
         failedCount++;
       }
       setImportProgress({

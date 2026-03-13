@@ -52,3 +52,8 @@
 **Vulnerability:** The Supabase Edge Function `fetch-paper` was publicly accessible without any authentication check, allowing unauthorized users to execute code on the server and potentially abuse external API quotas.
 **Learning:** Default configurations in serverless environments (like "Enforce JWT") are often assumed but not verified in code. Business logic that incurs cost or accesses external resources must explicitly verify the caller's identity.
 **Prevention:** Implemented explicit JWT verification using `supabaseClient.auth.getUser()` inside the function handler. This ensures that only authenticated users can trigger the function.
+
+## 2026-03-13 - Secure Logging Enforcement
+**Vulnerability:** Lack of systematic use of the secure `logger` utility in components like `AddPaperView.tsx` meant that if a developer accidentally stringified an error or logged an unsanitized object (even though current code handled it manually), it would bypass the application's built-in defense against information leakage in production.
+**Learning:** Standardizing security utilities (like a custom logger) is crucial. Relying on developers to manually sanitize `console.error` calls is error-prone. A security enhancement is enforcing the use of the centralized utility to guarantee sanitization.
+**Prevention:** Replaced direct `console.error` calls with the secure `logger.error` wrapper in affected UI components. This creates a more robust architectural boundary where the centralized logger strictly controls what is exposed to the client console in production.
