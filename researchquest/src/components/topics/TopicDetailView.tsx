@@ -123,7 +123,7 @@ export function TopicDetailView({
       title: "Delete Topic",
       message: "Delete this topic? This will remove its links to notes, papers, and ideas.",
       confirmText: "Delete",
-      isDestructive: true,
+      variant: "danger",
     });
     if (!shouldDelete) return;
 
@@ -192,9 +192,9 @@ export function TopicDetailView({
         message={config.message || "Are you sure?"}
         confirmText={config.confirmText}
         cancelText={config.cancelText}
-        isDestructive={config.isDestructive}
+        variant={config.variant}
         onConfirm={config.onConfirm!}
-        onCancel={config.onCancel!}
+        onClose={config.onClose!}
       />
       <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-6">
       <div className="bg-bg-surface border border-border-subtle rounded-xl shadow-sm p-4 sm:p-6 space-y-4">
