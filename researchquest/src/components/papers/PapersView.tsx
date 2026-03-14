@@ -154,9 +154,19 @@ export function PapersView() {
         case "created_asc":
           return a.created_at > b.created_at ? 1 : -1;
         case "title_asc":
-          return (a.title || "").localeCompare(b.title || "");
+          // Optimization: Use direct string comparison instead of localeCompare for better performance
+          return (a.title || "") > (b.title || "")
+            ? 1
+            : (a.title || "") < (b.title || "")
+              ? -1
+              : 0;
         case "title_desc":
-          return (b.title || "").localeCompare(a.title || "");
+          // Optimization: Use direct string comparison instead of localeCompare for better performance
+          return (b.title || "") > (a.title || "")
+            ? 1
+            : (b.title || "") < (a.title || "")
+              ? -1
+              : 0;
         case "year_desc": {
           // Optimization: Parse year from string instead of full Date parsing
           const yearA = a.publication_date

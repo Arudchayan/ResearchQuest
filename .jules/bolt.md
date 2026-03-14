@@ -57,3 +57,6 @@
 ## 2024-05-24 - String.prototype.localeCompare on ISO Dates
 **Learning:** Using `String.prototype.localeCompare()` to sort ISO-8601 date strings introduces significant, unnecessary overhead because `localeCompare` performs complex locale-aware collation rules that are completely redundant for predictable ISO strings.
 **Action:** When sorting arrays by ISO-8601 date strings, always use direct lexicographical operators (`a > b ? 1 : a < b ? -1 : 0`) instead of `localeCompare()`.
+## 2025-03-14 - Direct String Comparison for Lexicographical Sorting
+**Learning:** `String.prototype.localeCompare()` is significantly slower than direct standard string comparison operators (`<`, `>`). While `localeCompare` handles localization and case-insensitivity depending on parameters, simple application-level UI sorting like lists or titles can be securely and significantly optimized using direct JS comparison if localization isn't strictly necessary.
+**Action:** When implementing sort options for lists in React components like `PapersView` or `NotesView` where non-localized sorting is acceptable, prefer `(a || "") > (b || "") ? 1 : ((a || "") < (b || "") ? -1 : 0)` over `(a || "").localeCompare(b || "")` for improved sorting performance over large datasets.
