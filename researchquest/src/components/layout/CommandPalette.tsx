@@ -39,6 +39,8 @@ export function CommandPalette() {
     user,
   } = useAppStore(
     useShallow((state) => ({
+      setTheme: state.setTheme,
+      effectiveTheme: state.effectiveTheme,
       setCurrentView: state.setCurrentView,
       setSelectedNote: state.setSelectedNote,
       setSelectedPaper: state.setSelectedPaper,
