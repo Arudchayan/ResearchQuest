@@ -16,6 +16,7 @@ import {
   LayoutDashboard,
 } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
+import { useShallow } from "zustand/react/shallow";
 import { useNotes } from "../../hooks/useNotes";
 import { usePapers } from "../../hooks/usePapers";
 import { useIdeas } from "../../hooks/useIdeas";
@@ -25,6 +26,9 @@ import "./CommandPalette.css";
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
 
+  // ⚡ PERFORMANCE OPTIMIZATION:
+  // Using useShallow with an object selector to prevent CommandPalette from
+  // unnecessarily re-rendering on unrelated state changes in the global appStore.
   const {
     setTheme,
     effectiveTheme,
@@ -33,7 +37,15 @@ export function CommandPalette() {
     setSelectedPaper,
     setSelectedIdea,
     user,
-  } = useAppStore();
+  } = useAppStore(
+    useShallow((state) => ({
+      setCurrentView: state.setCurrentView,
+      setSelectedNote: state.setSelectedNote,
+      setSelectedPaper: state.setSelectedPaper,
+      setSelectedIdea: state.setSelectedIdea,
+      user: state.user,
+    }))
+  );
 
   // Fetch data for search
   const { notes } = useNotes(user?.id);

@@ -11,13 +11,24 @@ import {
   HelpCircle,
 } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
+import { useShallow } from "zustand/react/shallow";
 import { useGamificationStore } from "../../store/gamificationStore";
 import { supabase } from "../../lib/supabase";
 import { toast } from "sonner";
 import { XPExplainer } from "./XPExplainer";
 
 export function TopNav() {
-  const { theme, setTheme, user, effectiveTheme } = useAppStore();
+  // ⚡ PERFORMANCE OPTIMIZATION:
+  // Using useShallow to prevent TopNav from re-rendering when unrelated
+  // properties (like selectedNote or papers) in the global appStore change.
+  const { theme, setTheme, user, effectiveTheme } = useAppStore(
+    useShallow((state) => ({
+      theme: state.theme,
+      setTheme: state.setTheme,
+      user: state.user,
+      effectiveTheme: state.effectiveTheme,
+    }))
+  );
   const activeBoost = useGamificationStore((state) => state.activeBoost);
   const boostCountdown = useGamificationStore((state) => state.boostCountdown);
   const streakFreezeTokens = useGamificationStore(
