@@ -16,6 +16,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "../../lib/supabase";
 import { useGamificationStore } from "../../store/gamificationStore";
+import { logger } from "../../utils/logger";
 import { formatTimeUntil, formatDateLabel } from "../../utils/time";
 import { useBacklinks } from "../../hooks/useBacklinks";
 import { useRelatedItems } from "../../hooks/useRelatedItems";
@@ -92,7 +93,7 @@ export function RightSidebar() {
         try {
           channel.unsubscribe();
         } catch (error) {
-          console.error("Failed to unsubscribe from Supabase channel", error instanceof Error ? error.message : "Unknown error");
+          logger.error("Failed to unsubscribe from Supabase channel", error);
         }
       });
       realtimeChannelsRef.current = [];
@@ -112,7 +113,7 @@ export function RightSidebar() {
       }
 
       if (error) {
-        console.error("Failed to fetch today's XP:", error instanceof Error ? error.message : "Unknown error");
+        logger.error("Failed to fetch today's XP:", error);
         return;
       }
 
@@ -134,7 +135,7 @@ export function RightSidebar() {
       }
 
       if (error) {
-        console.error("Failed to fetch weekly paper count:", error instanceof Error ? error.message : "Unknown error");
+        logger.error("Failed to fetch weekly paper count:", error);
         return;
       }
 
@@ -153,7 +154,7 @@ export function RightSidebar() {
       }
 
       if (error) {
-        console.error("Failed to fetch active ideas count:", error instanceof Error ? error.message : "Unknown error");
+        logger.error("Failed to fetch active ideas count:", error);
         return;
       }
 
@@ -182,7 +183,7 @@ export function RightSidebar() {
       }
 
       if (error) {
-        console.error("Failed to load upcoming deadlines:", error instanceof Error ? error.message : "Unknown error");
+        logger.error("Failed to load upcoming deadlines:", error);
         return;
       }
 
@@ -336,7 +337,7 @@ export function RightSidebar() {
             window.history.pushState(null, "", `/notes/${itemId}`);
           }
         } catch (error) {
-          console.error("Error navigating to note:", error instanceof Error ? error.message : "Unknown error");
+          logger.error("Error navigating to note:", error);
         }
       };
       void fetchNote();
@@ -355,7 +356,7 @@ export function RightSidebar() {
             window.history.pushState(null, "", `/papers/${itemId}`);
           }
         } catch (error) {
-          console.error("Error navigating to paper:", error instanceof Error ? error.message : "Unknown error");
+          logger.error("Error navigating to paper:", error);
         }
       };
       void fetchPaper();
@@ -374,7 +375,7 @@ export function RightSidebar() {
             window.history.pushState(null, "", `/ideas/${itemId}`);
           }
         } catch (error) {
-          console.error("Error navigating to idea:", error instanceof Error ? error.message : "Unknown error");
+          logger.error("Error navigating to idea:", error);
         }
       };
       void fetchIdea();
