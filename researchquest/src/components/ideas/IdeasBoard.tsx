@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Plus, Trash2, Lightbulb, ArrowRight, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAppStore } from "../../store/appStore";
+import { useShallow } from "zustand/react/shallow";
 import { useIdeas } from "../../hooks/useIdeas";
 import { IdeaDetailView } from "../entities/IdeaDetailView";
 import { IdeaStage, Idea } from "../../types/database";
@@ -20,10 +21,20 @@ const STAGES: { id: IdeaStage; label: string; color: string }[] = [
 ];
 
 export function IdeasBoard() {
-  const { ideas, selectedIdea, setSelectedIdea, ideasLoading } = useAppStore();
-  const { createIdea, updateIdea, deleteIdea, restoreIdea } = useIdeas(
-    useAppStore.getState().user?.id,
-  );
+  // ⚡ PERFORMANCE OPTIMIZATION:
+  // Using useShallow to prevent unnecessary re-renders of the entire IdeasBoard
+  // when unrelated properties in the global appStore change.
+  const { ideas, selectedIdea, setSelectedIdea, ideasLoading, userId } =
+    useAppStore(
+      useShallow((state) => ({
+        ideas: state.ideas,
+        selectedIdea: state.selectedIdea,
+        setSelectedIdea: state.setSelectedIdea,
+        ideasLoading: state.ideasLoading,
+        userId: state.user?.id,
+      }))
+    );
+  const { createIdea, updateIdea, deleteIdea, restoreIdea } = useIdeas(userId);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newIdeaTitle, setNewIdeaTitle] = useState("");
   const [newIdeaDesc, setNewIdeaDesc] = useState("");
