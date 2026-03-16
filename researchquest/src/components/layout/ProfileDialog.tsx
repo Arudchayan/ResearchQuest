@@ -3,6 +3,7 @@ import { useEffect, useState, useMemo } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Trophy, X, Flame, Star, Medal, Award, Calendar } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
+import { useShallow } from "zustand/react/shallow";
 import { supabase } from "../../lib/supabase";
 import {
   ACHIEVEMENTS,
@@ -18,7 +19,11 @@ interface ProfileDialogProps {
 }
 
 export function ProfileDialog({ open, onClose }: ProfileDialogProps) {
-  const { user } = useAppStore();
+  // ⚡ PERFORMANCE OPTIMIZATION:
+  // Using a direct selector for a single property instead of subscribing to the entire store.
+  // This prevents ProfileDialog from unnecessarily re-rendering on other state changes.
+  const user = useAppStore((state) => state.user);
+
   const [earnedAchievements, setEarnedAchievements] = useState<Set<string>>(
     new Set(),
   );
