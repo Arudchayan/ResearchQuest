@@ -31,3 +31,8 @@ Prevention: When manipulating multi-line editor selections, always retrieve the 
 Opportunity: The global search (CommandPalette) did not include tasks, creating a friction point where users could search for notes, papers, and ideas, but not their tasks.
 Learning: Unified global search is a high-value productivity booster.
 Prevention: When adding new top-level entities, always ensure they are integrated into global components like search and command palettes.
+
+2024-11-20 — Standardize Search and Export across List Views
+Opportunity: IdeasBoard lacked parity with NotesView and PapersView regarding search and export functionality.
+Learning: Ensuring consistent features (like search and export) across similar list views (Notes, Papers, Ideas) enhances overall usability and predictability for users.
+Prevention: When creating new list views in the future, automatically evaluate if search, sort, and export functionalities are needed based on existing patterns.

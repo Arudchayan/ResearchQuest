@@ -135,6 +135,46 @@ export function convertNotesToMarkdown(notes: Note[]): string {
     .join("\n\n---\n\n");
 }
 
+export function convertIdeasToJSON(ideas: Idea[]): string {
+  return JSON.stringify(ideas, null, 2);
+}
+
+export function convertIdeasToCSV(ideas: Idea[]): string {
+  if (ideas.length === 0) return "";
+  const headers = [
+    "Title",
+    "Description",
+    "Stage",
+    "Created At",
+    "Updated At",
+  ];
+
+  const rows = ideas.map((i) => {
+    return [
+      escapeCSV(i.title),
+      escapeCSV(i.description),
+      escapeCSV(i.stage),
+      escapeCSV(i.created_at),
+      escapeCSV(i.updated_at),
+    ];
+  });
+
+  return [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+}
+
+export function convertIdeasToMarkdown(ideas: Idea[]): string {
+  if (ideas.length === 0) return "";
+  return ideas
+    .map((i) => {
+      const title = i.title || "Untitled Idea";
+      const date = new Date(i.created_at).toLocaleDateString();
+      const stage = i.stage ? `\nStage: ${i.stage}` : "";
+
+      return `# ${title}\n*Created: ${date}*${stage}\n\n${i.description || "No description provided."}`;
+    })
+    .join("\n\n---\n\n");
+}
+
 function escapeCSV(str?: string | null): string {
   if (!str) return "";
 
