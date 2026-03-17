@@ -385,11 +385,11 @@ export function RightSidebar() {
   const getItemIcon = (type: "note" | "paper" | "idea") => {
     switch (type) {
       case "note":
-        return <FileText className="w-4 h-4" />;
+        return <FileText className="w-4 h-4" aria-hidden="true" />;
       case "paper":
-        return <BookOpen className="w-4 h-4" />;
+        return <BookOpen className="w-4 h-4" aria-hidden="true" />;
       case "idea":
-        return <Lightbulb className="w-4 h-4" />;
+        return <Lightbulb className="w-4 h-4" aria-hidden="true" />;
     }
   };
 
@@ -459,7 +459,7 @@ export function RightSidebar() {
                     <button
                       key={item.id}
                       onClick={() => handleNavigateToItem(item.id, item.type)}
-                      className="w-full text-left p-2 rounded-md bg-bg-base hover:bg-primary-500/10 border border-border-subtle hover:border-primary-400 transition-colors"
+                      className="w-full text-left p-2 rounded-md bg-bg-base hover:bg-primary-500/10 border border-border-subtle hover:border-primary-400 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
                     >
                       <div className="flex items-start gap-2">
                         <div className="text-text-tertiary mt-0.5">
@@ -510,7 +510,7 @@ export function RightSidebar() {
                     <button
                       key={item.id}
                       onClick={() => handleNavigateToItem(item.id, item.type)}
-                      className="w-full text-left p-2 rounded-md bg-bg-base hover:bg-primary-500/10 border border-border-subtle hover:border-primary-400 transition-colors"
+                      className="w-full text-left p-2 rounded-md bg-bg-base hover:bg-primary-500/10 border border-border-subtle hover:border-primary-400 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
                     >
                       <div className="flex items-start gap-2">
                         <div className="text-text-tertiary mt-0.5">
