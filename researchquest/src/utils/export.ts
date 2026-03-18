@@ -1,4 +1,4 @@
-import { UserProfile, Note, Paper, Idea, Topic } from "../types/database";
+import { UserProfile, Note, Paper, Idea, Topic, Task } from "../types/database";
 import { generateBibTeX } from "./citation";
 
 export interface ExportData {
@@ -171,6 +171,53 @@ export function convertIdeasToMarkdown(ideas: Idea[]): string {
       const stage = i.stage ? `\nStage: ${i.stage}` : "";
 
       return `# ${title}\n*Created: ${date}*${stage}\n\n${i.description || "No description provided."}`;
+    })
+    .join("\n\n---\n\n");
+}
+
+export function convertTasksToJSON(tasks: Task[]): string {
+  return JSON.stringify(tasks, null, 2);
+}
+
+export function convertTasksToCSV(tasks: Task[]): string {
+  if (tasks.length === 0) return "";
+  const headers = [
+    "Title",
+    "Description",
+    "Status",
+    "Priority",
+    "Category",
+    "Due Date",
+    "Created At",
+  ];
+
+  const rows = tasks.map((t) => {
+    return [
+      escapeCSV(t.title),
+      escapeCSV(t.description),
+      escapeCSV(t.completed ? "Completed" : "Pending"),
+      escapeCSV(t.priority),
+      escapeCSV(t.category),
+      escapeCSV(t.due_date),
+      escapeCSV(t.created_at),
+    ];
+  });
+
+  return [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+}
+
+export function convertTasksToMarkdown(tasks: Task[]): string {
+  if (tasks.length === 0) return "";
+  return tasks
+    .map((t) => {
+      const title = t.title || "Untitled Task";
+      const date = new Date(t.created_at).toLocaleDateString();
+      const status = t.completed ? "Completed" : "Pending";
+      const priority = t.priority ? `\nPriority: ${t.priority}` : "";
+      const category = t.category ? `\nCategory: ${t.category}` : "";
+      const dueDate = t.due_date ? `\nDue Date: ${new Date(t.due_date).toLocaleDateString()}` : "";
+
+      return `## ${status === "Completed" ? "[x]" : "[ ]"} ${title}\n*Created: ${date}*\nStatus: ${status}${priority}${category}${dueDate}\n\n${t.description || "No description provided."}`;
     })
     .join("\n\n---\n\n");
 }

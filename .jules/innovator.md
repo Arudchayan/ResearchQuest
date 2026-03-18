@@ -36,3 +36,8 @@ Prevention: When adding new top-level entities, always ensure they are integrate
 Opportunity: IdeasBoard lacked parity with NotesView and PapersView regarding search and export functionality.
 Learning: Ensuring consistent features (like search and export) across similar list views (Notes, Papers, Ideas) enhances overall usability and predictability for users.
 Prevention: When creating new list views in the future, automatically evaluate if search, sort, and export functionalities are needed based on existing patterns.
+
+2024-05-24 — Add Data Export to Task Manager
+Opportunity: TaskManager lacked parity with Notes, Papers, and Ideas regarding Data Export functionality (Markdown, CSV, JSON).
+Learning: Maintaining UX consistency across similar list views enhances usability. The pattern of adding an export DropdownMenu that leverages utility functions from `src/utils/export.ts` is robust and easy to replicate across entities.
+Prevention: When creating new list views in the future, automatically evaluate if export functionalities are needed based on existing patterns to maintain feature parity.
