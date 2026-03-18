@@ -9,7 +9,12 @@ import {
   Plus,
   Search as SearchIcon,
   X,
+  Download,
+  FileText,
+  Table,
+  FileJson,
 } from "lucide-react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useTasks } from "../../hooks/useTasks";
 import type { Task } from "../../hooks/useTasks";
 import { supabase } from "../../lib/supabase";
@@ -17,6 +22,14 @@ import { parseDateInput } from "../../utils/time";
 import { ListSkeleton } from "../ui/Skeleton";
 import { FormDialog } from "../ui/FormDialog";
 import { highlightMatch } from "../../utils/highlight";
+import {
+  convertTasksToCSV,
+  convertTasksToJSON,
+  convertTasksToMarkdown,
+  downloadFile,
+} from "../../utils/export";
+import { logger } from "../../utils/logger";
+import { toast } from "sonner";
 
 type TaskFilter = "all" | "pending" | "completed" | "overdue";
 type TaskPriority = "high" | "medium" | "low";
@@ -229,6 +242,46 @@ export function TaskManager() {
     setFormDueDate("");
   };
 
+  const handleExport = (format: "markdown" | "csv" | "json") => {
+    if (sortedTasks.length === 0) {
+      toast.error("No tasks to export");
+      return;
+    }
+
+    const timestamp = new Date().toISOString().split("T")[0];
+    let content = "";
+    let filename = "";
+    let type = "";
+
+    try {
+      switch (format) {
+        case "markdown":
+          content = convertTasksToMarkdown(sortedTasks);
+          filename = `research-tasks-${timestamp}.md`;
+          type = "text/markdown";
+          break;
+        case "csv":
+          content = convertTasksToCSV(sortedTasks);
+          filename = `research-tasks-${timestamp}.csv`;
+          type = "text/csv";
+          break;
+        case "json":
+          content = convertTasksToJSON(sortedTasks);
+          filename = `research-tasks-${timestamp}.json`;
+          type = "application/json";
+          break;
+      }
+
+      downloadFile(content, filename, type);
+      toast.success(
+        `Exported ${sortedTasks.length} tasks as ${format.toUpperCase()}`
+      );
+    } catch (err) {
+      logger.error("Export failed", err);
+      toast.error("Failed to export tasks");
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-4 sm:p-6">
@@ -245,13 +298,55 @@ export function TaskManager() {
           <h2 className="text-title font-bold text-text-primary">
             Task Manager
           </h2>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors text-small font-medium"
-          >
-            <Plus className="w-4 h-4" />
-            New Task
-          </button>
+          <div className="flex items-center gap-2">
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger asChild>
+                <button
+                  className="px-4 py-2 bg-bg-surface border border-border-subtle text-text-secondary rounded-md hover:bg-bg-elevated hover:text-text-primary transition-colors flex items-center gap-2 font-medium text-small shadow-sm"
+                  title="Export tasks"
+                >
+                  <Download className="w-4 h-4" />
+                  <span className="hidden sm:inline">Export</span>
+                </button>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content
+                  className="min-w-[180px] bg-bg-surface rounded-lg shadow-lg border border-border-subtle p-1 z-50 animate-in fade-in-0 zoom-in-95"
+                  align="end"
+                  sideOffset={5}
+                >
+                  <DropdownMenu.Item
+                    onSelect={() => handleExport("markdown")}
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-bg-base hover:text-text-primary rounded-md cursor-pointer outline-none transition-colors"
+                  >
+                    <FileText className="w-4 h-4" />
+                    Markdown (.md)
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item
+                    onSelect={() => handleExport("csv")}
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-bg-base hover:text-text-primary rounded-md cursor-pointer outline-none transition-colors"
+                  >
+                    <Table className="w-4 h-4" />
+                    CSV (.csv)
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item
+                    onSelect={() => handleExport("json")}
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-bg-base hover:text-text-primary rounded-md cursor-pointer outline-none transition-colors"
+                  >
+                    <FileJson className="w-4 h-4" />
+                    JSON (.json)
+                  </DropdownMenu.Item>
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Root>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors text-small font-medium shadow-sm"
+            >
+              <Plus className="w-4 h-4" />
+              New Task
+            </button>
+          </div>
         </div>
 
         {/* Progress Bar */}
