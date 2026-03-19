@@ -13,7 +13,7 @@ export function MobileMenu() {
         className="lg:hidden fixed top-4 left-4 z-50 w-10 h-10 flex items-center justify-center bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors shadow-lg"
         aria-label="Open navigation menu"
       >
-        <Menu className="w-5 h-5" />
+        <Menu className="w-5 h-5" aria-hidden="true" />
       </button>
 
       {/* Mobile Drawer Overlay */}
@@ -37,7 +37,7 @@ export function MobileMenu() {
           className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-md hover:bg-bg-elevated transition-colors"
           aria-label="Close navigation menu"
         >
-          <X className="w-5 h-5 text-text-secondary" />
+          <X className="w-5 h-5 text-text-secondary" aria-hidden="true" />
         </button>
 
         {/* Sidebar Content */}

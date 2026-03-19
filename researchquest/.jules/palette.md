@@ -5,3 +5,6 @@
 ## 2025-05-24 - Consistent Dialog Patterns
 **Learning:** Using native `window.confirm` creates inconsistent UX and accessibility issues (lack of focus control). Replacing it with a custom `ConfirmDialog` provides a unified experience and safer defaults.
 **Action:** Always replace `window.confirm` with the `ConfirmDialog` component, utilizing the `useConfirmDialog` hook for cleaner integration in functional components.
+## 2024-03-24 - Redundant screen reader announcements on button icons
+**Learning:** Adding an aria-label to a button does not automatically hide its child elements (like SVG icons) from screen readers if they lack semantic meaning. This causes redundant or noisy announcements when using accessible buttons containing only `lucide-react` icons.
+**Action:** Always add `aria-hidden="true"` to decorative `lucide-react` icons inside `<button>` tags when the button itself has an `aria-label`.
