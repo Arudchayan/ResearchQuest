@@ -5,6 +5,7 @@ import {
   Search,
   FileText,
   X,
+  ArrowUpDown,
   Loader2,
   Download,
   Table,
@@ -26,6 +27,14 @@ import {
   downloadFile,
 } from "../../utils/export";
 import { useShallow } from "zustand/react/shallow";
+
+type SortOption =
+  | "updated_desc"
+  | "updated_asc"
+  | "created_desc"
+  | "created_asc"
+  | "title_asc"
+  | "title_desc";
 
 export function NotesView() {
   // Use useShallow to prevent re-renders when other store parts update
@@ -50,6 +59,7 @@ export function NotesView() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [sortOption, setSortOption] = useState<SortOption>("updated_desc");
   const [isCreating, setIsCreating] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { confirm, isOpen, config } = useConfirmDialog();
@@ -84,18 +94,47 @@ export function NotesView() {
       );
     }
 
-    if (!searchQuery) return filtered;
-    
-    const escapedQuery = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const regex = new RegExp(escapedQuery, "i");
-    
-    return filtered.filter((note) => {
-      return (
-        (note.title && regex.test(note.title)) ||
-        (note.markdown_body && regex.test(note.markdown_body))
-      );
+    if (searchQuery) {
+      const escapedQuery = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const regex = new RegExp(escapedQuery, "i");
+
+      filtered = filtered.filter((note) => {
+        return (
+          (note.title && regex.test(note.title)) ||
+          (note.markdown_body && regex.test(note.markdown_body))
+        );
+      });
+    } else {
+      filtered = [...filtered];
+    }
+
+    return filtered.sort((a, b) => {
+      switch (sortOption) {
+        case "updated_desc":
+          return b.updated_at > a.updated_at ? 1 : b.updated_at < a.updated_at ? -1 : 0;
+        case "updated_asc":
+          return a.updated_at > b.updated_at ? 1 : a.updated_at < b.updated_at ? -1 : 0;
+        case "created_desc":
+          return b.created_at > a.created_at ? 1 : b.created_at < a.created_at ? -1 : 0;
+        case "created_asc":
+          return a.created_at > b.created_at ? 1 : a.created_at < b.created_at ? -1 : 0;
+        case "title_asc":
+          return (a.title || "") > (b.title || "")
+            ? 1
+            : (a.title || "") < (b.title || "")
+              ? -1
+              : 0;
+        case "title_desc":
+          return (b.title || "") > (a.title || "")
+            ? 1
+            : (b.title || "") < (a.title || "")
+              ? -1
+              : 0;
+        default:
+          return 0;
+      }
     });
-  }, [notes, searchQuery, selectedTag]);
+  }, [notes, searchQuery, selectedTag, sortOption]);
 
   const handleCreateNote = async () => {
     setIsCreating(true);
@@ -290,29 +329,48 @@ export function NotesView() {
             </div>
           </div>
 
-          <div className="relative">
-            <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-            <input
-              ref={searchInputRef}
-              type="text"
-              placeholder="Search notes..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-10 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              aria-label="Search notes"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => {
-                  setSearchQuery("");
-                  searchInputRef.current?.focus();
-                }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-                aria-label="Clear search"
+          <div className="flex flex-col gap-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder="Search notes..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-10 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                aria-label="Search notes"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => {
+                    setSearchQuery("");
+                    searchInputRef.current?.focus();
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  aria-label="Clear search"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <ArrowUpDown className="w-4 h-4 text-slate-400 flex-shrink-0" />
+              <select
+                value={sortOption}
+                onChange={(e) => setSortOption(e.target.value as SortOption)}
+                className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                aria-label="Sort notes"
               >
-                <X className="w-3 h-3" />
-              </button>
-            )}
+                <option value="updated_desc">Last Updated (Newest)</option>
+                <option value="updated_asc">Last Updated (Oldest)</option>
+                <option value="created_desc">Date Created (Newest)</option>
+                <option value="created_asc">Date Created (Oldest)</option>
+                <option value="title_asc">Title (A-Z)</option>
+                <option value="title_desc">Title (Z-A)</option>
+              </select>
+            </div>
           </div>
 
           {allTags.length > 0 && (
