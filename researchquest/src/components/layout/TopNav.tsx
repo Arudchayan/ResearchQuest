@@ -147,9 +147,9 @@ export function TopNav() {
             aria-label={`Switch to ${effectiveTheme === "light" ? "dark" : "light"} mode`}
           >
             {effectiveTheme === "light" ? (
-              <Moon className="w-5 h-5 text-text-secondary" />
+              <Moon className="w-5 h-5 text-text-secondary" aria-hidden="true" />
             ) : (
-              <Sun className="w-5 h-5 text-text-secondary" />
+              <Sun className="w-5 h-5 text-text-secondary" aria-hidden="true" />
             )}
           </button>
 
@@ -158,7 +158,7 @@ export function TopNav() {
             className="w-8 h-8 rounded-full bg-primary-500 flex items-center justify-center text-white hover:bg-primary-600 transition-colors"
             aria-label="User profile"
           >
-            <User className="w-5 h-5" />
+            <User className="w-5 h-5" aria-hidden="true" />
           </button>
 
           <button

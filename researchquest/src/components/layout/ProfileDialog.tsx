@@ -126,7 +126,7 @@ export function ProfileDialog({ open, onClose }: ProfileDialogProps) {
                 className="p-2 rounded-full text-text-secondary hover:text-text-primary hover:bg-bg-base transition-colors"
                 aria-label="Close profile"
               >
-                <X className="w-5 h-5" />
+                <X className="w-5 h-5" aria-hidden="true" />
               </button>
             </Dialog.Close>
           </div>
