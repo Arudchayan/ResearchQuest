@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import { useAppStore } from "../store/appStore";
 import { deriveTitleFromMarkdown } from "../utils/text";
+import { logger } from "../utils/logger";
 
 export interface RelatedItem {
   id: string;
@@ -162,7 +163,7 @@ export function useRelatedItems(
 
       setRelatedLinks(Array.from(linkMap.values()));
     } catch (error) {
-      console.error("Error fetching related items:", (error as Error)?.message || "Unknown error");
+      logger.error("Error fetching related items", error);
       setRelatedLinks([]);
     } finally {
       setLoading(false);
