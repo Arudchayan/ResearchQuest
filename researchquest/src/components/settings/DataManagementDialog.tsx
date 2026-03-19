@@ -13,6 +13,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
+import { useShallow } from "zustand/react/shallow";
 import { exportData } from "../../utils/export";
 import { validateFileSize } from "../../utils/security";
 import { supabase } from "../../lib/supabase";
@@ -28,7 +29,16 @@ export function DataManagementDialog({
   open,
   onClose,
 }: DataManagementDialogProps) {
-  const { user, notes, papers, ideas, topics } = useAppStore();
+  // ⚡ OPTIMIZATION: Use useShallow with an object selector to prevent DataManagementDialog from unnecessarily re-rendering on unrelated state changes in the global appStore.
+  const { user, notes, papers, ideas, topics } = useAppStore(
+    useShallow((state) => ({
+      user: state.user,
+      notes: state.notes,
+      papers: state.papers,
+      ideas: state.ideas,
+      topics: state.topics,
+    })),
+  );
   const [activeTab, setActiveTab] = useState("export");
 
   // Export State
