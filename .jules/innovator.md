@@ -41,3 +41,8 @@ Prevention: When creating new list views in the future, automatically evaluate i
 Opportunity: TaskManager lacked parity with Notes, Papers, and Ideas regarding Data Export functionality (Markdown, CSV, JSON).
 Learning: Maintaining UX consistency across similar list views enhances usability. The pattern of adding an export DropdownMenu that leverages utility functions from `src/utils/export.ts` is robust and easy to replicate across entities.
 Prevention: When creating new list views in the future, automatically evaluate if export functionalities are needed based on existing patterns to maintain feature parity.
+
+2024-05-24 — Standardize Sorting across List Views
+Opportunity: NotesView lacked parity with PapersView and TaskManager regarding explicit sorting functionality.
+Learning: Maintaining UX consistency across similar list views (Notes, Papers, Tasks) enhances overall usability. Adding explicit sorting options provides users with better control over their content.
+Prevention: When creating new list views in the future, automatically evaluate if search, sort, and export functionalities are needed based on existing patterns.
