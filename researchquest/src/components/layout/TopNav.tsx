@@ -16,6 +16,7 @@ import { useGamificationStore } from "../../store/gamificationStore";
 import { supabase } from "../../lib/supabase";
 import { toast } from "sonner";
 import { XPExplainer } from "./XPExplainer";
+import { logger } from "../../utils/logger";
 
 export function TopNav() {
   // ⚡ PERFORMANCE OPTIMIZATION:
@@ -56,7 +57,7 @@ export function TopNav() {
       if (error) throw error;
       toast.success("Signed out");
     } catch (error: any) {
-      console.error("Failed to sign out", error instanceof Error ? error.message : "Unknown error");
+      logger.error("Failed to sign out", error);
       toast.error(error?.message ?? "Could not sign out. Please try again.");
     } finally {
       setSigningOut(false);
