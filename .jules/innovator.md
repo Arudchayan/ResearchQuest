@@ -46,3 +46,8 @@ Prevention: When creating new list views in the future, automatically evaluate i
 Opportunity: NotesView lacked parity with PapersView and TaskManager regarding explicit sorting functionality.
 Learning: Maintaining UX consistency across similar list views (Notes, Papers, Tasks) enhances overall usability. Adding explicit sorting options provides users with better control over their content.
 Prevention: When creating new list views in the future, automatically evaluate if search, sort, and export functionalities are needed based on existing patterns.
+
+2024-11-20 — Standardize Sorting across List Views
+Opportunity: IdeasBoard lacked parity with NotesView, PapersView, and TaskManager regarding explicit sorting functionality.
+Learning: Maintaining UX consistency across similar list views enhances overall usability and predictability for users. Adding explicit sorting options provides users with better control over their content.
+Prevention: When creating new list views in the future, automatically evaluate if search, sort, and export functionalities are needed based on existing patterns.
