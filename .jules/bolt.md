@@ -64,3 +64,7 @@
 ## 2025-02-18 - Missing useShallow selector on useAppStore in High-level Components
 **Learning:** High-level React components like `DataManagementDialog` and `TopicDetailView` were extracting multiple properties directly from the `useAppStore()` Zustand store without a selector. This anti-pattern causes the components to unnecessarily re-render whenever ANY property in the entire global store changes (even completely unrelated properties), which is particularly problematic for heavy dialogs or detail views.
 **Action:** To prevent unnecessary re-renders in high-level components that depend on multiple properties from the Zustand store, always extract state using `useShallow` from `zustand/react/shallow` with an object selector.
+
+## 2024-03-01 - Fast Path for String Date parsing
+**Learning:** Calling `new Date(string).getFullYear()` is an expensive operation because full JavaScript date parsing logic is invoked. For strings that are mostly predictably formatted like ISO dates or just the year "YYYY", using `.charCodeAt()` directly to verify if the first 4 characters are digits is nearly ~2x faster than relying entirely on `new Date()`.
+**Action:** When repeatedly extracting patterns (like years) from strings, implement a fast-path fallback using `.charCodeAt()` or basic string length checks to early-return before falling back to heavy APIs like `new Date()` or `RegExp`.
