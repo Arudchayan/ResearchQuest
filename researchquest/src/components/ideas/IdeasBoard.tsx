@@ -10,6 +10,7 @@ import {
   FileText,
   Table,
   FileJson,
+  ArrowUpDown,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
@@ -31,6 +32,14 @@ import {
   downloadFile,
 } from "../../utils/export";
 import { logger } from "../../utils/logger";
+
+type SortOption =
+  | "updated_desc"
+  | "updated_asc"
+  | "created_desc"
+  | "created_asc"
+  | "title_asc"
+  | "title_desc";
 
 const STAGES: { id: IdeaStage; label: string; color: string }[] = [
   { id: "Seed", label: "Seed", color: "bg-emerald-500" },
@@ -61,24 +70,45 @@ export function IdeasBoard() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isTitleFocused, setIsTitleFocused] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [sortOption, setSortOption] = useState<SortOption>("updated_desc");
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastDeletedRef = useRef<Idea | null>(null);
 
   const filteredIdeas = useMemo(() => {
-    if (!searchQuery) return ideas;
+    let result = ideas;
+    if (searchQuery) {
+      const escapedQuery = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const regex = new RegExp(escapedQuery, "i");
 
-    const escapedQuery = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const regex = new RegExp(escapedQuery, "i");
+      result = ideas.filter((idea) => {
+        return (
+          (idea.title && regex.test(idea.title)) ||
+          (idea.description && regex.test(idea.description))
+        );
+      });
+    }
 
-    return ideas.filter((idea) => {
-      return (
-        (idea.title && regex.test(idea.title)) ||
-        (idea.description && regex.test(idea.description))
-      );
+    return [...result].sort((a, b) => {
+      switch (sortOption) {
+        case "updated_desc":
+          return a.updated_at < b.updated_at ? 1 : a.updated_at > b.updated_at ? -1 : 0;
+        case "updated_asc":
+          return a.updated_at > b.updated_at ? 1 : a.updated_at < b.updated_at ? -1 : 0;
+        case "created_desc":
+          return a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0;
+        case "created_asc":
+          return a.created_at > b.created_at ? 1 : a.created_at < b.created_at ? -1 : 0;
+        case "title_asc":
+          return (a.title || "") > (b.title || "") ? 1 : (a.title || "") < (b.title || "") ? -1 : 0;
+        case "title_desc":
+          return (a.title || "") < (b.title || "") ? 1 : (a.title || "") > (b.title || "") ? -1 : 0;
+        default:
+          return 0;
+      }
     });
-  }, [ideas, searchQuery]);
+  }, [ideas, searchQuery, sortOption]);
 
   useEffect(() => {
     return () => {
@@ -291,6 +321,23 @@ export function IdeasBoard() {
                 <X className="w-3 h-3" />
               </button>
             )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <ArrowUpDown className="w-4 h-4 text-slate-400 flex-shrink-0" />
+            <select
+              value={sortOption}
+              onChange={(e) => setSortOption(e.target.value as SortOption)}
+              className="px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer min-w-[180px]"
+              aria-label="Sort ideas"
+            >
+              <option value="updated_desc">Last Updated (Newest)</option>
+              <option value="updated_asc">Last Updated (Oldest)</option>
+              <option value="created_desc">Date Created (Newest)</option>
+              <option value="created_asc">Date Created (Oldest)</option>
+              <option value="title_asc">Title (A-Z)</option>
+              <option value="title_desc">Title (Z-A)</option>
+            </select>
           </div>
         </div>
 
