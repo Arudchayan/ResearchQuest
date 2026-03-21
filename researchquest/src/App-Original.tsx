@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./lib/supabase";
 import { useAppStore } from "./store/appStore";
+import { useShallow } from "zustand/react/shallow";
 import { TopNav } from "./components/layout/TopNav";
 import { LeftSidebar } from "./components/layout/LeftSidebar";
 import { RightSidebar } from "./components/layout/RightSidebar";
@@ -141,7 +142,13 @@ function App() {
     setUser: setUserProfile,
     currentView,
     setCurrentView,
-  } = useAppStore();
+  } = useAppStore(
+    useShallow((state) => ({
+      setUser: state.setUser,
+      currentView: state.currentView,
+      setCurrentView: state.setCurrentView,
+    }))
+  );
 
   // Get hooks for entity management
   const { notes, createNote, updateNote, deleteNote } = useNotes(userId);

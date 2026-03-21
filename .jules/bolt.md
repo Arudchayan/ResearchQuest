@@ -68,3 +68,7 @@
 ## 2024-03-01 - Fast Path for String Date parsing
 **Learning:** Calling `new Date(string).getFullYear()` is an expensive operation because full JavaScript date parsing logic is invoked. For strings that are mostly predictably formatted like ISO dates or just the year "YYYY", using `.charCodeAt()` directly to verify if the first 4 characters are digits is nearly ~2x faster than relying entirely on `new Date()`.
 **Action:** When repeatedly extracting patterns (like years) from strings, implement a fast-path fallback using `.charCodeAt()` or basic string length checks to early-return before falling back to heavy APIs like `new Date()` or `RegExp`.
+
+## 2025-05-25 - Missing useShallow selector on useAppStore in High-level App Components
+**Learning:** High-level React components like `App` extract properties directly from the `useAppStore()` Zustand store without a selector. This anti-pattern causes the entire App to unnecessarily re-render whenever ANY property in the global store changes (even unrelated properties like search queries or list updates), leading to massive performance regressions across the entire application.
+**Action:** Always extract state using `useShallow` from `zustand/react/shallow` with an object selector in top-level components like `App` that depend on multiple properties from the Zustand store.

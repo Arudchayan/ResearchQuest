@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import { useAppStore } from "./store/appStore";
+import { useShallow } from "zustand/react/shallow";
 import { useGamificationStore } from "./store/gamificationStore";
 import { AppShell } from "./components/layout/v2/AppShell";
 import { NotesView } from "./components/notes/NotesView";
@@ -318,7 +319,17 @@ function App() {
     selectedIdea,
     setSelectedIdea,
     setSelectedPaper,
-  } = useAppStore();
+  } = useAppStore(
+    useShallow((state) => ({
+      setUser: state.setUser,
+      currentView: state.currentView,
+      setCurrentView: state.setCurrentView,
+      selectedPaper: state.selectedPaper,
+      selectedIdea: state.selectedIdea,
+      setSelectedIdea: state.setSelectedIdea,
+      setSelectedPaper: state.setSelectedPaper,
+    }))
+  );
   const hydrateGamification = useGamificationStore(
     (state) => state.hydrateFromProfile,
   );
