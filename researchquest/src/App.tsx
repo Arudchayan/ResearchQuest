@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { supabase } from "./lib/supabase";
+import { useShallow } from "zustand/react/shallow";
 import { useAppStore } from "./store/appStore";
 import { useGamificationStore } from "./store/gamificationStore";
 import { AppShell } from "./components/layout/v2/AppShell";
@@ -310,6 +311,8 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | undefined>(undefined);
   const [itemNotFound, setItemNotFound] = useState(false);
+  // OPTIMIZATION: Use useShallow with an object selector to prevent the App component
+  // from unnecessarily re-rendering on unrelated state changes in the global appStore.
   const {
     setUser: setUserProfile,
     currentView,
@@ -318,7 +321,17 @@ function App() {
     selectedIdea,
     setSelectedIdea,
     setSelectedPaper,
-  } = useAppStore();
+  } = useAppStore(
+    useShallow((state) => ({
+      setUser: state.setUser,
+      currentView: state.currentView,
+      setCurrentView: state.setCurrentView,
+      selectedPaper: state.selectedPaper,
+      selectedIdea: state.selectedIdea,
+      setSelectedIdea: state.setSelectedIdea,
+      setSelectedPaper: state.setSelectedPaper,
+    })),
+  );
   const hydrateGamification = useGamificationStore(
     (state) => state.hydrateFromProfile,
   );
