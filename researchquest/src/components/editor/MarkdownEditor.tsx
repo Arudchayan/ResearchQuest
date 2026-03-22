@@ -396,7 +396,8 @@ export function MarkdownEditor() {
       return;
     }
 
-    const html = previewElement.innerHTML;
+    // 🛡️ Sentinel: Sanitize HTML content to prevent XSS during rich text copy
+    const html = DOMPurify.sanitize(previewElement.innerHTML);
     const text = previewElement.innerText;
 
     try {
