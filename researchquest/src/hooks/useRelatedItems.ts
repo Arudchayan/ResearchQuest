@@ -181,26 +181,33 @@ export function useRelatedItems(
 
     const results: RelatedItem[] = [];
 
+    // ⚡ PERFORMANCE OPTIMIZATION:
+    // Pre-compute maps for O(1) lookup instead of O(N) array.find() inside the loop.
+    // This reduces the complexity of hydration from O(N * M) to O(N + M).
+    const notesMap = new Map(notes.map((n) => [n.id, n]));
+    const papersMap = new Map(papers.map((p) => [p.id, p]));
+    const ideasMap = new Map(ideas.map((i) => [i.id, i]));
+
     for (const link of relatedLinks) {
       let fullItem: any = null;
       let title = "";
       let updated_at = "";
 
       if (link.type === "note") {
-        fullItem = notes.find((n) => n.id === link.id);
+        fullItem = notesMap.get(link.id);
         if (fullItem) {
           title =
             fullItem.title || deriveTitleFromMarkdown(fullItem.markdown_body);
           updated_at = fullItem.updated_at;
         }
       } else if (link.type === "paper") {
-        fullItem = papers.find((p) => p.id === link.id);
+        fullItem = papersMap.get(link.id);
         if (fullItem) {
           title = fullItem.title;
           updated_at = fullItem.updated_at;
         }
       } else if (link.type === "idea") {
-        fullItem = ideas.find((i) => i.id === link.id);
+        fullItem = ideasMap.get(link.id);
         if (fullItem) {
           title = fullItem.title;
           updated_at = fullItem.updated_at;
