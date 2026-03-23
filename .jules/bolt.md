@@ -68,3 +68,7 @@
 ## 2024-03-01 - Fast Path for String Date parsing
 **Learning:** Calling `new Date(string).getFullYear()` is an expensive operation because full JavaScript date parsing logic is invoked. For strings that are mostly predictably formatted like ISO dates or just the year "YYYY", using `.charCodeAt()` directly to verify if the first 4 characters are digits is nearly ~2x faster than relying entirely on `new Date()`.
 **Action:** When repeatedly extracting patterns (like years) from strings, implement a fast-path fallback using `.charCodeAt()` or basic string length checks to early-return before falling back to heavy APIs like `new Date()` or `RegExp`.
+
+## 2024-03-23 - Suboptimal Array Lookup in Loop
+**Learning:** Performing `Array.prototype.find()` operations within a loop checking large global store array slices against smaller result arrays can cause an exponential O(N*M) slowdown, significantly impacting main thread performance.
+**Action:** When filtering or hydrating relationships between a smaller ID-based list and a larger main collection (e.g. looking up paper objects for related item IDs), convert the target array into a `Map` structure upfront to allow O(1) lookups, changing the complexity to O(N+M).
