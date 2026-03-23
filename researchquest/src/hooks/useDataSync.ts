@@ -1,11 +1,14 @@
 import { useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { useAppStore } from "../store/appStore";
+import { useShallow } from "zustand/react/shallow";
 import { sortByUpdatedAt } from "../utils/sort";
 import type { Note, Paper, Idea } from "../types/database";
 import { dedupeById } from "../utils/collections";
 
 export function useDataSync(userId: string | undefined) {
+  // ⚡ OPTIMIZATION: Use useShallow with an object selector to prevent useDataSync from
+  // unnecessarily re-evaluating on unrelated state changes in the global appStore.
   const {
     setNotes,
     setPapers,
@@ -16,7 +19,17 @@ export function useDataSync(userId: string | undefined) {
     setSelectedNote,
     setSelectedPaper,
     setSelectedIdea,
-  } = useAppStore();
+  } = useAppStore(useShallow((state) => ({
+    setNotes: state.setNotes,
+    setPapers: state.setPapers,
+    setIdeas: state.setIdeas,
+    setNotesLoading: state.setNotesLoading,
+    setPapersLoading: state.setPapersLoading,
+    setIdeasLoading: state.setIdeasLoading,
+    setSelectedNote: state.setSelectedNote,
+    setSelectedPaper: state.setSelectedPaper,
+    setSelectedIdea: state.setSelectedIdea,
+  })));
 
   // Use refs to avoid dependency cycles in useEffect, but we want to update the store
   // We don't need refs for setters as they are stable from zustand
