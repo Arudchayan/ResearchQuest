@@ -339,9 +339,35 @@ export function useTasks(userId: string | undefined) {
       return false;
     }
 
-    toast.success("Task deleted");
     void fetchTasks();
     return true;
+  }
+
+  async function restoreTask(task: Task): Promise<Task | null> {
+    if (!userId) return null;
+
+    // Optimistic restore
+    setTasks((prev) => sortTasksByDueDate([...(prev ?? []), task]));
+
+    const { data, error: restoreError } = await supabase
+      .from("tasks")
+      .insert(task)
+      .select()
+      .single();
+
+    if (restoreError) {
+      logger.error("Failed to restore task", restoreError);
+      setError("Failed to restore task. Please try again.");
+      toast.error("Failed to restore task");
+
+      // Revert optimistic update
+      setTasks((prev) => prev.filter((t) => t.id !== task.id));
+      return null;
+    }
+
+    toast.success("Task restored");
+    void fetchTasks();
+    return data;
   }
 
   return {
@@ -352,6 +378,7 @@ export function useTasks(userId: string | undefined) {
     updateTask,
     completeTask,
     deleteTask,
+    restoreTask,
     refreshTasks: fetchTasks,
   };
 }

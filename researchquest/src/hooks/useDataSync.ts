@@ -1,16 +1,15 @@
 import { useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
-import { useAppStore } from "../store/appStore";
 import { useShallow } from "zustand/react/shallow";
+import { useAppStore } from "../store/appStore";
 import { sortByUpdatedAt } from "../utils/sort";
 import type { Note, Paper, Idea } from "../types/database";
 import { dedupeById } from "../utils/collections";
 
 export function useDataSync(userId: string | undefined) {
-  // ⚡ PERFORMANCE OPTIMIZATION:
-  // Central hooks like useDataSync that are called repeatedly or near the root
-  // should use useShallow selectors so they don't force unrelated re-renders
-  // whenever any arbitrary value in the global Zustand store changes.
+  // ⚡ Bolt: Use a shallow selector to fetch setters. Without this,
+  // useDataSync subscribes to all store updates, causing the hook to
+  // re-run unnecessarily.
   const {
     setNotes,
     setPapers,
@@ -32,7 +31,7 @@ export function useDataSync(userId: string | undefined) {
       setSelectedNote: state.setSelectedNote,
       setSelectedPaper: state.setSelectedPaper,
       setSelectedIdea: state.setSelectedIdea,
-    }))
+    })),
   );
 
   // Use refs to avoid dependency cycles in useEffect, but we want to update the store
