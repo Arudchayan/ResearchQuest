@@ -16,15 +16,20 @@ import {
   LayoutDashboard,
 } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
+import { useShallow } from "zustand/react/shallow";
 import { useNotes } from "../../hooks/useNotes";
 import { usePapers } from "../../hooks/usePapers";
 import { useIdeas } from "../../hooks/useIdeas";
+import { useTasks } from "../../hooks/useTasks";
 import { exportData } from "../../utils/export";
 import "./CommandPalette.css";
 
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
 
+  // ⚡ PERFORMANCE OPTIMIZATION:
+  // Using useShallow with an object selector to prevent CommandPalette from
+  // unnecessarily re-rendering on unrelated state changes in the global appStore.
   const {
     setTheme,
     effectiveTheme,
@@ -33,12 +38,23 @@ export function CommandPalette() {
     setSelectedPaper,
     setSelectedIdea,
     user,
-  } = useAppStore();
+  } = useAppStore(
+    useShallow((state) => ({
+      setTheme: state.setTheme,
+      effectiveTheme: state.effectiveTheme,
+      setCurrentView: state.setCurrentView,
+      setSelectedNote: state.setSelectedNote,
+      setSelectedPaper: state.setSelectedPaper,
+      setSelectedIdea: state.setSelectedIdea,
+      user: state.user,
+    }))
+  );
 
   // Fetch data for search
   const { notes } = useNotes(user?.id);
   const { papers } = usePapers(user?.id);
   const { ideas } = useIdeas(user?.id);
+  const { tasks } = useTasks(user?.id);
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -107,6 +123,13 @@ export function CommandPalette() {
     setOpen(false);
   };
 
+  const handleSelectTask = (task: any) => {
+    setCurrentView("tasks");
+    window.history.pushState(null, "", `/tasks`);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    setOpen(false);
+  };
+
   const toggleTheme = () => {
     const newTheme = effectiveTheme === "light" ? "dark" : "light";
     document.body.classList.add("theme-transitioning");
@@ -149,8 +172,9 @@ export function CommandPalette() {
       })),
       ...papers.map((p) => ({ type: "paper", item: p, label: p.title })),
       ...ideas.map((i) => ({ type: "idea", item: i, label: i.title })),
+      ...tasks.map((t) => ({ type: "task", item: t, label: t.title })),
     ];
-  }, [notes, papers, ideas]);
+  }, [notes, papers, ideas, tasks]);
 
   return (
     <Command.Dialog open={open} onOpenChange={setOpen} label="Command Menu">
@@ -236,6 +260,7 @@ export function CommandPalette() {
                 if (entry.type === "note") handleSelectNote(entry.item);
                 if (entry.type === "paper") handleSelectPaper(entry.item);
                 if (entry.type === "idea") handleSelectIdea(entry.item);
+                if (entry.type === "task") handleSelectTask(entry.item);
               }}
               value={`${entry.type}: ${entry.label}`}
             >
@@ -245,6 +270,9 @@ export function CommandPalette() {
               {entry.type === "paper" && <BookOpen className="text-blue-500" />}
               {entry.type === "idea" && (
                 <Lightbulb className="text-yellow-500" />
+              )}
+              {entry.type === "task" && (
+                <CheckSquare className="text-green-500" />
               )}
               <div className="flex flex-col">
                 <span>{entry.label}</span>
