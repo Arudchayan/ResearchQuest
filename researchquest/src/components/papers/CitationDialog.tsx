@@ -90,8 +90,11 @@ export function CitationDialog({
             <Dialog.Title className="text-lg font-semibold text-text-primary">
               Cite Paper
             </Dialog.Title>
-            <Dialog.Close className="p-2 hover:bg-bg-elevated rounded-full transition-colors">
-              <X className="w-5 h-5 text-text-tertiary" />
+            <Dialog.Close
+              className="p-2 hover:bg-bg-elevated rounded-full transition-colors"
+              aria-label="Close dialog"
+            >
+              <X className="w-5 h-5 text-text-tertiary" aria-hidden="true" />
             </Dialog.Close>
           </div>
 
@@ -123,7 +126,8 @@ export function CitationDialog({
                   onClick={handleCopy}
                   className="absolute top-2 right-2 p-2 bg-bg-surface border border-border-subtle rounded-md shadow-sm hover:bg-bg-base transition-colors"
                   title="Copy to clipboard"
-                  aria-label="Copy to clipboard"
+                  aria-label="Copy citation to clipboard"
+
                 >
                   {copied ? (
                     <Check className="w-4 h-4 text-green-500" aria-hidden="true" />

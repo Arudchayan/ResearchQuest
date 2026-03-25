@@ -84,7 +84,7 @@ export function AppShell({ children }: AppShellProps) {
             className="absolute top-4 right-4 p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
             aria-label="Close sidebar"
           >
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
       )}
@@ -100,7 +100,7 @@ export function AppShell({ children }: AppShellProps) {
                 className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 rounded-md"
                 aria-label="Open sidebar"
               >
-                <Menu className="w-6 h-6" />
+                <Menu className="w-6 h-6" aria-hidden="true" />
               </button>
               <span className="ml-3 font-semibold text-lg">ResearchQuest</span>
             </div>
@@ -109,7 +109,7 @@ export function AppShell({ children }: AppShellProps) {
               className="p-2 -mr-2 text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 rounded-md"
               aria-label="Open search"
             >
-              <Search className="w-5 h-5" />
+              <Search className="w-5 h-5" aria-hidden="true" />
             </button>
           </header>
         )}
@@ -144,7 +144,7 @@ export function AppShell({ children }: AppShellProps) {
           title="Exit Zen Mode (Ctrl+Shift+F)"
           aria-label="Exit Zen Mode"
         >
-          <Minimize2 className="w-5 h-5 group-hover:scale-110 transition-transform" />
+          <Minimize2 className="w-5 h-5 group-hover:scale-110 transition-transform" aria-hidden="true" />
         </button>
       )}
     </div>
