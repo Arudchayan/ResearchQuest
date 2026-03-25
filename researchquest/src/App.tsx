@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { supabase } from "./lib/supabase";
+import { useShallow } from "zustand/react/shallow";
 import { useAppStore } from "./store/appStore";
 import { useGamificationStore } from "./store/gamificationStore";
 import { AppShell } from "./components/layout/v2/AppShell";
@@ -312,9 +313,8 @@ function App() {
   const [userId, setUserId] = useState<string | undefined>(undefined);
   const [itemNotFound, setItemNotFound] = useState(false);
 
-  // ⚡ PERFORMANCE OPTIMIZATION:
-  // Using useShallow with an explicit selector prevents the App root component
-  // from re-rendering on EVERY store change (e.g., typing in a note).
+  // ⚡ Bolt: Use shallow selector to prevent the root App component from re-rendering
+  // whenever unrelated properties in the global appStore change.
   const {
     setUser: setUserProfile,
     currentView,
@@ -332,7 +332,7 @@ function App() {
       selectedIdea: state.selectedIdea,
       setSelectedIdea: state.setSelectedIdea,
       setSelectedPaper: state.setSelectedPaper,
-    }))
+    })),
   );
   const hydrateGamification = useGamificationStore(
     (state) => state.hydrateFromProfile,
