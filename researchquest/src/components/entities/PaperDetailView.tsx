@@ -170,6 +170,7 @@ export function PaperDetailView({
                     maxLength={255}
                     className="flex-1 text-2xl font-bold text-text-primary bg-bg-base border border-border-subtle rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                     placeholder="Paper title..."
+                    aria-label="Paper title"
                   />
                 ) : (
                   <h1 className="text-2xl font-bold text-text-primary">
@@ -252,6 +253,7 @@ export function PaperDetailView({
                   maxLength={1000}
                   className="w-full px-4 py-2 bg-bg-base border border-border-subtle rounded-md text-body text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="Author 1, Author 2, et al."
+                  aria-label="Authors"
                 />
               ) : (
                 <p className="text-lg text-text-secondary">

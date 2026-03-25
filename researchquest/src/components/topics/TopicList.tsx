@@ -57,9 +57,9 @@ export function TopicList({
         message={config.message || "Are you sure?"}
         confirmText={config.confirmText}
         cancelText={config.cancelText}
-        isDestructive={config.isDestructive}
+        variant={config.variant}
         onConfirm={config.onConfirm!}
-        onCancel={config.onCancel!}
+        onClose={config.onClose!}
       />
     <div className="space-y-2">
       {topics.map((topic) => {
@@ -98,7 +98,7 @@ export function TopicList({
                       title: "Delete Topic",
                       message: `Delete "${topic.name}"? This will remove its links.`,
                       confirmText: "Delete",
-                      isDestructive: true,
+                      variant: "danger",
                     });
                     if (shouldDelete) {
                       void onDeleteTopic(topic.id);

@@ -1,0 +1,141 @@
+import { X } from "lucide-react";
+import { useEffect } from "react";
+import type { ReactNode, FormEvent } from "react";
+
+export interface FormDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (e: FormEvent) => void;
+  title: string;
+  description?: string;
+  children: ReactNode;
+  icon?: ReactNode;
+  submitText?: string;
+  cancelText?: string;
+  isLoading?: boolean;
+  isSubmitDisabled?: boolean;
+}
+
+export function FormDialog({
+  isOpen,
+  onClose,
+  onSubmit,
+  title,
+  description,
+  children,
+  icon,
+  submitText = "Submit",
+  cancelText = "Cancel",
+  isLoading = false,
+  isSubmitDisabled = false,
+}: FormDialogProps) {
+
+
+  useEffect(() => {
+    if (isOpen) {
+      // Lock body scroll
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = "unset";
+      };
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isOpen && !isLoading) {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [isOpen, isLoading, onClose]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
+      onClick={onClose}
+    >
+      <div
+
+        className="w-full max-w-md bg-bg-surface rounded-lg shadow-lg border border-border-subtle animate-in zoom-in-95 duration-200"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="form-dialog-title"
+        aria-describedby={description ? "form-dialog-description" : undefined}
+      >
+        <form onSubmit={onSubmit}>
+          {/* Header */}
+          <div className="flex items-start gap-4 p-6 pb-4">
+            {icon && (
+              <div className="w-12 h-12 rounded-full bg-primary-100 dark:bg-primary-900/20 flex items-center justify-center flex-shrink-0">
+                {icon}
+              </div>
+            )}
+
+            <div className="flex-1 min-w-0 mt-1">
+              <h3
+                id="form-dialog-title"
+                className="text-lg font-semibold text-text-primary mb-1"
+              >
+                {title}
+              </h3>
+              {description && (
+                <p
+                  id="form-dialog-description"
+                  className="text-body text-text-secondary"
+                >
+                  {description}
+                </p>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isLoading}
+              className="p-1 rounded-md text-text-tertiary hover:text-text-primary hover:bg-bg-elevated transition-colors disabled:opacity-50"
+              aria-label="Close dialog"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Body */}
+          <div className="px-6 py-2 space-y-4">{children}</div>
+
+          {/* Actions */}
+          <div className="flex gap-3 px-6 py-6 mt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isLoading}
+              className="flex-1 px-4 py-2 bg-bg-surface text-text-primary border border-border-subtle rounded-md hover:bg-bg-base transition-colors font-medium disabled:opacity-50"
+            >
+              {cancelText}
+            </button>
+
+            <button
+              type="submit"
+              disabled={isSubmitDisabled || isLoading}
+              className="flex-1 px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {isLoading ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                submitText
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
