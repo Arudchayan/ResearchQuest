@@ -21,7 +21,6 @@ import { CommandPalette } from "./components/layout/CommandPalette";
 import { ShortcutsDialog } from "./components/layout/ShortcutsDialog";
 import { isStrongPassword } from "./utils/security";
 import { Dashboard } from "./components/dashboard/Dashboard";
-import { useShallow } from "zustand/react/shallow";
 
 export function AuthScreen() {
   const [email, setEmail] = useState("");
