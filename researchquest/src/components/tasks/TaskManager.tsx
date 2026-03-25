@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import type { MouseEvent } from "react";
 import {
   CheckCircle2,
@@ -78,7 +78,7 @@ function isOverdue(dueDate: string | undefined): boolean {
 
 export function TaskManager() {
   const [userId, setUserId] = useState<string | undefined>(undefined);
-  const { tasks, loading, createTask, updateTask, completeTask, deleteTask } =
+  const { tasks, loading, createTask, updateTask, completeTask, deleteTask, restoreTask } =
     useTasks(userId);
 
   const [filter, setFilter] = useState<TaskFilter>("all");
@@ -89,6 +89,17 @@ export function TaskManager() {
   const [compactView, setCompactView] = useState(false);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastDeletedRef = useRef<Task | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (undoTimeoutRef.current) {
+        clearTimeout(undoTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Form state
   const [formTitle, setFormTitle] = useState("");
@@ -232,6 +243,46 @@ export function TaskManager() {
   const handleToggleComplete = async (task: Task) => {
     await completeTask(task.id);
   };
+
+  const handleDeleteWithUndo = useCallback(
+    async (taskId: string) => {
+      const task = tasks.find((t) => t.id === taskId);
+      const success = await deleteTask(taskId);
+
+      if (success && task) {
+        lastDeletedRef.current = task;
+        if (undoTimeoutRef.current) {
+          clearTimeout(undoTimeoutRef.current);
+        }
+
+        const toastId = toast.success("Task deleted", {
+          description: "Undo within 6 seconds to restore it.",
+          duration: 6000,
+          action: {
+            label: "Undo",
+            onClick: async () => {
+              if (lastDeletedRef.current) {
+                await restoreTask(lastDeletedRef.current);
+                lastDeletedRef.current = null;
+                if (undoTimeoutRef.current) {
+                  clearTimeout(undoTimeoutRef.current);
+                  undoTimeoutRef.current = null;
+                }
+                toast.dismiss(toastId);
+              }
+            },
+          },
+        });
+
+        undoTimeoutRef.current = setTimeout(() => {
+          lastDeletedRef.current = null;
+          toast.dismiss(toastId);
+          undoTimeoutRef.current = null;
+        }, 6000);
+      }
+    },
+    [deleteTask, restoreTask, tasks]
+  );
 
   const handleCancelEdit = () => {
     setEditingTask(null);
@@ -479,7 +530,7 @@ export function TaskManager() {
                 task={task}
                 onToggleComplete={handleToggleComplete}
                 onEdit={handleEditClick}
-                onDelete={deleteTask}
+                onDelete={handleDeleteWithUndo}
                 compact={compactView}
                 highlightQuery={searchQuery}
               />
@@ -630,7 +681,6 @@ function TaskCard({
   compact = false,
   highlightQuery = "",
 }: TaskCardProps) {
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
 
   const overdue = isOverdue(task.due_date);
@@ -647,18 +697,7 @@ function TaskCard({
 
   const handleDelete = (e: MouseEvent) => {
     e.stopPropagation();
-    setShowDeleteConfirm(true);
-  };
-
-  const cancelDelete = (e: MouseEvent) => {
-    e.stopPropagation();
-    setShowDeleteConfirm(false);
-  };
-
-  const confirmDelete = (e: MouseEvent) => {
-    e.stopPropagation();
     onDelete(task.id);
-    setShowDeleteConfirm(false);
   };
 
   return (
@@ -713,42 +752,14 @@ function TaskCard({
               >
                 Edit
               </button>
-              <div className="relative">
-                <button
-                  onClick={handleDelete}
-                  className={`p-1.5 rounded transition-colors ${
-                    showDeleteConfirm
-                      ? "text-red-500"
-                      : "text-text-tertiary hover:text-red-500"
-                  }`}
-                  title="Delete task"
-                  aria-label="Delete task"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-
-                {showDeleteConfirm && (
-                  <div className="absolute right-0 top-8 z-10 w-48 rounded-md border border-border-subtle bg-bg-surface shadow-lg p-3 text-left">
-                    <p className="text-caption text-text-primary mb-3">
-                      Delete this task?
-                    </p>
-                    <div className="flex justify-end gap-2">
-                      <button
-                        onClick={cancelDelete}
-                        className="px-2 py-1 rounded-md text-caption text-text-secondary hover:text-text-primary"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={confirmDelete}
-                        className="px-2 py-1 rounded-md bg-red-500 text-white text-caption hover:bg-red-600"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <button
+                onClick={handleDelete}
+                className="p-1.5 rounded transition-colors text-text-tertiary hover:text-red-500"
+                title="Delete task"
+                aria-label="Delete task"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
             </div>
           </div>
 

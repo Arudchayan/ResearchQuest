@@ -182,8 +182,7 @@ export function useRelatedItems(
     const results: RelatedItem[] = [];
 
     // ⚡ PERFORMANCE OPTIMIZATION:
-    // Convert arrays to O(1) lookup maps to prevent O(N*M) lookup times
-    // when hydrating a large number of related links from a large store
+    // Pre-compute Map lookups (O(1)) instead of repeated array scans (O(N*M)) when hydrating links from the store.
     const notesMap = new Map(notes.map((n) => [n.id, n]));
     const papersMap = new Map(papers.map((p) => [p.id, p]));
     const ideasMap = new Map(ideas.map((i) => [i.id, i]));
