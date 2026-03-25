@@ -9,13 +9,27 @@ import {
   Plus,
   Search as SearchIcon,
   X,
+  Download,
+  FileText,
+  Table,
+  FileJson,
 } from "lucide-react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useTasks } from "../../hooks/useTasks";
 import type { Task } from "../../hooks/useTasks";
 import { supabase } from "../../lib/supabase";
 import { parseDateInput } from "../../utils/time";
 import { ListSkeleton } from "../ui/Skeleton";
+import { FormDialog } from "../ui/FormDialog";
 import { highlightMatch } from "../../utils/highlight";
+import {
+  convertTasksToCSV,
+  convertTasksToJSON,
+  convertTasksToMarkdown,
+  downloadFile,
+} from "../../utils/export";
+import { logger } from "../../utils/logger";
+import { toast } from "sonner";
 
 type TaskFilter = "all" | "pending" | "completed" | "overdue";
 type TaskPriority = "high" | "medium" | "low";
@@ -228,6 +242,46 @@ export function TaskManager() {
     setFormDueDate("");
   };
 
+  const handleExport = (format: "markdown" | "csv" | "json") => {
+    if (sortedTasks.length === 0) {
+      toast.error("No tasks to export");
+      return;
+    }
+
+    const timestamp = new Date().toISOString().split("T")[0];
+    let content = "";
+    let filename = "";
+    let type = "";
+
+    try {
+      switch (format) {
+        case "markdown":
+          content = convertTasksToMarkdown(sortedTasks);
+          filename = `research-tasks-${timestamp}.md`;
+          type = "text/markdown";
+          break;
+        case "csv":
+          content = convertTasksToCSV(sortedTasks);
+          filename = `research-tasks-${timestamp}.csv`;
+          type = "text/csv";
+          break;
+        case "json":
+          content = convertTasksToJSON(sortedTasks);
+          filename = `research-tasks-${timestamp}.json`;
+          type = "application/json";
+          break;
+      }
+
+      downloadFile(content, filename, type);
+      toast.success(
+        `Exported ${sortedTasks.length} tasks as ${format.toUpperCase()}`
+      );
+    } catch (err) {
+      logger.error("Export failed", err);
+      toast.error("Failed to export tasks");
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-4 sm:p-6">
@@ -244,13 +298,55 @@ export function TaskManager() {
           <h2 className="text-title font-bold text-text-primary">
             Task Manager
           </h2>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors text-small font-medium"
-          >
-            <Plus className="w-4 h-4" />
-            New Task
-          </button>
+          <div className="flex items-center gap-2">
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger asChild>
+                <button
+                  className="px-4 py-2 bg-bg-surface border border-border-subtle text-text-secondary rounded-md hover:bg-bg-elevated hover:text-text-primary transition-colors flex items-center gap-2 font-medium text-small shadow-sm"
+                  title="Export tasks"
+                >
+                  <Download className="w-4 h-4" />
+                  <span className="hidden sm:inline">Export</span>
+                </button>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content
+                  className="min-w-[180px] bg-bg-surface rounded-lg shadow-lg border border-border-subtle p-1 z-50 animate-in fade-in-0 zoom-in-95"
+                  align="end"
+                  sideOffset={5}
+                >
+                  <DropdownMenu.Item
+                    onSelect={() => handleExport("markdown")}
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-bg-base hover:text-text-primary rounded-md cursor-pointer outline-none transition-colors"
+                  >
+                    <FileText className="w-4 h-4" />
+                    Markdown (.md)
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item
+                    onSelect={() => handleExport("csv")}
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-bg-base hover:text-text-primary rounded-md cursor-pointer outline-none transition-colors"
+                  >
+                    <Table className="w-4 h-4" />
+                    CSV (.csv)
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item
+                    onSelect={() => handleExport("json")}
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-bg-base hover:text-text-primary rounded-md cursor-pointer outline-none transition-colors"
+                  >
+                    <FileJson className="w-4 h-4" />
+                    JSON (.json)
+                  </DropdownMenu.Item>
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Root>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors text-small font-medium shadow-sm"
+            >
+              <Plus className="w-4 h-4" />
+              New Task
+            </button>
+          </div>
         </div>
 
         {/* Progress Bar */}
@@ -393,153 +489,126 @@ export function TaskManager() {
       </div>
 
       {/* Add/Edit Modal */}
-      {(showAddModal || editingTask) && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-          onClick={() => {
-            setShowAddModal(false);
-            handleCancelEdit();
-          }}
-        >
-          <div
-            className="bg-bg-surface rounded-lg shadow-xl w-full max-w-md p-4 sm:p-6 m-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-body font-bold text-text-primary mb-4">
-              {editingTask ? "Edit Task" : "New Task"}
-            </h3>
+      <FormDialog
+        isOpen={showAddModal || editingTask !== null}
+        onClose={() => {
+          setShowAddModal(false);
+          handleCancelEdit();
+        }}
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (editingTask) { handleUpdateTask(); } else { handleAddTask(); }
+        }}
+        title={editingTask ? "Edit Task" : "New Task"}
+        icon={<CheckCircle2 className="w-6 h-6 text-primary-600 dark:text-primary-400" />}
+        submitText={editingTask ? "Update" : "Create"}
+        isSubmitDisabled={!formTitle.trim()}
+      >
+        <div className="space-y-4">
+          {/* Title */}
+          <div>
+            <label
+              htmlFor="task-title"
+              className="block text-small font-medium text-text-primary mb-2"
+            >
+              Title
+            </label>
+            <input
+              id="task-title"
+              type="text"
+              value={formTitle}
+              onChange={(e) => setFormTitle(e.target.value)}
+              className="w-full px-3 py-2 bg-bg-base border border-border-subtle rounded-md text-small focus:outline-none focus:ring-2 focus:ring-primary-500"
+              placeholder="What needs to be done?"
+              autoFocus
+            />
+          </div>
 
-            <div className="space-y-4">
-              {/* Title */}
-              <div>
-                <label
-                  htmlFor="task-title"
-                  className="block text-small font-medium text-text-primary mb-2"
-                >
-                  Title *
-                </label>
-                <input
-                  id="task-title"
-                  type="text"
-                  value={formTitle}
-                  onChange={(e) => setFormTitle(e.target.value)}
-                  placeholder="Enter task title"
-                  maxLength={255}
-                  className="w-full px-3 py-2 bg-bg-base border border-border-subtle rounded-md text-body focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  autoFocus
-                />
-              </div>
+          {/* Description */}
+          <div>
+            <label
+              htmlFor="task-description"
+              className="block text-small font-medium text-text-primary mb-2"
+            >
+              Description (Optional)
+            </label>
+            <textarea
+              id="task-description"
+              value={formDescription}
+              onChange={(e) => setFormDescription(e.target.value)}
+              className="w-full px-3 py-2 bg-bg-base border border-border-subtle rounded-md text-small focus:outline-none focus:ring-2 focus:ring-primary-500 min-h-[80px] resize-y"
+              placeholder="Add more details..."
+            />
+          </div>
 
-              {/* Description */}
-              <div>
-                <label
-                  htmlFor="task-description"
-                  className="block text-small font-medium text-text-primary mb-2"
-                >
-                  Description
-                </label>
-                <textarea
-                  id="task-description"
-                  value={formDescription}
-                  onChange={(e) => setFormDescription(e.target.value)}
-                  placeholder="Optional task details"
-                  rows={3}
-                  maxLength={1000}
-                  className="w-full px-3 py-2 bg-bg-base border border-border-subtle rounded-md text-small focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
-                />
-              </div>
-
-              {/* Priority & Category Row */}
-              <div className="grid grid-cols-2 gap-3">
-                {/* Priority */}
-                <div>
-                  <label
-                    htmlFor="task-priority"
-                    className="block text-small font-medium text-text-primary mb-2"
-                  >
-                    Priority
-                  </label>
-                  <select
-                    id="task-priority"
-                    value={formPriority}
-                    onChange={(e) =>
-                      setFormPriority(e.target.value as TaskPriority)
-                    }
-                    className="w-full px-3 py-2 bg-bg-base border border-border-subtle rounded-md text-small focus:outline-none focus:ring-2 focus:ring-primary-500 capitalize"
-                  >
-                    {PRIORITIES.map((p) => (
-                      <option key={p} value={p} className="capitalize">
-                        {p}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Category */}
-                <div>
-                  <label
-                    htmlFor="task-category"
-                    className="block text-small font-medium text-text-primary mb-2"
-                  >
-                    Category
-                  </label>
-                  <select
-                    id="task-category"
-                    value={formCategory}
-                    onChange={(e) =>
-                      setFormCategory(e.target.value as TaskCategory)
-                    }
-                    className="w-full px-3 py-2 bg-bg-base border border-border-subtle rounded-md text-small focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  >
-                    {CATEGORIES.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Due Date */}
-              <div>
-                <label
-                  htmlFor="task-due-date"
-                  className="block text-small font-medium text-text-primary mb-2"
-                >
-                  Due Date
-                </label>
-                <input
-                  id="task-due-date"
-                  type="date"
-                  value={formDueDate}
-                  onChange={(e) => setFormDueDate(e.target.value)}
-                  className="w-full px-3 py-2 bg-bg-base border border-border-subtle rounded-md text-small focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-              </div>
+          <div className="grid grid-cols-2 gap-4">
+            {/* Priority */}
+            <div>
+              <label
+                htmlFor="task-priority"
+                className="block text-small font-medium text-text-primary mb-2"
+              >
+                Priority
+              </label>
+              <select
+                id="task-priority"
+                value={formPriority}
+                onChange={(e) =>
+                  setFormPriority(e.target.value as TaskPriority)
+                }
+                className="w-full px-3 py-2 bg-bg-base border border-border-subtle rounded-md text-small focus:outline-none focus:ring-2 focus:ring-primary-500 capitalize"
+              >
+                {PRIORITIES.map((p) => (
+                  <option key={p} value={p} className="capitalize">
+                    {p}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            {/* Actions */}
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => {
-                  setShowAddModal(false);
-                  handleCancelEdit();
-                }}
-                className="flex-1 px-4 py-2 bg-bg-elevated text-text-primary rounded-md hover:bg-bg-base transition-colors text-small font-medium"
+            {/* Category */}
+            <div>
+              <label
+                htmlFor="task-category"
+                className="block text-small font-medium text-text-primary mb-2"
               >
-                Cancel
-              </button>
-              <button
-                onClick={editingTask ? handleUpdateTask : handleAddTask}
-                disabled={!formTitle.trim()}
-                className="flex-1 px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors text-small font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                Category
+              </label>
+              <select
+                id="task-category"
+                value={formCategory}
+                onChange={(e) =>
+                  setFormCategory(e.target.value as TaskCategory)
+                }
+                className="w-full px-3 py-2 bg-bg-base border border-border-subtle rounded-md text-small focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
-                {editingTask ? "Update" : "Create"}
-              </button>
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
+
+          {/* Due Date */}
+          <div>
+            <label
+              htmlFor="task-due-date"
+              className="block text-small font-medium text-text-primary mb-2"
+            >
+              Due Date
+            </label>
+            <input
+              id="task-due-date"
+              type="date"
+              value={formDueDate}
+              onChange={(e) => setFormDueDate(e.target.value)}
+              className="w-full px-3 py-2 bg-bg-base border border-border-subtle rounded-md text-small focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
         </div>
-      )}
+      </FormDialog>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import React from "react";
 import { ErrorFallback } from "./ui/ErrorFallback";
+import { logger } from "../utils/logger";
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -26,9 +27,9 @@ export class ErrorBoundary extends React.Component<
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    // Log error to console in development
+    // Log error using secure logger
     if (process.env.NODE_ENV === "development") {
-      console.error("ErrorBoundary caught an error:", error, errorInfo);
+      logger.error("ErrorBoundary caught an error:", error);
     }
 
     // Call optional error handler
