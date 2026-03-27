@@ -76,3 +76,7 @@
 ## 2024-05-19 - O(N*M) Suboptimal Array Lookup in Loop
 **Learning:** Using `Array.prototype.find()` inside a loop over related items (like in `useRelatedItems.ts`) causes O(N*M) time complexity, leading to massive hydration slow-downs for large data sets.
 **Action:** Always pre-compute a lookup Map (e.g., `new Map(items.map(item => [item.id, item]))`) before iterating through relational connections to reduce the complexity to O(N+M).
+
+## 2025-05-24 - Pre-computing Lookups for Nested Lists
+**Learning:** Using `.find()` inside a `map` loop (e.g. `selectedIds.map(id => topics.find(t => t.id === id))`) causes O(N*M) performance bottlenecks during React rendering, particularly when dealing with long relational lists.
+**Action:** When mapping over lists of IDs to hydrate components, always pre-compute a lookup Map (`const map = new Map(items.map(i => [i.id, i]))`) using `useMemo` and use `.get()` to achieve O(N+M) time complexity.
