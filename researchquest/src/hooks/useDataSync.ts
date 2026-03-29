@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
-import { useShallow } from "zustand/react/shallow";
 import { useAppStore } from "../store/appStore";
+import { useShallow } from "zustand/react/shallow";
 import { sortByUpdatedAt } from "../utils/sort";
 import type { Note, Paper, Idea } from "../types/database";
 import { dedupeById } from "../utils/collections";
