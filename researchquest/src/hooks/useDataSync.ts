@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
+import { useShallow } from "zustand/react/shallow";
 import { useAppStore } from "../store/appStore";
 import { useShallow } from "zustand/react/shallow";
 import { sortByUpdatedAt } from "../utils/sort";
@@ -7,9 +8,9 @@ import type { Note, Paper, Idea } from "../types/database";
 import { dedupeById } from "../utils/collections";
 
 export function useDataSync(userId: string | undefined) {
-  // ⚡ Bolt: Use a shallow selector to fetch setters. Without this,
-  // useDataSync subscribes to all store updates, causing the hook to
-  // re-run unnecessarily.
+  // ⚡ Optimization: Always use useShallow with an object selector when extracting multiple 
+  // properties from a Zustand store inside custom hooks to maintain referential equality 
+  // and prevent unnecessary re-evaluations.
   const {
     setNotes,
     setPapers,
