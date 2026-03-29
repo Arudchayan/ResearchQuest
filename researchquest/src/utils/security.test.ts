@@ -21,8 +21,9 @@ describe("Security Utils", () => {
       expect(isValidUrl("/foo/bar")).toBe(true);
     });
 
-    it("should reject protocol-relative urls (//)", () => {
+    it("should reject protocol-relative URLs (//) (open redirect)", () => {
       expect(isValidUrl("//example.com")).toBe(false);
+      expect(isValidUrl("//javascript:alert(1)")).toBe(false);
       expect(isValidUrl("//127.0.0.1")).toBe(false);
     });
 
