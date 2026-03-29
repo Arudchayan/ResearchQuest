@@ -55,7 +55,7 @@ export function useTasks(userId: string | undefined) {
       .order("due_date", { ascending: true, nullsFirst: false });
 
     if (fetchError) {
-      setError(fetchError.message);
+      setError("Failed to fetch tasks");
     } else {
       setTasks(sortTasksByDueDate(data || []));
     }
@@ -184,9 +184,8 @@ export function useTasks(userId: string | undefined) {
       // Sentinel: Prevent information leakage by logging only the message
       logger.error("Failed to create task", createError);
 
-      const errorMessage = createError.message || "Unknown error occurred";
-      setError(`Failed to create task: ${errorMessage}`);
-      toast.error(`Failed to create task: ${errorMessage}`);
+      setError("Failed to create task. Please try again.");
+      toast.error("Failed to create task. Please try again.");
       return null;
     }
 
@@ -253,9 +252,8 @@ export function useTasks(userId: string | undefined) {
       // Sentinel: Prevent information leakage
       logger.error("Failed to update task", updateError);
 
-      const errorMessage = updateError.message || "Unknown error occurred";
-      setError(`Failed to update task: ${errorMessage}`);
-      toast.error(`Failed to update task: ${errorMessage}`);
+      setError("Failed to update task. Please try again.");
+      toast.error("Failed to update task. Please try again.");
       // Revert on error
       fetchTasks();
       return false;
@@ -295,9 +293,8 @@ export function useTasks(userId: string | undefined) {
       // Sentinel: Prevent information leakage
       logger.error("Failed to complete/uncomplete task", updateError);
 
-      const errorMessage = updateError.message || "Unknown error occurred";
-      setError(`Failed to update task: ${errorMessage}`);
-      toast.error(`Failed to update task: ${errorMessage}`);
+      setError("Failed to update task. Please try again.");
+      toast.error("Failed to update task. Please try again.");
       // Revert on error
       fetchTasks();
       return false;
@@ -333,9 +330,8 @@ export function useTasks(userId: string | undefined) {
       // Sentinel: Prevent information leakage
       logger.error("Failed to delete task", deleteError);
 
-      const errorMessage = deleteError.message || "Unknown error occurred";
-      setError(`Failed to delete task: ${errorMessage}`);
-      toast.error(`Failed to delete task: ${errorMessage}`);
+      setError("Failed to delete task. Please try again.");
+      toast.error("Failed to delete task. Please try again.");
       // Revert on error
       if (deletedTask) {
         setTasks((prev) => [...prev, deletedTask]);
@@ -343,9 +339,35 @@ export function useTasks(userId: string | undefined) {
       return false;
     }
 
-    toast.success("Task deleted");
     void fetchTasks();
     return true;
+  }
+
+  async function restoreTask(task: Task): Promise<Task | null> {
+    if (!userId) return null;
+
+    // Optimistic restore
+    setTasks((prev) => sortTasksByDueDate([...(prev ?? []), task]));
+
+    const { data, error: restoreError } = await supabase
+      .from("tasks")
+      .insert(task)
+      .select()
+      .single();
+
+    if (restoreError) {
+      logger.error("Failed to restore task", restoreError);
+      setError("Failed to restore task. Please try again.");
+      toast.error("Failed to restore task");
+
+      // Revert optimistic update
+      setTasks((prev) => prev.filter((t) => t.id !== task.id));
+      return null;
+    }
+
+    toast.success("Task restored");
+    void fetchTasks();
+    return data;
   }
 
   return {
@@ -356,6 +378,7 @@ export function useTasks(userId: string | undefined) {
     updateTask,
     completeTask,
     deleteTask,
+    restoreTask,
     refreshTasks: fetchTasks,
   };
 }

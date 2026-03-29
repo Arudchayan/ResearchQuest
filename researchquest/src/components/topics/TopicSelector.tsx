@@ -54,9 +54,24 @@ export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
     void fetchSelected();
   }, [entityId, entityType, getTopicIdsForEntity]);
 
+  // ⚡ PERFORMANCE OPTIMIZATION:
+  // Pre-computing a lookup Map reduces the time complexity of finding a topic by ID
+  // from O(N) to O(1). When used inside a loop (like rendering selected topics),
+  // this prevents O(N*M) performance bottlenecks during hydration or rendering.
+  // Impact: Significantly reduces CPU overhead and memory churn for large topic lists.
+  const topicsMap = useMemo(
+    () => new Map(topics.map((t) => [t.id, t])),
+    [topics],
+  );
+
+  // ⚡ PERFORMANCE OPTIMIZATION:
+  // Using a Set for selectedIds lookup reduces time complexity from O(N*M) to O(N+M).
+  // Impact: Faster filtering of available topics when many topics are selected.
+  const selectedIdsSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+
   const availableTopics = useMemo(
-    () => topics.filter((topic) => !selectedIds.includes(topic.id)),
-    [selectedIds, topics],
+    () => topics.filter((topic) => !selectedIdsSet.has(topic.id)),
+    [selectedIdsSet, topics],
   );
 
   const handleAttach = async (topic: TopicWithCounts) => {
@@ -106,7 +121,7 @@ export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
       ) : (
         <div className="flex flex-wrap gap-2">
           {selectedIds.map((topicId) => {
-            const topic = topics.find((t) => t.id === topicId);
+            const topic = topicsMap.get(topicId);
             if (!topic) return null;
             return (
               <span
@@ -137,7 +152,7 @@ export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
             <select
               className="flex-1 px-3 py-2 rounded-md border border-border-subtle bg-bg-base text-small"
               onChange={(event) => {
-                const topic = topics.find((t) => t.id === event.target.value);
+                const topic = topicsMap.get(event.target.value);
                 if (topic) {
                   void handleAttach(topic);
                   event.target.value = "";

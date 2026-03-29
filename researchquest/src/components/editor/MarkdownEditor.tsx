@@ -396,7 +396,7 @@ export function MarkdownEditor() {
       return;
     }
 
-    // 🛡️ Sentinel: Sanitize HTML content to prevent XSS during rich text copy
+    // 🛡️ Sentinel: Sanitize HTML content before copying to clipboard to prevent XSS
     const html = DOMPurify.sanitize(previewElement.innerHTML);
     const text = previewElement.innerText;
 
