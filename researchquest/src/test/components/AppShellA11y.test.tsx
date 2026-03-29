@@ -1,105 +1,105 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
-import { AppShell } from '../../components/layout/v2/AppShell'
-import { useAppStore } from '../../store/appStore'
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { AppShell } from "../../components/layout/v2/AppShell";
+import { useAppStore } from "../../store/appStore";
 
 // Mock dependencies
-vi.mock('../../lib/supabase', () => ({
+vi.mock("../../lib/supabase", () => ({
   supabase: {
     auth: {
       signOut: vi.fn(),
     },
   },
-}))
+}));
 
-vi.mock('../../utils/export', () => ({
+vi.mock("../../utils/export", () => ({
   exportData: vi.fn(),
-}))
+}));
 
-vi.mock('../../utils/import', () => ({
+vi.mock("../../utils/import", () => ({
   importData: vi.fn(),
-}))
+}));
 
 // Mock XPExplainer to avoid complex rendering and store dependencies
-vi.mock('../../components/layout/XPExplainer', () => ({
+vi.mock("../../components/layout/XPExplainer", () => ({
   XPExplainer: () => <div data-testid="xp-explainer">XP Explainer Mock</div>,
-}))
+}));
 
 // Mock RightSidebar to avoid complexity
-vi.mock('../../components/layout/RightSidebar', () => ({
+vi.mock("../../components/layout/RightSidebar", () => ({
   RightSidebar: () => <div data-testid="right-sidebar">Right Sidebar Mock</div>,
-}))
+}));
 
-describe('AppShell Accessibility', () => {
+describe("AppShell Accessibility", () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    vi.clearAllMocks();
     useAppStore.setState({
-      currentView: 'notes',
+      currentView: "notes",
       user: {
-        id: 'test-user',
-        email: 'test@example.com',
+        id: "test-user",
+        email: "test@example.com",
         total_xp: 100,
         current_level: 1,
-        theme: 'light',
+        theme: "light",
       } as any,
       isMobileSidebarOpen: false,
       isRightSidebarOpen: false,
-    })
-  })
+    });
+  });
 
-  it('should render a skip to content link', () => {
+  it("should render a skip to content link", () => {
     render(
       <AppShell>
         <div>Content</div>
-      </AppShell>
-    )
+      </AppShell>,
+    );
 
-    const skipLink = screen.getByRole('link', { name: /skip to content/i })
-    expect(skipLink).toBeInTheDocument()
-    expect(skipLink).toHaveAttribute('href', '#main-content')
+    const skipLink = screen.getByRole("link", { name: /skip to content/i });
+    expect(skipLink).toBeInTheDocument();
+    expect(skipLink).toHaveAttribute("href", "#main-content");
 
     // Should be visually hidden initially (sr-only class)
-    expect(skipLink).toHaveClass('sr-only')
+    expect(skipLink).toHaveClass("sr-only");
 
     // Should become visible on focus (focus:not-sr-only)
     // We can't easily test pseudo-classes with simple jsdom matchers,
     // but we can check if the class is present in the class list string
-    expect(skipLink.className).toContain('focus:not-sr-only')
-  })
+    expect(skipLink.className).toContain("focus:not-sr-only");
+  });
 
-  it('should have a main content area with correct ID', () => {
+  it("should have a main content area with correct ID", () => {
     render(
       <AppShell>
         <div>Test Content</div>
-      </AppShell>
-    )
+      </AppShell>,
+    );
 
-    const main = screen.getByRole('main')
-    expect(main).toHaveAttribute('id', 'main-content')
-    expect(main).toHaveAttribute('tabIndex', '-1')
-  })
+    const main = screen.getByRole("main");
+    expect(main).toHaveAttribute("id", "main-content");
+    expect(main).toHaveAttribute("tabIndex", "-1");
+  });
 
   it('should mark the current navigation item with aria-current="page"', () => {
     // Set current view to 'papers'
-    useAppStore.setState({ currentView: 'papers' })
+    useAppStore.setState({ currentView: "papers" });
 
     render(
       <AppShell>
         <div>Content</div>
-      </AppShell>
-    )
+      </AppShell>,
+    );
 
     // AppShell renders two sidebars (mobile/desktop), so we get multiple links
-    const papersLinks = screen.getAllByRole('link', { name: /papers/i })
-    expect(papersLinks.length).toBeGreaterThan(0)
-    papersLinks.forEach(link => {
-      expect(link).toHaveAttribute('aria-current', 'page')
-    })
+    const papersLinks = screen.getAllByRole("link", { name: /papers/i });
+    expect(papersLinks.length).toBeGreaterThan(0);
+    papersLinks.forEach((link) => {
+      expect(link).toHaveAttribute("aria-current", "page");
+    });
 
     // Other links should not have aria-current="page"
-    const notesLinks = screen.getAllByRole('link', { name: /notes/i })
-    notesLinks.forEach(link => {
-      expect(link).not.toHaveAttribute('aria-current', 'page')
-    })
-  })
-})
+    const notesLinks = screen.getAllByRole("link", { name: /notes/i });
+    notesLinks.forEach((link) => {
+      expect(link).not.toHaveAttribute("aria-current", "page");
+    });
+  });
+});

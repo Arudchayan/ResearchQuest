@@ -17,3 +17,12 @@ The existing `ExportData` interface was missing `topics`, despite papers having 
 
 Prevention:
 When implementing data persistence or export features, always cross-reference the application state (often decorated with UI-specific data) against the database schema to ensuring only raw, restorable data is persisted.
+2025-05-26 — Extracted FormDialog Component
+Opportunity:
+The codebase was missing a unified pattern for handling form inputs in modal contexts, relying on either `window.prompt()` calls (such as in `App-Simple.tsx`) or custom, bespoke `div` layouts (such as in `TaskManager.tsx` and `AddIdeaDialog.tsx`). I extracted a reusable `FormDialog` primitive to standardize this behavior.
+
+Learning:
+Extracting a `<FormDialog>` primitive alongside the existing `<ConfirmDialog>` ensures that keyboard events (Escape to close), focus states, DOM structural accessibility (roles like `dialog`), and design system patterns are applied consistently across all data input interfaces.
+
+Prevention:
+Do not use `window.prompt` or create inline/bespoke HTML implementations for popups or modal-based input forms. Always implement or reuse `FormDialog` to maintain UI and accessibility consistency.
