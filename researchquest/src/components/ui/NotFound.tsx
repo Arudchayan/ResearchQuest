@@ -31,18 +31,16 @@ export function NotFound({
               onClick={() => navigate(-1)}
               className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-bg-elevated text-text-primary rounded-lg hover:bg-bg-surface transition-colors border border-border-subtle"
             >
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="w-4 h-4" aria-hidden="true" />
               Go Back
             </button>
           )}
 
           <button
-            onClick={() => {
-              window.location.href = "/";
-            }}
+            onClick={() => navigate("/")}
             className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
           >
-            <Home className="w-4 h-4" />
+            <Home className="w-4 h-4" aria-hidden="true" />
             Go Home
           </button>
         </div>
@@ -62,11 +60,13 @@ export function ItemNotFound({
   onReturn,
   description,
 }: ItemNotFoundProps) {
+  const navigate = useNavigate();
+
   return (
     <div className="flex items-center justify-center h-full min-h-[400px] p-6">
       <div className="text-center max-w-md">
         <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-yellow-100 dark:bg-yellow-900/20 mb-4">
-          <AlertCircle className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
+          <AlertCircle className="w-6 h-6 text-yellow-600 dark:text-yellow-400" aria-hidden="true" />
         </div>
 
         <h3 className="text-lg font-semibold text-text-primary mb-2">
@@ -84,14 +84,13 @@ export function ItemNotFound({
               onReturn();
               return;
             }
-            // Clear the URL and go back to the list view
+            // Go back to the list view smoothly
             const view = window.location.pathname.split("/")[1];
-            window.history.replaceState(null, "", `/${view}`);
-            window.location.reload();
+            navigate(`/${view}`, { replace: true });
           }}
           className="inline-flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors text-small"
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="w-4 h-4" aria-hidden="true" />
           Back to List
         </button>
       </div>

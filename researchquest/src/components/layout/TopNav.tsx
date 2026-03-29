@@ -11,13 +11,25 @@ import {
   HelpCircle,
 } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
+import { useShallow } from "zustand/react/shallow";
 import { useGamificationStore } from "../../store/gamificationStore";
 import { supabase } from "../../lib/supabase";
 import { toast } from "sonner";
 import { XPExplainer } from "./XPExplainer";
+import { logger } from "../../utils/logger";
 
 export function TopNav() {
-  const { theme, setTheme, user, effectiveTheme } = useAppStore();
+  // ⚡ PERFORMANCE OPTIMIZATION:
+  // Using useShallow to prevent TopNav from re-rendering when unrelated
+  // properties (like selectedNote or papers) in the global appStore change.
+  const { theme, setTheme, user, effectiveTheme } = useAppStore(
+    useShallow((state) => ({
+      theme: state.theme,
+      setTheme: state.setTheme,
+      user: state.user,
+      effectiveTheme: state.effectiveTheme,
+    }))
+  );
   const activeBoost = useGamificationStore((state) => state.activeBoost);
   const boostCountdown = useGamificationStore((state) => state.boostCountdown);
   const streakFreezeTokens = useGamificationStore(
@@ -45,7 +57,7 @@ export function TopNav() {
       if (error) throw error;
       toast.success("Signed out");
     } catch (error: any) {
-      console.error("Failed to sign out", error instanceof Error ? error.message : "Unknown error");
+      logger.error("Failed to sign out", error);
       toast.error(error?.message ?? "Could not sign out. Please try again.");
     } finally {
       setSigningOut(false);
@@ -135,9 +147,9 @@ export function TopNav() {
             aria-label={`Switch to ${effectiveTheme === "light" ? "dark" : "light"} mode`}
           >
             {effectiveTheme === "light" ? (
-              <Moon className="w-5 h-5 text-text-secondary" />
+              <Moon className="w-5 h-5 text-text-secondary" aria-hidden="true" />
             ) : (
-              <Sun className="w-5 h-5 text-text-secondary" />
+              <Sun className="w-5 h-5 text-text-secondary" aria-hidden="true" />
             )}
           </button>
 
@@ -146,7 +158,7 @@ export function TopNav() {
             className="w-8 h-8 rounded-full bg-primary-500 flex items-center justify-center text-white hover:bg-primary-600 transition-colors"
             aria-label="User profile"
           >
-            <User className="w-5 h-5" />
+            <User className="w-5 h-5" aria-hidden="true" />
           </button>
 
           <button

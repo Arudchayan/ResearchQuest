@@ -1,3 +1,4 @@
+import { logger } from "../../utils/logger";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Tabs from "@radix-ui/react-tabs";
 import { X, Copy, Check } from "lucide-react";
@@ -68,7 +69,7 @@ export function CitationDialog({
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       toast.error("Failed to copy to clipboard");
-      console.error("Clipboard error:", err);
+      logger.error("Clipboard error", err);
     }
   };
 
@@ -89,8 +90,11 @@ export function CitationDialog({
             <Dialog.Title className="text-lg font-semibold text-text-primary">
               Cite Paper
             </Dialog.Title>
-            <Dialog.Close className="p-2 hover:bg-bg-elevated rounded-full transition-colors">
-              <X className="w-5 h-5 text-text-tertiary" />
+            <Dialog.Close
+              className="p-2 hover:bg-bg-elevated rounded-full transition-colors"
+              aria-label="Close dialog"
+            >
+              <X className="w-5 h-5 text-text-tertiary" aria-hidden="true" />
             </Dialog.Close>
           </div>
 
@@ -122,11 +126,13 @@ export function CitationDialog({
                   onClick={handleCopy}
                   className="absolute top-2 right-2 p-2 bg-bg-surface border border-border-subtle rounded-md shadow-sm hover:bg-bg-base transition-colors"
                   title="Copy to clipboard"
+                  aria-label="Copy citation to clipboard"
+
                 >
                   {copied ? (
-                    <Check className="w-4 h-4 text-green-500" />
+                    <Check className="w-4 h-4 text-green-500" aria-hidden="true" />
                   ) : (
-                    <Copy className="w-4 h-4 text-text-tertiary" />
+                    <Copy className="w-4 h-4 text-text-tertiary" aria-hidden="true" />
                   )}
                 </button>
               </div>

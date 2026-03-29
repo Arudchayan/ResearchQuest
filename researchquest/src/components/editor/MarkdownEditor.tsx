@@ -7,10 +7,12 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
 import rehypeHighlight from "rehype-highlight";
+import DOMPurify from "dompurify";
 import { CitationPicker } from "./CitationPicker";
 import {
   Bold,
   Italic,
+  Heading,
   Code,
   List,
   Link2,
@@ -24,7 +26,10 @@ import {
   AlignLeft,
   Clock,
   Printer,
+  Copy,
+  ClipboardList,
 } from "lucide-react";
+import { toast } from "sonner";
 import { useShallow } from "zustand/react/shallow";
 import { useAppStore } from "../../store/appStore";
 import { TopicSelector } from "../topics/TopicSelector";
@@ -260,6 +265,49 @@ export function MarkdownEditor() {
     [],
   );
 
+  const applyHeadingFormatting = useCallback(() => {
+    const view = editorViewRef.current;
+    if (!view) return;
+
+    const { state } = view;
+
+    const lineNumbers = new Set<number>();
+    state.selection.ranges.forEach((currentRange) => {
+      let line = state.doc.lineAt(currentRange.from);
+      lineNumbers.add(line.number);
+
+      while (line.to < currentRange.to) {
+        line = state.doc.line(line.number + 1);
+        lineNumbers.add(line.number);
+      }
+    });
+
+    const changes = Array.from(lineNumbers)
+      .map((lineNumber) => {
+        const line = state.doc.line(lineNumber);
+        const text = line.text;
+        const match = text.match(/^(#{1,3})\s/);
+
+        if (match) {
+          const level = match[1].length;
+          if (level === 3) {
+            return { from: line.from, to: line.from + 4, insert: "" };
+          } else {
+            return { from: line.from, to: line.from, insert: "#" };
+          }
+        } else {
+          return { from: line.from, to: line.from, insert: "# " };
+        }
+      })
+      .sort((a, b) => a.from - b.from);
+
+    if (changes.length > 0) {
+      view.dispatch({ changes, scrollIntoView: true });
+    }
+
+    view.focus();
+  }, []);
+
   const applyListFormatting = useCallback(() => {
     const view = editorViewRef.current;
     if (!view) return;
@@ -310,7 +358,7 @@ export function MarkdownEditor() {
   }, []);
 
   const applyFormatting = useCallback(
-    (format: "bold" | "italic" | "code" | "list") => {
+    (format: "bold" | "italic" | "code" | "list" | "heading") => {
       switch (format) {
         case "bold":
           applyWrappedFormatting("**", "**", "bold text");
@@ -324,10 +372,53 @@ export function MarkdownEditor() {
         case "list":
           applyListFormatting();
           break;
+        case "heading":
+          applyHeadingFormatting();
+          break;
       }
     },
-    [applyListFormatting, applyWrappedFormatting],
+    [applyListFormatting, applyWrappedFormatting, applyHeadingFormatting],
   );
+
+  const handleCopyMarkdown = useCallback(() => {
+    if (!content) return;
+    navigator.clipboard.writeText(content).then(() => {
+      toast.success("Markdown copied to clipboard");
+    }).catch(() => {
+      toast.error("Failed to copy Markdown");
+    });
+  }, [content]);
+
+  const handleCopyRichText = useCallback(() => {
+    const previewElement = previewRef.current;
+    if (!previewElement) {
+      toast.error("Preview must be visible to copy rich text");
+      return;
+    }
+
+    // 🛡️ Sentinel: Sanitize HTML content before copying to clipboard to prevent XSS
+    const html = DOMPurify.sanitize(previewElement.innerHTML);
+    const text = previewElement.innerText;
+
+    try {
+      const clipboardItem = new ClipboardItem({
+        "text/html": new Blob([html], { type: "text/html" }),
+        "text/plain": new Blob([text], { type: "text/plain" }),
+      });
+      navigator.clipboard.write([clipboardItem]).then(() => {
+        toast.success("Rich text copied to clipboard");
+      }).catch(() => {
+        toast.error("Failed to copy rich text");
+      });
+    } catch (err) {
+      // Fallback for browsers that don't support ClipboardItem fully
+      navigator.clipboard.writeText(text).then(() => {
+        toast.success("Plain text copied (Rich text not supported by browser)");
+      }).catch(() => {
+        toast.error("Failed to copy text");
+      });
+    }
+  }, []);
 
   const handleExport = useCallback(() => {
     if (!content) return;
@@ -363,7 +454,8 @@ export function MarkdownEditor() {
       return;
     }
 
-    const htmlContent = previewElement.innerHTML;
+    // 🛡️ Sentinel: Sanitize HTML content to prevent XSS during print via document.write
+    const htmlContent = DOMPurify.sanitize(previewElement.innerHTML);
     const rawTitle = title || "Untitled Note";
     // Basic HTML escaping to prevent XSS in the new window title
     const documentTitle = rawTitle
@@ -555,6 +647,14 @@ export function MarkdownEditor() {
           preventDefault: true,
           run: () => {
             applyFormatting("list");
+            return true;
+          },
+        },
+        {
+          key: "Mod-Shift-h",
+          preventDefault: true,
+          run: () => {
+            applyFormatting("heading");
             return true;
           },
         },
@@ -756,12 +856,46 @@ export function MarkdownEditor() {
           </button>
           <button
             type="button"
+            onClick={() => applyFormatting("heading")}
+            className="p-2 rounded-md transition-colors hover:bg-bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
+            aria-label="Toggle Heading (Ctrl/Cmd+Shift+H)"
+            title="Toggle Heading (Ctrl/Cmd+Shift+H)"
+          >
+            <Heading
+              className="w-4 h-4 text-text-secondary"
+              aria-hidden="true"
+            />
+          </button>
+          <button
+            type="button"
             onClick={() => applyFormatting("code")}
             className="p-2 rounded-md transition-colors hover:bg-bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
             aria-label="Inline code (Ctrl/Cmd+Shift+C)"
             title="Inline code (Ctrl/Cmd+Shift+C)"
           >
             <Code className="w-4 h-4 text-text-secondary" aria-hidden="true" />
+          </button>
+          <div className="w-px h-6 bg-border-subtle mx-1" aria-hidden="true" />
+          <button
+            type="button"
+            onClick={handleCopyMarkdown}
+            className="p-2 rounded-md transition-colors hover:bg-bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
+            aria-label="Copy Markdown"
+            title="Copy Markdown"
+          >
+            <Copy className="w-4 h-4 text-text-secondary" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={handleCopyRichText}
+            className="p-2 rounded-md transition-colors hover:bg-bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
+            aria-label="Copy Rich Text"
+            title="Copy Rich Text"
+          >
+            <ClipboardList
+              className="w-4 h-4 text-text-secondary"
+              aria-hidden="true"
+            />
           </button>
           <div className="w-px h-6 bg-border-subtle mx-1" aria-hidden="true" />
           <button

@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./lib/supabase";
 import { useAppStore } from "./store/appStore";
+import { useShallow } from "zustand/react/shallow";
 import { TopNav } from "./components/layout/TopNav";
 import { LeftSidebar } from "./components/layout/LeftSidebar";
 import { RightSidebar } from "./components/layout/RightSidebar";
 import { MobileMenu } from "./components/layout/MobileMenu";
 import { MarkdownEditor } from "./components/editor/MarkdownEditor";
+import { AddIdeaDialog } from "./components/ideas/AddIdeaDialog";
 import { TaskManager } from "./components/tasks/TaskManager";
 import { NoteList } from "./components/entities/NoteList";
 import { PaperList } from "./components/entities/PaperList";
@@ -14,6 +16,7 @@ import { useNotes } from "./hooks/useNotes";
 import { usePapers } from "./hooks/usePapers";
 import { useIdeas } from "./hooks/useIdeas";
 import type { User } from "@supabase/supabase-js";
+import { deriveTitleFromMarkdown } from "./utils/text";
 
 function AuthScreen() {
   const [email, setEmail] = useState("");
@@ -134,13 +137,20 @@ function AuthScreen() {
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
+  const [isAddIdeaDialogOpen, setIsAddIdeaDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | undefined>(undefined);
   const {
     setUser: setUserProfile,
     currentView,
     setCurrentView,
-  } = useAppStore();
+  } = useAppStore(
+    useShallow((state) => ({
+      setUser: state.setUser,
+      currentView: state.currentView,
+      setCurrentView: state.setCurrentView,
+    }))
+  );
 
   // Get hooks for entity management
   const { notes, createNote, updateNote, deleteNote } = useNotes(userId);
@@ -199,14 +209,17 @@ function App() {
         tags: [],
       });
     } else if (type === "idea") {
-      const title = prompt("Enter idea title:");
-      if (title) {
-        createIdea({
-          title,
-          stage: "Seed",
-        });
-      }
+      setIsAddIdeaDialogOpen(true);
     }
+  };
+
+  const handleCreateIdea = async (data: { title: string; description?: string }) => {
+    await createIdea({
+      title: data.title,
+      description: data.description,
+      stage: "Seed",
+    });
+    setIsAddIdeaDialogOpen(false);
   };
 
   if (loading) {
@@ -281,11 +294,7 @@ function App() {
                     className="p-3 bg-bg-elevated rounded-md border"
                   >
                     <h4 className="font-medium text-sm">
-                      {note.title ||
-                        note.markdown_body
-                          .split("\n")[0]
-                          ?.replace(/^#+\s*/, "") ||
-                        "Untitled"}
+                      {note.title || deriveTitleFromMarkdown(note.markdown_body)}
                     </h4>
                   </div>
                 ))}
@@ -337,11 +346,7 @@ function App() {
                         className="p-4 bg-bg-surface rounded-lg border"
                       >
                         <h3 className="font-semibold mb-2">
-                          {note.title ||
-                            note.markdown_body
-                              .split("\n")[0]
-                              ?.replace(/^#+\s*/, "") ||
-                            "Untitled Note"}
+                          {note.title || deriveTitleFromMarkdown(note.markdown_body)}
                         </h3>
                         <div className="text-sm text-text-secondary whitespace-pre-wrap">
                           {note.markdown_body}
@@ -422,6 +427,11 @@ function App() {
           </div>
         </div>
       </div>
+      <AddIdeaDialog
+        isOpen={isAddIdeaDialogOpen}
+        onClose={() => setIsAddIdeaDialogOpen(false)}
+        onConfirm={handleCreateIdea}
+      />
     </div>
   );
 }

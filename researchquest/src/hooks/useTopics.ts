@@ -1,3 +1,4 @@
+import { logger } from "../utils/logger";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "../lib/supabase";
@@ -42,27 +43,28 @@ const ENTITY_COLUMN: Record<TopicEntityType, string> = {
 
 // Global caches to persist across hook instances/remounts
 const globalLinkCache = new Map<string, string[]>();
-const tableSupportCache = new Map<string, boolean>();
+const tableSupportCache = new Map<string, Promise<boolean>>();
 const fetchedUsers = new Set<string>();
 
-async function tableSupportsUserId(table: string): Promise<boolean> {
-  if (tableSupportCache.has(table)) {
-    return tableSupportCache.get(table)!;
+function tableSupportsUserId(table: string): Promise<boolean> {
+  let promise = tableSupportCache.get(table);
+  if (!promise) {
+    promise = (async () => {
+      const { error } = await supabase.from(table).select("user_id").limit(1);
+
+      let supported = true;
+      if (error) {
+        const normalized =
+          `${error.message ?? ""} ${error.details ?? ""}`.toLowerCase();
+        if (normalized.includes("column") && normalized.includes("user_id")) {
+          supported = false;
+        }
+      }
+      return supported;
+    })();
+    tableSupportCache.set(table, promise);
   }
-
-  const { error } = await supabase.from(table).select("user_id").limit(1);
-
-  let supported = true;
-  if (error) {
-    const normalized =
-      `${error.message ?? ""} ${error.details ?? ""}`.toLowerCase();
-    if (normalized.includes("column") && normalized.includes("user_id")) {
-      supported = false;
-    }
-  }
-
-  tableSupportCache.set(table, supported);
-  return supported;
+  return promise;
 }
 
 function coerceCount(value?: { count: number | null }[]): number {
@@ -205,7 +207,7 @@ export function useTopics(userId: string | undefined) {
       }
 
       if (fetchError) {
-        console.error(
+        logger.error(
           "Failed to fetch topics:",
           fetchError.message || "Unknown error",
         );
@@ -251,7 +253,7 @@ export function useTopics(userId: string | undefined) {
       }
 
       if (fetchError) {
-        console.error(
+        logger.error(
           "Failed to refresh topic:",
           fetchError.message || "Unknown error",
         );
@@ -283,7 +285,7 @@ export function useTopics(userId: string | undefined) {
       .order("created_at", { ascending: false });
 
     if (questError) {
-      console.error(
+      logger.error(
         "Failed to fetch topic quests:",
         questError.message || "Unknown error",
       );
@@ -301,9 +303,9 @@ export function useTopics(userId: string | undefined) {
     const existingActive = quests.find((quest) => quest.status === "active");
     if (existingActive) return;
 
-    const sortedTopics = [...topics].sort(
-      (a, b) =>
-        new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime(),
+    const sortedTopics = [...topics].sort((a, b) =>
+      // Optimization: Use direct string comparison for ISO dates
+      a.updated_at > b.updated_at ? 1 : a.updated_at < b.updated_at ? -1 : 0
     );
     const targetTopic = sortedTopics[0];
     const objective = `Review and enrich "${targetTopic.name}"`;
@@ -320,7 +322,7 @@ export function useTopics(userId: string | undefined) {
       .single();
 
     if (insertError) {
-      console.error(
+      logger.error(
         "Failed to create topic quest:",
         insertError.message || "Unknown error",
       );
@@ -349,7 +351,7 @@ export function useTopics(userId: string | undefined) {
             const supports = await tableSupportsUserId(table);
             return { type, supports };
           } catch (error) {
-            console.error(
+            logger.error(
               `Failed to detect user_id support for ${table}`,
               (error as Error).message || error,
             );
@@ -413,7 +415,7 @@ export function useTopics(userId: string | undefined) {
         .single();
 
       if (insertError) {
-        console.error(
+        logger.error(
           "Failed to create topic:",
           insertError.message || "Unknown error",
         );
@@ -479,7 +481,7 @@ export function useTopics(userId: string | undefined) {
         .single();
 
       if (progressError) {
-        console.error(
+        logger.error(
           "Failed to update quest progress:",
           progressError.message || "Unknown error",
         );
@@ -545,7 +547,7 @@ export function useTopics(userId: string | undefined) {
         .eq("user_id", userId);
 
       if (updateError) {
-        console.error(
+        logger.error(
           "Failed to update topic:",
           updateError.message || "Unknown error",
         );
@@ -576,7 +578,7 @@ export function useTopics(userId: string | undefined) {
         .eq("user_id", userId);
 
       if (deleteError) {
-        console.error(
+        logger.error(
           "Failed to delete topic:",
           deleteError.message || "Unknown error",
         );
@@ -639,7 +641,7 @@ export function useTopics(userId: string | undefined) {
           linkSupportsUserIdRef.current[entityType] = false;
           return attachTopicToEntity(topicId, entityId, entityType);
         }
-        console.error(
+        logger.error(
           "Failed to link topic:",
           upsertError.message || "Unknown error",
         );
@@ -689,7 +691,7 @@ export function useTopics(userId: string | undefined) {
       const { error: deleteError } = await query;
 
       if (deleteError) {
-        console.error(
+        logger.error(
           "Failed to unlink topic:",
           deleteError.message || "Unknown error",
         );
@@ -734,7 +736,7 @@ export function useTopics(userId: string | undefined) {
       const { data, error: fetchError } = await query;
 
       if (fetchError) {
-        console.error(
+        logger.error(
           "Failed to fetch topic links:",
           fetchError.message || "Unknown error",
         );

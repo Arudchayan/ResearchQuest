@@ -1,5 +1,6 @@
 import { UserProfile, Note, Paper, Idea, Topic } from "../types/database";
 import { generateBibTeX } from "./citation";
+import type { Task } from "../hooks/useTasks";
 
 export interface ExportData {
   metadata: {
@@ -12,6 +13,7 @@ export interface ExportData {
   papers: Paper[];
   ideas: Idea[];
   topics?: Topic[];
+  tasks?: Task[];
 }
 
 /**
@@ -131,6 +133,93 @@ export function convertNotesToMarkdown(notes: Note[]): string {
       const tags = n.tags.length > 0 ? `\nTags: ${n.tags.join(", ")}` : "";
 
       return `# ${title}\n*Created: ${date}*${tags}\n\n${n.markdown_body}`;
+    })
+    .join("\n\n---\n\n");
+}
+
+export function convertIdeasToJSON(ideas: Idea[]): string {
+  return JSON.stringify(ideas, null, 2);
+}
+
+export function convertIdeasToCSV(ideas: Idea[]): string {
+  if (ideas.length === 0) return "";
+  const headers = [
+    "Title",
+    "Description",
+    "Stage",
+    "Created At",
+    "Updated At",
+  ];
+
+  const rows = ideas.map((i) => {
+    return [
+      escapeCSV(i.title),
+      escapeCSV(i.description),
+      escapeCSV(i.stage),
+      escapeCSV(i.created_at),
+      escapeCSV(i.updated_at),
+    ];
+  });
+
+  return [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+}
+
+export function convertIdeasToMarkdown(ideas: Idea[]): string {
+  if (ideas.length === 0) return "";
+  return ideas
+    .map((i) => {
+      const title = i.title || "Untitled Idea";
+      const date = new Date(i.created_at).toLocaleDateString();
+      const stage = i.stage ? `\nStage: ${i.stage}` : "";
+
+      return `# ${title}\n*Created: ${date}*${stage}\n\n${i.description || "No description provided."}`;
+    })
+    .join("\n\n---\n\n");
+}
+
+export function convertTasksToJSON(tasks: Task[]): string {
+  return JSON.stringify(tasks, null, 2);
+}
+
+export function convertTasksToCSV(tasks: Task[]): string {
+  if (tasks.length === 0) return "";
+  const headers = [
+    "Title",
+    "Description",
+    "Status",
+    "Priority",
+    "Category",
+    "Due Date",
+    "Created At",
+  ];
+
+  const rows = tasks.map((t) => {
+    return [
+      escapeCSV(t.title),
+      escapeCSV(t.description),
+      escapeCSV(t.completed ? "Completed" : "Pending"),
+      escapeCSV(t.priority),
+      escapeCSV(t.category),
+      escapeCSV(t.due_date),
+      escapeCSV(t.created_at),
+    ];
+  });
+
+  return [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+}
+
+export function convertTasksToMarkdown(tasks: Task[]): string {
+  if (tasks.length === 0) return "";
+  return tasks
+    .map((t) => {
+      const title = t.title || "Untitled Task";
+      const date = new Date(t.created_at).toLocaleDateString();
+      const status = t.completed ? "Completed" : "Pending";
+      const priority = t.priority ? `\nPriority: ${t.priority}` : "";
+      const category = t.category ? `\nCategory: ${t.category}` : "";
+      const dueDate = t.due_date ? `\nDue Date: ${new Date(t.due_date).toLocaleDateString()}` : "";
+
+      return `## ${status === "Completed" ? "[x]" : "[ ]"} ${title}\n*Created: ${date}*\nStatus: ${status}${priority}${category}${dueDate}\n\n${t.description || "No description provided."}`;
     })
     .join("\n\n---\n\n");
 }

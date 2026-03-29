@@ -84,11 +84,7 @@ export function ErrorFallback({
             <p className="text-caption font-mono text-red-600 dark:text-red-400 break-words">
               {error.message}
             </p>
-            {error.stack && (
-              <pre className="text-caption font-mono text-text-tertiary overflow-x-auto p-2 bg-bg-base rounded max-h-32 overflow-y-auto">
-                {error.stack}
-              </pre>
-            )}
+            {/* 🛡️ Sentinel: Removed error.stack exposure to prevent information leakage */}
           </div>
         </details>
 

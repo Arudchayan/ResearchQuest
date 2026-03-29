@@ -5,7 +5,6 @@ import {
   Lightbulb,
   CheckSquare,
   Clock,
-  Settings,
   LogOut,
   User,
   Sun,
@@ -17,8 +16,8 @@ import {
   PanelRightClose,
   Keyboard,
   LayoutDashboard,
-  Maximize2,
   Search,
+  Maximize2,
 } from "lucide-react";
 import { useAppStore } from "../../../store/appStore";
 import { cn } from "../../../lib/utils";
@@ -83,6 +82,10 @@ export function Sidebar() {
     setTheme(newTheme);
   };
 
+  const handleOpenSearch = () => {
+    document.dispatchEvent(new CustomEvent("open-command-palette"));
+  };
+
   const handleOpenShortcuts = () => {
     document.dispatchEvent(new CustomEvent("open-shortcuts-help"));
   };
@@ -90,10 +93,6 @@ export function Sidebar() {
   const xpProgress = user ? ((user.total_xp % 500) / 500) * 100 : 0;
   const currentLevel = user?.current_level || 1;
   const xpInLevel = user ? user.total_xp % 500 : 0;
-
-  const handleOpenSearch = () => {
-    document.dispatchEvent(new CustomEvent("open-command-palette"));
-  };
 
   return (
     <aside className="w-64 bg-slate-50 dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col h-full transition-colors duration-300">
@@ -109,7 +108,7 @@ export function Sidebar() {
 
         <button
           onClick={handleOpenSearch}
-          className="w-full flex items-center justify-between px-3 py-2 rounded-md bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:border-slate-300 dark:hover:border-slate-700 transition-colors shadow-sm"
+          className="w-full flex items-center justify-between px-3 py-2 rounded-md bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:border-slate-300 dark:hover:border-slate-700 transition-colors shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2"
           aria-label="Search or type a command"
         >
           <div className="flex items-center gap-2">
@@ -117,7 +116,7 @@ export function Sidebar() {
             <span>Search...</span>
           </div>
           <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-medium text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 rounded-md border border-slate-200 dark:border-slate-700">
-            <span className="mr-0.5">⌘</span>K
+            <span className="mr-0.5">{navigator.platform.includes("Mac") ? "⌘" : "Ctrl+"}</span>K
           </kbd>
         </button>
       </div>
@@ -142,14 +141,14 @@ export function Sidebar() {
               );
             }}
             className={cn(
-              "w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
+              "w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2",
               currentView === item.id
                 ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
                 : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800",
             )}
             aria-current={currentView === item.id ? "page" : undefined}
           >
-            <item.icon className="w-5 h-5" />
+            <item.icon className="w-5 h-5" aria-hidden="true" />
             {item.label}
           </a>
         ))}
@@ -165,10 +164,10 @@ export function Sidebar() {
               </span>
               <button
                 onClick={() => setShowXpGuide(true)}
-                className="text-slate-400 hover:text-blue-500"
+                className="text-slate-400 hover:text-blue-500 rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
                 aria-label="Learn about XP and Levels"
               >
-                <HelpCircle className="w-3.5 h-3.5" />
+                <HelpCircle className="w-3.5 h-3.5" aria-hidden="true" />
               </button>
             </div>
             <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden mb-1">
@@ -189,18 +188,18 @@ export function Sidebar() {
         <div className="flex items-center justify-between px-3 py-2">
           <button
             onClick={() => setShowProfile(true)}
-            className="flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md p-1 -ml-1 transition-colors text-left"
+            className="flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md p-1 -ml-1 transition-colors text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
             aria-label="User profile"
           >
             <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-              <User className="w-4 h-4" />
+              <User className="w-4 h-4" aria-hidden="true" />
             </div>
             <div className="text-xs">
               <span className="block font-medium text-slate-900 dark:text-white truncate max-w-[80px]">
                 User
               </span>
               <span className="flex items-center gap-1 text-slate-500">
-                <Flame className="w-3 h-3 text-orange-500" />{" "}
+                <Flame className="w-3 h-3 text-orange-500" aria-hidden="true" />{" "}
                 {user?.current_streak || 0}
               </span>
             </div>
@@ -208,15 +207,15 @@ export function Sidebar() {
           <div className="flex items-center gap-1">
             <button
               onClick={handleOpenShortcuts}
-              className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
+              className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
               aria-label="Keyboard Shortcuts"
               title="Keyboard Shortcuts"
             >
-              <Keyboard className="w-4 h-4" />
+              <Keyboard className="w-4 h-4" aria-hidden="true" />
             </button>
             <button
               onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
-              className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
+              className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
               aria-label={
                 isRightSidebarOpen
                   ? "Close context panel"
@@ -225,22 +224,22 @@ export function Sidebar() {
               title="Toggle Context Panel"
             >
               {isRightSidebarOpen ? (
-                <PanelRightClose className="w-4 h-4" />
+                <PanelRightClose className="w-4 h-4" aria-hidden="true" />
               ) : (
-                <PanelRightOpen className="w-4 h-4" />
+                <PanelRightOpen className="w-4 h-4" aria-hidden="true" />
               )}
             </button>
             <button
               onClick={() => setZenMode(true)}
-              className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
+              className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
               aria-label="Enter Zen Mode"
               title="Enter Zen Mode (Ctrl+Shift+F)"
             >
-              <Maximize2 className="w-4 h-4" />
+              <Maximize2 className="w-4 h-4" aria-hidden="true" />
             </button>
             <button
               onClick={toggleTheme}
-              className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
+              className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
               aria-label={
                 effectiveTheme === "light"
                   ? "Switch to dark mode"
@@ -248,9 +247,9 @@ export function Sidebar() {
               }
             >
               {effectiveTheme === "light" ? (
-                <Moon className="w-4 h-4" />
+                <Moon className="w-4 h-4" aria-hidden="true" />
               ) : (
-                <Sun className="w-4 h-4" />
+                <Sun className="w-4 h-4" aria-hidden="true" />
               )}
             </button>
           </div>
@@ -258,17 +257,17 @@ export function Sidebar() {
 
         <button
           onClick={() => setShowDataDialog(true)}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 transition-colors"
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2"
         >
-          <Database className="w-5 h-5" />
+          <Database className="w-5 h-5" aria-hidden="true" />
           Data & Backup
         </button>
 
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 transition-colors"
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2"
         >
-          <LogOut className="w-5 h-5" />
+          <LogOut className="w-5 h-5" aria-hidden="true" />
           Sign Out
         </button>
       </div>
