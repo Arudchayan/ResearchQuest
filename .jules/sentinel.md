@@ -67,3 +67,8 @@
 **Vulnerability:** The Markdown editor's "Copy Rich Text" feature extracted raw HTML using `previewElement.innerHTML` and directly passed it to the `ClipboardItem` API. If malicious HTML somehow bypassed the Markdown renderer's initial sanitization (or was manipulated before copying), it would be executed when pasted into other applications or contexts that trust clipboard HTML.
 **Learning:** Extracting raw DOM content (like `innerHTML`) to be injected into new contexts (such as `ClipboardItem` or `document.write`) is a critical boundary. Data must be re-sanitized at the point of extraction before crossing this boundary, even if it was supposedly safe when initially rendered.
 **Prevention:** Enforced the use of `DOMPurify.sanitize()` on the extracted `innerHTML` before creating the `ClipboardItem` blob in `src/components/editor/MarkdownEditor.tsx`.
+
+## 2026-03-26 - Information Leakage in Error Boundary UI
+**Vulnerability:** `ErrorFallback.tsx` was directly rendering the `error.stack` property to the UI within a collapsible details section, exposing stack traces containing internal file paths and component structure to users in production.
+**Learning:** Error boundaries must fail securely. While `error.stack` is helpful during local development, it poses an information leakage risk in production environments and should never be displayed directly to the end-user.
+**Prevention:** Removed the rendering of `error.stack` from `ErrorFallback.tsx`. Only safe, sanitized error messages (like `error.message` or generic user-friendly strings) should be presented in the user interface.
