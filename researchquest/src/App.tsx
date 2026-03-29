@@ -311,9 +311,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | undefined>(undefined);
   const [itemNotFound, setItemNotFound] = useState(false);
-
-  // ⚡ Bolt: Use shallow selector to prevent the root App component from re-rendering
-  // whenever unrelated properties in the global appStore change.
+  // ⚡ Use useShallow so App does not re-render on unrelated appStore changes.
   const {
     setUser: setUserProfile,
     currentView,
