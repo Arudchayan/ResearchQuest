@@ -12,6 +12,9 @@ export function isValidUrl(url: string): boolean {
   const trimmed = url.trim();
   if (!trimmed) return false;
 
+  // Explicitly reject protocol-relative URLs to prevent open redirect vulnerabilities
+  if (trimmed.startsWith("//")) return false;
+
   // Allow relative URLs (often safe in context of app navigation, but be careful)
   // For external links, we usually want http/https.
   // If it starts with /, it's relative.
