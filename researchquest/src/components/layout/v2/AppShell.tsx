@@ -17,14 +17,14 @@ export function AppShell({ children }: AppShellProps) {
     setIsMobileSidebarOpen,
     isRightSidebarOpen,
     isZenMode,
-    setZenMode,
+    toggleZenMode,
   } = useAppStore(
     useShallow((state) => ({
       isMobileSidebarOpen: state.isMobileSidebarOpen,
       setIsMobileSidebarOpen: state.setIsMobileSidebarOpen,
       isRightSidebarOpen: state.isRightSidebarOpen,
       isZenMode: state.isZenMode,
-      setZenMode: state.setZenMode,
+      toggleZenMode: state.toggleZenMode,
     })),
   );
 
@@ -37,13 +37,13 @@ export function AppShell({ children }: AppShellProps) {
         (e.key === "F" || e.key === "f")
       ) {
         e.preventDefault();
-        setZenMode(!isZenMode);
+        toggleZenMode();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isZenMode, setZenMode]);
+  }, [toggleZenMode]);
 
   return (
     <div className="flex h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans overflow-hidden relative">
@@ -91,7 +91,7 @@ export function AppShell({ children }: AppShellProps) {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-                {/* Mobile Header */}
+        {/* Mobile Header */}
         {!isZenMode && (
           <header className="lg:hidden h-16 flex items-center justify-between px-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 shrink-0">
             <div className="flex items-center">
@@ -139,7 +139,7 @@ export function AppShell({ children }: AppShellProps) {
       {/* Zen Mode Exit Button */}
       {isZenMode && (
         <button
-          onClick={() => setZenMode(false)}
+          onClick={() => toggleZenMode()}
           className="fixed bottom-6 right-6 z-[100] p-3 rounded-full bg-slate-200/50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 hover:bg-slate-300/80 dark:hover:bg-slate-700/80 hover:text-slate-800 dark:hover:text-slate-100 backdrop-blur-sm transition-all shadow-lg border border-slate-300/20 dark:border-slate-700/20 group focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2"
           title="Exit Zen Mode (Ctrl+Shift+F)"
           aria-label="Exit Zen Mode"
