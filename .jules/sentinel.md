@@ -59,16 +59,9 @@
 **Prevention:** Replaced direct `console.error` calls with the secure `logger.error` wrapper in affected UI components. This creates a more robust architectural boundary where the centralized logger strictly controls what is exposed to the client console in production.
 
 ## 2026-06-25 - Information Leakage Prevention Bug and Centralized Logger Enforcement
-**Vulnerability:** The centralized `logger` utility correctly sanitized `Error` objects and strings, but failed to recognize plain objects (like Supabase errors) when extracting `errorMessage`. This resulted in real errors being completely swallowed and logged as "Unknown error" in production, while some files in the codebase (e.g., `TopNav.tsx`, `useRelatedItems.ts`, `import.ts`) were still using inline `console.error` with the flawed plain-object extraction pattern.
-**Learning:** Security utilities meant to prevent information leakage must correctly handle all expected input formats. Supabase errors, being plain objects with a `message` property rather than `Error` instances, need explicit handling. Additionally, security fixes must be applied holistically using the centralized utility to ensure robust architectural boundaries.
-**Prevention:** Updated the `errorMessage` extraction in `src/utils/logger.ts` to properly identify and extract strings from plain objects (`typeof error === 'object' && 'message' in error`). Replaced all remaining insecure `console.error` calls with the secure `logger.error` wrapper.
+**Vulnerability:** The centralized `logger` utility correctly sanitized `Error` objects and strings, but failed to recognize plain objects (like Supabase errors) when extracting `errorMessage`. This resulted in real errors being completely swallowed and logged as "Unknown error" in production, while some files in
 
-## 2026-11-05 - XSS Vulnerability via ClipboardItem
-**Vulnerability:** The Markdown editor's "Copy Rich Text" feature extracted raw HTML using `previewElement.innerHTML` and directly passed it to the `ClipboardItem` API. If malicious HTML somehow bypassed the Markdown renderer's initial sanitization (or was manipulated before copying), it would be executed when pasted into other applications or contexts that trust clipboard HTML.
-**Learning:** Extracting raw DOM content (like `innerHTML`) to be injected into new contexts (such as `ClipboardItem` or `document.write`) is a critical boundary. Data must be re-sanitized at the point of extraction before crossing this boundary, even if it was supposedly safe when initially rendered.
-**Prevention:** Enforced the use of `DOMPurify.sanitize()` on the extracted `innerHTML` before creating the `ClipboardItem` blob in `src/components/editor/MarkdownEditor.tsx`.
-
-## 2026-03-26 - Information Leakage in Error Boundary UI
-**Vulnerability:** `ErrorFallback.tsx` was directly rendering the `error.stack` property to the UI within a collapsible details section, exposing stack traces containing internal file paths and component structure to users in production.
-**Learning:** Error boundaries must fail securely. While `error.stack` is helpful during local development, it poses an information leakage risk in production environments and should never be displayed directly to the end-user.
-**Prevention:** Removed the rendering of `error.stack` from `ErrorFallback.tsx`. Only safe, sanitized error messages (like `error.message` or generic user-friendly strings) should be presented in the user interface.
+## 2026-06-26 - XSS in Clipboard Operations
+**Vulnerability:** Copying rich text to the clipboard in `MarkdownEditor.tsx` used `previewElement.innerHTML` without sanitization. If an attacker managed to inject malicious scripts into the preview, they could be executed when a user pasted the content into another application that renders HTML.
+**Learning:** Security boundaries must be enforced at every data exit point, including the system clipboard.
+**Prevention:** Integrated `DOMPurify.sanitize()` before creating the `ClipboardItem` in `MarkdownEditor.tsx` to ensure all HTML content is safe before being copied.
