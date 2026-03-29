@@ -81,10 +81,10 @@ export function AppShell({ children }: AppShellProps) {
           <Sidebar />
           <button
             onClick={() => setIsMobileSidebarOpen(false)}
-            className="absolute top-4 right-4 p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+            className="absolute top-4 right-4 p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
             aria-label="Close sidebar"
           >
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
       )}
@@ -97,19 +97,19 @@ export function AppShell({ children }: AppShellProps) {
             <div className="flex items-center">
               <button
                 onClick={() => setIsMobileSidebarOpen(true)}
-                className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 rounded-md"
+                className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
                 aria-label="Open sidebar"
               >
-                <Menu className="w-6 h-6" />
+                <Menu className="w-6 h-6" aria-hidden="true" />
               </button>
               <span className="ml-3 font-semibold text-lg">ResearchQuest</span>
             </div>
             <button
               onClick={() => document.dispatchEvent(new CustomEvent('open-command-palette'))}
-              className="p-2 -mr-2 text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 rounded-md"
+              className="p-2 -mr-2 text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
               aria-label="Open search"
             >
-              <Search className="w-5 h-5" />
+              <Search className="w-5 h-5" aria-hidden="true" />
             </button>
           </header>
         )}
@@ -140,11 +140,11 @@ export function AppShell({ children }: AppShellProps) {
       {isZenMode && (
         <button
           onClick={() => setZenMode(false)}
-          className="fixed bottom-6 right-6 z-[100] p-3 rounded-full bg-slate-200/50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 hover:bg-slate-300/80 dark:hover:bg-slate-700/80 hover:text-slate-800 dark:hover:text-slate-100 backdrop-blur-sm transition-all shadow-lg border border-slate-300/20 dark:border-slate-700/20 group"
+          className="fixed bottom-6 right-6 z-[100] p-3 rounded-full bg-slate-200/50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 hover:bg-slate-300/80 dark:hover:bg-slate-700/80 hover:text-slate-800 dark:hover:text-slate-100 backdrop-blur-sm transition-all shadow-lg border border-slate-300/20 dark:border-slate-700/20 group focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2"
           title="Exit Zen Mode (Ctrl+Shift+F)"
           aria-label="Exit Zen Mode"
         >
-          <Minimize2 className="w-5 h-5 group-hover:scale-110 transition-transform" />
+          <Minimize2 className="w-5 h-5 group-hover:scale-110 transition-transform" aria-hidden="true" />
         </button>
       )}
     </div>

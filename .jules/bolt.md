@@ -31,7 +31,7 @@
 **Action:** Split the logic into two effects: one for fetching IDs (dependent only on entity ID) and one for hydrating full objects (dependent on store data). Use `useMemo` for the hydration step to keep it cheap.
 
 ## 2025-05-24 - Redundant Helper Fetches
-**Learning:** Helper functions (like `awardXP` calling `updateDailyLog`) that independently re-fetch the same entity (e.g., user profile) cause N+1 performance issues on the client.
+**Learning:** Helper functions (like `awardXP` calling `updateDailyLog`) that independently re-fetch the same entity (e.g., user profile) cause N+1 performance issues on the client.     
 **Action:** Refactor helper functions to accept the required data (e.g., `streak`) as arguments instead of fetching it again. Consolidate updates into a single database call where possible.
 
 ## 2025-05-25 - Parallelizing Independent Fetches
@@ -72,3 +72,23 @@
 ## 2025-05-25 - Missing useShallow selector on useAppStore in High-level App Components
 **Learning:** High-level React components like `App` extract properties directly from the `useAppStore()` Zustand store without a selector. This anti-pattern causes the entire App to unnecessarily re-render whenever ANY property in the global store changes (even unrelated properties like search queries or list updates), leading to massive performance regressions across the entire application.
 **Action:** Always extract state using `useShallow` from `zustand/react/shallow` with an object selector in top-level components like `App` that depend on multiple properties from the Zustand store.
+
+## 2024-03-23 - Suboptimal Array Lookup in Loop
+**Learning:** Performing `Array.prototype.find()` operations within a loop checking large global store array slices against smaller result arrays can cause an exponential O(N*M) slowdown, significantly impacting main thread performance.
+**Action:** When filtering or hydrating relationships between a smaller ID-based list and a larger main collection (e.g. looking up paper objects for related item IDs), convert the target array into a `Map` structure upfront to allow O(1) lookups, changing the complexity to O(N+M).
+
+## 2024-05-18 - Promise caching prevents thundering herd for concurrent DB checks
+**Learning:** Initializing state hooks in multiple components concurrently (like `useTopics`) caused duplicate execution of `tableSupportsUserId`, sending multiple identical metadata DB queries because the simple boolean cache was only updated after the first await resolved.
+**Action:** Always cache the in-flight `Promise` itself rather than just the final boolean value when caching asynchronous operations that may be triggered concurrently. This allows concurrent callers to await the single existing promise, drastically reducing database calls (from 15 to 3 in benchmarks).
+
+## 2024-05-19 - O(N*M) Suboptimal Array Lookup in Loop
+**Learning:** Using `Array.prototype.find()` inside a loop over related items (like in `useRelatedItems.ts`) causes O(N*M) time complexity, leading to massive hydration slow-downs for large data sets.
+**Action:** Always pre-compute a lookup Map (e.g., `new Map(items.map(item => [item.id, item]))`) before iterating through relational connections to reduce the complexity to O(N+M).     
+
+## 2025-05-24 - Pre-computing Lookups for Nested Lists
+**Learning:** Using `.find()` inside a `map` loop (e.g. `selectedIds.map(id => topics.find(t => t.id === id))`) causes O(N*M) performance bottlenecks during React rendering, particularly when dealing with long relational lists.
+**Action:** When mapping over lists of IDs to hydrate components, always pre-compute a lookup Map (`const map = new Map(items.map(i => [i.id, i]))`) using `useMemo` and use `.get()` to achieve O(N+M) time complexity.
+
+## 2025-05-26 - Defeating useMemo with Unmemoized Dependencies
+**Learning:** Creating a derived array directly in the render body (e.g., `const filteredTasks = tasks.filter(...)`) and then passing it as a dependency to a `useMemo` hook (e.g., `const sortedTasks = useMemo(..., [filteredTasks])`) completely defeats the purpose of memoization. Because the derived array is recreated on every render, its referential identity changes, causing the `useMemo` to re-execute entirely on every unrelated state update (such as typing in an input field).
+**Action:** Always encapsulate chained data transformations (like filtering and then sorting) into a single `useMemo` hook, or ensure that all intermediate derived arrays passed as dependencies are themselves properly memoized.
