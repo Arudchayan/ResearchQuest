@@ -5,7 +5,6 @@ import {
   Lightbulb,
   CheckSquare,
   Clock,
-  Settings,
   LogOut,
   User,
   Sun,
@@ -117,22 +116,7 @@ export function Sidebar() {
             <span>Search...</span>
           </div>
           <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-medium text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 rounded-md border border-slate-200 dark:border-slate-700">
-            <span className="mr-0.5">⌘</span>K
-          </kbd>
-        </button>
-      </div>
-
-
-      <div className="px-4 pb-4">
-        <button
-          onClick={handleOpenSearch}
-          className="w-full flex items-center gap-2 px-3 py-2 bg-slate-200/50 dark:bg-slate-800/50 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-md text-sm transition-colors border border-slate-200 dark:border-slate-700/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2"
-          aria-label="Search"
-        >
-          <Search className="w-4 h-4" />
-          <span className="flex-1 text-left">Search...</span>
-          <kbd className="hidden sm:inline-block text-[10px] font-medium text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">
-            {navigator.platform.includes("Mac") ? "⌘K" : "Ctrl+K"}
+            <span className="mr-0.5">{navigator.platform.includes("Mac") ? "⌘" : "Ctrl+"}</span>K
           </kbd>
         </button>
       </div>
