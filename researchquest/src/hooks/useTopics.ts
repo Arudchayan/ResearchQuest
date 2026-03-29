@@ -43,27 +43,28 @@ const ENTITY_COLUMN: Record<TopicEntityType, string> = {
 
 // Global caches to persist across hook instances/remounts
 const globalLinkCache = new Map<string, string[]>();
-const tableSupportCache = new Map<string, boolean>();
+const tableSupportCache = new Map<string, Promise<boolean>>();
 const fetchedUsers = new Set<string>();
 
-async function tableSupportsUserId(table: string): Promise<boolean> {
-  if (tableSupportCache.has(table)) {
-    return tableSupportCache.get(table)!;
+function tableSupportsUserId(table: string): Promise<boolean> {
+  let promise = tableSupportCache.get(table);
+  if (!promise) {
+    promise = (async () => {
+      const { error } = await supabase.from(table).select("user_id").limit(1);
+
+      let supported = true;
+      if (error) {
+        const normalized =
+          `${error.message ?? ""} ${error.details ?? ""}`.toLowerCase();
+        if (normalized.includes("column") && normalized.includes("user_id")) {
+          supported = false;
+        }
+      }
+      return supported;
+    })();
+    tableSupportCache.set(table, promise);
   }
-
-  const { error } = await supabase.from(table).select("user_id").limit(1);
-
-  let supported = true;
-  if (error) {
-    const normalized =
-      `${error.message ?? ""} ${error.details ?? ""}`.toLowerCase();
-    if (normalized.includes("column") && normalized.includes("user_id")) {
-      supported = false;
-    }
-  }
-
-  tableSupportCache.set(table, supported);
-  return supported;
+  return promise;
 }
 
 function coerceCount(value?: { count: number | null }[]): number {
