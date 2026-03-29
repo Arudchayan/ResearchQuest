@@ -7,12 +7,16 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
 import rehypeHighlight from "rehype-highlight";
+import DOMPurify from "dompurify";
+import { CitationPicker } from "./CitationPicker";
 import {
   Bold,
   Italic,
+  Heading,
   Code,
   List,
   Link2,
+  Quote,
   Save,
   Columns,
   Eye,
@@ -24,7 +28,10 @@ import {
   Printer,
   Maximize2,
   Minimize2,
+  Copy,
+  ClipboardList,
 } from "lucide-react";
+import { toast } from "sonner";
 import { useShallow } from "zustand/react/shallow";
 import { useAppStore } from "../../store/appStore";
 import { TopicSelector } from "../topics/TopicSelector";
@@ -64,6 +71,10 @@ const VIEW_OPTIONS: {
   },
 ];
 
+// Define plugins outside component to ensure referential stability
+const REMARK_PLUGINS = [remarkGfm];
+const REHYPE_PLUGINS = [rehypeSanitize, rehypeHighlight];
+
 export function MarkdownEditor() {
   const { selectedNote, setSelectedNote, effectiveTheme, user, isZenMode, toggleZenMode } = useAppStore(
     useShallow((state) => ({
@@ -79,12 +90,18 @@ export function MarkdownEditor() {
   const userId = user?.id;
   const { updateNote } = useNotes(userId);
 
-  const [content, setContent] = useState("");
-  const [title, setTitle] = useState("");
+  // Initialize with selectedNote data if available to avoid empty flash
+  const [content, setContent] = useState(selectedNote?.markdown_body || "");
+  const [title, setTitle] = useState(selectedNote?.title || "");
+  const [debouncedContent, setDebouncedContent] = useState(
+    selectedNote?.markdown_body || "",
+  );
+
   const [saving, setSaving] = useState(false);
   const [isTitleFocused, setIsTitleFocused] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("split");
   const editorViewRef = useRef<EditorView | null>(null);
+  const [citationPickerOpen, setCitationPickerOpen] = useState(false);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [pendingLinkRange, setPendingLinkRange] = useState<{
     from: number;
@@ -149,16 +166,32 @@ export function MarkdownEditor() {
     return () => window.removeEventListener("keydown", handleEscape);
   }, [closeLinkDialog, linkDialogOpen]);
 
-  // Load selected note
+  // Load selected note - handle navigation immediately
   useEffect(() => {
     if (selectedNote) {
       setContent(selectedNote.markdown_body);
       setTitle(selectedNote.title || "");
+      // Update preview immediately when switching notes to avoid showing stale content from previous note
+      setDebouncedContent(selectedNote.markdown_body);
     } else {
       setContent("");
       setTitle("");
+      setDebouncedContent("");
     }
   }, [selectedNote]);
+
+  // Debounce content updates for preview (typing only)
+  useEffect(() => {
+    // If content matches what we just set from selectedNote, don't debounce (already handled above)
+    // But since selectedNote effect runs first, we can just rely on this effect debouncing typing.
+    // The immediate update above handles the "switch" case.
+    // This effect handles the "typing" case.
+    const handler = setTimeout(() => {
+      setDebouncedContent(content);
+    }, 300);
+
+    return () => clearTimeout(handler);
+  }, [content]);
 
   const openLinkDialog = useCallback(() => {
     const view = editorViewRef.current;
@@ -173,6 +206,22 @@ export function MarkdownEditor() {
     setLinkUrlValue("");
     setLinkError(null);
     setLinkDialogOpen(true);
+  }, []);
+
+  const handleCitationSelect = useCallback((citation: string) => {
+    const view = editorViewRef.current;
+    if (!view) return;
+
+    const { state } = view;
+    const { from, to } = state.selection.main;
+
+    view.dispatch({
+      changes: { from, to, insert: citation },
+      selection: { anchor: from + citation.length },
+      scrollIntoView: true,
+    });
+    view.focus();
+    setCitationPickerOpen(false);
   }, []);
 
   const applyWrappedFormatting = useCallback(
@@ -219,6 +268,49 @@ export function MarkdownEditor() {
     },
     [],
   );
+
+  const applyHeadingFormatting = useCallback(() => {
+    const view = editorViewRef.current;
+    if (!view) return;
+
+    const { state } = view;
+
+    const lineNumbers = new Set<number>();
+    state.selection.ranges.forEach((currentRange) => {
+      let line = state.doc.lineAt(currentRange.from);
+      lineNumbers.add(line.number);
+
+      while (line.to < currentRange.to) {
+        line = state.doc.line(line.number + 1);
+        lineNumbers.add(line.number);
+      }
+    });
+
+    const changes = Array.from(lineNumbers)
+      .map((lineNumber) => {
+        const line = state.doc.line(lineNumber);
+        const text = line.text;
+        const match = text.match(/^(#{1,3})\s/);
+
+        if (match) {
+          const level = match[1].length;
+          if (level === 3) {
+            return { from: line.from, to: line.from + 4, insert: "" };
+          } else {
+            return { from: line.from, to: line.from, insert: "#" };
+          }
+        } else {
+          return { from: line.from, to: line.from, insert: "# " };
+        }
+      })
+      .sort((a, b) => a.from - b.from);
+
+    if (changes.length > 0) {
+      view.dispatch({ changes, scrollIntoView: true });
+    }
+
+    view.focus();
+  }, []);
 
   const applyListFormatting = useCallback(() => {
     const view = editorViewRef.current;
@@ -270,7 +362,7 @@ export function MarkdownEditor() {
   }, []);
 
   const applyFormatting = useCallback(
-    (format: "bold" | "italic" | "code" | "list") => {
+    (format: "bold" | "italic" | "code" | "list" | "heading") => {
       switch (format) {
         case "bold":
           applyWrappedFormatting("**", "**", "bold text");
@@ -284,17 +376,62 @@ export function MarkdownEditor() {
         case "list":
           applyListFormatting();
           break;
+        case "heading":
+          applyHeadingFormatting();
+          break;
       }
     },
-    [applyListFormatting, applyWrappedFormatting],
+    [applyListFormatting, applyWrappedFormatting, applyHeadingFormatting],
   );
+
+  const handleCopyMarkdown = useCallback(() => {
+    if (!content) return;
+    navigator.clipboard.writeText(content).then(() => {
+      toast.success("Markdown copied to clipboard");
+    }).catch(() => {
+      toast.error("Failed to copy Markdown");
+    });
+  }, [content]);
+
+  const handleCopyRichText = useCallback(() => {
+    const previewElement = previewRef.current;
+    if (!previewElement) {
+      toast.error("Preview must be visible to copy rich text");
+      return;
+    }
+
+    // 🛡️ Sentinel: Sanitize HTML content before copying to clipboard to prevent XSS
+    const html = DOMPurify.sanitize(previewElement.innerHTML);
+    const text = previewElement.innerText;
+
+    try {
+      const clipboardItem = new ClipboardItem({
+        "text/html": new Blob([html], { type: "text/html" }),
+        "text/plain": new Blob([text], { type: "text/plain" }),
+      });
+      navigator.clipboard.write([clipboardItem]).then(() => {
+        toast.success("Rich text copied to clipboard");
+      }).catch(() => {
+        toast.error("Failed to copy rich text");
+      });
+    } catch (err) {
+      // Fallback for browsers that don't support ClipboardItem fully
+      navigator.clipboard.writeText(text).then(() => {
+        toast.success("Plain text copied (Rich text not supported by browser)");
+      }).catch(() => {
+        toast.error("Failed to copy text");
+      });
+    }
+  }, []);
 
   const handleExport = useCallback(() => {
     if (!content) return;
 
     const exportTitle = title.trim() || "Untitled Note";
     // Sanitize filename: replace non-alphanumeric chars with underscore, keep nice format
-    const safeTitle = exportTitle.replace(/[^a-z0-9\s-_]/gi, "").replace(/\s+/g, "_");
+    const safeTitle = exportTitle
+      .replace(/[^a-z0-9\s-_]/gi, "")
+      .replace(/\s+/g, "_");
     const filename = `${safeTitle || "note"}.md`;
 
     const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
@@ -321,7 +458,8 @@ export function MarkdownEditor() {
       return;
     }
 
-    const htmlContent = previewElement.innerHTML;
+    // 🛡️ Sentinel: Sanitize HTML content to prevent XSS during print via document.write
+    const htmlContent = DOMPurify.sanitize(previewElement.innerHTML);
     const rawTitle = title || "Untitled Note";
     // Basic HTML escaping to prevent XSS in the new window title
     const documentTitle = rawTitle
@@ -517,10 +655,26 @@ export function MarkdownEditor() {
           },
         },
         {
+          key: "Mod-Shift-h",
+          preventDefault: true,
+          run: () => {
+            applyFormatting("heading");
+            return true;
+          },
+        },
+        {
           key: "Mod-k",
           preventDefault: true,
           run: () => {
             openLinkDialog();
+            return true;
+          },
+        },
+        {
+          key: "Mod-Shift-r",
+          preventDefault: true,
+          run: () => {
+            setCitationPickerOpen(true);
             return true;
           },
         },
@@ -559,6 +713,12 @@ export function MarkdownEditor() {
       ]),
     ],
     [applyFormatting, openLinkDialog, toggleZenMode],
+  );
+
+  // Memoize extensions array to prevent unnecessary re-renders of CodeMirror
+  const extensions = useMemo(
+    () => [markdown(), EditorView.lineWrapping, ...formattingExtensions],
+    [formattingExtensions],
   );
 
   useEffect(() => {
@@ -621,7 +781,6 @@ export function MarkdownEditor() {
         markdown_body: content,
         tags,
       });
-
     } catch (err) {
       // updateNote handles standard errors and toasts.
       // If a non-standard error occurs (exception), we should ideally log it safely
@@ -712,12 +871,46 @@ export function MarkdownEditor() {
           </button>
           <button
             type="button"
+            onClick={() => applyFormatting("heading")}
+            className="p-2 rounded-md transition-colors hover:bg-bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
+            aria-label="Toggle Heading (Ctrl/Cmd+Shift+H)"
+            title="Toggle Heading (Ctrl/Cmd+Shift+H)"
+          >
+            <Heading
+              className="w-4 h-4 text-text-secondary"
+              aria-hidden="true"
+            />
+          </button>
+          <button
+            type="button"
             onClick={() => applyFormatting("code")}
             className="p-2 rounded-md transition-colors hover:bg-bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
             aria-label="Inline code (Ctrl/Cmd+Shift+C)"
             title="Inline code (Ctrl/Cmd+Shift+C)"
           >
             <Code className="w-4 h-4 text-text-secondary" aria-hidden="true" />
+          </button>
+          <div className="w-px h-6 bg-border-subtle mx-1" aria-hidden="true" />
+          <button
+            type="button"
+            onClick={handleCopyMarkdown}
+            className="p-2 rounded-md transition-colors hover:bg-bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
+            aria-label="Copy Markdown"
+            title="Copy Markdown"
+          >
+            <Copy className="w-4 h-4 text-text-secondary" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={handleCopyRichText}
+            className="p-2 rounded-md transition-colors hover:bg-bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
+            aria-label="Copy Rich Text"
+            title="Copy Rich Text"
+          >
+            <ClipboardList
+              className="w-4 h-4 text-text-secondary"
+              aria-hidden="true"
+            />
           </button>
           <div className="w-px h-6 bg-border-subtle mx-1" aria-hidden="true" />
           <button
@@ -738,6 +931,15 @@ export function MarkdownEditor() {
           >
             <Link2 className="w-4 h-4 text-text-secondary" aria-hidden="true" />
           </button>
+          <button
+            type="button"
+            onClick={() => setCitationPickerOpen(true)}
+            className="p-2 rounded-md transition-colors hover:bg-bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
+            aria-label="Insert Citation (Ctrl/Cmd+Shift+R)"
+            title="Insert Citation (Ctrl/Cmd+Shift+R)"
+          >
+            <Quote className="w-4 h-4 text-text-secondary" aria-hidden="true" />
+          </button>
           <div className="w-px h-6 bg-border-subtle mx-1" aria-hidden="true" />
           <button
             type="button"
@@ -746,7 +948,10 @@ export function MarkdownEditor() {
             aria-label="Export to Markdown"
             title="Export to Markdown"
           >
-            <Download className="w-4 h-4 text-text-secondary" aria-hidden="true" />
+            <Download
+              className="w-4 h-4 text-text-secondary"
+              aria-hidden="true"
+            />
           </button>
           <button
             type="button"
@@ -755,7 +960,10 @@ export function MarkdownEditor() {
             aria-label="Print Note"
             title="Print Note"
           >
-            <Printer className="w-4 h-4 text-text-secondary" aria-hidden="true" />
+            <Printer
+              className="w-4 h-4 text-text-secondary"
+              aria-hidden="true"
+            />
           </button>
           <div className="w-px h-6 bg-border-subtle mx-1" aria-hidden="true" />
           <button
@@ -827,11 +1035,7 @@ export function MarkdownEditor() {
               value={content}
               height="100%"
               theme={effectiveTheme === "dark" ? githubDark : githubLight}
-              extensions={[
-                markdown(),
-                EditorView.lineWrapping,
-                ...formattingExtensions,
-              ]}
+              extensions={extensions}
               onChange={(value) => setContent(value)}
               className="h-full font-mono text-code"
               onCreateEditor={(view) => {
@@ -876,12 +1080,15 @@ export function MarkdownEditor() {
         <div
           className={`${viewMode === "split" ? "lg:w-2/5" : "w-full"} ${viewMode === "edit" ? "hidden" : "block"} h-full overflow-auto bg-bg-base p-6`}
         >
-          <div ref={previewRef} className="prose prose-sm max-w-none dark:prose-invert">
+          <div
+            ref={previewRef}
+            className="prose prose-sm max-w-none dark:prose-invert"
+          >
             <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              rehypePlugins={[rehypeSanitize, rehypeHighlight]}
+              remarkPlugins={REMARK_PLUGINS}
+              rehypePlugins={REHYPE_PLUGINS}
             >
-              {content || "*Start typing to see preview...*"}
+              {debouncedContent || "*Start typing to see preview...*"}
             </ReactMarkdown>
           </div>
         </div>
@@ -893,7 +1100,10 @@ export function MarkdownEditor() {
             <AlignLeft className="w-4 h-4" aria-hidden="true" />
             <span>{wordCount} words</span>
           </div>
-          <div className="flex items-center gap-1.5" title="Estimated reading time">
+          <div
+            className="flex items-center gap-1.5"
+            title="Estimated reading time"
+          >
             <Clock className="w-4 h-4" aria-hidden="true" />
             <span>{readingTime}</span>
           </div>
@@ -901,9 +1111,7 @@ export function MarkdownEditor() {
 
         <div className="flex items-center gap-2 hidden sm:flex">
           <Sparkles className="w-4 h-4" aria-hidden="true" />
-          <span>
-            Markdown supported. Use Ctrl/Cmd shortcuts.
-          </span>
+          <span>Markdown supported. Use Ctrl/Cmd shortcuts.</span>
         </div>
       </div>
 
@@ -996,6 +1204,14 @@ export function MarkdownEditor() {
             </form>
           </div>
         </div>
+      )}
+
+      {citationPickerOpen && (
+        <CitationPicker
+          open={citationPickerOpen}
+          onOpenChange={setCitationPickerOpen}
+          onSelect={handleCitationSelect}
+        />
       )}
     </div>
   );
