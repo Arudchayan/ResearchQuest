@@ -66,6 +66,7 @@ interface AppState {
   isZenMode: boolean;
   setIsMobileSidebarOpen: (open: boolean) => void;
   setIsRightSidebarOpen: (open: boolean) => void;
+  setZenMode: (zen: boolean) => void;
   toggleZenMode: () => void;
 }
 
@@ -154,6 +155,7 @@ export const useAppStore = create<AppState>()(
         set({ isMobileSidebarOpen }),
       setIsRightSidebarOpen: (isRightSidebarOpen) =>
         set({ isRightSidebarOpen }),
+      setZenMode: (isZenMode) => set({ isZenMode }),
       toggleZenMode: () => set((state) => ({ isZenMode: !state.isZenMode })),
     }),
     {
