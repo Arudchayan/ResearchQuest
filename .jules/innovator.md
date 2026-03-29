@@ -51,3 +51,8 @@ Prevention: When creating new list views in the future, automatically evaluate i
 Opportunity: IdeasBoard lacked parity with NotesView, PapersView, and TaskManager regarding explicit sorting functionality.
 Learning: Maintaining UX consistency across similar list views enhances overall usability and predictability for users. Adding explicit sorting options provides users with better control over their content.
 Prevention: When creating new list views in the future, automatically evaluate if search, sort, and export functionalities are needed based on existing patterns.
+
+2024-05-24 — Add Tasks to Global Backup and Data Export
+Opportunity: The global data backup feature (`DataManagementDialog.tsx`) excluded Tasks, creating a friction point and risk of data loss. Users could back up Notes, Papers, Ideas, and Topics, but not Tasks.
+Learning: Unifying global export across all core entities ensures data portability and prevents partial backups, avoiding catastrophic data loss scenarios for end users relying on the backup system.
+Prevention: When adding new core entities to a project with a global backup strategy, always add the new entity explicitly to both the export utility formats and the import/export orchestrator dialog.
