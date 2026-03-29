@@ -30,13 +30,14 @@ export function DataManagementDialog({
   onClose,
 }: DataManagementDialogProps) {
   // ⚡ OPTIMIZATION: Use useShallow with an object selector to prevent DataManagementDialog from unnecessarily re-rendering on unrelated state changes in the global appStore.
-  const { user, notes, papers, ideas, topics } = useAppStore(
+  const { user, notes, papers, ideas, topics, tasks } = useAppStore(
     useShallow((state) => ({
       user: state.user,
       notes: state.notes,
       papers: state.papers,
       ideas: state.ideas,
       topics: state.topics,
+      tasks: state.tasks || [],
     })),
   );
   const [activeTab, setActiveTab] = useState("export");
@@ -47,6 +48,7 @@ export function DataManagementDialog({
     notes: true,
     papers: true,
     ideas: true,
+    tasks: true,
     topics: true,
   });
 
@@ -58,6 +60,7 @@ export function DataManagementDialog({
     notes: true,
     papers: true,
     ideas: true,
+    tasks: true,
     topics: true,
   });
   const [importing, setImporting] = useState(false);
@@ -75,6 +78,9 @@ export function DataManagementDialog({
 
     if (exportSelection.ideas) dataToExport.ideas = ideas;
     else dataToExport.ideas = [];
+
+    if (exportSelection.tasks) dataToExport.tasks = tasks;
+    else dataToExport.tasks = [];
 
     if (exportSelection.topics) {
       // Clean topics to match expected format if needed, but exportData handles raw types too usually
@@ -128,6 +134,7 @@ export function DataManagementDialog({
         notes: !!data.notes?.length,
         papers: !!data.papers?.length,
         ideas: !!data.ideas?.length,
+        tasks: !!data.tasks?.length,
         topics: !!data.topics?.length,
       });
     } catch (err) {
@@ -204,6 +211,20 @@ export function DataManagementDialog({
         const { error } = await supabase.from("ideas").upsert(ideas);
         if (error) throw error;
         importedCount += ideas.length;
+      }
+
+      // Import Tasks
+      if (importSelection.tasks && parsedData.tasks?.length) {
+        toast.loading(`Importing ${parsedData.tasks.length} tasks...`, {
+          id: toastId,
+        });
+        const tasks = parsedData.tasks.map((t: any) => ({
+          ...t,
+          user_id: user.id,
+        }));
+        const { error } = await supabase.from("tasks").upsert(tasks);
+        if (error) throw error;
+        importedCount += tasks.length;
       }
 
       toast.success(`Successfully imported ${importedCount} items`, {
@@ -322,6 +343,7 @@ export function DataManagementDialog({
                             {key === "notes" && `${notes.length} items`}
                             {key === "papers" && `${papers.length} items`}
                             {key === "ideas" && `${ideas.length} items`}
+                            {key === "tasks" && `${tasks.length} items`}
                             {key === "topics" && `${topics.length} items`}
                             {key === "user" && "Profile & Stats"}
                           </span>
