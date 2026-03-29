@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useAppStore } from "../../store/appStore";
+import { useShallow } from "zustand/react/shallow";
 import { useNotes } from "../../hooks/useNotes";
 import { MarkdownEditor } from "../editor/MarkdownEditor";
 import { NoteCard } from "./NoteCard";
@@ -26,7 +27,6 @@ import {
   convertNotesToMarkdown,
   downloadFile,
 } from "../../utils/export";
-import { useShallow } from "zustand/react/shallow";
 
 type SortOption =
   | "updated_desc"

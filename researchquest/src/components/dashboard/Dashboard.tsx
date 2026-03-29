@@ -148,71 +148,73 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Level Card */}
-        <div className="bg-white dark:bg-slate-950 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-blue-500/50 transition-colors">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <Award className="w-24 h-24 text-blue-500" />
+      {stats && stats.progress !== undefined && (
+        /* Stats Grid */
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Level Card */}
+          <div className="bg-white dark:bg-slate-950 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-blue-500/50 transition-colors">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <Award className="w-24 h-24 text-blue-500" />
+            </div>
+            <div className="relative z-10">
+              <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-semibold mb-2">
+                <Star className="w-4 h-4" />
+                <span>Level {stats?.level}</span>
+              </div>
+              <div className="text-2xl font-bold text-slate-900 dark:text-white mb-1">
+                {stats?.title}
+              </div>
+              <div className="text-sm text-slate-500 mb-3">
+                {stats?.xp.toLocaleString()} XP Total
+              </div>
+              <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                <div
+                  className="bg-blue-500 h-full rounded-full transition-all duration-1000 ease-out"
+                  style={{ width: `${stats?.progress}%` }}
+                />
+              </div>
+            </div>
           </div>
-          <div className="relative z-10">
-            <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-semibold mb-2">
-              <Star className="w-4 h-4" />
-              <span>Level {stats?.level}</span>
-            </div>
-            <div className="text-2xl font-bold text-slate-900 dark:text-white mb-1">
-              {stats?.title}
-            </div>
-            <div className="text-sm text-slate-500 mb-3">
-              {stats?.xp.toLocaleString()} XP Total
-            </div>
-            <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
-              <div
-                className="bg-blue-500 h-full rounded-full transition-all duration-1000 ease-out"
-                style={{ width: `${stats?.progress}%` }}
-              />
-            </div>
-          </div>
-        </div>
 
-        {/* Streak Card */}
-        <div className="bg-white dark:bg-slate-950 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-orange-500/50 transition-colors">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <Flame className="w-24 h-24 text-orange-500" />
+          {/* Streak Card */}
+          <div className="bg-white dark:bg-slate-950 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-orange-500/50 transition-colors">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <Flame className="w-24 h-24 text-orange-500" />
+            </div>
+            <div className="relative z-10">
+              <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400 font-semibold mb-2">
+                <Flame className="w-4 h-4" />
+                <span>Day Streak</span>
+              </div>
+              <div className="text-2xl font-bold text-slate-900 dark:text-white mb-1">
+                {stats?.streak} Days
+              </div>
+              <div className="text-sm text-slate-500">
+                Keep it up to earn bonus XP!
+              </div>
+            </div>
           </div>
-          <div className="relative z-10">
-            <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400 font-semibold mb-2">
-              <Flame className="w-4 h-4" />
-              <span>Day Streak</span>
-            </div>
-            <div className="text-2xl font-bold text-slate-900 dark:text-white mb-1">
-              {stats?.streak} Days
-            </div>
-            <div className="text-sm text-slate-500">
-              Keep it up to earn bonus XP!
-            </div>
-          </div>
-        </div>
 
-        {/* Focus Card - Placeholder for now, maybe total focus time? */}
-        <div className="bg-white dark:bg-slate-950 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-purple-500/50 transition-colors">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <Clock className="w-24 h-24 text-purple-500" />
-          </div>
-          <div className="relative z-10">
-            <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400 font-semibold mb-2">
-              <Target className="w-4 h-4" />
-              <span>Active Tasks</span>
+          {/* Focus Card - Placeholder for now, maybe total focus time? */}
+          <div className="bg-white dark:bg-slate-950 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-purple-500/50 transition-colors">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <Clock className="w-24 h-24 text-purple-500" />
             </div>
-            <div className="text-2xl font-bold text-slate-900 dark:text-white mb-1">
-              {tasks.filter((t) => !t.completed).length} Pending
-            </div>
-            <div className="text-sm text-slate-500">
-              {tasks.filter((t) => t.completed).length} completed so far
+            <div className="relative z-10">
+              <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400 font-semibold mb-2">
+                <Target className="w-4 h-4" />
+                <span>Active Tasks</span>
+              </div>
+              <div className="text-2xl font-bold text-slate-900 dark:text-white mb-1">
+                {tasks.filter((t) => !t.completed).length} Pending
+              </div>
+              <div className="text-sm text-slate-500">
+                {tasks.filter((t) => t.completed).length} completed so far
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Recent Notes */}
