@@ -81,6 +81,12 @@
 **Learning:** Using `Array.prototype.find()` inside a loop over related items (like in `useRelatedItems.ts`) causes O(N*M) time complexity, leading to massive hydration slow-downs for large data sets.
 **Action:** Always pre-compute a lookup Map (e.g., `new Map(items.map(item => [item.id, item]))`) before iterating through relational connections to reduce the complexity to O(N+M).
 
+<<<<<<< HEAD
+## 2025-05-24 - Pre-computing Lookups for Nested Lists
+**Learning:** Using `.find()` inside a `map` loop (e.g. `selectedIds.map(id => topics.find(t => t.id === id))`) causes O(N*M) performance bottlenecks during React rendering, particularly when dealing with long relational lists.
+**Action:** When mapping over lists of IDs to hydrate components, always pre-compute a lookup Map (`const map = new Map(items.map(i => [i.id, i]))`) using `useMemo` and use `.get()` to achieve O(N+M) time complexity.
+=======
 ## 2025-05-26 - Defeating useMemo with Unmemoized Dependencies
 **Learning:** Creating a derived array directly in the render body (e.g., `const filteredTasks = tasks.filter(...)`) and then passing it as a dependency to a `useMemo` hook (e.g., `const sortedTasks = useMemo(..., [filteredTasks])`) completely defeats the purpose of memoization. Because the derived array is recreated on every render, its referential identity changes, causing the `useMemo` to re-execute entirely on every unrelated state update (such as typing in an input field).
 **Action:** Always encapsulate chained data transformations (like filtering and then sorting) into a single `useMemo` hook, or ensure that all intermediate derived arrays passed as dependencies are themselves properly memoized.
+>>>>>>> origin/master
