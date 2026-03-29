@@ -1,5 +1,6 @@
-import { UserProfile, Note, Paper, Idea, Topic, Task } from "../types/database";
+import { UserProfile, Note, Paper, Idea, Topic } from "../types/database";
 import { generateBibTeX } from "./citation";
+import type { Task } from "../hooks/useTasks";
 
 export interface ExportData {
   metadata: {
@@ -12,6 +13,7 @@ export interface ExportData {
   papers: Paper[];
   ideas: Idea[];
   topics?: Topic[];
+  tasks?: Task[];
 }
 
 /**
