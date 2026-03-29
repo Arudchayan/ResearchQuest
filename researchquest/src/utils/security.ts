@@ -18,7 +18,12 @@ export function isValidUrl(url: string): boolean {
   // Allow relative URLs (often safe in context of app navigation, but be careful)
   // For external links, we usually want http/https.
   // If it starts with /, it's relative.
-  if (trimmed.startsWith("/")) return true;
+  if (trimmed.startsWith("/")) {
+    // 🛡️ Sentinel: Reject protocol-relative URLs (//) as they bypass protocol checks
+    // and can be used for open redirects or unexpected external resource loading.
+    if (trimmed.startsWith("//")) return false;
+    return true;
+  }
 
   try {
     const parsed = new URL(trimmed);
@@ -78,5 +83,27 @@ export function isStrongPassword(password: string): {
     };
   }
 
+  return { valid: true };
+}
+
+/**
+ * Maximum file size for uploads (5MB)
+ * Prevents DoS attacks via large file uploads
+ */
+export const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
+
+/**
+ * Validates if a file exceeds the maximum allowed size.
+ */
+export function validateFileSize(file: File): {
+  valid: boolean;
+  message?: string;
+} {
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    return {
+      valid: false,
+      message: `File size exceeds the limit of ${MAX_FILE_SIZE_BYTES / (1024 * 1024)}MB.`,
+    };
+  }
   return { valid: true };
 }

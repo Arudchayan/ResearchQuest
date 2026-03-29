@@ -1,6 +1,7 @@
-import { supabase } from '../lib/supabase';
-import { ExportData } from './export';
-import { toast } from 'sonner';
+import { supabase } from "../lib/supabase";
+import { ExportData } from "./export";
+import { toast } from "sonner";
+import { logger } from "./logger";
 
 export async function importData(file: File, userId: string) {
   try {
@@ -10,17 +11,17 @@ export async function importData(file: File, userId: string) {
     try {
       data = JSON.parse(text);
     } catch (e) {
-      toast.error('Invalid JSON file');
+      toast.error("Invalid JSON file");
       return;
     }
 
     // Validate metadata basics
-    if (!data.metadata || data.metadata.appName !== 'ResearchQuest') {
-      toast.error('Invalid backup file: Not a ResearchQuest backup');
+    if (!data.metadata || data.metadata.appName !== "ResearchQuest") {
+      toast.error("Invalid backup file: Not a ResearchQuest backup");
       return;
     }
 
-    const toastId = toast.loading('Importing data...');
+    const toastId = toast.loading("Importing data...");
 
     // Import Topics
     if (data.topics && data.topics.length > 0) {
@@ -30,11 +31,11 @@ export async function importData(file: File, userId: string) {
         name: t.name,
         description: t.description,
         created_at: t.created_at,
-        updated_at: t.updated_at
+        updated_at: t.updated_at,
       }));
-      const { error } = await supabase.from('topics').upsert(topics);
+      const { error } = await supabase.from("topics").upsert(topics);
       if (error) {
-        console.error('Error importing topics:', error);
+        logger.error("Error importing topics", error);
         throw error;
       }
     }
@@ -42,9 +43,9 @@ export async function importData(file: File, userId: string) {
     // Import Notes
     if (data.notes && data.notes.length > 0) {
       const notes = data.notes.map((n) => ({ ...n, user_id: userId }));
-      const { error } = await supabase.from('notes').upsert(notes);
+      const { error } = await supabase.from("notes").upsert(notes);
       if (error) {
-        console.error('Error importing notes:', error);
+        logger.error("Error importing notes", error);
         throw error;
       }
     }
@@ -52,9 +53,9 @@ export async function importData(file: File, userId: string) {
     // Import Papers
     if (data.papers && data.papers.length > 0) {
       const papers = data.papers.map((p) => ({ ...p, user_id: userId }));
-      const { error } = await supabase.from('papers').upsert(papers);
+      const { error } = await supabase.from("papers").upsert(papers);
       if (error) {
-        console.error('Error importing papers:', error);
+        logger.error("Error importing papers", error);
         throw error;
       }
     }
@@ -62,17 +63,19 @@ export async function importData(file: File, userId: string) {
     // Import Ideas
     if (data.ideas && data.ideas.length > 0) {
       const ideas = data.ideas.map((i) => ({ ...i, user_id: userId }));
-      const { error } = await supabase.from('ideas').upsert(ideas);
+      const { error } = await supabase.from("ideas").upsert(ideas);
       if (error) {
-        console.error('Error importing ideas:', error);
+        logger.error("Error importing ideas", error);
         throw error;
       }
     }
 
-    toast.success('Data imported successfully', { id: toastId });
-
+    toast.success("Data imported successfully", { id: toastId });
   } catch (error) {
-    console.error('Import failed:', error);
-    toast.error('Failed to import data: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    logger.error("Import failed", error);
+    toast.error(
+      "Failed to import data: " +
+        (error instanceof Error ? error.message : "Unknown error"),
+    );
   }
 }

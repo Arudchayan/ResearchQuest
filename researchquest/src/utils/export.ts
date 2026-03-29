@@ -1,5 +1,6 @@
-import { UserProfile, Note, Paper, Idea, Topic } from '../types/database';
-import { generateBibTeX } from './citation';
+import { UserProfile, Note, Paper, Idea, Topic } from "../types/database";
+import { generateBibTeX } from "./citation";
+import type { Task } from "../hooks/useTasks";
 
 export interface ExportData {
   metadata: {
@@ -12,15 +13,20 @@ export interface ExportData {
   papers: Paper[];
   ideas: Idea[];
   topics?: Topic[];
+  tasks?: Task[];
 }
 
 /**
  * Helper to download a file
  */
-export function downloadFile(content: string, filename: string, contentType: string) {
+export function downloadFile(
+  content: string,
+  filename: string,
+  contentType: string,
+) {
   const blob = new Blob([content], { type: contentType });
   const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
+  const link = document.createElement("a");
   link.href = url;
   link.download = filename;
   document.body.appendChild(link);
@@ -33,25 +39,25 @@ export function downloadFile(content: string, filename: string, contentType: str
  * Exports the provided data as a JSON file download.
  * @param data The data to export (user, notes, papers, ideas, topics)
  */
-export function exportData(data: Omit<ExportData, 'metadata'>) {
+export function exportData(data: Omit<ExportData, "metadata">) {
   const exportPayload: ExportData = {
     metadata: {
-      version: '1.0',
+      version: "1.0",
       timestamp: new Date().toISOString(),
-      appName: 'ResearchQuest',
+      appName: "ResearchQuest",
     },
     ...data,
   };
 
   const jsonString = JSON.stringify(exportPayload, null, 2);
-  const dateStr = new Date().toISOString().split('T')[0];
+  const dateStr = new Date().toISOString().split("T")[0];
   const filename = `researchquest_backup_${dateStr}.json`;
 
-  downloadFile(jsonString, filename, 'application/json');
+  downloadFile(jsonString, filename, "application/json");
 }
 
 export function convertPapersToBibTeX(papers: Paper[]): string {
-  return papers.map(generateBibTeX).join('\n\n');
+  return papers.map(generateBibTeX).join("\n\n");
 }
 
 export function convertPapersToJSON(papers: Paper[]): string {
@@ -59,45 +65,180 @@ export function convertPapersToJSON(papers: Paper[]): string {
 }
 
 export function convertPapersToCSV(papers: Paper[]): string {
-  if (papers.length === 0) return '';
-  const headers = ['Title', 'Authors', 'Publication Year', 'DOI', 'Source URL', 'Abstract', 'Created At'];
+  if (papers.length === 0) return "";
+  const headers = [
+    "Title",
+    "Authors",
+    "Publication Year",
+    "DOI",
+    "Source URL",
+    "Abstract",
+    "Created At",
+  ];
 
-  const rows = papers.map(p => {
-    let year = '';
+  const rows = papers.map((p) => {
+    let year = "";
     if (p.publication_date) {
-        const match = p.publication_date.match(/\d{4}/);
-        if (match) year = match[0];
+      const match = p.publication_date.match(/\d{4}/);
+      if (match) year = match[0];
     }
 
     return [
       escapeCSV(p.title),
-      escapeCSV(p.authors?.join('; ')),
+      escapeCSV(p.authors?.join("; ")),
       escapeCSV(year),
       escapeCSV(p.doi),
       escapeCSV(p.source_url),
       escapeCSV(p.abstract),
-      escapeCSV(p.created_at)
+      escapeCSV(p.created_at),
     ];
   });
 
-  return [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  return [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+}
+
+export function convertNotesToJSON(notes: Note[]): string {
+  return JSON.stringify(notes, null, 2);
+}
+
+export function convertNotesToCSV(notes: Note[]): string {
+  if (notes.length === 0) return "";
+  const headers = [
+    "Title",
+    "Markdown Body",
+    "Tags",
+    "Created At",
+    "Updated At",
+  ];
+
+  const rows = notes.map((n) => {
+    return [
+      escapeCSV(n.title),
+      escapeCSV(n.markdown_body),
+      escapeCSV(n.tags.join("; ")),
+      escapeCSV(n.created_at),
+      escapeCSV(n.updated_at),
+    ];
+  });
+
+  return [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+}
+
+export function convertNotesToMarkdown(notes: Note[]): string {
+  if (notes.length === 0) return "";
+  return notes
+    .map((n) => {
+      const title = n.title || "Untitled Note";
+      const date = new Date(n.created_at).toLocaleDateString();
+      const tags = n.tags.length > 0 ? `\nTags: ${n.tags.join(", ")}` : "";
+
+      return `# ${title}\n*Created: ${date}*${tags}\n\n${n.markdown_body}`;
+    })
+    .join("\n\n---\n\n");
+}
+
+export function convertIdeasToJSON(ideas: Idea[]): string {
+  return JSON.stringify(ideas, null, 2);
+}
+
+export function convertIdeasToCSV(ideas: Idea[]): string {
+  if (ideas.length === 0) return "";
+  const headers = [
+    "Title",
+    "Description",
+    "Stage",
+    "Created At",
+    "Updated At",
+  ];
+
+  const rows = ideas.map((i) => {
+    return [
+      escapeCSV(i.title),
+      escapeCSV(i.description),
+      escapeCSV(i.stage),
+      escapeCSV(i.created_at),
+      escapeCSV(i.updated_at),
+    ];
+  });
+
+  return [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+}
+
+export function convertIdeasToMarkdown(ideas: Idea[]): string {
+  if (ideas.length === 0) return "";
+  return ideas
+    .map((i) => {
+      const title = i.title || "Untitled Idea";
+      const date = new Date(i.created_at).toLocaleDateString();
+      const stage = i.stage ? `\nStage: ${i.stage}` : "";
+
+      return `# ${title}\n*Created: ${date}*${stage}\n\n${i.description || "No description provided."}`;
+    })
+    .join("\n\n---\n\n");
+}
+
+export function convertTasksToJSON(tasks: Task[]): string {
+  return JSON.stringify(tasks, null, 2);
+}
+
+export function convertTasksToCSV(tasks: Task[]): string {
+  if (tasks.length === 0) return "";
+  const headers = [
+    "Title",
+    "Description",
+    "Status",
+    "Priority",
+    "Category",
+    "Due Date",
+    "Created At",
+  ];
+
+  const rows = tasks.map((t) => {
+    return [
+      escapeCSV(t.title),
+      escapeCSV(t.description),
+      escapeCSV(t.completed ? "Completed" : "Pending"),
+      escapeCSV(t.priority),
+      escapeCSV(t.category),
+      escapeCSV(t.due_date),
+      escapeCSV(t.created_at),
+    ];
+  });
+
+  return [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+}
+
+export function convertTasksToMarkdown(tasks: Task[]): string {
+  if (tasks.length === 0) return "";
+  return tasks
+    .map((t) => {
+      const title = t.title || "Untitled Task";
+      const date = new Date(t.created_at).toLocaleDateString();
+      const status = t.completed ? "Completed" : "Pending";
+      const priority = t.priority ? `\nPriority: ${t.priority}` : "";
+      const category = t.category ? `\nCategory: ${t.category}` : "";
+      const dueDate = t.due_date ? `\nDue Date: ${new Date(t.due_date).toLocaleDateString()}` : "";
+
+      return `## ${status === "Completed" ? "[x]" : "[ ]"} ${title}\n*Created: ${date}*\nStatus: ${status}${priority}${category}${dueDate}\n\n${t.description || "No description provided."}`;
+    })
+    .join("\n\n---\n\n");
 }
 
 function escapeCSV(str?: string | null): string {
-  if (!str) return '';
+  if (!str) return "";
 
   let result = str;
 
-  // Prevent CSV Injection (Formula Injection)
-  // If the field starts with =, +, -, or @, it could be executed as a formula in Excel.
+  // Prevent CSV Injection (Formula Injection) and DDE Injection
+  // If the field starts with =, +, -, @, Tab (0x09), or CR (0x0D), it could be executed as a formula or command in Excel.
   // Prepending a single quote forces it to be treated as text.
-  // 🛡️ Sentinel: Also check for injection characters preceded by whitespace
-  if (/^\s*[=+\-@]/.test(result)) {
+  // 🛡️ Sentinel: Check for injection characters, including those preceded by whitespace.
+  if (/^\s*[=+\-@\t\r]/.test(result)) {
     result = "'" + result;
   }
 
   // if string contains comma, newline, or double quote, wrap in double quotes
-  if (result.includes(',') || result.includes('\n') || result.includes('"')) {
+  if (result.includes(",") || result.includes("\n") || result.includes('"')) {
     // escape double quotes by doubling them
     return `"${result.replace(/"/g, '""')}"`;
   }

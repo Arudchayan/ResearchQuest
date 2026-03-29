@@ -1,54 +1,57 @@
-import { useEffect, useState } from 'react'
-import { supabase } from './lib/supabase'
-import { useAppStore } from './store/appStore'
-import { TopNav } from './components/layout/TopNav'
-import { LeftSidebar } from './components/layout/LeftSidebar'
-import { RightSidebar } from './components/layout/RightSidebar'
-import { MobileMenu } from './components/layout/MobileMenu'
-import { MarkdownEditor } from './components/editor/MarkdownEditor'
-import { TaskManager } from './components/tasks/TaskManager'
-import { NoteList } from './components/entities/NoteList'
-import { PaperList } from './components/entities/PaperList'
-import { IdeaList } from './components/entities/IdeaList'
-import { useNotes } from './hooks/useNotes'
-import { usePapers } from './hooks/usePapers'
-import { useIdeas } from './hooks/useIdeas'
-import type { User } from '@supabase/supabase-js'
+import { useEffect, useState } from "react";
+import { supabase } from "./lib/supabase";
+import { useAppStore } from "./store/appStore";
+import { useShallow } from "zustand/react/shallow";
+import { TopNav } from "./components/layout/TopNav";
+import { LeftSidebar } from "./components/layout/LeftSidebar";
+import { RightSidebar } from "./components/layout/RightSidebar";
+import { MobileMenu } from "./components/layout/MobileMenu";
+import { MarkdownEditor } from "./components/editor/MarkdownEditor";
+import { AddIdeaDialog } from "./components/ideas/AddIdeaDialog";
+import { TaskManager } from "./components/tasks/TaskManager";
+import { NoteList } from "./components/entities/NoteList";
+import { PaperList } from "./components/entities/PaperList";
+import { IdeaList } from "./components/entities/IdeaList";
+import { useNotes } from "./hooks/useNotes";
+import { usePapers } from "./hooks/usePapers";
+import { useIdeas } from "./hooks/useIdeas";
+import type { User } from "@supabase/supabase-js";
+import { deriveTitleFromMarkdown } from "./utils/text";
 
 function AuthScreen() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [isSignUp, setIsSignUp] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState('')
-  
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+
   const handleAuth = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setMessage('')
-    
+    e.preventDefault();
+    setLoading(true);
+    setMessage("");
+
     try {
       if (isSignUp) {
         const { error } = await supabase.auth.signUp({
           email,
           password,
-        })
-        if (error) throw error
-        setMessage('Check your email for the confirmation link!')
+        });
+        if (error) throw error;
+        setMessage("Check your email for the confirmation link!");
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,
           password,
-        })
-        if (error) throw error
+        });
+        if (error) throw error;
       }
     } catch (error: any) {
-      setMessage(error.message || 'An error occurred')
+      setMessage(error.message || "An error occurred");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
-  
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-bg-base p-4">
       <div className="w-full max-w-md p-8 bg-bg-surface rounded-lg shadow-lg border border-border-subtle">
@@ -56,12 +59,14 @@ function AuthScreen() {
           <div className="w-16 h-16 bg-primary-500 rounded-lg mx-auto mb-4 flex items-center justify-center text-white font-bold text-xl">
             RQ
           </div>
-          <h1 className="text-2xl font-bold text-text-primary">ResearchQuest</h1>
+          <h1 className="text-2xl font-bold text-text-primary">
+            ResearchQuest
+          </h1>
           <p className="text-sm text-text-secondary mt-2">
             Gamified research management
           </p>
         </div>
-        
+
         <form onSubmit={handleAuth} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-text-primary mb-2">
@@ -76,7 +81,7 @@ function AuthScreen() {
               placeholder="researcher@example.com"
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-text-primary mb-2">
               Password
@@ -90,131 +95,150 @@ function AuthScreen() {
               placeholder="••••••••"
             />
           </div>
-          
+
           {message && (
-            <div className={`p-3 rounded-md text-sm ${
-              message.includes('error') || message.includes('Error')
-                ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400'
-                : 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400'
-            }`}>
+            <div
+              className={`p-3 rounded-md text-sm ${
+                message.includes("error") || message.includes("Error")
+                  ? "bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400"
+                  : "bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400"
+              }`}
+            >
               {message}
             </div>
           )}
-          
+
           <button
             type="submit"
             disabled={loading}
             className="w-full px-4 py-3 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors font-semibold disabled:opacity-50"
           >
-            {loading ? 'Loading...' : isSignUp ? 'Sign Up' : 'Sign In'}
+            {loading ? "Loading..." : isSignUp ? "Sign Up" : "Sign In"}
           </button>
         </form>
-        
+
         <div className="mt-6 text-center">
           <button
             onClick={() => {
-              setIsSignUp(!isSignUp)
-              setMessage('')
+              setIsSignUp(!isSignUp);
+              setMessage("");
             }}
             className="text-sm text-primary-500 hover:text-primary-600"
           >
-            {isSignUp ? 'Already have an account? Sign in' : 'Need an account? Sign up'}
+            {isSignUp
+              ? "Already have an account? Sign in"
+              : "Need an account? Sign up"}
           </button>
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 function App() {
-  const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [userId, setUserId] = useState<string | undefined>(undefined)
-  const { setUser: setUserProfile, currentView, setCurrentView } = useAppStore()
-  
+  const [user, setUser] = useState<User | null>(null);
+  const [isAddIdeaDialogOpen, setIsAddIdeaDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState<string | undefined>(undefined);
+  const {
+    setUser: setUserProfile,
+    currentView,
+    setCurrentView,
+  } = useAppStore(
+    useShallow((state) => ({
+      setUser: state.setUser,
+      currentView: state.currentView,
+      setCurrentView: state.setCurrentView,
+    }))
+  );
+
   // Get hooks for entity management
-  const { notes, createNote, updateNote, deleteNote } = useNotes(userId)
-  const { papers, createPaper, updatePaper, deletePaper } = usePapers(userId)
-  const { ideas, createIdea, updateIdea, deleteIdea } = useIdeas(userId)
-  
+  const { notes, createNote, updateNote, deleteNote } = useNotes(userId);
+  const { papers, createPaper, updatePaper, deletePaper } = usePapers(userId);
+  const { ideas, createIdea, updateIdea, deleteIdea } = useIdeas(userId);
+
   useEffect(() => {
     // Check active sessions
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      setLoading(false)
-    })
-    
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
     // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-    })
-    
-    return () => subscription.unsubscribe()
-  }, [])
-  
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   useEffect(() => {
     if (user) {
-      setUserId(user.id)
+      setUserId(user.id);
       // Fetch user profile
       supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', user.id)
+        .from("user_profiles")
+        .select("*")
+        .eq("id", user.id)
         .single()
         .then(({ data }) => {
           if (data) {
-            setUserProfile(data)
+            setUserProfile(data);
           }
-        })
+        });
     } else {
-      setUserProfile(null)
+      setUserProfile(null);
     }
-  }, [user, setUserProfile])
-  
+  }, [user, setUserProfile]);
+
   // Simple navigation handler
   const handleNavigation = (view: typeof currentView) => {
-    console.log('Navigation called:', view)
-    setCurrentView(view)
-  }
-  
+    console.log("Navigation called:", view);
+    setCurrentView(view);
+  };
+
   // Add new content handlers
   const handleAddNew = (type: string) => {
-    console.log('Add new called:', type)
-    if (type === 'note') {
+    console.log("Add new called:", type);
+    if (type === "note") {
       createNote({
-        markdown_body: '# New Note\n\nStart writing your research notes here...',
+        markdown_body:
+          "# New Note\n\nStart writing your research notes here...",
         tags: [],
-      })
-    } else if (type === 'idea') {
-      const title = prompt('Enter idea title:')
-      if (title) {
-        createIdea({
-          title,
-          stage: 'Seed',
-        })
-      }
+      });
+    } else if (type === "idea") {
+      setIsAddIdeaDialogOpen(true);
     }
-  }
-  
+  };
+
+  const handleCreateIdea = async (data: { title: string; description?: string }) => {
+    await createIdea({
+      title: data.title,
+      description: data.description,
+      stage: "Seed",
+    });
+    setIsAddIdeaDialogOpen(false);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-bg-base">
         <div className="text-text-primary">Loading...</div>
       </div>
-    )
+    );
   }
-  
+
   if (!user) {
-    return <AuthScreen />
+    return <AuthScreen />;
   }
-  
+
   return (
     <div className="min-h-screen bg-bg-base">
       {/* Top Navigation */}
       <TopNav />
-      
+
       {/* Main Layout - Simple approach */}
       <div className="flex h-screen pt-16">
         {/* Left Sidebar */}
@@ -223,18 +247,18 @@ function App() {
             {/* Navigation */}
             <nav className="space-y-2">
               {[
-                { id: 'notes', label: 'Notes', icon: '📝' },
-                { id: 'papers', label: 'Papers', icon: '📚' },
-                { id: 'ideas', label: 'Ideas', icon: '💡' },
-                { id: 'tasks', label: 'Tasks', icon: '✅' },
+                { id: "notes", label: "Notes", icon: "📝" },
+                { id: "papers", label: "Papers", icon: "📚" },
+                { id: "ideas", label: "Ideas", icon: "💡" },
+                { id: "tasks", label: "Tasks", icon: "✅" },
               ].map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => handleNavigation(tab.id as typeof currentView)}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-md transition-colors ${
                     currentView === tab.id
-                      ? 'bg-primary-100 text-primary-700'
-                      : 'text-text-secondary hover:bg-bg-elevated'
+                      ? "bg-primary-100 text-primary-700"
+                      : "text-text-secondary hover:bg-bg-elevated"
                   }`}
                 >
                   <span className="text-lg">{tab.icon}</span>
@@ -242,17 +266,17 @@ function App() {
                 </button>
               ))}
             </nav>
-            
+
             {/* Search */}
             <input
               type="text"
               placeholder="Search..."
               className="w-full px-4 py-2 bg-bg-base border border-border-subtle rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-              onChange={(e) => console.log('Search:', e.target.value)}
+              onChange={(e) => console.log("Search:", e.target.value)}
             />
-            
+
             {/* Add Button */}
-            {currentView !== 'tasks' && (
+            {currentView !== "tasks" && (
               <button
                 onClick={() => handleAddNew(currentView.slice(0, -1))}
                 className="w-full px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors font-medium"
@@ -260,38 +284,54 @@ function App() {
                 New {currentView.slice(0, -1)}
               </button>
             )}
-            
+
             {/* Content List */}
             <div className="space-y-2">
-              {currentView === 'notes' && notes.map((note) => (
-                <div key={note.id} className="p-3 bg-bg-elevated rounded-md border">
-                  <h4 className="font-medium text-sm">
-                    {note.title || note.markdown_body.split('\n')[0]?.replace(/^#+\s*/, '') || 'Untitled'}
-                  </h4>
-                </div>
-              ))}
-              {currentView === 'papers' && papers.map((paper) => (
-                <div key={paper.id} className="p-3 bg-bg-elevated rounded-md border">
-                  <h4 className="font-medium text-sm">{paper.title}</h4>
-                  <p className="text-xs text-text-secondary">{paper.authors.join(', ')}</p>
-                </div>
-              ))}
-              {currentView === 'ideas' && ideas.map((idea) => (
-                <div key={idea.id} className="p-3 bg-bg-elevated rounded-md border">
-                  <h4 className="font-medium text-sm">{idea.title}</h4>
-                  <p className="text-xs text-text-secondary">Stage: {idea.stage}</p>
-                </div>
-              ))}
+              {currentView === "notes" &&
+                notes.map((note) => (
+                  <div
+                    key={note.id}
+                    className="p-3 bg-bg-elevated rounded-md border"
+                  >
+                    <h4 className="font-medium text-sm">
+                      {note.title || deriveTitleFromMarkdown(note.markdown_body)}
+                    </h4>
+                  </div>
+                ))}
+              {currentView === "papers" &&
+                papers.map((paper) => (
+                  <div
+                    key={paper.id}
+                    className="p-3 bg-bg-elevated rounded-md border"
+                  >
+                    <h4 className="font-medium text-sm">{paper.title}</h4>
+                    <p className="text-xs text-text-secondary">
+                      {paper.authors.join(", ")}
+                    </p>
+                  </div>
+                ))}
+              {currentView === "ideas" &&
+                ideas.map((idea) => (
+                  <div
+                    key={idea.id}
+                    className="p-3 bg-bg-elevated rounded-md border"
+                  >
+                    <h4 className="font-medium text-sm">{idea.title}</h4>
+                    <p className="text-xs text-text-secondary">
+                      Stage: {idea.stage}
+                    </p>
+                  </div>
+                ))}
             </div>
           </div>
         </div>
-        
+
         {/* Main Content */}
         <div className="flex-1 p-6 overflow-y-auto">
           <div className="max-w-4xl mx-auto">
-            {currentView === 'tasks' ? (
+            {currentView === "tasks" ? (
               <TaskManager />
-            ) : currentView === 'notes' ? (
+            ) : currentView === "notes" ? (
               <div>
                 <h2 className="text-2xl font-bold mb-6">Notes</h2>
                 {notes.length === 0 ? (
@@ -301,9 +341,12 @@ function App() {
                 ) : (
                   <div className="space-y-4">
                     {notes.map((note) => (
-                      <div key={note.id} className="p-4 bg-bg-surface rounded-lg border">
+                      <div
+                        key={note.id}
+                        className="p-4 bg-bg-surface rounded-lg border"
+                      >
                         <h3 className="font-semibold mb-2">
-                          {note.title || note.markdown_body.split('\n')[0]?.replace(/^#+\s*/, '') || 'Untitled Note'}
+                          {note.title || deriveTitleFromMarkdown(note.markdown_body)}
                         </h3>
                         <div className="text-sm text-text-secondary whitespace-pre-wrap">
                           {note.markdown_body}
@@ -313,20 +356,25 @@ function App() {
                   </div>
                 )}
               </div>
-            ) : currentView === 'papers' ? (
+            ) : currentView === "papers" ? (
               <div>
                 <h2 className="text-2xl font-bold mb-6">Papers</h2>
                 {papers.length === 0 ? (
                   <div className="text-center py-12 text-text-secondary">
-                    <p>No papers yet. Add papers to build your knowledge base!</p>
+                    <p>
+                      No papers yet. Add papers to build your knowledge base!
+                    </p>
                   </div>
                 ) : (
                   <div className="grid gap-4 md:grid-cols-2">
                     {papers.map((paper) => (
-                      <div key={paper.id} className="p-4 bg-bg-surface rounded-lg border">
+                      <div
+                        key={paper.id}
+                        className="p-4 bg-bg-surface rounded-lg border"
+                      >
                         <h3 className="font-semibold mb-2">{paper.title}</h3>
                         <p className="text-sm text-text-secondary mb-2">
-                          {paper.authors.join(', ')}
+                          {paper.authors.join(", ")}
                         </p>
                         <p className="text-xs text-text-tertiary">
                           {paper.publication_date} • {paper.doi}
@@ -336,7 +384,7 @@ function App() {
                   </div>
                 )}
               </div>
-            ) : currentView === 'ideas' ? (
+            ) : currentView === "ideas" ? (
               <div>
                 <h2 className="text-2xl font-bold mb-6">Ideas</h2>
                 {ideas.length === 0 ? (
@@ -346,7 +394,10 @@ function App() {
                 ) : (
                   <div className="space-y-4">
                     {ideas.map((idea) => (
-                      <div key={idea.id} className="p-4 bg-bg-surface rounded-lg border">
+                      <div
+                        key={idea.id}
+                        className="p-4 bg-bg-surface rounded-lg border"
+                      >
                         <h3 className="font-semibold mb-2">{idea.title}</h3>
                         <p className="text-sm text-text-secondary mb-2">
                           {idea.description}
@@ -362,20 +413,27 @@ function App() {
             ) : null}
           </div>
         </div>
-        
+
         {/* Right Sidebar */}
         <div className="w-80 bg-bg-surface border-l border-border-subtle">
           <div className="p-4">
             <h3 className="font-semibold mb-4">Activity</h3>
             <div className="text-sm text-text-secondary">
               <p>Welcome to ResearchQuest!</p>
-              <p className="mt-2">Start by creating your first note, paper, or idea.</p>
+              <p className="mt-2">
+                Start by creating your first note, paper, or idea.
+              </p>
             </div>
           </div>
         </div>
       </div>
+      <AddIdeaDialog
+        isOpen={isAddIdeaDialogOpen}
+        onClose={() => setIsAddIdeaDialogOpen(false)}
+        onConfirm={handleCreateIdea}
+      />
     </div>
-  )
+  );
 }
 
-export default App
+export default App;

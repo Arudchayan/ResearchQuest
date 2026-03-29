@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { isValidUrl, isStrongPassword } from "./security";
+import {
+  isValidUrl,
+  isStrongPassword,
+  validateFileSize,
+  MAX_FILE_SIZE_BYTES,
+} from "./security";
 
 describe("Security Utils", () => {
   describe("isValidUrl", () => {
@@ -19,6 +24,9 @@ describe("Security Utils", () => {
     it("should reject protocol-relative urls", () => {
       expect(isValidUrl("//google.com")).toBe(false);
       expect(isValidUrl("//example.com/foo")).toBe(false);
+      expect(isValidUrl("//example.com")).toBe(false);
+      expect(isValidUrl("//javascript:alert(1)")).toBe(false);
+      expect(isValidUrl("//127.0.0.1")).toBe(false);
     });
 
     it("should reject javascript protocol", () => {
@@ -52,12 +60,16 @@ describe("Security Utils", () => {
 
     it("should reject passwords without uppercase", () => {
       expect(isStrongPassword("longpassword123!").valid).toBe(false);
-      expect(isStrongPassword("longpassword123!").message).toContain("uppercase");
+      expect(isStrongPassword("longpassword123!").message).toContain(
+        "uppercase",
+      );
     });
 
     it("should reject passwords without lowercase", () => {
       expect(isStrongPassword("LONGPASSWORD123!").valid).toBe(false);
-      expect(isStrongPassword("LONGPASSWORD123!").message).toContain("lowercase");
+      expect(isStrongPassword("LONGPASSWORD123!").message).toContain(
+        "lowercase",
+      );
     });
 
     it("should reject passwords without numbers", () => {
@@ -67,7 +79,9 @@ describe("Security Utils", () => {
 
     it("should reject passwords without special characters", () => {
       expect(isStrongPassword("LongPassword123").valid).toBe(false);
-      expect(isStrongPassword("LongPassword123").message).toContain("special character");
+      expect(isStrongPassword("LongPassword123").message).toContain(
+        "special character",
+      );
     });
 
     it("should accept strong passwords", () => {
@@ -75,6 +89,25 @@ describe("Security Utils", () => {
       expect(isStrongPassword("Strong-Password-1").valid).toBe(true);
       expect(isStrongPassword("Pass_word_123").valid).toBe(true);
       expect(isStrongPassword("Space Password 123!").valid).toBe(true);
+    });
+  });
+
+  describe("validateFileSize", () => {
+    it("should allow files within the size limit", () => {
+      const file = { size: MAX_FILE_SIZE_BYTES } as File;
+      expect(validateFileSize(file).valid).toBe(true);
+    });
+
+    it("should allow small files", () => {
+      const file = { size: 1024 } as File;
+      expect(validateFileSize(file).valid).toBe(true);
+    });
+
+    it("should reject files exceeding the size limit", () => {
+      const file = { size: MAX_FILE_SIZE_BYTES + 1 } as File;
+      const result = validateFileSize(file);
+      expect(result.valid).toBe(false);
+      expect(result.message).toContain("File size exceeds the limit");
     });
   });
 });
