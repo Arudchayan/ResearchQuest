@@ -13,8 +13,9 @@ import {
 import type { CrossrefPaper } from "../../types/database";
 import { useAppStore } from "../../store/appStore";
 import type { PaperSearchOptions } from "../../hooks/usePapers";
-import { isValidUrl } from "../../utils/security";
+import { isValidUrl, validateFileSize } from "../../utils/security";
 import { parseBibTeX, BibTeXEntry } from "../../utils/bibtexParser";
+import { logger } from "../../utils/logger";
 
 interface AddPaperViewProps {
   onAdd: (paperData: any) => Promise<any>;
@@ -81,7 +82,7 @@ export function AddPaperView({
     };
 
     if (paper.doi && paper.doi.trim()) paperData.doi = paper.doi.trim();
-    if (paper.sourceUrl && paper.sourceUrl.trim())
+    if (paper.sourceUrl && paper.sourceUrl.trim() && isValidUrl(paper.sourceUrl))
       paperData.source_url = paper.sourceUrl.trim();
     if (paper.abstract && paper.abstract.trim())
       paperData.abstract = paper.abstract.trim();
@@ -102,7 +103,12 @@ export function AddPaperView({
     };
 
     if (entry.doi && entry.doi.trim()) paperData.doi = entry.doi.trim();
-    if (entry.url && entry.url.trim()) paperData.source_url = entry.url.trim();
+    if (entry.url && entry.url.trim()) {
+      const url = entry.url.trim();
+      if (isValidUrl(url)) {
+        paperData.source_url = url;
+      }
+    }
     if (entry.abstract && entry.abstract.trim())
       paperData.abstract = entry.abstract.trim();
     if (entry.year) {
@@ -152,7 +158,7 @@ export function AddPaperView({
         setTimeout(() => setSuccessMessage(""), 4000);
       }
     } catch (error) {
-      console.error("Failed to add paper:", error);
+      logger.error("Failed to add paper", error);
       setError(
         `Failed to add paper: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
@@ -207,7 +213,7 @@ export function AddPaperView({
         setTimeout(() => setSuccessMessage(""), 4000);
       }
     } catch (error) {
-      console.error("Failed to add paper:", error);
+      logger.error("Failed to add paper", error);
       setError(
         `Failed to add paper: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
@@ -259,7 +265,7 @@ export function AddPaperView({
         setTimeout(() => setSuccessMessage(""), 4000);
       }
     } catch (error) {
-      console.error("Failed to add paper:", error);
+      logger.error("Failed to add paper", error);
       setError(
         `Failed to add paper: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
@@ -272,11 +278,29 @@ export function AddPaperView({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // 🛡️ Sentinel: Validate file size to prevent DoS
+    const sizeValidation = validateFileSize(file);
+    if (!sizeValidation.valid) {
+      setError(sizeValidation.message || "File too large");
+      e.target.value = ""; // Reset input
+      return;
+    }
+
     setLoading(true);
     setError("");
     setParsedEntries([]);
     setSelectedEntryIds(new Set());
     setImportStats(null);
+
+    // 🛡️ Sentinel: Enforce file size limit (5MB) to prevent client-side DoS
+    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+    if (file.size > MAX_FILE_SIZE) {
+      setError("File too large (max 5MB). Please split your BibTeX file.");
+      setLoading(false);
+      // Reset file input
+      e.target.value = "";
+      return;
+    }
 
     try {
       const text = await file.text();
@@ -289,7 +313,7 @@ export function AddPaperView({
         setSelectedEntryIds(new Set(entries.map((e) => e.id)));
       }
     } catch (err) {
-      console.error("Failed to parse file:", err);
+      logger.error("Failed to parse file", err);
       setError("Failed to parse BibTeX file.");
     } finally {
       setLoading(false);
@@ -326,7 +350,7 @@ export function AddPaperView({
         await onAdd(buildPaperPayloadFromBibTeX(entry));
         successCount++;
       } catch (err) {
-        console.error(`Failed to import paper ${entry.title}:`, err);
+        logger.error(`Failed to import paper ${entry.title}`, err);
         failedCount++;
       }
       setImportProgress({
@@ -373,7 +397,11 @@ export function AddPaperView({
 
       {/* Success Message */}
       {successMessage && (
-        <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-center gap-3">
+        <div
+          role="status"
+          aria-live="polite"
+          className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-center gap-3"
+        >
           <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />
           <p className="text-green-800 dark:text-green-300 font-medium">
             {successMessage}
@@ -503,7 +531,7 @@ export function AddPaperView({
                         setDoiInput("");
                         doiInputRef.current?.focus();
                       }}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-text-tertiary hover:text-text-primary hover:bg-bg-elevated rounded-full transition-colors"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-text-tertiary hover:text-text-primary hover:bg-bg-elevated rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
                       aria-label="Clear search"
                     >
                       <X className="w-4 h-4" />
@@ -530,6 +558,8 @@ export function AddPaperView({
 
             {error && (
               <div
+                role="alert"
+                aria-live="assertive"
                 data-testid="error-message"
                 className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg"
               >
@@ -563,7 +593,7 @@ export function AddPaperView({
                             <span>{doiResult.publicationDate}</span>
                           </div>
                         )}
-                        {doiResult.sourceUrl && (
+                        {doiResult.sourceUrl && isValidUrl(doiResult.sourceUrl) && (
                           <a
                             href={doiResult.sourceUrl}
                             target="_blank"
@@ -635,7 +665,7 @@ export function AddPaperView({
                         setSearchQuery("");
                         searchInputRef.current?.focus();
                       }}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-text-tertiary hover:text-text-primary hover:bg-bg-elevated rounded-full transition-colors"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-text-tertiary hover:text-text-primary hover:bg-bg-elevated rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
                       aria-label="Clear search"
                     >
                       <X className="w-4 h-4" />
@@ -726,7 +756,11 @@ export function AddPaperView({
             </div>
 
             {error && (
-              <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg">
+              <div
+                role="alert"
+                aria-live="assertive"
+                className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg"
+              >
                 {error}
               </div>
             )}
@@ -882,7 +916,7 @@ export function AddPaperView({
                           </p>
                         </div>
                         <div className="flex items-center justify-between gap-3 flex-wrap border-t border-border-subtle pt-4 mt-auto">
-                          {selectedResult.sourceUrl ? (
+                          {selectedResult.sourceUrl && isValidUrl(selectedResult.sourceUrl) ? (
                             <a
                               href={selectedResult.sourceUrl}
                               target="_blank"
@@ -958,7 +992,11 @@ export function AddPaperView({
             </div>
 
             {error && (
-              <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg flex items-center gap-2">
+              <div
+                role="alert"
+                aria-live="assertive"
+                className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg flex items-center gap-2"
+              >
                 <AlertCircle className="w-5 h-5" />
                 {error}
               </div>
@@ -1086,7 +1124,10 @@ export function AddPaperView({
                 htmlFor="view-manual-title"
                 className="block text-sm font-medium text-text-primary mb-2"
               >
-                Title <span className="text-red-500">*</span>
+                Title{" "}
+                <span aria-hidden="true" className="text-red-500">
+                  *
+                </span>
               </label>
               <input
                 ref={manualTitleInputRef}
@@ -1101,8 +1142,11 @@ export function AddPaperView({
                 onBlur={() => setIsTitleFocused(false)}
                 placeholder="Enter paper title"
                 maxLength={255}
-                aria-invalid={!manualTitle.trim() && error === "Title is required"}
+                aria-invalid={
+                  !manualTitle.trim() && error === "Title is required"
+                }
                 aria-describedby={error ? "manual-entry-error" : undefined}
+                required
                 className="w-full px-4 py-3 bg-bg-base border border-border-subtle rounded-lg text-body focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
               <div className="flex justify-end h-5 mt-1">
@@ -1171,6 +1215,8 @@ export function AddPaperView({
 
             {error && (
               <div
+                role="alert"
+                aria-live="assertive"
                 id="manual-entry-error"
                 className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg"
               >

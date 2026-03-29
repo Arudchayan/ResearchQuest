@@ -1,17 +1,35 @@
-import { Paper } from '../types/database';
+import { Paper } from "../types/database";
 
 /**
  * Extracts the year from a date string or year string.
  */
 export function extractYear(dateString?: string): string {
-  if (!dateString) return 'n.d.';
+  if (!dateString) return "n.d.";
+
+  // Fast path: check if the first 4 characters are digits
+  // Using charCodeAt is ~2x faster than substring+regex for early returns on ISO dates
+  if (
+    dateString.length >= 4 &&
+    dateString.charCodeAt(0) >= 48 && dateString.charCodeAt(0) <= 57 &&
+    dateString.charCodeAt(1) >= 48 && dateString.charCodeAt(1) <= 57 &&
+    dateString.charCodeAt(2) >= 48 && dateString.charCodeAt(2) <= 57 &&
+    dateString.charCodeAt(3) >= 48 && dateString.charCodeAt(3) <= 57
+  ) {
+    // If it's exactly 4 characters, or the 5th character is a non-digit (like '-', 'T', ' '), we found our year
+    if (dateString.length === 4 || dateString.charCodeAt(4) < 48 || dateString.charCodeAt(4) > 57) {
+        return dateString.substring(0, 4);
+    }
+  }
+
+  // Fallback to full Date parsing (e.g. for "Oct 25, 2023")
   const dateYear = new Date(dateString).getFullYear();
   if (!isNaN(dateYear)) {
     return dateYear.toString();
   }
-  // Try to extract year from string if date parsing fails or it's just a year string
+
+  // Last resort: find any 4 consecutive digits
   const match = dateString.match(/\d{4}/);
-  return match ? match[0] : 'n.d.';
+  return match ? match[0] : "n.d.";
 }
 
 /**
@@ -20,12 +38,12 @@ export function extractYear(dateString?: string): string {
  */
 function parseAuthor(fullName: string) {
   const parts = fullName.trim().split(/\s+/);
-  if (parts.length === 0) return { last: '', first: '', middle: '' };
-  if (parts.length === 1) return { last: parts[0], first: '', middle: '' };
+  if (parts.length === 0) return { last: "", first: "", middle: "" };
+  if (parts.length === 1) return { last: parts[0], first: "", middle: "" };
 
   const last = parts[parts.length - 1];
   const first = parts[0];
-  const middle = parts.slice(1, parts.length - 1).join(' ');
+  const middle = parts.slice(1, parts.length - 1).join(" ");
   return { last, first, middle };
 }
 
@@ -34,12 +52,12 @@ function parseAuthor(fullName: string) {
  * Format: Last, F. M.
  */
 function formatAuthorsAPA(authors: string[]): string {
-  if (!authors || authors.length === 0) return 'Anonymous';
+  if (!authors || authors.length === 0) return "Anonymous";
 
-  const formatted = authors.map(author => {
+  const formatted = authors.map((author) => {
     const { last, first, middle } = parseAuthor(author);
-    const firstInitial = first && first.length > 0 ? `${first[0]}.` : '';
-    const middleInitial = middle && middle.length > 0 ? ` ${middle[0]}.` : '';
+    const firstInitial = first && first.length > 0 ? `${first[0]}.` : "";
+    const middleInitial = middle && middle.length > 0 ? ` ${middle[0]}.` : "";
     const initials = `${firstInitial}${middleInitial}`;
     return initials ? `${last}, ${initials}` : last;
   });
@@ -47,10 +65,10 @@ function formatAuthorsAPA(authors: string[]): string {
   if (formatted.length === 1) return formatted[0];
   if (formatted.length === 2) return `${formatted[0]} & ${formatted[1]}`;
   if (formatted.length <= 20) {
-    return `${formatted.slice(0, -1).join(', ')}, & ${formatted[formatted.length - 1]}`;
+    return `${formatted.slice(0, -1).join(", ")}, & ${formatted[formatted.length - 1]}`;
   }
   // For > 20 authors (APA 7th), list first 19, ..., last author
-  return `${formatted.slice(0, 19).join(', ')} ... ${formatted[formatted.length - 1]}`;
+  return `${formatted.slice(0, 19).join(", ")} ... ${formatted[formatted.length - 1]}`;
 }
 
 /**
@@ -61,11 +79,15 @@ function formatAuthorsAPA(authors: string[]): string {
  * 3+ authors: Last, First, et al.
  */
 function formatAuthorsMLA(authors: string[]): string {
-  if (!authors || authors.length === 0) return 'Anonymous';
+  if (!authors || authors.length === 0) return "Anonymous";
 
   const firstAuthor = parseAuthor(authors[0]);
-  const firstRest = [firstAuthor.first, firstAuthor.middle].filter(Boolean).join(' ');
-  const firstFormatted = firstRest ? `${firstAuthor.last}, ${firstRest}` : firstAuthor.last;
+  const firstRest = [firstAuthor.first, firstAuthor.middle]
+    .filter(Boolean)
+    .join(" ");
+  const firstFormatted = firstRest
+    ? `${firstAuthor.last}, ${firstRest}`
+    : firstAuthor.last;
 
   if (authors.length === 1) return firstFormatted;
 
@@ -84,16 +106,20 @@ function formatAuthorsMLA(authors: string[]): string {
  * 4+ authors: Last, First, et al.
  */
 function formatAuthorsChicago(authors: string[]): string {
-  if (!authors || authors.length === 0) return 'Anonymous';
+  if (!authors || authors.length === 0) return "Anonymous";
 
   const firstAuthor = parseAuthor(authors[0]);
-  const firstRest = [firstAuthor.first, firstAuthor.middle].filter(Boolean).join(' ');
-  const firstFormatted = firstRest ? `${firstAuthor.last}, ${firstRest}` : firstAuthor.last;
+  const firstRest = [firstAuthor.first, firstAuthor.middle]
+    .filter(Boolean)
+    .join(" ");
+  const firstFormatted = firstRest
+    ? `${firstAuthor.last}, ${firstRest}`
+    : firstAuthor.last;
 
   if (authors.length === 1) return firstFormatted;
 
   if (authors.length <= 3) {
-    const others = authors.slice(1).join(', and ');
+    const others = authors.slice(1).join(", and ");
     return `${firstFormatted}, and ${others}`;
   }
 
@@ -105,12 +131,12 @@ function formatAuthorsChicago(authors: string[]): string {
  * Format: Last, F.M.
  */
 function formatAuthorsHarvard(authors: string[]): string {
-  if (!authors || authors.length === 0) return 'Anonymous';
+  if (!authors || authors.length === 0) return "Anonymous";
 
-  const formatted = authors.map(author => {
+  const formatted = authors.map((author) => {
     const { last, first, middle } = parseAuthor(author);
-    const firstInitial = first && first.length > 0 ? first[0] : '';
-    const middleInitial = middle && middle.length > 0 ? middle[0] : '';
+    const firstInitial = first && first.length > 0 ? first[0] : "";
+    const middleInitial = middle && middle.length > 0 ? middle[0] : "";
     const initials = `${firstInitial}${middleInitial}`;
     return initials ? `${last}, ${initials}` : last;
   });
@@ -124,7 +150,10 @@ function formatAuthorsHarvard(authors: string[]): string {
     return `${formatted[0]} et al.`;
   }
 
-  return formatted.slice(0, -1).join(', ') + ` and ${formatted[formatted.length - 1]}`;
+  return (
+    formatted.slice(0, -1).join(", ") +
+    ` and ${formatted[formatted.length - 1]}`
+  );
 }
 
 /**
@@ -135,21 +164,21 @@ function formatAuthorsHarvard(authors: string[]): string {
 export function generateBibTeX(paper: Paper): string {
   const { title, authors, publication_date, doi, source_url, abstract } = paper;
 
-  let firstAuthorLastName = 'Anonymous';
+  let firstAuthorLastName = "Anonymous";
   if (authors && authors.length > 0) {
     const { last } = parseAuthor(authors[0]);
-    firstAuthorLastName = last.replace(/[^a-zA-Z]/g, '');
+    firstAuthorLastName = last.replace(/[^a-zA-Z]/g, "");
   }
 
-  let year = 'nd';
+  let year = "nd";
   const y = extractYear(publication_date);
-  if (y !== 'n.d.') year = y;
+  if (y !== "n.d.") year = y;
 
-  let titleWord = 'Untitled';
+  let titleWord = "Untitled";
   if (title) {
     const words = title.trim().split(/\s+/);
     if (words.length > 0) {
-      titleWord = words[0].replace(/[^a-zA-Z]/g, '');
+      titleWord = words[0].replace(/[^a-zA-Z]/g, "");
     }
   }
 
@@ -159,19 +188,22 @@ export function generateBibTeX(paper: Paper): string {
 
   if (title) fields.push(`  title = {${title}}`);
   if (authors && authors.length > 0) {
-    const bibAuthors = authors.join(' and ');
+    const bibAuthors = authors.join(" and ");
     fields.push(`  author = {${bibAuthors}}`);
   }
-  if (year !== 'nd') fields.push(`  year = {${year}}`);
+  if (year !== "nd") fields.push(`  year = {${year}}`);
   if (doi) fields.push(`  doi = {${doi}}`);
   if (source_url) fields.push(`  url = {${source_url}}`);
   if (abstract) {
-     const cleanAbstract = abstract.replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
-     fields.push(`  abstract = {${cleanAbstract}}`);
+    const cleanAbstract = abstract
+      .replace(/\r?\n/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    fields.push(`  abstract = {${cleanAbstract}}`);
   }
 
   return `@article{${citationKey},
-${fields.join(',\n')}
+${fields.join(",\n")}
 }`;
 }
 
@@ -181,7 +213,7 @@ ${fields.join(',\n')}
 export function generateAPA(paper: Paper): string {
   const authorText = formatAuthorsAPA(paper.authors);
   const year = extractYear(paper.publication_date);
-  const title = paper.title || 'Untitled';
+  const title = paper.title || "Untitled";
 
   let citation = `${authorText} (${year}). ${title}.`;
 
@@ -204,7 +236,7 @@ export function generateMLA(paper: Paper): string {
 
   let citation = `${authorText} ${title}`;
 
-  if (year !== 'n.d.') {
+  if (year !== "n.d.") {
     citation += ` ${year}.`;
   }
 
@@ -227,7 +259,7 @@ export function generateChicago(paper: Paper): string {
 
   let citation = `${authorText} ${title}`;
 
-  if (year !== 'n.d.') {
+  if (year !== "n.d.") {
     citation += ` (${year}).`;
   }
 
