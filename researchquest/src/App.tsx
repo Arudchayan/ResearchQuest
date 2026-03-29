@@ -311,7 +311,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | undefined>(undefined);
   const [itemNotFound, setItemNotFound] = useState(false);
-  // OPTIMIZATION: Use useShallow with an object selector to prevent the App component
+  // ⚡ Optimization: Use useShallow with an object selector to prevent the App component
   // from unnecessarily re-rendering on unrelated state changes in the global appStore.
   const {
     setUser: setUserProfile,
