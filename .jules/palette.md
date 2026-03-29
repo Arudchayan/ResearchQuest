@@ -49,3 +49,7 @@
 ## 2024-03-15 - ARIA Labels and Buttons
 **Learning:** Adding `aria-label`s to standard `<button>` elements that already contain clear, identical visible text is an accessibility anti-pattern (it overrides the native text and can cause confusing double-announcements). Interactive card elements built from generic containers (like `<div>`s) need `role="button"` and `tabIndex={0}` to be accessible, but if they are already semantically `<button>` tags, adding `role="button"` is redundant and unnecessary. Adding `aria-hidden="true"` to decorative icons inside buttons is good practice to prevent redundant screen reader announcements.
 **Action:** Before adding `aria-label`s, check if the button has visible descriptive text. If it does, rely on the native text. Ensure any interactive, clickable card element uses the correct semantic tags (`<button>`) or has `role="button"` and `tabIndex={0}` if using `<div>`, but don't mix them up. Only apply `aria-hidden="true"` to purely decorative elements like SVG icons inside accessible buttons.
+
+## 2026-02-21 - Search Input Clear Button
+**Learning:** Consistent search inputs (in TaskManager, NotesView) benefit from a UX pattern where a conditional "Clear" button appears when text is present. This button must restore focus to the input after clearing to maintain keyboard flow.
+**Action:** Implement search inputs with a relative container, an absolute-positioned 'X' icon button (using `aria-label="Clear search"`), and use `useRef` to programmatically focus the input after clearing.
