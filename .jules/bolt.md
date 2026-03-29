@@ -76,3 +76,7 @@
 ## 2024-05-19 - O(N*M) Suboptimal Array Lookup in Loop
 **Learning:** Using `Array.prototype.find()` inside a loop over related items (like in `useRelatedItems.ts`) causes O(N*M) time complexity, leading to massive hydration slow-downs for large data sets.
 **Action:** Always pre-compute a lookup Map (e.g., `new Map(items.map(item => [item.id, item]))`) before iterating through relational connections to reduce the complexity to O(N+M).
+
+## 2025-05-26 - Defeating useMemo with Unmemoized Dependencies
+**Learning:** Creating a derived array directly in the render body (e.g., `const filteredTasks = tasks.filter(...)`) and then passing it as a dependency to a `useMemo` hook (e.g., `const sortedTasks = useMemo(..., [filteredTasks])`) completely defeats the purpose of memoization. Because the derived array is recreated on every render, its referential identity changes, causing the `useMemo` to re-execute entirely on every unrelated state update (such as typing in an input field).
+**Action:** Always encapsulate chained data transformations (like filtering and then sorting) into a single `useMemo` hook, or ensure that all intermediate derived arrays passed as dependencies are themselves properly memoized.
