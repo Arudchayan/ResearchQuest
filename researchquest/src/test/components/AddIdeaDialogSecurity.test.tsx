@@ -12,7 +12,7 @@ describe("AddIdeaDialog Security", () => {
         isOpen={true}
         onClose={handleClose}
         onConfirm={handleConfirm}
-      />
+      />,
     );
 
     const titleInput = screen.getByLabelText(/Title \*/i);

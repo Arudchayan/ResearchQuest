@@ -1,63 +1,79 @@
-import { useEffect, useState, useMemo, useCallback } from 'react'
-import { supabase } from '../lib/supabase'
-import { useAppStore } from '../store/appStore'
-import { deriveTitleFromMarkdown } from '../utils/text'
+import { useEffect, useState, useMemo, useCallback } from "react";
+import { supabase } from "../lib/supabase";
+import { useAppStore } from "../store/appStore";
+import { deriveTitleFromMarkdown } from "../utils/text";
+import { logger } from "../utils/logger";
 
 export interface RelatedItem {
-  id: string
-  title: string
-  type: 'note' | 'paper' | 'idea'
-  sharedTopics: number
-  updated_at: string
+  id: string;
+  title: string;
+  type: "note" | "paper" | "idea";
+  sharedTopics: number;
+  updated_at: string;
 }
 
 interface RelatedLink {
-  id: string
-  type: 'note' | 'paper' | 'idea'
-  topicCount: number
+  id: string;
+  type: "note" | "paper" | "idea";
+  topicCount: number;
 }
 
-export function useRelatedItems(entityId: string | null, entityType: 'note' | 'paper' | 'idea' | null, userId: string | undefined, options: { enabled?: boolean } = {}) {
-  const { enabled = true } = options
+export function useRelatedItems(
+  entityId: string | null,
+  entityType: "note" | "paper" | "idea" | null,
+  userId: string | undefined,
+  options: { enabled?: boolean } = {},
+) {
+  const { enabled = true } = options;
   // Store only the structural relationship data (IDs and counts), not the full objects
-  const [relatedLinks, setRelatedLinks] = useState<RelatedLink[]>([])
-  const [loading, setLoading] = useState(false)
+  const [relatedLinks, setRelatedLinks] = useState<RelatedLink[]>([]);
+  const [loading, setLoading] = useState(false);
 
   // Subscribe to store updates for hydration
-  const notes = useAppStore(state => state.notes)
-  const papers = useAppStore(state => state.papers)
-  const ideas = useAppStore(state => state.ideas)
+  const notes = useAppStore((state) => state.notes);
+  const papers = useAppStore((state) => state.papers);
+  const ideas = useAppStore((state) => state.ideas);
 
   const fetchRelatedLinks = useCallback(async () => {
-    if (!enabled) return
+    if (!enabled) return;
 
     if (!entityId || !entityType || !userId) {
-      setRelatedLinks([])
-      return
+      setRelatedLinks([]);
+      return;
     }
 
-    setLoading(true)
+    setLoading(true);
 
     try {
       // First, get the topics for the current entity
-      const topicTable = entityType === 'note' ? 'topic_notes' : entityType === 'paper' ? 'topic_papers' : 'topic_ideas'
-      const entityColumn = entityType === 'note' ? 'note_id' : entityType === 'paper' ? 'paper_id' : 'idea_id'
+      const topicTable =
+        entityType === "note"
+          ? "topic_notes"
+          : entityType === "paper"
+            ? "topic_papers"
+            : "topic_ideas";
+      const entityColumn =
+        entityType === "note"
+          ? "note_id"
+          : entityType === "paper"
+            ? "paper_id"
+            : "idea_id";
 
       const { data: currentTopics, error: topicsError } = await supabase
         .from(topicTable)
-        .select('topic_id')
-        .eq(entityColumn, entityId)
+        .select("topic_id")
+        .eq(entityColumn, entityId);
 
       if (topicsError || !currentTopics || currentTopics.length === 0) {
-        setRelatedLinks([])
-        setLoading(false)
-        return
+        setRelatedLinks([]);
+        setLoading(false);
+        return;
       }
 
-      const topicIds = currentTopics.map(t => t.topic_id)
+      const topicIds = currentTopics.map((t) => t.topic_id);
 
       // Now find other entities that share these topics
-      const linkMap = new Map<string, RelatedLink>()
+      const linkMap = new Map<string, RelatedLink>();
 
       // ⚡ PERFORMANCE OPTIMIZATION:
       // We fetch only the IDs. We do NOT hydrate with store data here.
@@ -66,108 +82,134 @@ export function useRelatedItems(entityId: string | null, entityType: 'note' | 'p
 
       const [notesResult, papersResult, ideasResult] = await Promise.all([
         supabase
-          .from('topic_notes')
-          .select('note_id, topic_id')
-          .in('topic_id', topicIds)
-          .neq('note_id', entityType === 'note' ? entityId : '00000000-0000-0000-0000-000000000000'),
+          .from("topic_notes")
+          .select("note_id, topic_id")
+          .in("topic_id", topicIds)
+          .neq(
+            "note_id",
+            entityType === "note"
+              ? entityId
+              : "00000000-0000-0000-0000-000000000000",
+          ),
 
         supabase
-          .from('topic_papers')
-          .select('paper_id, topic_id')
-          .in('topic_id', topicIds)
-          .neq('paper_id', entityType === 'paper' ? entityId : '00000000-0000-0000-0000-000000000000'),
+          .from("topic_papers")
+          .select("paper_id, topic_id")
+          .in("topic_id", topicIds)
+          .neq(
+            "paper_id",
+            entityType === "paper"
+              ? entityId
+              : "00000000-0000-0000-0000-000000000000",
+          ),
 
         supabase
-          .from('topic_ideas')
-          .select('idea_id, topic_id')
-          .in('topic_id', topicIds)
-          .neq('idea_id', entityType === 'idea' ? entityId : '00000000-0000-0000-0000-000000000000')
-      ])
+          .from("topic_ideas")
+          .select("idea_id, topic_id")
+          .in("topic_id", topicIds)
+          .neq(
+            "idea_id",
+            entityType === "idea"
+              ? entityId
+              : "00000000-0000-0000-0000-000000000000",
+          ),
+      ]);
 
       // Find related notes
-      const { data: relatedNotes, error: notesError } = notesResult
+      const { data: relatedNotes, error: notesError } = notesResult;
 
       if (!notesError && relatedNotes) {
         for (const link of relatedNotes) {
-          const key = `note-${link.note_id}`
+          const key = `note-${link.note_id}`;
           if (linkMap.has(key)) {
-            linkMap.get(key)!.topicCount++
+            linkMap.get(key)!.topicCount++;
           } else {
-            linkMap.set(key, { id: link.note_id, type: 'note', topicCount: 1 })
+            linkMap.set(key, { id: link.note_id, type: "note", topicCount: 1 });
           }
         }
       }
 
       // Find related papers
-      const { data: relatedPapers, error: papersError } = papersResult
+      const { data: relatedPapers, error: papersError } = papersResult;
 
       if (!papersError && relatedPapers) {
         for (const link of relatedPapers) {
-          const key = `paper-${link.paper_id}`
+          const key = `paper-${link.paper_id}`;
           if (linkMap.has(key)) {
-            linkMap.get(key)!.topicCount++
+            linkMap.get(key)!.topicCount++;
           } else {
-            linkMap.set(key, { id: link.paper_id, type: 'paper', topicCount: 1 })
+            linkMap.set(key, {
+              id: link.paper_id,
+              type: "paper",
+              topicCount: 1,
+            });
           }
         }
       }
 
       // Find related ideas
-      const { data: relatedIdeas, error: ideasError } = ideasResult
+      const { data: relatedIdeas, error: ideasError } = ideasResult;
 
       if (!ideasError && relatedIdeas) {
         for (const link of relatedIdeas) {
-          const key = `idea-${link.idea_id}`
+          const key = `idea-${link.idea_id}`;
           if (linkMap.has(key)) {
-            linkMap.get(key)!.topicCount++
+            linkMap.get(key)!.topicCount++;
           } else {
-            linkMap.set(key, { id: link.idea_id, type: 'idea', topicCount: 1 })
+            linkMap.set(key, { id: link.idea_id, type: "idea", topicCount: 1 });
           }
         }
       }
 
-      setRelatedLinks(Array.from(linkMap.values()))
+      setRelatedLinks(Array.from(linkMap.values()));
     } catch (error) {
-      console.error('Error fetching related items:', error)
-      setRelatedLinks([])
+      logger.error("Error fetching related items", error);
+      setRelatedLinks([]);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [entityId, entityType, userId, enabled]) // No dependencies on store data!
+  }, [entityId, entityType, userId, enabled]); // No dependencies on store data!
 
   // Effect to fetch links. Only runs when entity changes (or userId).
   useEffect(() => {
-    void fetchRelatedLinks()
-  }, [fetchRelatedLinks])
+    void fetchRelatedLinks();
+  }, [fetchRelatedLinks]);
 
   // Hydrate links with full object data from store
   const relatedItems = useMemo(() => {
-    if (relatedLinks.length === 0) return []
+    if (relatedLinks.length === 0) return [];
 
-    const results: RelatedItem[] = []
+    const results: RelatedItem[] = [];
+
+    // ⚡ PERFORMANCE OPTIMIZATION:
+    // Pre-compute Map lookups (O(1)) instead of repeated array scans (O(N*M)) when hydrating links from the store.
+    const notesMap = new Map(notes.map((n) => [n.id, n]));
+    const papersMap = new Map(papers.map((p) => [p.id, p]));
+    const ideasMap = new Map(ideas.map((i) => [i.id, i]));
 
     for (const link of relatedLinks) {
-      let fullItem: any = null
-      let title = ''
-      let updated_at = ''
+      let fullItem: any = null;
+      let title = "";
+      let updated_at = "";
 
-      if (link.type === 'note') {
-        fullItem = notes.find(n => n.id === link.id)
+      if (link.type === "note") {
+        fullItem = notesMap.get(link.id);
         if (fullItem) {
-            title = fullItem.title || deriveTitleFromMarkdown(fullItem.markdown_body)
-            updated_at = fullItem.updated_at
+          title =
+            fullItem.title || deriveTitleFromMarkdown(fullItem.markdown_body);
+          updated_at = fullItem.updated_at;
         }
-      } else if (link.type === 'paper') {
-        fullItem = papers.find(p => p.id === link.id)
+      } else if (link.type === "paper") {
+        fullItem = papersMap.get(link.id);
         if (fullItem) {
-            title = fullItem.title
-            updated_at = fullItem.updated_at
+          title = fullItem.title;
+          updated_at = fullItem.updated_at;
         }
-      } else if (link.type === 'idea') {
-        fullItem = ideas.find(i => i.id === link.id)
+      } else if (link.type === "idea") {
+        fullItem = ideasMap.get(link.id);
         if (fullItem) {
-            title = fullItem.title
-            updated_at = fullItem.updated_at
+          title = fullItem.title;
+          updated_at = fullItem.updated_at;
         }
       }
 
@@ -178,27 +220,26 @@ export function useRelatedItems(entityId: string | null, entityType: 'note' | 'p
           title,
           type: link.type,
           sharedTopics: link.topicCount,
-          updated_at
-        })
+          updated_at,
+        });
       }
     }
 
     // Sort by number of shared topics (desc), then by update time (desc)
     return results.sort((a, b) => {
       if (b.sharedTopics !== a.sharedTopics) {
-        return b.sharedTopics - a.sharedTopics
+        return b.sharedTopics - a.sharedTopics;
       }
       // ⚡ PERFORMANCE OPTIMIZATION: String comparison for ISO dates
-      if (b.updated_at > a.updated_at) return 1
-      if (b.updated_at < a.updated_at) return -1
-      return 0
-    })
-
-  }, [relatedLinks, notes, papers, ideas])
+      if (b.updated_at > a.updated_at) return 1;
+      if (b.updated_at < a.updated_at) return -1;
+      return 0;
+    });
+  }, [relatedLinks, notes, papers, ideas]);
 
   return {
     relatedItems,
     loading,
     refresh: fetchRelatedLinks,
-  }
+  };
 }

@@ -1,9 +1,9 @@
-import { Menu, X } from 'lucide-react'
-import { useState } from 'react'
-import { LeftSidebar } from './LeftSidebar'
+import { Menu, X } from "lucide-react";
+import { useState } from "react";
+import { LeftSidebar } from "./LeftSidebar";
 
 export function MobileMenu() {
-  const [isOpen, setIsOpen] = useState(false)
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
     <>
@@ -13,7 +13,7 @@ export function MobileMenu() {
         className="lg:hidden fixed top-4 left-4 z-50 w-10 h-10 flex items-center justify-center bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors shadow-lg"
         aria-label="Open navigation menu"
       >
-        <Menu className="w-5 h-5" />
+        <Menu className="w-5 h-5" aria-hidden="true" />
       </button>
 
       {/* Mobile Drawer Overlay */}
@@ -28,7 +28,7 @@ export function MobileMenu() {
       {/* Mobile Drawer - Slide out from left */}
       <div
         className={`lg:hidden fixed top-0 left-0 bottom-0 w-80 max-w-[85vw] bg-bg-surface z-50 transform transition-transform duration-300 ease-in-out ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
+          isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         {/* Close Button */}
@@ -37,7 +37,7 @@ export function MobileMenu() {
           className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-md hover:bg-bg-elevated transition-colors"
           aria-label="Close navigation menu"
         >
-          <X className="w-5 h-5 text-text-secondary" />
+          <X className="w-5 h-5 text-text-secondary" aria-hidden="true" />
         </button>
 
         {/* Sidebar Content */}
@@ -46,5 +46,5 @@ export function MobileMenu() {
         </div>
       </div>
     </>
-  )
+  );
 }

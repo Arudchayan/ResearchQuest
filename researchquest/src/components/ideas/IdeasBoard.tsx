@@ -1,7 +1,21 @@
-import { useState, useRef, useEffect, useCallback } from "react";
-import { Plus, Trash2, Lightbulb, ArrowRight, X } from "lucide-react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import {
+  Plus,
+  Trash2,
+  Lightbulb,
+  ArrowRight,
+  X,
+  Search,
+  Download,
+  FileText,
+  Table,
+  FileJson,
+  ArrowUpDown,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useAppStore } from "../../store/appStore";
+import { useShallow } from "zustand/react/shallow";
 import { useIdeas } from "../../hooks/useIdeas";
 import { IdeaDetailView } from "../entities/IdeaDetailView";
 import { IdeaStage, Idea } from "../../types/database";
@@ -11,6 +25,21 @@ import { OnboardingGuide } from "../layout/OnboardingGuide";
 import { toast } from "sonner";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { ListSkeleton } from "../ui/Skeleton";
+import {
+  convertIdeasToCSV,
+  convertIdeasToJSON,
+  convertIdeasToMarkdown,
+  downloadFile,
+} from "../../utils/export";
+import { logger } from "../../utils/logger";
+
+type SortOption =
+  | "updated_desc"
+  | "updated_asc"
+  | "created_desc"
+  | "created_asc"
+  | "title_asc"
+  | "title_desc";
 
 const STAGES: { id: IdeaStage; label: string; color: string }[] = [
   { id: "Seed", label: "Seed", color: "bg-emerald-500" },
@@ -20,63 +49,115 @@ const STAGES: { id: IdeaStage; label: string; color: string }[] = [
 ];
 
 export function IdeasBoard() {
-  const { ideas, selectedIdea, setSelectedIdea, ideasLoading } = useAppStore();
-  const { createIdea, updateIdea, deleteIdea, restoreIdea } = useIdeas(useAppStore.getState().user?.id);
+  // ⚡ PERFORMANCE OPTIMIZATION:
+  // Using useShallow to prevent unnecessary re-renders of the entire IdeasBoard
+  // when unrelated properties in the global appStore change.
+  const { ideas, selectedIdea, setSelectedIdea, ideasLoading, userId } =
+    useAppStore(
+      useShallow((state) => ({
+        ideas: state.ideas,
+        selectedIdea: state.selectedIdea,
+        setSelectedIdea: state.setSelectedIdea,
+        ideasLoading: state.ideasLoading,
+        userId: state.user?.id,
+      }))
+    );
+  const { createIdea, updateIdea, deleteIdea, restoreIdea } = useIdeas(userId);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newIdeaTitle, setNewIdeaTitle] = useState("");
   const [newIdeaDesc, setNewIdeaDesc] = useState("");
   const [ideaToDelete, setIdeaToDelete] = useState<Idea | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isTitleFocused, setIsTitleFocused] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortOption, setSortOption] = useState<SortOption>("updated_desc");
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const lastDeletedRef = useRef<Idea | null>(null)
+  const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastDeletedRef = useRef<Idea | null>(null);
+
+  const filteredIdeas = useMemo(() => {
+    let result = ideas;
+    if (searchQuery) {
+      const escapedQuery = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const regex = new RegExp(escapedQuery, "i");
+
+      result = ideas.filter((idea) => {
+        return (
+          (idea.title && regex.test(idea.title)) ||
+          (idea.description && regex.test(idea.description))
+        );
+      });
+    }
+
+    return [...result].sort((a, b) => {
+      switch (sortOption) {
+        case "updated_desc":
+          return a.updated_at < b.updated_at ? 1 : a.updated_at > b.updated_at ? -1 : 0;
+        case "updated_asc":
+          return a.updated_at > b.updated_at ? 1 : a.updated_at < b.updated_at ? -1 : 0;
+        case "created_desc":
+          return a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0;
+        case "created_asc":
+          return a.created_at > b.created_at ? 1 : a.created_at < b.created_at ? -1 : 0;
+        case "title_asc":
+          return (a.title || "") > (b.title || "") ? 1 : (a.title || "") < (b.title || "") ? -1 : 0;
+        case "title_desc":
+          return (a.title || "") < (b.title || "") ? 1 : (a.title || "") > (b.title || "") ? -1 : 0;
+        default:
+          return 0;
+      }
+    });
+  }, [ideas, searchQuery, sortOption]);
 
   useEffect(() => {
     return () => {
       if (undoTimeoutRef.current) {
-        clearTimeout(undoTimeoutRef.current)
+        clearTimeout(undoTimeoutRef.current);
       }
-    }
-  }, [])
+    };
+  }, []);
 
-  const handleDeleteWithUndo = useCallback(async (ideaId: string) => {
-    const idea = ideas.find(i => i.id === ideaId)
-    const success = await deleteIdea(ideaId)
+  const handleDeleteWithUndo = useCallback(
+    async (ideaId: string) => {
+      const idea = ideas.find((i) => i.id === ideaId);
+      const success = await deleteIdea(ideaId);
 
-    if (success && idea) {
-      lastDeletedRef.current = idea
-      if (undoTimeoutRef.current) {
-        clearTimeout(undoTimeoutRef.current)
-      }
+      if (success && idea) {
+        lastDeletedRef.current = idea;
+        if (undoTimeoutRef.current) {
+          clearTimeout(undoTimeoutRef.current);
+        }
 
-      const toastId = toast.success('Idea deleted', {
-        description: 'Undo within 6 seconds to restore it.',
-        duration: 6000,
-        action: {
-          label: 'Undo',
-          onClick: async () => {
-            if (lastDeletedRef.current) {
-              await restoreIdea(lastDeletedRef.current)
-              lastDeletedRef.current = null
-              if (undoTimeoutRef.current) {
-                clearTimeout(undoTimeoutRef.current)
-                undoTimeoutRef.current = null
+        const toastId = toast.success("Idea deleted", {
+          description: "Undo within 6 seconds to restore it.",
+          duration: 6000,
+          action: {
+            label: "Undo",
+            onClick: async () => {
+              if (lastDeletedRef.current) {
+                await restoreIdea(lastDeletedRef.current);
+                lastDeletedRef.current = null;
+                if (undoTimeoutRef.current) {
+                  clearTimeout(undoTimeoutRef.current);
+                  undoTimeoutRef.current = null;
+                }
+                toast.dismiss(toastId);
               }
-              toast.dismiss(toastId)
-            }
+            },
           },
-        },
-      })
+        });
 
-      undoTimeoutRef.current = setTimeout(() => {
-        lastDeletedRef.current = null
-        toast.dismiss(toastId)
-        undoTimeoutRef.current = null
-      }, 6000)
-    }
-    return success
-  }, [deleteIdea, restoreIdea, ideas])
+        undoTimeoutRef.current = setTimeout(() => {
+          lastDeletedRef.current = null;
+          toast.dismiss(toastId);
+          undoTimeoutRef.current = null;
+        }, 6000);
+      }
+      return success;
+    },
+    [deleteIdea, restoreIdea, ideas],
+  );
 
   const handleCreate = async () => {
     if (!newIdeaTitle.trim()) return;
@@ -116,6 +197,46 @@ export function IdeasBoard() {
     }
   };
 
+  const handleExport = (format: "markdown" | "csv" | "json") => {
+    if (filteredIdeas.length === 0) {
+      toast.error("No ideas to export");
+      return;
+    }
+
+    const timestamp = new Date().toISOString().split("T")[0];
+    let content = "";
+    let filename = "";
+    let type = "";
+
+    try {
+      switch (format) {
+        case "markdown":
+          content = convertIdeasToMarkdown(filteredIdeas);
+          filename = `research-ideas-${timestamp}.md`;
+          type = "text/markdown";
+          break;
+        case "csv":
+          content = convertIdeasToCSV(filteredIdeas);
+          filename = `research-ideas-${timestamp}.csv`;
+          type = "text/csv";
+          break;
+        case "json":
+          content = convertIdeasToJSON(filteredIdeas);
+          filename = `research-ideas-${timestamp}.json`;
+          type = "application/json";
+          break;
+      }
+
+      downloadFile(content, filename, type);
+      toast.success(
+        `Exported ${filteredIdeas.length} ideas as ${format.toUpperCase()}`
+      );
+    } catch (err) {
+      logger.error("Export failed", err);
+      toast.error("Failed to export ideas");
+    }
+  };
+
   return (
     <div className="flex h-full bg-slate-50 dark:bg-slate-900 overflow-hidden">
       <div className="flex-1 flex flex-col min-w-0">
@@ -128,13 +249,96 @@ export function IdeasBoard() {
               Track the evolution of your research concepts
             </p>
           </div>
-          <button
-            onClick={() => setIsCreateDialogOpen(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 font-medium"
-          >
-            <Plus className="w-5 h-5" />
-            New Idea
-          </button>
+          <div className="flex items-center gap-2">
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger asChild>
+                <button className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-2 font-medium">
+                  <Download className="w-5 h-5" />
+                  Export
+                </button>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content
+                  className="min-w-[180px] bg-white dark:bg-slate-950 rounded-lg shadow-lg border border-slate-200 dark:border-slate-800 p-1 z-50 animate-in fade-in-0 zoom-in-95"
+                  align="end"
+                  sideOffset={5}
+                >
+                  <DropdownMenu.Item
+                    onSelect={() => handleExport("markdown")}
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md cursor-pointer outline-none"
+                  >
+                    <FileText className="w-4 h-4" />
+                    Markdown (.md)
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item
+                    onSelect={() => handleExport("csv")}
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md cursor-pointer outline-none"
+                  >
+                    <Table className="w-4 h-4" />
+                    CSV (.csv)
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item
+                    onSelect={() => handleExport("json")}
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md cursor-pointer outline-none"
+                  >
+                    <FileJson className="w-4 h-4" />
+                    JSON (.json)
+                  </DropdownMenu.Item>
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Root>
+            <button
+              onClick={() => setIsCreateDialogOpen(true)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 font-medium"
+            >
+              <Plus className="w-5 h-5" />
+              New Idea
+            </button>
+          </div>
+        </div>
+
+        <div className="p-4 bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search ideas..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-10 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              aria-label="Search ideas"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => {
+                  setSearchQuery("");
+                  searchInputRef.current?.focus();
+                }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                aria-label="Clear search"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <ArrowUpDown className="w-4 h-4 text-slate-400 flex-shrink-0" />
+            <select
+              value={sortOption}
+              onChange={(e) => setSortOption(e.target.value as SortOption)}
+              className="px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer min-w-[180px]"
+              aria-label="Sort ideas"
+            >
+              <option value="updated_desc">Last Updated (Newest)</option>
+              <option value="updated_asc">Last Updated (Oldest)</option>
+              <option value="created_desc">Date Created (Newest)</option>
+              <option value="created_asc">Date Created (Oldest)</option>
+              <option value="title_asc">Title (A-Z)</option>
+              <option value="title_desc">Title (Z-A)</option>
+            </select>
+          </div>
         </div>
 
         <div className="flex-1 overflow-x-auto overflow-y-hidden p-6 flex flex-col">
@@ -143,7 +347,7 @@ export function IdeasBoard() {
           </div>
           <div className="flex gap-6 h-full min-w-max">
             {STAGES.map((stage) => {
-              const stageIdeas = ideas.filter((i) => i.stage === stage.id);
+              const stageIdeas = filteredIdeas.filter((i) => i.stage === stage.id);
 
               return (
                 <div
@@ -204,7 +408,8 @@ export function IdeasBoard() {
                               </div>
 
                               <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-3 mb-3">
-                                {idea.description || "No description provided..."}
+                                {idea.description ||
+                                  "No description provided..."}
                               </p>
 
                               {stage.id !== "Mature" && (
@@ -256,7 +461,11 @@ export function IdeasBoard() {
             </button>
           </div>
           <div className="flex-1 overflow-y-auto p-4">
-            <IdeaDetailView idea={selectedIdea} onUpdate={updateIdea} onDelete={handleDeleteWithUndo} />
+            <IdeaDetailView
+              idea={selectedIdea}
+              onUpdate={updateIdea}
+              onDelete={handleDeleteWithUndo}
+            />
           </div>
         </div>
       )}
