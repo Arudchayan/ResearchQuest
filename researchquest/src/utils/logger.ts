@@ -9,14 +9,12 @@
  *   to only show the error message, preventing leakage of sensitive data or stack traces.
  */
 
-const isDev = import.meta.env.DEV;
-
 export const logger = {
   /**
    * Log informational messages. No-op in production.
    */
   log: (...args: any[]) => {
-    if (isDev) {
+    if (import.meta.env.DEV) {
       console.log(...args);
     }
   },
@@ -25,7 +23,7 @@ export const logger = {
    * Log warning messages. No-op in production.
    */
   warn: (...args: any[]) => {
-    if (isDev) {
+    if (import.meta.env.DEV) {
       console.warn(...args);
     }
   },
@@ -36,7 +34,7 @@ export const logger = {
    * In development, it logs the full error object.
    */
   error: (message: string, error?: any) => {
-    if (isDev) {
+    if (import.meta.env.DEV) {
       console.error(message, error);
     } else {
       // In production, sanitize the error object
@@ -46,7 +44,9 @@ export const logger = {
           ? error.message
           : typeof error === "string"
             ? error
-            : undefined;
+            : typeof error === "object" && error !== null && "message" in error
+              ? String(error.message)
+              : undefined;
 
       if (errorMessage) {
         console.error(`${message}: ${errorMessage}`);

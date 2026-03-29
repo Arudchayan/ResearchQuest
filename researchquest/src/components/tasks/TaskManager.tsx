@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import type { MouseEvent } from "react";
 import {
   CheckCircle2,
@@ -9,13 +9,27 @@ import {
   Plus,
   Search as SearchIcon,
   X,
+  Download,
+  FileText,
+  Table,
+  FileJson,
 } from "lucide-react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useTasks } from "../../hooks/useTasks";
 import type { Task } from "../../hooks/useTasks";
 import { supabase } from "../../lib/supabase";
 import { parseDateInput } from "../../utils/time";
 import { ListSkeleton } from "../ui/Skeleton";
+import { FormDialog } from "../ui/FormDialog";
 import { highlightMatch } from "../../utils/highlight";
+import {
+  convertTasksToCSV,
+  convertTasksToJSON,
+  convertTasksToMarkdown,
+  downloadFile,
+} from "../../utils/export";
+import { logger } from "../../utils/logger";
+import { toast } from "sonner";
 
 type TaskFilter = "all" | "pending" | "completed" | "overdue";
 type TaskPriority = "high" | "medium" | "low";
@@ -64,7 +78,7 @@ function isOverdue(dueDate: string | undefined): boolean {
 
 export function TaskManager() {
   const [userId, setUserId] = useState<string | undefined>(undefined);
-  const { tasks, loading, createTask, updateTask, completeTask, deleteTask } =
+  const { tasks, loading, createTask, updateTask, completeTask, deleteTask, restoreTask } =
     useTasks(userId);
 
   const [filter, setFilter] = useState<TaskFilter>("all");
@@ -75,6 +89,17 @@ export function TaskManager() {
   const [compactView, setCompactView] = useState(false);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastDeletedRef = useRef<Task | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (undoTimeoutRef.current) {
+        clearTimeout(undoTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Form state
   const [formTitle, setFormTitle] = useState("");
@@ -89,43 +114,44 @@ export function TaskManager() {
     });
   }, []);
 
-  // Filter tasks
-  const normalizedQuery = searchQuery.trim().toLowerCase();
-
-  const filteredTasks = tasks.filter((task) => {
-    const matchesFilter =
-      filter === "all" ||
-      (filter === "pending" && !task.completed) ||
-      (filter === "completed" && task.completed) ||
-      (filter === "overdue" && !task.completed && isOverdue(task.due_date));
-
-    if (!matchesFilter) {
-      return false;
-    }
-
-    if (!normalizedQuery) {
-      return true;
-    }
-
-    const haystack = [
-      task.title,
-      task.description ?? "",
-      task.category ?? "",
-      task.priority,
-      task.completed ? "completed done" : "pending active",
-      task.due_date ?? "",
-    ]
-      .join(" ")
-      .toLowerCase();
-
-    return haystack.includes(normalizedQuery);
-  });
-
   const sortedTasks = useMemo(() => {
-    const list = [...filteredTasks];
+    // ⚡ PERFORMANCE OPTIMIZATION: Filter tasks inside the useMemo hook
+    // to prevent the array from being recreated on every single render.
+    // If filteredTasks was defined outside and passed as a dependency,
+    // this useMemo would invalidate on every unrelated state change (like typing in an input).
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+
+    const filtered = tasks.filter((task) => {
+      const matchesFilter =
+        filter === "all" ||
+        (filter === "pending" && !task.completed) ||
+        (filter === "completed" && task.completed) ||
+        (filter === "overdue" && !task.completed && isOverdue(task.due_date));
+
+      if (!matchesFilter) {
+        return false;
+      }
+
+      if (!normalizedQuery) {
+        return true;
+      }
+
+      const haystack = [
+        task.title,
+        task.description ?? "",
+        task.category ?? "",
+        task.priority,
+        task.completed ? "completed done" : "pending active",
+        task.due_date ?? "",
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(normalizedQuery);
+    });
 
     if (sortOption === "priority") {
-      return list.sort((a, b) => {
+      return filtered.sort((a, b) => {
         if (a.completed !== b.completed) {
           return Number(a.completed) - Number(b.completed);
         }
@@ -146,10 +172,10 @@ export function TaskManager() {
 
     if (sortOption === "recent") {
       // Optimization: Use string comparison for ISO dates
-      return list.sort((a, b) => (b.created_at > a.created_at ? 1 : -1));
+      return filtered.sort((a, b) => (b.created_at > a.created_at ? 1 : -1));
     }
 
-    return list.sort((a, b) => {
+    return filtered.sort((a, b) => {
       const aDue = parseDateInput(a.due_date)?.getTime() ?? Infinity;
       const bDue = parseDateInput(b.due_date)?.getTime() ?? Infinity;
       if (aDue !== bDue) {
@@ -158,7 +184,7 @@ export function TaskManager() {
       // Optimization: Use string comparison for ISO dates
       return a.created_at > b.created_at ? 1 : -1;
     });
-  }, [filteredTasks, sortOption]);
+  }, [tasks, filter, searchQuery, sortOption]);
 
   // Calculate progress
   const completedCount = tasks.filter((t) => t.completed).length;
@@ -219,6 +245,46 @@ export function TaskManager() {
     await completeTask(task.id);
   };
 
+  const handleDeleteWithUndo = useCallback(
+    async (taskId: string) => {
+      const task = tasks.find((t) => t.id === taskId);
+      const success = await deleteTask(taskId);
+
+      if (success && task) {
+        lastDeletedRef.current = task;
+        if (undoTimeoutRef.current) {
+          clearTimeout(undoTimeoutRef.current);
+        }
+
+        const toastId = toast.success("Task deleted", {
+          description: "Undo within 6 seconds to restore it.",
+          duration: 6000,
+          action: {
+            label: "Undo",
+            onClick: async () => {
+              if (lastDeletedRef.current) {
+                await restoreTask(lastDeletedRef.current);
+                lastDeletedRef.current = null;
+                if (undoTimeoutRef.current) {
+                  clearTimeout(undoTimeoutRef.current);
+                  undoTimeoutRef.current = null;
+                }
+                toast.dismiss(toastId);
+              }
+            },
+          },
+        });
+
+        undoTimeoutRef.current = setTimeout(() => {
+          lastDeletedRef.current = null;
+          toast.dismiss(toastId);
+          undoTimeoutRef.current = null;
+        }, 6000);
+      }
+    },
+    [deleteTask, restoreTask, tasks]
+  );
+
   const handleCancelEdit = () => {
     setEditingTask(null);
     setFormTitle("");
@@ -226,6 +292,46 @@ export function TaskManager() {
     setFormPriority("medium");
     setFormCategory("Research");
     setFormDueDate("");
+  };
+
+  const handleExport = (format: "markdown" | "csv" | "json") => {
+    if (sortedTasks.length === 0) {
+      toast.error("No tasks to export");
+      return;
+    }
+
+    const timestamp = new Date().toISOString().split("T")[0];
+    let content = "";
+    let filename = "";
+    let type = "";
+
+    try {
+      switch (format) {
+        case "markdown":
+          content = convertTasksToMarkdown(sortedTasks);
+          filename = `research-tasks-${timestamp}.md`;
+          type = "text/markdown";
+          break;
+        case "csv":
+          content = convertTasksToCSV(sortedTasks);
+          filename = `research-tasks-${timestamp}.csv`;
+          type = "text/csv";
+          break;
+        case "json":
+          content = convertTasksToJSON(sortedTasks);
+          filename = `research-tasks-${timestamp}.json`;
+          type = "application/json";
+          break;
+      }
+
+      downloadFile(content, filename, type);
+      toast.success(
+        `Exported ${sortedTasks.length} tasks as ${format.toUpperCase()}`
+      );
+    } catch (err) {
+      logger.error("Export failed", err);
+      toast.error("Failed to export tasks");
+    }
   };
 
   if (loading) {
@@ -244,13 +350,55 @@ export function TaskManager() {
           <h2 className="text-title font-bold text-text-primary">
             Task Manager
           </h2>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors text-small font-medium"
-          >
-            <Plus className="w-4 h-4" />
-            New Task
-          </button>
+          <div className="flex items-center gap-2">
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger asChild>
+                <button
+                  className="px-4 py-2 bg-bg-surface border border-border-subtle text-text-secondary rounded-md hover:bg-bg-elevated hover:text-text-primary transition-colors flex items-center gap-2 font-medium text-small shadow-sm"
+                  title="Export tasks"
+                >
+                  <Download className="w-4 h-4" />
+                  <span className="hidden sm:inline">Export</span>
+                </button>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content
+                  className="min-w-[180px] bg-bg-surface rounded-lg shadow-lg border border-border-subtle p-1 z-50 animate-in fade-in-0 zoom-in-95"
+                  align="end"
+                  sideOffset={5}
+                >
+                  <DropdownMenu.Item
+                    onSelect={() => handleExport("markdown")}
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-bg-base hover:text-text-primary rounded-md cursor-pointer outline-none transition-colors"
+                  >
+                    <FileText className="w-4 h-4" />
+                    Markdown (.md)
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item
+                    onSelect={() => handleExport("csv")}
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-bg-base hover:text-text-primary rounded-md cursor-pointer outline-none transition-colors"
+                  >
+                    <Table className="w-4 h-4" />
+                    CSV (.csv)
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item
+                    onSelect={() => handleExport("json")}
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-bg-base hover:text-text-primary rounded-md cursor-pointer outline-none transition-colors"
+                  >
+                    <FileJson className="w-4 h-4" />
+                    JSON (.json)
+                  </DropdownMenu.Item>
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Root>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors text-small font-medium shadow-sm"
+            >
+              <Plus className="w-4 h-4" />
+              New Task
+            </button>
+          </div>
         </div>
 
         {/* Progress Bar */}
@@ -383,7 +531,7 @@ export function TaskManager() {
                 task={task}
                 onToggleComplete={handleToggleComplete}
                 onEdit={handleEditClick}
-                onDelete={deleteTask}
+                onDelete={handleDeleteWithUndo}
                 compact={compactView}
                 highlightQuery={searchQuery}
               />
@@ -393,153 +541,126 @@ export function TaskManager() {
       </div>
 
       {/* Add/Edit Modal */}
-      {(showAddModal || editingTask) && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-          onClick={() => {
-            setShowAddModal(false);
-            handleCancelEdit();
-          }}
-        >
-          <div
-            className="bg-bg-surface rounded-lg shadow-xl w-full max-w-md p-4 sm:p-6 m-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-body font-bold text-text-primary mb-4">
-              {editingTask ? "Edit Task" : "New Task"}
-            </h3>
+      <FormDialog
+        isOpen={showAddModal || editingTask !== null}
+        onClose={() => {
+          setShowAddModal(false);
+          handleCancelEdit();
+        }}
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (editingTask) { handleUpdateTask(); } else { handleAddTask(); }
+        }}
+        title={editingTask ? "Edit Task" : "New Task"}
+        icon={<CheckCircle2 className="w-6 h-6 text-primary-600 dark:text-primary-400" />}
+        submitText={editingTask ? "Update" : "Create"}
+        isSubmitDisabled={!formTitle.trim()}
+      >
+        <div className="space-y-4">
+          {/* Title */}
+          <div>
+            <label
+              htmlFor="task-title"
+              className="block text-small font-medium text-text-primary mb-2"
+            >
+              Title
+            </label>
+            <input
+              id="task-title"
+              type="text"
+              value={formTitle}
+              onChange={(e) => setFormTitle(e.target.value)}
+              className="w-full px-3 py-2 bg-bg-base border border-border-subtle rounded-md text-small focus:outline-none focus:ring-2 focus:ring-primary-500"
+              placeholder="What needs to be done?"
+              autoFocus
+            />
+          </div>
 
-            <div className="space-y-4">
-              {/* Title */}
-              <div>
-                <label
-                  htmlFor="task-title"
-                  className="block text-small font-medium text-text-primary mb-2"
-                >
-                  Title *
-                </label>
-                <input
-                  id="task-title"
-                  type="text"
-                  value={formTitle}
-                  onChange={(e) => setFormTitle(e.target.value)}
-                  placeholder="Enter task title"
-                  maxLength={255}
-                  className="w-full px-3 py-2 bg-bg-base border border-border-subtle rounded-md text-body focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  autoFocus
-                />
-              </div>
+          {/* Description */}
+          <div>
+            <label
+              htmlFor="task-description"
+              className="block text-small font-medium text-text-primary mb-2"
+            >
+              Description (Optional)
+            </label>
+            <textarea
+              id="task-description"
+              value={formDescription}
+              onChange={(e) => setFormDescription(e.target.value)}
+              className="w-full px-3 py-2 bg-bg-base border border-border-subtle rounded-md text-small focus:outline-none focus:ring-2 focus:ring-primary-500 min-h-[80px] resize-y"
+              placeholder="Add more details..."
+            />
+          </div>
 
-              {/* Description */}
-              <div>
-                <label
-                  htmlFor="task-description"
-                  className="block text-small font-medium text-text-primary mb-2"
-                >
-                  Description
-                </label>
-                <textarea
-                  id="task-description"
-                  value={formDescription}
-                  onChange={(e) => setFormDescription(e.target.value)}
-                  placeholder="Optional task details"
-                  rows={3}
-                  maxLength={1000}
-                  className="w-full px-3 py-2 bg-bg-base border border-border-subtle rounded-md text-small focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
-                />
-              </div>
-
-              {/* Priority & Category Row */}
-              <div className="grid grid-cols-2 gap-3">
-                {/* Priority */}
-                <div>
-                  <label
-                    htmlFor="task-priority"
-                    className="block text-small font-medium text-text-primary mb-2"
-                  >
-                    Priority
-                  </label>
-                  <select
-                    id="task-priority"
-                    value={formPriority}
-                    onChange={(e) =>
-                      setFormPriority(e.target.value as TaskPriority)
-                    }
-                    className="w-full px-3 py-2 bg-bg-base border border-border-subtle rounded-md text-small focus:outline-none focus:ring-2 focus:ring-primary-500 capitalize"
-                  >
-                    {PRIORITIES.map((p) => (
-                      <option key={p} value={p} className="capitalize">
-                        {p}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Category */}
-                <div>
-                  <label
-                    htmlFor="task-category"
-                    className="block text-small font-medium text-text-primary mb-2"
-                  >
-                    Category
-                  </label>
-                  <select
-                    id="task-category"
-                    value={formCategory}
-                    onChange={(e) =>
-                      setFormCategory(e.target.value as TaskCategory)
-                    }
-                    className="w-full px-3 py-2 bg-bg-base border border-border-subtle rounded-md text-small focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  >
-                    {CATEGORIES.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Due Date */}
-              <div>
-                <label
-                  htmlFor="task-due-date"
-                  className="block text-small font-medium text-text-primary mb-2"
-                >
-                  Due Date
-                </label>
-                <input
-                  id="task-due-date"
-                  type="date"
-                  value={formDueDate}
-                  onChange={(e) => setFormDueDate(e.target.value)}
-                  className="w-full px-3 py-2 bg-bg-base border border-border-subtle rounded-md text-small focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-              </div>
+          <div className="grid grid-cols-2 gap-4">
+            {/* Priority */}
+            <div>
+              <label
+                htmlFor="task-priority"
+                className="block text-small font-medium text-text-primary mb-2"
+              >
+                Priority
+              </label>
+              <select
+                id="task-priority"
+                value={formPriority}
+                onChange={(e) =>
+                  setFormPriority(e.target.value as TaskPriority)
+                }
+                className="w-full px-3 py-2 bg-bg-base border border-border-subtle rounded-md text-small focus:outline-none focus:ring-2 focus:ring-primary-500 capitalize"
+              >
+                {PRIORITIES.map((p) => (
+                  <option key={p} value={p} className="capitalize">
+                    {p}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            {/* Actions */}
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => {
-                  setShowAddModal(false);
-                  handleCancelEdit();
-                }}
-                className="flex-1 px-4 py-2 bg-bg-elevated text-text-primary rounded-md hover:bg-bg-base transition-colors text-small font-medium"
+            {/* Category */}
+            <div>
+              <label
+                htmlFor="task-category"
+                className="block text-small font-medium text-text-primary mb-2"
               >
-                Cancel
-              </button>
-              <button
-                onClick={editingTask ? handleUpdateTask : handleAddTask}
-                disabled={!formTitle.trim()}
-                className="flex-1 px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors text-small font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                Category
+              </label>
+              <select
+                id="task-category"
+                value={formCategory}
+                onChange={(e) =>
+                  setFormCategory(e.target.value as TaskCategory)
+                }
+                className="w-full px-3 py-2 bg-bg-base border border-border-subtle rounded-md text-small focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
-                {editingTask ? "Update" : "Create"}
-              </button>
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
+
+          {/* Due Date */}
+          <div>
+            <label
+              htmlFor="task-due-date"
+              className="block text-small font-medium text-text-primary mb-2"
+            >
+              Due Date
+            </label>
+            <input
+              id="task-due-date"
+              type="date"
+              value={formDueDate}
+              onChange={(e) => setFormDueDate(e.target.value)}
+              className="w-full px-3 py-2 bg-bg-base border border-border-subtle rounded-md text-small focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
         </div>
-      )}
+      </FormDialog>
     </div>
   );
 }
@@ -561,7 +682,6 @@ function TaskCard({
   compact = false,
   highlightQuery = "",
 }: TaskCardProps) {
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
 
   const overdue = isOverdue(task.due_date);
@@ -578,18 +698,7 @@ function TaskCard({
 
   const handleDelete = (e: MouseEvent) => {
     e.stopPropagation();
-    setShowDeleteConfirm(true);
-  };
-
-  const cancelDelete = (e: MouseEvent) => {
-    e.stopPropagation();
-    setShowDeleteConfirm(false);
-  };
-
-  const confirmDelete = (e: MouseEvent) => {
-    e.stopPropagation();
     onDelete(task.id);
-    setShowDeleteConfirm(false);
   };
 
   return (
@@ -644,42 +753,14 @@ function TaskCard({
               >
                 Edit
               </button>
-              <div className="relative">
-                <button
-                  onClick={handleDelete}
-                  className={`p-1.5 rounded transition-colors ${
-                    showDeleteConfirm
-                      ? "text-red-500"
-                      : "text-text-tertiary hover:text-red-500"
-                  }`}
-                  title="Delete task"
-                  aria-label="Delete task"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-
-                {showDeleteConfirm && (
-                  <div className="absolute right-0 top-8 z-10 w-48 rounded-md border border-border-subtle bg-bg-surface shadow-lg p-3 text-left">
-                    <p className="text-caption text-text-primary mb-3">
-                      Delete this task?
-                    </p>
-                    <div className="flex justify-end gap-2">
-                      <button
-                        onClick={cancelDelete}
-                        className="px-2 py-1 rounded-md text-caption text-text-secondary hover:text-text-primary"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={confirmDelete}
-                        className="px-2 py-1 rounded-md bg-red-500 text-white text-caption hover:bg-red-600"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <button
+                onClick={handleDelete}
+                className="p-1.5 rounded transition-colors text-text-tertiary hover:text-red-500"
+                title="Delete task"
+                aria-label="Delete task"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
             </div>
           </div>
 

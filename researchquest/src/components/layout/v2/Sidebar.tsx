@@ -5,7 +5,6 @@ import {
   Lightbulb,
   CheckSquare,
   Clock,
-  Settings,
   LogOut,
   User,
   Sun,
@@ -109,7 +108,7 @@ export function Sidebar() {
 
         <button
           onClick={handleOpenSearch}
-          className="w-full flex items-center justify-between px-3 py-2 rounded-md bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:border-slate-300 dark:hover:border-slate-700 transition-colors shadow-sm"
+          className="w-full flex items-center justify-between px-3 py-2 rounded-md bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:border-slate-300 dark:hover:border-slate-700 transition-colors shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2"
           aria-label="Search or type a command"
         >
           <div className="flex items-center gap-2">
@@ -117,22 +116,7 @@ export function Sidebar() {
             <span>Search...</span>
           </div>
           <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-medium text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 rounded-md border border-slate-200 dark:border-slate-700">
-            <span className="mr-0.5">⌘</span>K
-          </kbd>
-        </button>
-      </div>
-
-
-      <div className="px-4 pb-4">
-        <button
-          onClick={handleOpenSearch}
-          className="w-full flex items-center gap-2 px-3 py-2 bg-slate-200/50 dark:bg-slate-800/50 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-md text-sm transition-colors border border-slate-200 dark:border-slate-700/50"
-          aria-label="Search"
-        >
-          <Search className="w-4 h-4" />
-          <span className="flex-1 text-left">Search...</span>
-          <kbd className="hidden sm:inline-block text-[10px] font-medium text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">
-            {navigator.platform.includes("Mac") ? "⌘K" : "Ctrl+K"}
+            <span className="mr-0.5">{navigator.platform.includes("Mac") ? "⌘" : "Ctrl+"}</span>K
           </kbd>
         </button>
       </div>
@@ -157,7 +141,7 @@ export function Sidebar() {
               );
             }}
             className={cn(
-              "w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
+              "w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2",
               currentView === item.id
                 ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
                 : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800",
@@ -180,7 +164,7 @@ export function Sidebar() {
               </span>
               <button
                 onClick={() => setShowXpGuide(true)}
-                className="text-slate-400 hover:text-blue-500"
+                className="text-slate-400 hover:text-blue-500 rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
                 aria-label="Learn about XP and Levels"
               >
                 <HelpCircle className="w-3.5 h-3.5" aria-hidden="true" />
@@ -204,7 +188,7 @@ export function Sidebar() {
         <div className="flex items-center justify-between px-3 py-2">
           <button
             onClick={() => setShowProfile(true)}
-            className="flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md p-1 -ml-1 transition-colors text-left"
+            className="flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md p-1 -ml-1 transition-colors text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
             aria-label="User profile"
           >
             <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center">
@@ -223,7 +207,7 @@ export function Sidebar() {
           <div className="flex items-center gap-1">
             <button
               onClick={handleOpenShortcuts}
-              className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
+              className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
               aria-label="Keyboard Shortcuts"
               title="Keyboard Shortcuts"
             >
@@ -231,7 +215,7 @@ export function Sidebar() {
             </button>
             <button
               onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
-              className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
+              className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
               aria-label={
                 isRightSidebarOpen
                   ? "Close context panel"
@@ -247,7 +231,7 @@ export function Sidebar() {
             </button>
             <button
               onClick={() => setZenMode(true)}
-              className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
+              className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
               aria-label="Enter Zen Mode"
               title="Enter Zen Mode (Ctrl+Shift+F)"
             >
@@ -255,7 +239,7 @@ export function Sidebar() {
             </button>
             <button
               onClick={toggleTheme}
-              className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
+              className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
               aria-label={
                 effectiveTheme === "light"
                   ? "Switch to dark mode"
@@ -273,7 +257,7 @@ export function Sidebar() {
 
         <button
           onClick={() => setShowDataDialog(true)}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 transition-colors"
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2"
         >
           <Database className="w-5 h-5" aria-hidden="true" />
           Data & Backup
@@ -281,7 +265,7 @@ export function Sidebar() {
 
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 transition-colors"
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2"
         >
           <LogOut className="w-5 h-5" aria-hidden="true" />
           Sign Out

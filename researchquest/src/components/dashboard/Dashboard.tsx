@@ -142,7 +142,7 @@ export function Dashboard() {
             onClick={() => navigateTo("focus")}
             className="flex items-center gap-2 px-4 py-2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-lg font-medium hover:opacity-90 transition-opacity"
           >
-            <Target className="w-4 h-4" />
+            <Target className="w-4 h-4" aria-hidden="true" />
             Start Focus Session
           </button>
         </div>
@@ -226,7 +226,7 @@ export function Dashboard() {
               onClick={() => navigateTo("notes")}
               className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 font-medium flex items-center gap-1"
             >
-              View all <ArrowRight className="w-4 h-4" />
+              View all <ArrowRight className="w-4 h-4" aria-hidden="true" />
             </button>
           </div>
 
@@ -240,7 +240,7 @@ export function Dashboard() {
                   onClick={() => navigateTo("notes")}
                   className="inline-flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium hover:border-blue-500 transition-colors"
                 >
-                  <Plus className="w-4 h-4" /> Create Note
+                  <Plus className="w-4 h-4" aria-hidden="true" /> Create Note
                 </button>
               </div>
             ) : (
@@ -282,7 +282,7 @@ export function Dashboard() {
                 onClick={() => navigateTo("papers")}
                 className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 font-medium flex items-center gap-1"
               >
-                View Library <ArrowRight className="w-4 h-4" />
+                View Library <ArrowRight className="w-4 h-4" aria-hidden="true" />
               </button>
             </div>
 
@@ -298,7 +298,7 @@ export function Dashboard() {
                     onClick={() => navigateTo("papers")}
                     className="inline-flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium hover:border-blue-500 transition-colors"
                   >
-                    <Plus className="w-4 h-4" /> Add Paper
+                    <Plus className="w-4 h-4" aria-hidden="true" /> Add Paper
                   </button>
                 </div>
               ) : (
@@ -340,7 +340,7 @@ export function Dashboard() {
                 onClick={() => navigateTo("tasks")}
                 className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 font-medium flex items-center gap-1"
               >
-                All Tasks <ArrowRight className="w-4 h-4" />
+                All Tasks <ArrowRight className="w-4 h-4" aria-hidden="true" />
               </button>
             </div>
 

@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./lib/supabase";
 import { useAppStore } from "./store/appStore";
+import { useShallow } from "zustand/react/shallow";
 import { TopNav } from "./components/layout/TopNav";
 import { LeftSidebar } from "./components/layout/LeftSidebar";
 import { RightSidebar } from "./components/layout/RightSidebar";
 import { MobileMenu } from "./components/layout/MobileMenu";
 import { MarkdownEditor } from "./components/editor/MarkdownEditor";
+import { AddIdeaDialog } from "./components/ideas/AddIdeaDialog";
 import { TaskManager } from "./components/tasks/TaskManager";
 import { NoteList } from "./components/entities/NoteList";
 import { PaperList } from "./components/entities/PaperList";
@@ -135,13 +137,20 @@ function AuthScreen() {
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
+  const [isAddIdeaDialogOpen, setIsAddIdeaDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | undefined>(undefined);
   const {
     setUser: setUserProfile,
     currentView,
     setCurrentView,
-  } = useAppStore();
+  } = useAppStore(
+    useShallow((state) => ({
+      setUser: state.setUser,
+      currentView: state.currentView,
+      setCurrentView: state.setCurrentView,
+    }))
+  );
 
   // Get hooks for entity management
   const { notes, createNote, updateNote, deleteNote } = useNotes(userId);
@@ -200,14 +209,17 @@ function App() {
         tags: [],
       });
     } else if (type === "idea") {
-      const title = prompt("Enter idea title:");
-      if (title) {
-        createIdea({
-          title,
-          stage: "Seed",
-        });
-      }
+      setIsAddIdeaDialogOpen(true);
     }
+  };
+
+  const handleCreateIdea = async (data: { title: string; description?: string }) => {
+    await createIdea({
+      title: data.title,
+      description: data.description,
+      stage: "Seed",
+    });
+    setIsAddIdeaDialogOpen(false);
   };
 
   if (loading) {
@@ -415,6 +427,11 @@ function App() {
           </div>
         </div>
       </div>
+      <AddIdeaDialog
+        isOpen={isAddIdeaDialogOpen}
+        onClose={() => setIsAddIdeaDialogOpen(false)}
+        onConfirm={handleCreateIdea}
+      />
     </div>
   );
 }

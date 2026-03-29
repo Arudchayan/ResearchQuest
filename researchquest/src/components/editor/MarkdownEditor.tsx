@@ -7,6 +7,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
 import rehypeHighlight from "rehype-highlight";
+import DOMPurify from "dompurify";
 import { CitationPicker } from "./CitationPicker";
 import {
   Bold,
@@ -395,7 +396,8 @@ export function MarkdownEditor() {
       return;
     }
 
-    const html = previewElement.innerHTML;
+    // 🛡️ Sentinel: Sanitize HTML content before copying to clipboard to prevent XSS
+    const html = DOMPurify.sanitize(previewElement.innerHTML);
     const text = previewElement.innerText;
 
     try {
@@ -452,7 +454,8 @@ export function MarkdownEditor() {
       return;
     }
 
-    const htmlContent = previewElement.innerHTML;
+    // 🛡️ Sentinel: Sanitize HTML content to prevent XSS during print via document.write
+    const htmlContent = DOMPurify.sanitize(previewElement.innerHTML);
     const rawTitle = title || "Untitled Note";
     // Basic HTML escaping to prevent XSS in the new window title
     const documentTitle = rawTitle

@@ -795,7 +795,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
                   className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-text-tertiary hover:text-text-primary hover:bg-bg-elevated transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
                   aria-label="Clear search"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <X className="w-3.5 h-3.5" aria-hidden="true" />
                 </button>
               )}
             </div>
@@ -809,7 +809,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
               }}
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors font-medium"
             >
-              <Plus className="w-5 h-5" />
+              <Plus className="w-5 h-5" aria-hidden="true" />
               <span>{`New ${currentView.slice(0, -1)}`}</span>
             </button>
           )}

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "../../lib/supabase";
 import { useAppStore } from "../../store/appStore";
+import { useShallow } from "zustand/react/shallow";
 import type { TopicWithCounts, Note, Paper, Idea } from "../../types/database";
 import { deriveTitleFromMarkdown } from "../../utils/text";
 import {
@@ -31,8 +32,16 @@ export function TopicDetailView({
   onUpdate,
   onDelete,
 }: TopicDetailViewProps) {
+  // ⚡ OPTIMIZATION: Use useShallow with an object selector to prevent TopicDetailView from unnecessarily re-rendering on unrelated state changes in the global appStore.
   const { setCurrentView, setSelectedNote, setSelectedPaper, setSelectedIdea } =
-    useAppStore();
+    useAppStore(
+      useShallow((state) => ({
+        setCurrentView: state.setCurrentView,
+        setSelectedNote: state.setSelectedNote,
+        setSelectedPaper: state.setSelectedPaper,
+        setSelectedIdea: state.setSelectedIdea,
+      })),
+    );
   const [name, setName] = useState(topic.name);
   const [description, setDescription] = useState(topic.description || "");
   const [isEditing, setIsEditing] = useState(false);
@@ -123,7 +132,7 @@ export function TopicDetailView({
       title: "Delete Topic",
       message: "Delete this topic? This will remove its links to notes, papers, and ideas.",
       confirmText: "Delete",
-      isDestructive: true,
+      variant: "danger",
     });
     if (!shouldDelete) return;
 
@@ -192,9 +201,9 @@ export function TopicDetailView({
         message={config.message || "Are you sure?"}
         confirmText={config.confirmText}
         cancelText={config.cancelText}
-        isDestructive={config.isDestructive}
+        variant={config.variant}
         onConfirm={config.onConfirm!}
-        onCancel={config.onCancel!}
+        onClose={config.onClose!}
       />
       <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-6">
       <div className="bg-bg-surface border border-border-subtle rounded-xl shadow-sm p-4 sm:p-6 space-y-4">

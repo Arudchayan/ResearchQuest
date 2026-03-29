@@ -26,3 +26,33 @@ Prevention: Always audit visual affordances for core features during layout migr
 Opportunity: The MarkdownEditor lacked a simple UI affordance and shortcut for creating and toggling headings.
 Learning: CodeMirror programmatic text manipulation via `view.dispatch` requires mapping line numbers and extracting matches on the text content to cycle values.
 Prevention: When manipulating multi-line editor selections, always retrieve the lines via `state.doc.line(lineNumber)` and ensure `scrollIntoView` is applied so the user focus doesn't detach.
+
+2024-05-24 — Add Tasks to Command Palette global search
+Opportunity: The global search (CommandPalette) did not include tasks, creating a friction point where users could search for notes, papers, and ideas, but not their tasks.
+Learning: Unified global search is a high-value productivity booster.
+Prevention: When adding new top-level entities, always ensure they are integrated into global components like search and command palettes.
+
+2024-11-20 — Standardize Search and Export across List Views
+Opportunity: IdeasBoard lacked parity with NotesView and PapersView regarding search and export functionality.
+Learning: Ensuring consistent features (like search and export) across similar list views (Notes, Papers, Ideas) enhances overall usability and predictability for users.
+Prevention: When creating new list views in the future, automatically evaluate if search, sort, and export functionalities are needed based on existing patterns.
+
+2024-05-24 — Add Data Export to Task Manager
+Opportunity: TaskManager lacked parity with Notes, Papers, and Ideas regarding Data Export functionality (Markdown, CSV, JSON).
+Learning: Maintaining UX consistency across similar list views enhances usability. The pattern of adding an export DropdownMenu that leverages utility functions from `src/utils/export.ts` is robust and easy to replicate across entities.
+Prevention: When creating new list views in the future, automatically evaluate if export functionalities are needed based on existing patterns to maintain feature parity.
+
+2024-05-24 — Standardize Sorting across List Views
+Opportunity: NotesView lacked parity with PapersView and TaskManager regarding explicit sorting functionality.
+Learning: Maintaining UX consistency across similar list views (Notes, Papers, Tasks) enhances overall usability. Adding explicit sorting options provides users with better control over their content.
+Prevention: When creating new list views in the future, automatically evaluate if search, sort, and export functionalities are needed based on existing patterns.
+
+2024-11-20 — Standardize Sorting across List Views
+Opportunity: IdeasBoard lacked parity with NotesView, PapersView, and TaskManager regarding explicit sorting functionality.
+Learning: Maintaining UX consistency across similar list views enhances overall usability and predictability for users. Adding explicit sorting options provides users with better control over their content.
+Prevention: When creating new list views in the future, automatically evaluate if search, sort, and export functionalities are needed based on existing patterns.
+
+2024-05-24 — Add Tasks to Global Backup and Data Export
+Opportunity: The global data backup feature (`DataManagementDialog.tsx`) excluded Tasks, creating a friction point and risk of data loss. Users could back up Notes, Papers, Ideas, and Topics, but not Tasks.
+Learning: Unifying global export across all core entities ensures data portability and prevents partial backups, avoiding catastrophic data loss scenarios for end users relying on the backup system.
+Prevention: When adding new core entities to a project with a global backup strategy, always add the new entity explicitly to both the export utility formats and the import/export orchestrator dialog.

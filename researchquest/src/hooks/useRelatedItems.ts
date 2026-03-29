@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import { useAppStore } from "../store/appStore";
 import { deriveTitleFromMarkdown } from "../utils/text";
+import { logger } from "../utils/logger";
 
 export interface RelatedItem {
   id: string;
@@ -162,7 +163,7 @@ export function useRelatedItems(
 
       setRelatedLinks(Array.from(linkMap.values()));
     } catch (error) {
-      console.error("Error fetching related items:", (error as Error)?.message || "Unknown error");
+      logger.error("Error fetching related items", error);
       setRelatedLinks([]);
     } finally {
       setLoading(false);
@@ -180,26 +181,32 @@ export function useRelatedItems(
 
     const results: RelatedItem[] = [];
 
+    // ⚡ PERFORMANCE OPTIMIZATION:
+    // Pre-compute Map lookups (O(1)) instead of repeated array scans (O(N*M)) when hydrating links from the store.
+    const notesMap = new Map(notes.map((n) => [n.id, n]));
+    const papersMap = new Map(papers.map((p) => [p.id, p]));
+    const ideasMap = new Map(ideas.map((i) => [i.id, i]));
+
     for (const link of relatedLinks) {
       let fullItem: any = null;
       let title = "";
       let updated_at = "";
 
       if (link.type === "note") {
-        fullItem = notes.find((n) => n.id === link.id);
+        fullItem = notesMap.get(link.id);
         if (fullItem) {
           title =
             fullItem.title || deriveTitleFromMarkdown(fullItem.markdown_body);
           updated_at = fullItem.updated_at;
         }
       } else if (link.type === "paper") {
-        fullItem = papers.find((p) => p.id === link.id);
+        fullItem = papersMap.get(link.id);
         if (fullItem) {
           title = fullItem.title;
           updated_at = fullItem.updated_at;
         }
       } else if (link.type === "idea") {
-        fullItem = ideas.find((i) => i.id === link.id);
+        fullItem = ideasMap.get(link.id);
         if (fullItem) {
           title = fullItem.title;
           updated_at = fullItem.updated_at;
