@@ -354,10 +354,10 @@ export function TaskManager() {
             <DropdownMenu.Root>
               <DropdownMenu.Trigger asChild>
                 <button
-                  className="px-4 py-2 bg-bg-surface border border-border-subtle text-text-secondary rounded-md hover:bg-bg-elevated hover:text-text-primary transition-colors flex items-center gap-2 font-medium text-small shadow-sm"
+                  className="px-4 py-2 bg-bg-surface border border-border-subtle text-text-secondary rounded-md hover:bg-bg-elevated hover:text-text-primary transition-colors flex items-center gap-2 font-medium text-small shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
                   title="Export tasks"
                 >
-                  <Download className="w-4 h-4" />
+                  <Download className="w-4 h-4" aria-hidden="true" />
                   <span className="hidden sm:inline">Export</span>
                 </button>
               </DropdownMenu.Trigger>
@@ -371,21 +371,21 @@ export function TaskManager() {
                     onSelect={() => handleExport("markdown")}
                     className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-bg-base hover:text-text-primary rounded-md cursor-pointer outline-none transition-colors"
                   >
-                    <FileText className="w-4 h-4" />
+                    <FileText className="w-4 h-4" aria-hidden="true" />
                     Markdown (.md)
                   </DropdownMenu.Item>
                   <DropdownMenu.Item
                     onSelect={() => handleExport("csv")}
                     className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-bg-base hover:text-text-primary rounded-md cursor-pointer outline-none transition-colors"
                   >
-                    <Table className="w-4 h-4" />
+                    <Table className="w-4 h-4" aria-hidden="true" />
                     CSV (.csv)
                   </DropdownMenu.Item>
                   <DropdownMenu.Item
                     onSelect={() => handleExport("json")}
                     className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-bg-base hover:text-text-primary rounded-md cursor-pointer outline-none transition-colors"
                   >
-                    <FileJson className="w-4 h-4" />
+                    <FileJson className="w-4 h-4" aria-hidden="true" />
                     JSON (.json)
                   </DropdownMenu.Item>
                 </DropdownMenu.Content>
@@ -393,9 +393,9 @@ export function TaskManager() {
             </DropdownMenu.Root>
             <button
               onClick={() => setShowAddModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors text-small font-medium shadow-sm"
+              className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors text-small font-medium shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-4 h-4" aria-hidden="true" />
               New Task
             </button>
           </div>
@@ -429,7 +429,7 @@ export function TaskManager() {
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
-                  className={`px-3 py-1.5 rounded-md text-caption font-medium transition-colors capitalize ${
+                  className={`px-3 py-1.5 rounded-md text-caption font-medium transition-colors capitalize focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 ${
                     filter === f
                       ? "bg-primary-500 text-white"
                       : "bg-bg-elevated text-text-secondary hover:text-text-primary"
@@ -443,7 +443,7 @@ export function TaskManager() {
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
             <div className="relative w-full sm:w-64">
-              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-tertiary" />
+              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-tertiary" aria-hidden="true" />
               <input
                 ref={searchInputRef}
                 type="text"
@@ -463,7 +463,7 @@ export function TaskManager() {
                   className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-tertiary hover:text-text-primary hover:bg-bg-elevated rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
                   aria-label="Clear search"
                 >
-                  <X className="w-3 h-3" />
+                  <X className="w-3 h-3" aria-hidden="true" />
                 </button>
               )}
             </div>
@@ -493,7 +493,7 @@ export function TaskManager() {
               type="button"
               onClick={() => setCompactView((prev) => !prev)}
               aria-pressed={compactView}
-              className={`px-3 py-2 rounded-md border text-small font-medium transition-colors ${
+              className={`px-3 py-2 rounded-md border text-small font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 ${
                 compactView
                   ? "bg-primary-50 text-primary-600 border-primary-200 dark:bg-primary-500/20 dark:text-primary-200"
                   : "bg-bg-base text-text-secondary border-border-subtle hover:text-text-primary"
@@ -508,8 +508,8 @@ export function TaskManager() {
       {/* Task List */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-6">
         {sortedTasks.length === 0 ? (
-          <div className="text-center py-16">
-            <CheckCircle2 className="w-16 h-16 mx-auto mb-4 text-text-tertiary opacity-50" />
+          <div className="text-center py-16" role="status" aria-live="polite">
+            <CheckCircle2 className="w-16 h-16 mx-auto mb-4 text-text-tertiary opacity-50" aria-hidden="true" />
             <p className="text-body text-text-secondary mb-2">
               No tasks match your filters
             </p>
@@ -518,9 +518,9 @@ export function TaskManager() {
             </p>
             <button
               onClick={() => setShowAddModal(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors text-small font-medium"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors text-small font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-4 h-4" aria-hidden="true" />
               New Task
             </button>
           </div>
@@ -553,7 +553,7 @@ export function TaskManager() {
           if (editingTask) { handleUpdateTask(); } else { handleAddTask(); }
         }}
         title={editingTask ? "Edit Task" : "New Task"}
-        icon={<CheckCircle2 className="w-6 h-6 text-primary-600 dark:text-primary-400" />}
+        icon={<CheckCircle2 className="w-6 h-6 text-primary-600 dark:text-primary-400" aria-hidden="true" />}
         submitText={editingTask ? "Update" : "Create"}
         isSubmitDisabled={!formTitle.trim()}
       >
@@ -718,7 +718,7 @@ function TaskCard({
         {/* Checkbox */}
         <button
           onClick={handleToggle}
-          className={`flex-shrink-0 mt-0.5 transition-all duration-200 ${
+          className={`flex-shrink-0 mt-0.5 transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 rounded-full ${
             isCompleting ? "scale-125" : ""
           }`}
           aria-label={
@@ -726,9 +726,9 @@ function TaskCard({
           }
         >
           {task.completed ? (
-            <CheckCircle2 className="w-5 h-5 text-green-500 animate-in fade-in zoom-in duration-300" />
+            <CheckCircle2 className="w-5 h-5 text-green-500 animate-in fade-in zoom-in duration-300" aria-hidden="true" />
           ) : (
-            <Circle className="w-5 h-5 text-text-tertiary hover:text-primary-500" />
+            <Circle className="w-5 h-5 text-text-tertiary hover:text-primary-500" aria-hidden="true" />
           )}
         </button>
 
@@ -750,17 +750,17 @@ function TaskCard({
             <div className="flex items-center gap-1.5 flex-shrink-0">
               <button
                 onClick={() => onEdit(task)}
-                className="px-2 py-1 rounded-md border text-caption font-medium transition-colors text-text-secondary border-border-subtle hover:border-primary-400 hover:text-primary-600"
+                className="px-2 py-1 rounded-md border text-caption font-medium transition-colors text-text-secondary border-border-subtle hover:border-primary-400 hover:text-primary-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
               >
                 Edit
               </button>
               <button
                 onClick={handleDelete}
-                className="p-1.5 rounded transition-colors text-text-tertiary hover:text-red-500"
+                className="p-1.5 rounded transition-colors text-text-tertiary hover:text-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
                 title="Delete task"
                 aria-label="Delete task"
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="w-4 h-4" aria-hidden="true" />
               </button>
             </div>
           </div>
@@ -803,9 +803,9 @@ function TaskCard({
                 }`}
               >
                 {overdue && !task.completed ? (
-                  <AlertCircle className="w-3 h-3" />
+                  <AlertCircle className="w-3 h-3" aria-hidden="true" />
                 ) : (
-                  <Clock className="w-3 h-3" />
+                  <Clock className="w-3 h-3" aria-hidden="true" />
                 )}
                 <span>
                   {dueDate.toLocaleDateString("en-US", {
