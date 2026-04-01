@@ -73,9 +73,6 @@ export async function importData(file: File, userId: string) {
     toast.success("Data imported successfully", { id: toastId });
   } catch (error) {
     logger.error("Import failed", error);
-    toast.error(
-      "Failed to import data: " +
-        (error instanceof Error ? error.message : "Unknown error"),
-    );
+    toast.error("Failed to import data. Please check the file and try again.");
   }
 }

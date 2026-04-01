@@ -1,16 +1,22 @@
 import {
-  Link2,
-  Hash,
   Sparkles,
-  CalendarCheck,
   Snowflake,
   Coffee,
   Flame,
   Heart,
   FileText,
-  BookOpen,
   Lightbulb,
+  Link2,
+  Hash,
+  CalendarCheck,
+  BookOpen,
 } from "lucide-react";
+import {
+  Link2Icon,
+  NumberIcon,
+  CalendarIcon,
+  BookOpenIcon,
+} from "@radix-ui/react-icons";
 import { useAppStore } from "../../store/appStore";
 import { useState, useEffect, useMemo, useRef } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";

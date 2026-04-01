@@ -4,81 +4,83 @@
 
 @layer base {
   :root {
-    /* Light Mode - Primary Colors */
-    --primary-50: #E6F0FF;
-    --primary-100: #CCE0FF;
-    --primary-500: #0066FF;
-    --primary-600: #0052CC;
-    --primary-900: #003D99;
+    /* Luxe Scholar - Light Mode */
+    /* Deep rich blacks, off-whites, elegant contrast */
+    --primary-50: #F4F4F0;
+    --primary-100: #E6E6DF;
+    --primary-500: #1C1C1A;
+    --primary-600: #141413;
+    --primary-900: #000000;
     
-    /* Light Mode - Backgrounds */
-    --bg-base: #FAFAFA;
+    /* Backgrounds - Ivory/Off-white editorial feel */
+    --bg-base: #FDFDFB;
     --bg-surface: #FFFFFF;
-    --bg-elevated: #F5F5F5;
+    --bg-elevated: #F7F7F4;
     --bg-layer-3: #FFFFFF;
     
-    /* Light Mode - Text */
-    --text-primary: #171717;
-    --text-secondary: #404040;
-    --text-tertiary: #A3A3A3;
+    /* Text - High contrast Charcoal/Black */
+    --text-primary: #111111;
+    --text-secondary: #4A4A46;
+    --text-tertiary: #8C8C85;
     
-    /* Light Mode - Borders */
-    --border-subtle: #E5E5E5;
-    --border-moderate: #D4D4D8;
-    --border-strong: #A1A1AA;
+    /* Borders - Crisp, subtle lines */
+    --border-subtle: #E8E8E3;
+    --border-moderate: #D0D0C8;
+    --border-strong: #9A9A93;
     
-    /* Light Mode - Semantic Colors */
-    --success: #22c55e;
-    --success-bg: #f0fdf4;
-    --warning: #f59e0b;
-    --warning-bg: #fffbeb;
-    --purple: #a855f7;
-    --purple-bg: #faf5ff;
+    /* Semantic Colors - Muted, elegant */
+    --success: #2E5C3E;
+    --success-bg: #EEF4F0;
+    --warning: #945A17;
+    --warning-bg: #FDF8ED;
+    --purple: #623D70;
+    --purple-bg: #F8F5FA;
     
-    /* Light Mode - Shadows */
-    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
-    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06);
-    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05);
-    --shadow-hover: 0 10px 20px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.08);
+    /* Shadows - Minimal, crisp, less diffuse */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02);
+    --shadow-lg: 0 12px 24px rgba(0, 0, 0, 0.04), 0 4px 8px rgba(0, 0, 0, 0.02);
+    --shadow-hover: 0 16px 32px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.03);
   }
 
   .dark {
-    /* Dark Mode - Primary Colors */
-    --primary-50: #1e3a8a;
-    --primary-100: #1e40af;
-    --primary-500: #3b82f6;
-    --primary-600: #2563eb;
-    --primary-900: #1e40af;
+    /* Luxe Scholar - Dark Mode */
+    /* Deep blacks, soft cream text */
+    --primary-50: #1F1F1E;
+    --primary-100: #2C2C2A;
+    --primary-500: #EDEDE4;
+    --primary-600: #F4F4F0;
+    --primary-900: #FFFFFF;
     
-    /* Dark Mode - Backgrounds */
-    --bg-base: #0a0a0a;
-    --bg-surface: #141414;
-    --bg-elevated: #1e1e1e;
-    --bg-layer-3: #282828;
+    /* Backgrounds - True black to deep charcoal */
+    --bg-base: #080808;
+    --bg-surface: #121211;
+    --bg-elevated: #1A1A19;
+    --bg-layer-3: #222220;
     
-    /* Dark Mode - Text */
-    --text-primary: #e4e4e7;
-    --text-secondary: #a1a1aa;
-    --text-tertiary: #71717a;
+    /* Text - Cream/Off-white */
+    --text-primary: #F0F0E8;
+    --text-secondary: #A0A09A;
+    --text-tertiary: #6E6E69;
     
-    /* Dark Mode - Borders */
-    --border-subtle: rgba(255, 255, 255, 0.1);
-    --border-moderate: rgba(255, 255, 255, 0.15);
-    --border-strong: rgba(255, 255, 255, 0.2);
+    /* Borders - Extremely subtle in dark mode */
+    --border-subtle: rgba(255, 255, 255, 0.06);
+    --border-moderate: rgba(255, 255, 255, 0.12);
+    --border-strong: rgba(255, 255, 255, 0.24);
     
-    /* Dark Mode - Semantic Colors */
-    --success: #4ade80;
-    --success-bg: rgba(74, 222, 128, 0.1);
-    --warning: #fbbf24;
-    --warning-bg: rgba(251, 191, 36, 0.1);
-    --purple: #c084fc;
-    --purple-bg: rgba(192, 132, 252, 0.1);
+    /* Semantic Colors */
+    --success: #679E7B;
+    --success-bg: rgba(103, 158, 123, 0.1);
+    --warning: #D19C4C;
+    --warning-bg: rgba(209, 156, 76, 0.1);
+    --purple: #A276B3;
+    --purple-bg: rgba(162, 118, 179, 0.1);
     
-    /* Dark Mode - Shadows/Glows */
-    --shadow-sm: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 2px 8px rgba(0, 0, 0, 0.5);
-    --shadow-md: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 4px 12px rgba(0, 0, 0, 0.5);
-    --shadow-lg: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 8px 20px rgba(0, 0, 0, 0.6);
-    --shadow-hover: 0 0 0 1px rgba(255, 255, 255, 0.15), 0 8px 24px rgba(0, 0, 0, 0.7);
+    /* Shadows - Sharp, elegant */
+    --shadow-sm: 0 0 0 1px rgba(255, 255, 255, 0.04);
+    --shadow-md: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 8px 16px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 16px 32px rgba(0, 0, 0, 0.6);
+    --shadow-hover: 0 0 0 1px rgba(255, 255, 255, 0.12), 0 24px 48px rgba(0, 0, 0, 0.7);
   }
   
   * {
@@ -116,33 +118,34 @@
 }
 
 @layer components {
-  /* Custom scrollbar styling */
+  /* Custom scrollbar styling - Refined for Luxe Scholar */
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
   }
   
   ::-webkit-scrollbar-track {
-    background: var(--bg-base);
+    background: transparent;
   }
   
   ::-webkit-scrollbar-thumb {
     background: var(--border-moderate);
-    border-radius: 4px;
+    border-radius: 0;
   }
   
   ::-webkit-scrollbar-thumb:hover {
     background: var(--border-strong);
   }
   
-  /* Selection styling */
+  /* Selection styling - Elegant contrast */
   ::selection {
-    background-color: var(--primary-100);
-    color: var(--text-primary);
+    background-color: var(--primary-500);
+    color: var(--bg-base);
   }
   
   .dark ::selection {
-    background-color: rgba(59, 130, 246, 0.2);
+    background-color: var(--primary-500);
+    color: var(--bg-base);
   }
   
   /* Performance Optimizations */

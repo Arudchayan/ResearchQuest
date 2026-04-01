@@ -53,3 +53,6 @@
 ## 2026-02-21 - Search Input Clear Button
 **Learning:** Consistent search inputs (in TaskManager, NotesView) benefit from a UX pattern where a conditional "Clear" button appears when text is present. This button must restore focus to the input after clearing to maintain keyboard flow.
 **Action:** Implement search inputs with a relative container, an absolute-positioned 'X' icon button (using `aria-label="Clear search"`), and use `useRef` to programmatically focus the input after clearing.
+## 2025-02-28 - Focus-visible and Decorative Icons in TaskManager
+**Learning:** Decorative icons (like those in export buttons or empty states) create redundant screen reader noise if not explicitly hidden. Interactive elements (buttons, filters) need `focus-visible` utility classes to clearly indicate keyboard focus without affecting mouse users. Empty states resulting from filtering need `role="status"` and `aria-live="polite"` to announce the state change.
+**Action:** Always add `aria-hidden="true"` to purely decorative icons. Apply `focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2` to interactive elements to improve keyboard accessibility. Ensure dynamically filtered empty states use `role="status"` and `aria-live="polite"`.

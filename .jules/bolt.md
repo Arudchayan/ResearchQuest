@@ -97,3 +97,7 @@
 ## 2026-03-03 - targeted performance optimizations
 **Learning:** When performing targeted enhancements (e.g., performance optimizations or accessibility fixes), strictly isolate the changes. Bundling unrelated backend logic changes, security fixes, or regex optimizations into the same commit pollutes the commit history and violates strict task boundaries.
 **Action:** Do not include unrelated fixes, scratchpads, or diagnostic scripts in the final submitted patch. Always revert unrelated files and delete temporary scripts before verifying and submitting the single targeted improvement.
+
+## 2026-04-01 - Pre-computing String Parsing for Keystroke Filters
+**Learning:** Implementing real-time keystroke-driven search filters on complex lists by computing derived properties (like extracting markdown titles or doing `.toLowerCase()`) inside the filter loop causes high CPU overhead and blocks the main thread.
+**Action:** Pre-compute and memoize expensive derived searchable text into a separate `useMemo` hook that maps over the list only when the data changes, decoupling heavy string operations from the fast filtering loop.

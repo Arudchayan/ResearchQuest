@@ -1,15 +1,18 @@
 import { logger } from "../../utils/logger";
 import {
   FileText,
-  BookOpen,
   Lightbulb,
   Target,
   CheckSquare,
-  Search,
   Plus,
   X,
   Hash,
+  BookOpen,
 } from "lucide-react";
+import {
+  BookOpenIcon,
+  MagnifyingGlassIcon,
+} from "@radix-ui/react-icons";
 import { useAppStore } from "../../store/appStore";
 import { useShallow } from "zustand/react/shallow";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
@@ -37,7 +40,7 @@ import { AddIdeaDialog } from "../ideas/AddIdeaDialog";
 
 const TABS = [
   { id: "notes" as const, label: "Notes", icon: FileText },
-  { id: "papers" as const, label: "Papers", icon: BookOpen },
+  { id: "papers" as const, label: "Papers", icon: BookOpenIcon },
   { id: "ideas" as const, label: "Ideas", icon: Lightbulb },
   { id: "tasks" as const, label: "Tasks", icon: CheckSquare },
   { id: "topics" as const, label: "Topics", icon: Hash },
@@ -223,7 +226,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
       }
 
       if (error) {
-        logger.error("Failed to fetch today's XP:", error instanceof Error ? error.message : "Unknown error");
+        logger.error("Failed to fetch today's XP:", error);
         return;
       }
 
@@ -256,7 +259,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
       }
 
       if (error) {
-        logger.error("Failed to load upcoming deadlines:", error instanceof Error ? error.message : "Unknown error");
+        logger.error("Failed to load upcoming deadlines:", error);
         return;
       }
 
@@ -283,7 +286,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
       }
 
       if (error) {
-        logger.error("Failed to get user:", error instanceof Error ? error.message : "Unknown error");
+        logger.error("Failed to get user:", error);
         return;
       }
 
@@ -486,24 +489,31 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
     [activeSearchQuery],
   );
 
+  // ⚡ PERFORMANCE OPTIMIZATION: Pre-compute derived text fields (like markdown title extraction and toLowerCase)
+  // so that expensive string parsing is decoupled from the fast keystroke filtering loop.
+  const searchableNotes = useMemo(() => {
+    return notes.map((note) => ({
+      note,
+      titleText: (note.title || deriveTitleFromMarkdown(note.markdown_body) || "").toLowerCase(),
+      bodyText: note.markdown_body.toLowerCase(),
+      tagsText: (note.tags || []).join(" ").toLowerCase(),
+    }));
+  }, [notes]);
+
   const filteredNotes = useMemo(() => {
     // Optimization: Don't filter if not viewing notes
     if (currentView !== "notes") return [];
 
-    return notes.filter((note) => {
-      if (!normalizedQuery) {
-        return true;
-      }
+    if (!normalizedQuery) return notes;
 
-      const title = note.title || deriveTitleFromMarkdown(note.markdown_body) || "";
-      const tags = (note.tags || []).join(" ");
-      return (
-        title.toLowerCase().includes(normalizedQuery) ||
-        note.markdown_body.toLowerCase().includes(normalizedQuery) ||
-        tags.toLowerCase().includes(normalizedQuery)
-      );
-    });
-  }, [notes, normalizedQuery, currentView]);
+    return searchableNotes
+      .filter((sn) =>
+        sn.titleText.includes(normalizedQuery) ||
+        sn.bodyText.includes(normalizedQuery) ||
+        sn.tagsText.includes(normalizedQuery)
+      )
+      .map((sn) => sn.note);
+  }, [searchableNotes, normalizedQuery, currentView, notes]);
 
   const filteredPapers = useMemo(() => {
     // Optimization: Don't filter if not viewing papers
@@ -769,7 +779,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
           {/* Search Bar */}
           {showSidebarSearch && (
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-tertiary" />
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-tertiary" />
               <input
                 ref={searchInputRef}
                 type="text"
@@ -783,7 +793,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
                     [currentView]: nextValue,
                   }));
                 }}
-                className="w-full pl-10 pr-10 py-2 bg-bg-base border border-border-subtle rounded-md text-small focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                className="w-full pl-10 pr-10 py-2 bg-bg-base border border-border-moderate rounded-sm text-small focus:outline-none focus:ring-1 focus:ring-primary-500 transition-shadow"
               />
               {activeSearchQuery && (
                 <button
@@ -794,7 +804,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
                     }));
                     searchInputRef.current?.focus();
                   }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-text-tertiary hover:text-text-primary hover:bg-bg-elevated transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-sm text-text-tertiary hover:text-text-primary hover:bg-bg-elevated transition-colors focus:outline-none focus:ring-1 focus:ring-primary-500"
                   aria-label="Clear search"
                 >
                   <X className="w-3.5 h-3.5" aria-hidden="true" />
@@ -809,7 +819,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
               onClick={() => {
                 handleAddClick();
               }}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors font-medium"
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-500 text-bg-base rounded-sm hover:opacity-90 transition-opacity font-medium"
             >
               <Plus className="w-5 h-5" aria-hidden="true" />
               <span>{`New ${currentView.slice(0, -1)}`}</span>

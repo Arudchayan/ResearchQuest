@@ -1,7 +1,7 @@
 import { ReactNode, useEffect } from "react";
 import { Sidebar } from "./Sidebar";
 import { RightSidebar } from "../RightSidebar";
-import { Menu, X, Minimize2, Search } from "lucide-react";
+import { HamburgerMenuIcon, Cross1Icon, DoubleArrowDownIcon, MagnifyingGlassIcon } from "@radix-ui/react-icons";
 import { useAppStore } from "../../../store/appStore";
 import { cn } from "../../../lib/utils";
 import { useShallow } from "zustand/react/shallow";
@@ -46,11 +46,11 @@ export function AppShell({ children }: AppShellProps) {
   }, [toggleZenMode]);
 
   return (
-    <div className="flex h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans overflow-hidden relative">
+    <div className="flex h-screen bg-bg-base text-text-primary font-sans overflow-hidden relative selection:bg-primary-500 selection:text-bg-base">
       {/* Skip to content link for accessibility */}
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-white focus:text-blue-600 focus:font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:rounded-md focus:shadow-lg"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-bg-surface focus:text-primary-500 focus:font-medium focus:outline-none focus:ring-1 focus:ring-primary-500 focus:rounded-sm focus:shadow-md"
       >
         Skip to content
       </a>
@@ -74,17 +74,17 @@ export function AppShell({ children }: AppShellProps) {
       {!isZenMode && (
         <div
           className={cn(
-            "fixed inset-y-0 left-0 z-50 w-64 bg-slate-50 dark:bg-slate-900 shadow-xl transition-transform duration-300 lg:hidden",
+            "fixed inset-y-0 left-0 z-50 w-64 bg-bg-elevated shadow-lg border-r border-border-subtle transition-transform duration-300 lg:hidden",
             isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full",
           )}
         >
           <Sidebar />
           <button
             onClick={() => setIsMobileSidebarOpen(false)}
-            className="absolute top-4 right-4 p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+            className="absolute top-4 right-4 p-2 text-text-tertiary hover:text-text-primary rounded-sm focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500 bg-bg-surface"
             aria-label="Close sidebar"
           >
-            <X className="w-5 h-5" aria-hidden="true" />
+            <Cross1Icon className="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
       )}
@@ -93,23 +93,23 @@ export function AppShell({ children }: AppShellProps) {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Mobile Header */}
         {!isZenMode && (
-          <header className="lg:hidden h-16 flex items-center justify-between px-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 shrink-0">
+          <header className="lg:hidden h-16 flex items-center justify-between px-4 border-b border-border-subtle bg-bg-surface shrink-0">
             <div className="flex items-center">
               <button
                 onClick={() => setIsMobileSidebarOpen(true)}
-                className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+                className="p-2 -ml-2 text-text-secondary hover:text-text-primary hover:bg-bg-elevated rounded-sm focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500"
                 aria-label="Open sidebar"
               >
-                <Menu className="w-6 h-6" aria-hidden="true" />
+                <HamburgerMenuIcon className="w-5 h-5" aria-hidden="true" />
               </button>
-              <span className="ml-3 font-semibold text-lg">ResearchQuest</span>
+              <span className="ml-3 font-serif font-bold text-lg">ResearchQuest</span>
             </div>
             <button
               onClick={() => document.dispatchEvent(new CustomEvent('open-command-palette'))}
-              className="p-2 -mr-2 text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+              className="p-2 -mr-2 text-text-secondary hover:text-text-primary hover:bg-bg-elevated rounded-sm focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500"
               aria-label="Open search"
             >
-              <Search className="w-5 h-5" aria-hidden="true" />
+              <MagnifyingGlassIcon className="w-5 h-5" aria-hidden="true" />
             </button>
           </header>
         )}
@@ -124,9 +124,9 @@ export function AppShell({ children }: AppShellProps) {
       {!isZenMode && (
         <div
           className={cn(
-            "hidden xl:block h-full shrink-0 bg-slate-50 dark:bg-slate-900 transition-all duration-300 ease-in-out overflow-hidden",
+            "hidden xl:block h-full shrink-0 bg-bg-surface transition-all duration-300 ease-in-out overflow-hidden",
             isRightSidebarOpen
-              ? "w-80 border-l border-slate-200 dark:border-slate-800"
+              ? "w-80 border-l border-border-subtle"
               : "w-0 border-l-0",
           )}
         >
@@ -140,11 +140,11 @@ export function AppShell({ children }: AppShellProps) {
       {isZenMode && (
         <button
           onClick={() => toggleZenMode()}
-          className="fixed bottom-6 right-6 z-[100] p-3 rounded-full bg-slate-200/50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 hover:bg-slate-300/80 dark:hover:bg-slate-700/80 hover:text-slate-800 dark:hover:text-slate-100 backdrop-blur-sm transition-all shadow-lg border border-slate-300/20 dark:border-slate-700/20 group focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2"
+          className="fixed bottom-6 right-6 z-[100] p-3 rounded-full bg-bg-elevated/80 text-text-secondary hover:bg-bg-base hover:text-text-primary backdrop-blur-sm transition-all shadow-lg border border-border-moderate group focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
           title="Exit Zen Mode (Ctrl+Shift+F)"
           aria-label="Exit Zen Mode"
         >
-          <Minimize2 className="w-5 h-5 group-hover:scale-110 transition-transform" aria-hidden="true" />
+          <DoubleArrowDownIcon className="w-5 h-5 group-hover:scale-110 transition-transform" aria-hidden="true" />
         </button>
       )}
     </div>

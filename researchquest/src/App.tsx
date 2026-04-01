@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { EyeOpenIcon, EyeClosedIcon } from "@radix-ui/react-icons";
 import { supabase } from "./lib/supabase";
 import { useShallow } from "zustand/react/shallow";
 import { useAppStore } from "./store/appStore";
@@ -145,17 +145,20 @@ export function AuthScreen() {
   );
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 transition-colors">
-      <div className="w-full max-w-md p-8 bg-white dark:bg-slate-950 rounded-xl shadow-xl border border-slate-200 dark:border-slate-800">
+    <div className="min-h-screen flex items-center justify-center bg-bg-base transition-colors">
+      <div className="w-full max-w-md p-8 bg-bg-surface border border-border-subtle rounded-md shadow-lg relative overflow-hidden">
+        {/* Subtle decorative top border */}
+        <div className="absolute top-0 left-0 right-0 h-1 bg-primary-500"></div>
+
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-blue-600 rounded-2xl mx-auto mb-4 flex items-center justify-center text-white font-bold text-2xl shadow-lg shadow-blue-600/20">
+          <div className="w-16 h-16 bg-bg-elevated border border-border-subtle rounded-md mx-auto mb-4 flex items-center justify-center text-text-primary font-serif font-bold text-2xl shadow-sm">
             RQ
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+          <h1 className="font-serif text-title font-bold text-text-primary">
             ResearchQuest
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-2">
-            Your scientific research companion
+          <p className="text-small text-text-secondary mt-2 tracking-widest uppercase">
+            Scholar Access
           </p>
         </div>
 
@@ -165,7 +168,7 @@ export function AuthScreen() {
               type="button"
               onClick={handleOAuthLogin}
               disabled={oauthLoading}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 font-medium hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 transition-all disabled:opacity-60 bg-white dark:bg-slate-900"
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-border-strong rounded-sm text-text-primary font-medium hover:bg-bg-elevated transition-colors disabled:opacity-60 bg-transparent"
             >
               <svg
                 className="w-5 h-5"
@@ -197,27 +200,27 @@ export function AuthScreen() {
                 type="button"
                 onClick={handleTestLogin}
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-dashed border-slate-300 dark:border-slate-700 rounded-lg text-slate-500 dark:text-slate-400 font-medium hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 transition-all disabled:opacity-60"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-dashed border-border-moderate rounded-sm text-text-secondary font-medium hover:text-text-primary transition-colors disabled:opacity-60"
               >
                 🛠️ Use Test Login
               </button>
             )}
 
-            <div className="flex items-center gap-3 text-sm text-slate-400">
+            <div className="flex items-center gap-3 text-small text-text-tertiary font-serif italic py-2">
               <span
-                className="h-px flex-1 bg-slate-200 dark:bg-slate-700"
+                className="h-px flex-1 bg-border-subtle"
                 aria-hidden="true"
               />
               <span>or use email</span>
               <span
-                className="h-px flex-1 bg-slate-200 dark:bg-slate-700"
+                className="h-px flex-1 bg-border-subtle"
                 aria-hidden="true"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+            <label className="block text-small font-medium text-text-primary mb-1.5 uppercase tracking-wide">
               Email
             </label>
             <input
@@ -226,13 +229,13 @@ export function AuthScreen() {
               onChange={(e) => setEmail(e.target.value)}
               required
               maxLength={254}
-              className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
-              placeholder="researcher@example.com"
+              className="w-full px-4 py-2 bg-bg-base border border-border-moderate rounded-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 transition-shadow"
+              placeholder="scholar@university.edu"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+            <label className="block text-small font-medium text-text-primary mb-1.5 uppercase tracking-wide">
               Password
             </label>
             <div className="relative">
@@ -242,19 +245,19 @@ export function AuthScreen() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 maxLength={100}
-                className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow pr-10"
+                className="w-full px-4 py-2 bg-bg-base border border-border-moderate rounded-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 transition-shadow pr-10"
                 placeholder="••••••••"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-primary transition-colors"
                 aria-label={showPassword ? "Hide password" : "Show password"}
               >
                 {showPassword ? (
-                  <EyeOff className="w-5 h-5" />
+                  <EyeClosedIcon className="w-5 h-5" />
                 ) : (
-                  <Eye className="w-5 h-5" />
+                  <EyeOpenIcon className="w-5 h-5" />
                 )}
               </button>
             </div>
@@ -262,18 +265,18 @@ export function AuthScreen() {
               type="button"
               onClick={handlePasswordReset}
               disabled={resetting}
-              className="mt-2 text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 disabled:opacity-60 font-medium"
+              className="mt-2 text-caption text-text-secondary hover:text-text-primary underline decoration-border-strong underline-offset-2 disabled:opacity-60 font-medium"
             >
-              {resetting ? "Sending reset link…" : "Forgot password?"}
+              {resetting ? "Sending reset link…" : "Recover access"}
             </button>
           </div>
 
           {message && (
             <div
-              className={`p-3 rounded-lg text-sm font-medium ${
+              className={`p-3 rounded-sm text-small font-medium border ${
                 message.includes("error") || message.includes("Error")
-                  ? "bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400"
-                  : "bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400"
+                  ? "bg-warning-bg text-warning border-warning"
+                  : "bg-success-bg text-success border-success"
               }`}
             >
               {message}
@@ -283,23 +286,23 @@ export function AuthScreen() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold disabled:opacity-50 shadow-lg shadow-blue-600/20"
+            className="w-full px-4 py-2 bg-primary-500 text-bg-base rounded-sm hover:opacity-90 transition-opacity font-medium disabled:opacity-50"
           >
             {loading ? "Loading..." : isSignUp ? "Create Account" : "Sign In"}
           </button>
         </form>
 
-        <div className="mt-6 text-center">
+        <div className="mt-6 text-center border-t border-border-subtle pt-6">
           <button
             onClick={() => {
               setIsSignUp(!isSignUp);
               setMessage("");
             }}
-            className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
+            className="text-small font-serif italic text-text-secondary hover:text-text-primary transition-colors"
           >
             {isSignUp
-              ? "Already have an account? Sign in"
-              : "New to ResearchQuest? Create account"}
+              ? "Existing scholar? Sign in."
+              : "New scholar? Submit application."}
           </button>
         </div>
       </div>
@@ -482,7 +485,7 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+    <div className="min-h-screen bg-bg-base text-text-primary selection:bg-primary-500 selection:text-bg-base">
       <CommandPalette />
       <ShortcutsDialog />
 
