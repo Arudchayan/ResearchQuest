@@ -8,6 +8,8 @@ import {
   X,
   Trash,
   FileText,
+  Search,
+  Loader,
 } from "lucide-react";
 import type { Idea, IdeaStage } from "../../types/database";
 import { toast } from "sonner";
@@ -15,6 +17,8 @@ import { TopicSelector } from "../topics/TopicSelector";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { useNotes } from "../../hooks/useNotes";
 import { useAppStore } from "../../store/appStore";
+import { performDeepResearch } from "../../utils/deepResearch";
+import { logger } from "../../utils/logger";
 
 interface IdeaDetailViewProps {
   idea: Idea;
@@ -42,6 +46,9 @@ export function IdeaDetailView({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const isMounted = useRef(true);
+
+  // Deep research state
+  const [isDeepResearching, setIsDeepResearching] = useState(false);
 
   const userId = useAppStore((state) => state.user?.id);
   const { createNote } = useNotes(userId);
@@ -146,6 +153,31 @@ export function IdeaDetailView({
     }
   };
 
+  const handleDeepResearch = async () => {
+    setIsDeepResearching(true);
+    try {
+      const result = await performDeepResearch(idea.title);
+      
+      const researchText = `\n\n### Deep Research Insights\n${result.summary}\n\n**Suggested Keywords:** ${result.suggestedKeywords?.join(', ')}\n\n**Reasoning Steps:**\n${result.reasoningSteps?.map((step: string, i: number) => `${i + 1}. ${step}`).join('\n')}`;
+      
+      const newDescription = (idea.description || "") + researchText;
+      const success = await onUpdate(idea.id, { description: newDescription }, idea.stage);
+      
+      if (success) {
+        toast.success("Deep research insights added to description");
+      } else {
+        toast.error("Failed to save research insights");
+      }
+
+    } catch (err: any) {
+      logger.error("Deep research failed", err);
+      toast.error(err.message || "Deep research failed");
+    } finally {
+      setIsDeepResearching(false);
+    }
+  };
+
+
   const getStageColor = (stage: IdeaStage) => {
     switch (stage) {
       case "Seed":
@@ -222,6 +254,15 @@ export function IdeaDetailView({
                   </>
                 ) : (
                   <div className="flex items-center gap-2 md:self-start">
+                    <button
+                      onClick={handleDeepResearch}
+                      disabled={isDeepResearching}
+                      className="p-2 bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 rounded-md hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors disabled:opacity-50"
+                      title="Deep Research AI Reasoning"
+                      aria-label="Deep Research AI Reasoning"
+                    >
+                      {isDeepResearching ? <Loader className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" aria-hidden="true" />}
+                    </button>
                     <button
                       onClick={() => setIsEditing(true)}
                       className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
