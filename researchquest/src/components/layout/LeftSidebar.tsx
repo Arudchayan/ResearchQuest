@@ -221,7 +221,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
       }
 
       if (error) {
-        logger.error("Failed to fetch today's XP:", error instanceof Error ? error.message : "Unknown error");
+        logger.error("Failed to fetch today's XP:", error);
         return;
       }
 
@@ -254,7 +254,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
       }
 
       if (error) {
-        logger.error("Failed to load upcoming deadlines:", error instanceof Error ? error.message : "Unknown error");
+        logger.error("Failed to load upcoming deadlines:", error);
         return;
       }
 
@@ -281,7 +281,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
       }
 
       if (error) {
-        logger.error("Failed to get user:", error instanceof Error ? error.message : "Unknown error");
+        logger.error("Failed to get user:", error);
         return;
       }
 

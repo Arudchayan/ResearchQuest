@@ -160,7 +160,7 @@ export function AddPaperView({
     } catch (error) {
       logger.error("Failed to add paper", error);
       setError(
-        `Failed to add paper: ${error instanceof Error ? error.message : "Unknown error"}`,
+        "Failed to add paper. Please try again.",
       );
     } finally {
       setLoading(false);
@@ -215,7 +215,7 @@ export function AddPaperView({
     } catch (error) {
       logger.error("Failed to add paper", error);
       setError(
-        `Failed to add paper: ${error instanceof Error ? error.message : "Unknown error"}`,
+        "Failed to add paper. Please try again.",
       );
     } finally {
       setLoading(false);
@@ -267,7 +267,7 @@ export function AddPaperView({
     } catch (error) {
       logger.error("Failed to add paper", error);
       setError(
-        `Failed to add paper: ${error instanceof Error ? error.message : "Unknown error"}`,
+        "Failed to add paper. Please try again.",
       );
     } finally {
       setLoading(false);
