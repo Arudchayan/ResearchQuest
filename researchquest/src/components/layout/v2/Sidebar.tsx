@@ -195,7 +195,7 @@ export function Sidebar() {
             aria-label="User profile"
           >
             <div className="w-8 h-8 rounded-full bg-bg-base border border-border-moderate text-text-primary flex items-center justify-center font-serif font-bold">
-              {user?.email?.charAt(0).toUpperCase() || "U"}
+              {user?.username?.charAt(0).toUpperCase() || "U"}
             </div>
             <div className="text-xs">
               <span className="block font-medium text-text-primary truncate max-w-[80px]">
