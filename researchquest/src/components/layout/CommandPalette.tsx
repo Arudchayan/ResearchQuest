@@ -14,6 +14,7 @@ import {
   Keyboard,
   Database,
   LayoutDashboard,
+  Hash,
 } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
 import { useShallow } from "zustand/react/shallow";
@@ -37,7 +38,9 @@ export function CommandPalette() {
     setSelectedNote,
     setSelectedPaper,
     setSelectedIdea,
+    setSelectedTopic,
     user,
+    topics,
   } = useAppStore(
     useShallow((state) => ({
       setTheme: state.setTheme,
@@ -46,7 +49,9 @@ export function CommandPalette() {
       setSelectedNote: state.setSelectedNote,
       setSelectedPaper: state.setSelectedPaper,
       setSelectedIdea: state.setSelectedIdea,
+      setSelectedTopic: state.setSelectedTopic,
       user: state.user,
+      topics: state.topics,
     }))
   );
 
@@ -90,7 +95,7 @@ export function CommandPalette() {
 
   // Navigation handlers using App's custom routing
   const handleNavigate = (
-    view: "dashboard" | "notes" | "papers" | "ideas" | "tasks" | "focus",
+    view: "dashboard" | "notes" | "papers" | "ideas" | "tasks" | "topics" | "focus",
   ) => {
     setCurrentView(view);
     window.history.pushState(null, "", view === "dashboard" ? "/" : `/${view}`);
@@ -126,6 +131,14 @@ export function CommandPalette() {
   const handleSelectTask = (task: any) => {
     setCurrentView("tasks");
     window.history.pushState(null, "", `/tasks`);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    setOpen(false);
+  };
+
+  const handleSelectTopic = (topic: any) => {
+    setCurrentView("topics");
+    setSelectedTopic(topic);
+    window.history.pushState(null, "", `/topics/${topic.id}`);
     window.dispatchEvent(new PopStateEvent("popstate"));
     setOpen(false);
   };
@@ -173,8 +186,9 @@ export function CommandPalette() {
       ...papers.map((p) => ({ type: "paper", item: p, label: p.title })),
       ...ideas.map((i) => ({ type: "idea", item: i, label: i.title })),
       ...tasks.map((t) => ({ type: "task", item: t, label: t.title })),
+      ...(topics || []).map((t) => ({ type: "topic", item: t, label: t.name })),
     ];
-  }, [notes, papers, ideas, tasks]);
+  }, [notes, papers, ideas, tasks, topics]);
 
   return (
     <Command.Dialog open={open} onOpenChange={setOpen} label="Command Menu">
@@ -209,6 +223,10 @@ export function CommandPalette() {
           <Command.Item onSelect={() => handleNavigate("tasks")}>
             <CheckSquare />
             <span>Go to Tasks</span>
+          </Command.Item>
+          <Command.Item onSelect={() => handleNavigate("topics")}>
+            <Hash />
+            <span>Go to Topics</span>
           </Command.Item>
           <Command.Item onSelect={() => handleNavigate("focus")}>
             <Target />
@@ -261,6 +279,7 @@ export function CommandPalette() {
                 if (entry.type === "paper") handleSelectPaper(entry.item);
                 if (entry.type === "idea") handleSelectIdea(entry.item);
                 if (entry.type === "task") handleSelectTask(entry.item);
+                if (entry.type === "topic") handleSelectTopic(entry.item);
               }}
               value={`${entry.type}: ${entry.label}`}
             >
@@ -273,6 +292,9 @@ export function CommandPalette() {
               )}
               {entry.type === "task" && (
                 <CheckSquare className="text-green-500" />
+              )}
+              {entry.type === "topic" && (
+                <Hash className="text-purple-500" />
               )}
               <div className="flex flex-col">
                 <span>{entry.label}</span>

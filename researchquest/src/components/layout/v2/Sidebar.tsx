@@ -18,6 +18,7 @@ import {
   LayoutDashboard,
   Search,
   Maximize2,
+  Hash,
 } from "lucide-react";
 import { useAppStore } from "../../../store/appStore";
 import { cn } from "../../../lib/utils";
@@ -69,6 +70,7 @@ export function Sidebar() {
     { id: "papers", label: "Papers", icon: BookOpen },
     { id: "ideas", label: "Ideas", icon: Lightbulb },
     { id: "tasks", label: "Tasks", icon: CheckSquare },
+    { id: "topics", label: "Topics", icon: Hash },
     { id: "focus", label: "Focus", icon: Clock },
   ] as const;
 
