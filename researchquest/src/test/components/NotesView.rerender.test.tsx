@@ -17,10 +17,11 @@ vi.mock('../../components/ui/ConfirmDialog', () => ({
 }))
 vi.mock('../../hooks/useNotes', () => ({
   useNotes: () => ({
+    notes: [],
     createNote: vi.fn(),
     deleteNote: vi.fn(),
     restoreNote: vi.fn(),
-    notesLoading: false
+    loading: false
   })
 }))
 

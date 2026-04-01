@@ -65,3 +65,7 @@
 **Vulnerability:** Copying rich text to the clipboard in `MarkdownEditor.tsx` used `previewElement.innerHTML` without sanitization. If an attacker managed to inject malicious scripts into the preview, they could be executed when a user pasted the content into another application that renders HTML.
 **Learning:** Security boundaries must be enforced at every data exit point, including the system clipboard.
 **Prevention:** Integrated `DOMPurify.sanitize()` before creating the `ClipboardItem` in `MarkdownEditor.tsx` to ensure all HTML content is safe before being copied.
+## 2024-05-24 - Stop Swallowing Supabase Errors and Leaking Details
+**Vulnerability:** The application was using the `error instanceof Error ? error.message : "Unknown error"` pattern when logging errors or displaying them to the user. This incorrectly evaluated Supabase error objects (which are plain objects) to "Unknown error", thereby swallowing valuable debugging details in the logs. Furthermore, the `error.message` could leak backend details to the UI.
+**Learning:** Supabase errors are plain JavaScript objects and not instances of the native `Error` class. Also, error messages returned from the database should never be exposed to users via toasts or state errors.
+**Prevention:** Always pass the plain `error` object directly to `logger.error("Message", error)` to properly log it without losing context. For user-facing error messages, use generic, safe fallback strings (e.g., "Failed to add paper. Please try again.").
