@@ -77,7 +77,7 @@ export function NotesView() {
 
   const allTags = useMemo(() => {
     const tags = new Set<string>();
-    notes.forEach((note) => {
+    (notes || []).forEach((note) => {
       if (note.tags && Array.isArray(note.tags)) {
         note.tags.forEach((tag) => tags.add(tag));
       }
@@ -86,7 +86,7 @@ export function NotesView() {
   }, [notes]);
 
   const filteredNotes = useMemo(() => {
-    let filtered = notes;
+    let filtered = notes || [];
 
     if (selectedTag) {
       filtered = filtered.filter(
