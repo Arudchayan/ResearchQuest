@@ -27,13 +27,13 @@ module.exports = {
 		},
 		extend: {
 			colors: {
-				// Primary brand colors
+				// Luxe Scholar Brand Colors
 				primary: {
-					50: '#E6F0FF',
-					100: '#CCE0FF',
-					500: '#0066FF',
-					600: '#0052CC',
-					900: '#003D99',
+					50: 'var(--primary-50)',
+					100: 'var(--primary-100)',
+					500: 'var(--primary-500)',
+					600: 'var(--primary-600)',
+					900: 'var(--primary-900)',
 				},
 				// Background layers
 				'bg-base': 'var(--bg-base)',
@@ -65,15 +65,16 @@ module.exports = {
 			fontFamily: {
 				sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
 				mono: ['JetBrains Mono', 'Fira Code', 'Courier New', 'monospace'],
+				serif: ['Playfair Display', 'Merriweather', 'Georgia', 'Times New Roman', 'serif'], // Added serif for Luxe Scholar
 			},
 			fontSize: {
-				hero: ['3rem', { lineHeight: '1.1', letterSpacing: '-0.02em' }],
-				title: ['2rem', { lineHeight: '1.2', letterSpacing: '-0.01em' }],
-				subtitle: ['1.5rem', { lineHeight: '1.3' }],
-				'body-lg': ['1.125rem', { lineHeight: '1.6' }],
-				body: ['1rem', { lineHeight: '1.5' }],
+				hero: ['3.5rem', { lineHeight: '1.05', letterSpacing: '-0.03em' }],
+				title: ['2.25rem', { lineHeight: '1.15', letterSpacing: '-0.02em' }],
+				subtitle: ['1.5rem', { lineHeight: '1.3', letterSpacing: '-0.01em' }],
+				'body-lg': ['1.125rem', { lineHeight: '1.65' }],
+				body: ['1rem', { lineHeight: '1.6' }],
 				small: ['0.875rem', { lineHeight: '1.5', letterSpacing: '0.01em' }],
-				caption: ['0.75rem', { lineHeight: '1.4', letterSpacing: '0.01em' }],
+				caption: ['0.75rem', { lineHeight: '1.4', letterSpacing: '0.02em' }],
 				code: ['0.875rem', { lineHeight: '1.4' }],
 			},
 			// 8-point spacing system
@@ -97,10 +98,11 @@ module.exports = {
 				'80': '20rem',     // 320px - right sidebar
 			},
 			borderRadius: {
-				sm: '0.5rem',      // 8px
-				md: '0.75rem',     // 12px
-				lg: '1rem',        // 16px
-				xl: '1.5rem',      // 24px
+				// Sharper borders for editorial feel
+				sm: '0.125rem',      // 2px
+				md: '0.25rem',       // 4px
+				lg: '0.375rem',      // 6px
+				xl: '0.5rem',        // 8px
 				full: '9999px',
 			},
 			boxShadow: {
@@ -110,8 +112,8 @@ module.exports = {
 				hover: 'var(--shadow-hover)',
 			},
 			animation: {
-				'fade-in': 'fadeIn 150ms ease-out',
-				'slide-in': 'slideIn 250ms ease-out',
+				'fade-in': 'fadeIn 200ms ease-out',
+				'slide-in': 'slideIn 300ms cubic-bezier(0.16, 1, 0.3, 1)',
 				'xp-gain': 'xpGain 600ms ease-in-out',
 			},
 			keyframes: {
@@ -120,7 +122,7 @@ module.exports = {
 					'100%': { opacity: '1' },
 				},
 				slideIn: {
-					'0%': { transform: 'translateY(0.5rem)', opacity: '0' },
+					'0%': { transform: 'translateY(0.75rem)', opacity: '0' },
 					'100%': { transform: 'translateY(0)', opacity: '1' },
 				},
 				xpGain: {
