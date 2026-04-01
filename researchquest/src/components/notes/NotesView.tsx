@@ -77,11 +77,13 @@ export function NotesView() {
 
   const allTags = useMemo(() => {
     const tags = new Set<string>();
-    (notes || []).forEach((note) => {
-      if (note.tags && Array.isArray(note.tags)) {
-        note.tags.forEach((tag) => tags.add(tag));
-      }
-    });
+    if (notes && Array.isArray(notes)) {
+      notes.forEach((note) => {
+        if (note.tags && Array.isArray(note.tags)) {
+          note.tags.forEach((tag) => tags.add(tag));
+        }
+      });
+    }
     return Array.from(tags).sort();
   }, [notes]);
 
