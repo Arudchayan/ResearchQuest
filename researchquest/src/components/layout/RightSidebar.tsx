@@ -6,6 +6,10 @@ import {
   Heart,
   FileText,
   Lightbulb,
+  Link2,
+  Hash,
+  CalendarCheck,
+  BookOpen,
 } from "lucide-react";
 import {
   Link2Icon,

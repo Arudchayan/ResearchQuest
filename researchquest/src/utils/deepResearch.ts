@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { supabase } from "../lib/supabase";
 import { logger } from "./logger";
 
 export async function performDeepResearch(query: string): Promise<any> {
