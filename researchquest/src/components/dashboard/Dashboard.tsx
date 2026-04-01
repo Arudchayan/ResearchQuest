@@ -1,17 +1,20 @@
 import { useMemo } from "react";
 import {
   FileText,
-  BookOpen,
-  Target,
   Plus,
   Flame,
   Award,
   Star,
-  ArrowRight,
-  Clock,
   Sparkles,
   CheckSquare,
 } from "lucide-react";
+import {
+  ActivityLogIcon,
+  TargetIcon,
+  BookOpenIcon,
+  ArrowRightIcon,
+  ClockIcon,
+} from "@radix-ui/react-icons";
 import { useAppStore } from "../../store/appStore";
 import { useShallow } from "zustand/react/shallow";
 import { getLevelTitle } from "../../utils/gamification";
@@ -129,20 +132,20 @@ export function Dashboard() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            {greeting}, {user.username || "Researcher"}{" "}
-            <Sparkles className="w-6 h-6 text-yellow-500" />
+          <h1 className="text-title font-serif font-bold text-text-primary flex items-center gap-2">
+            {greeting}, {user.username || "Scholar"}{" "}
+            <Sparkles className="w-6 h-6 text-warning" />
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1">
+          <p className="text-small text-text-secondary mt-1 font-serif italic">
             Ready to make some progress today?
           </p>
         </div>
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigateTo("focus")}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-lg font-medium hover:opacity-90 transition-opacity"
+            className="flex items-center gap-2 px-4 py-2 bg-text-primary text-bg-base rounded-sm font-medium hover:opacity-90 transition-opacity"
           >
-            <Target className="w-4 h-4" aria-hidden="true" />
+            <TargetIcon className="w-4 h-4" aria-hidden="true" />
             Start Focus Session
           </button>
         </div>
@@ -152,24 +155,24 @@ export function Dashboard() {
         /* Stats Grid */
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Level Card */}
-          <div className="bg-white dark:bg-slate-950 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-blue-500/50 transition-colors">
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-              <Award className="w-24 h-24 text-blue-500" />
+          <div className="bg-bg-surface p-5 rounded-sm border border-border-moderate shadow-sm relative overflow-hidden group hover:border-primary-500 transition-colors">
+            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+              <Award className="w-24 h-24 text-text-primary" />
             </div>
             <div className="relative z-10">
-              <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-semibold mb-2">
+              <div className="flex items-center gap-2 text-primary-600 font-semibold mb-2">
                 <Star className="w-4 h-4" />
-                <span>Level {stats?.level}</span>
+                <span className="uppercase tracking-widest text-caption">Level {stats?.level}</span>
               </div>
-              <div className="text-2xl font-bold text-slate-900 dark:text-white mb-1">
+              <div className="text-2xl font-serif font-bold text-text-primary mb-1">
                 {stats?.title}
               </div>
-              <div className="text-sm text-slate-500 mb-3">
+              <div className="text-small text-text-secondary mb-3 font-serif italic">
                 {stats?.xp.toLocaleString()} XP Total
               </div>
-              <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+              <div className="w-full bg-border-subtle h-1.5 rounded-none overflow-hidden">
                 <div
-                  className="bg-blue-500 h-full rounded-full transition-all duration-1000 ease-out"
+                  className="bg-primary-500 h-full transition-all duration-1000 ease-out"
                   style={{ width: `${stats?.progress}%` }}
                 />
               </div>
@@ -177,38 +180,38 @@ export function Dashboard() {
           </div>
 
           {/* Streak Card */}
-          <div className="bg-white dark:bg-slate-950 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-orange-500/50 transition-colors">
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-              <Flame className="w-24 h-24 text-orange-500" />
+          <div className="bg-bg-surface p-5 rounded-sm border border-border-moderate shadow-sm relative overflow-hidden group hover:border-warning transition-colors">
+            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+              <Flame className="w-24 h-24 text-warning" />
             </div>
             <div className="relative z-10">
-              <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400 font-semibold mb-2">
+              <div className="flex items-center gap-2 text-warning font-semibold mb-2">
                 <Flame className="w-4 h-4" />
-                <span>Day Streak</span>
+                <span className="uppercase tracking-widest text-caption">Day Streak</span>
               </div>
-              <div className="text-2xl font-bold text-slate-900 dark:text-white mb-1">
+              <div className="text-2xl font-serif font-bold text-text-primary mb-1">
                 {stats?.streak} Days
               </div>
-              <div className="text-sm text-slate-500">
-                Keep it up to earn bonus XP!
+              <div className="text-small text-text-secondary font-serif italic">
+                Keep it up to earn bonus XP.
               </div>
             </div>
           </div>
 
           {/* Focus Card - Placeholder for now, maybe total focus time? */}
-          <div className="bg-white dark:bg-slate-950 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-purple-500/50 transition-colors">
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-              <Clock className="w-24 h-24 text-purple-500" />
+          <div className="bg-bg-surface p-5 rounded-sm border border-border-moderate shadow-sm relative overflow-hidden group hover:border-purple transition-colors">
+            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+              <ClockIcon className="w-24 h-24 text-purple" />
             </div>
             <div className="relative z-10">
-              <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400 font-semibold mb-2">
-                <Target className="w-4 h-4" />
-                <span>Active Tasks</span>
+              <div className="flex items-center gap-2 text-purple font-semibold mb-2">
+                <TargetIcon className="w-4 h-4" />
+                <span className="uppercase tracking-widest text-caption">Active Tasks</span>
               </div>
-              <div className="text-2xl font-bold text-slate-900 dark:text-white mb-1">
+              <div className="text-2xl font-serif font-bold text-text-primary mb-1">
                 {tasks.filter((t) => !t.completed).length} Pending
               </div>
-              <div className="text-sm text-slate-500">
+              <div className="text-small text-text-secondary font-serif italic">
                 {tasks.filter((t) => t.completed).length} completed so far
               </div>
             </div>
@@ -219,16 +222,16 @@ export function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Recent Notes */}
         <section>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <FileText className="w-5 h-5 text-slate-400" />
+          <div className="flex items-center justify-between mb-4 border-b border-border-subtle pb-2">
+            <h2 className="font-serif text-lg font-bold text-text-primary flex items-center gap-2">
+              <FileText className="w-5 h-5 text-text-tertiary" />
               Recent Notes
             </h2>
             <button
               onClick={() => navigateTo("notes")}
-              className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 font-medium flex items-center gap-1"
+              className="text-small text-text-secondary hover:text-text-primary font-medium flex items-center gap-1 uppercase tracking-wider transition-colors"
             >
-              View all <ArrowRight className="w-4 h-4" aria-hidden="true" />
+              View all <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
             </button>
           </div>
 
@@ -236,11 +239,11 @@ export function Dashboard() {
             {notesLoading ? (
               <ListSkeleton count={3} itemType="note" />
             ) : recentNotes.length === 0 ? (
-              <div className="p-6 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-900/50">
-                <p className="text-slate-500 mb-3">No notes yet</p>
+              <div className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary">
+                <p className="mb-3">No notes yet</p>
                 <button
                   onClick={() => navigateTo("notes")}
-                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium hover:border-blue-500 transition-colors"
+                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-bg-surface border border-border-moderate rounded-sm text-small font-sans not-italic font-medium text-text-primary hover:border-border-strong transition-colors"
                 >
                   <Plus className="w-4 h-4" aria-hidden="true" /> Create Note
                 </button>
@@ -254,15 +257,15 @@ export function Dashboard() {
                     navigateTo("notes");
                     window.history.pushState(null, "", `/notes/${note.id}`);
                   }}
-                  className="w-full text-left group p-4 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl hover:border-blue-400 dark:hover:border-blue-600 cursor-pointer transition-all shadow-sm hover:shadow-md"
+                  className="w-full text-left group p-4 bg-bg-surface border border-border-moderate rounded-sm hover:border-border-strong cursor-pointer transition-all shadow-sm"
                 >
-                  <h3 className="font-semibold text-slate-900 dark:text-white mb-1 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                  <h3 className="font-semibold text-text-primary mb-1 truncate group-hover:underline decoration-border-strong underline-offset-2 transition-all">
                     {note.title || "Untitled Note"}
                   </h3>
-                  <p className="text-sm text-slate-500 line-clamp-2">
+                  <p className="text-small text-text-secondary line-clamp-2">
                     {note.markdown_body.slice(0, 150) || "No content"}
                   </p>
-                  <div className="mt-3 text-xs text-slate-400">
+                  <div className="mt-3 text-caption text-text-tertiary">
                     Updated {new Date(note.updated_at).toLocaleDateString()}
                   </div>
                 </button>
@@ -275,16 +278,16 @@ export function Dashboard() {
         <div className="space-y-8">
           {/* Reading List */}
           <section>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <BookOpen className="w-5 h-5 text-slate-400" />
+            <div className="flex items-center justify-between mb-4 border-b border-border-subtle pb-2">
+              <h2 className="font-serif text-lg font-bold text-text-primary flex items-center gap-2">
+                <BookOpenIcon className="w-5 h-5 text-text-tertiary" />
                 Up Next to Read
               </h2>
               <button
                 onClick={() => navigateTo("papers")}
-                className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 font-medium flex items-center gap-1"
+                className="text-small text-text-secondary hover:text-text-primary font-medium flex items-center gap-1 uppercase tracking-wider transition-colors"
               >
-                View Library <ArrowRight className="w-4 h-4" aria-hidden="true" />
+                View Library <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
               </button>
             </div>
 
@@ -292,13 +295,13 @@ export function Dashboard() {
               {papersLoading ? (
                 <ListSkeleton count={3} itemType="paper" />
               ) : readingList.length === 0 ? (
-                <div className="p-6 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-900/50">
-                  <p className="text-slate-500 mb-3">
-                    Your reading list is empty!
+                <div className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary">
+                  <p className="mb-3">
+                    Your reading list is empty.
                   </p>
                   <button
                     onClick={() => navigateTo("papers")}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium hover:border-blue-500 transition-colors"
+                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-bg-surface border border-border-moderate rounded-sm text-small font-sans not-italic font-medium text-text-primary hover:border-border-strong transition-colors"
                   >
                     <Plus className="w-4 h-4" aria-hidden="true" /> Add Paper
                   </button>
@@ -312,16 +315,16 @@ export function Dashboard() {
                       navigateTo("papers");
                       window.history.pushState(null, "", `/papers/${paper.id}`);
                     }}
-                    className="w-full text-left flex items-start gap-3 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors"
+                    className="w-full text-left flex items-start gap-3 p-3 bg-bg-surface border border-border-moderate rounded-sm hover:bg-bg-elevated hover:border-border-strong cursor-pointer transition-colors"
                   >
-                    <div className="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg shrink-0">
-                      <BookOpen className="w-4 h-4" />
+                    <div className="p-2 bg-bg-base border border-border-moderate text-text-primary rounded-sm shrink-0">
+                      <BookOpenIcon className="w-4 h-4" />
                     </div>
                     <div className="min-w-0">
-                      <h4 className="font-medium text-slate-900 dark:text-white truncate">
+                      <h4 className="font-medium text-text-primary truncate">
                         {paper.title}
                       </h4>
-                      <p className="text-xs text-slate-500 truncate mt-0.5">
+                      <p className="text-caption text-text-secondary truncate mt-0.5 font-serif italic">
                         {paper.authors?.join(", ") || "Unknown Author"}
                       </p>
                     </div>
@@ -333,16 +336,16 @@ export function Dashboard() {
 
           {/* Due Soon */}
           <section>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <CheckSquare className="w-5 h-5 text-slate-400" />
+            <div className="flex items-center justify-between mb-4 border-b border-border-subtle pb-2">
+              <h2 className="font-serif text-lg font-bold text-text-primary flex items-center gap-2">
+                <CheckSquare className="w-5 h-5 text-text-tertiary" />
                 Tasks Due Soon
               </h2>
               <button
                 onClick={() => navigateTo("tasks")}
-                className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 font-medium flex items-center gap-1"
+                className="text-small text-text-secondary hover:text-text-primary font-medium flex items-center gap-1 uppercase tracking-wider transition-colors"
               >
-                All Tasks <ArrowRight className="w-4 h-4" aria-hidden="true" />
+                All Tasks <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
               </button>
             </div>
 
@@ -350,32 +353,32 @@ export function Dashboard() {
               {tasksLoading ? (
                 <ListSkeleton count={3} itemType="task" />
               ) : upcomingTasks.length === 0 ? (
-                <div className="p-4 text-center text-sm text-slate-500 italic">
-                  No upcoming tasks. You're all caught up!
+                <div className="p-4 text-center text-small font-serif italic text-text-tertiary">
+                  No upcoming tasks. You're all caught up.
                 </div>
               ) : (
                 upcomingTasks.map((task) => (
                   <button
                     key={task.id}
                     onClick={() => navigateTo("tasks")}
-                    className="w-full text-left flex items-center justify-between p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg hover:border-slate-300 dark:hover:border-slate-700 cursor-pointer transition-colors"
+                    className="w-full text-left flex items-center justify-between p-3 bg-bg-surface border border-border-moderate rounded-sm hover:border-border-strong cursor-pointer transition-colors"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div
-                        className={`w-2 h-2 rounded-full shrink-0 ${
+                        className={`w-2 h-2 rounded-none shrink-0 ${
                           task.priority === "high"
-                            ? "bg-red-500"
+                            ? "bg-warning"
                             : task.priority === "medium"
-                              ? "bg-amber-500"
-                              : "bg-green-500"
+                              ? "bg-primary-500"
+                              : "bg-success"
                         }`}
                       />
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate">
+                      <span className="text-small font-medium text-text-primary truncate">
                         {task.title}
                       </span>
                     </div>
                     {task.due_date && (
-                      <span className="text-xs text-slate-400 shrink-0">
+                      <span className="text-caption font-serif italic text-text-tertiary shrink-0">
                         {new Date(task.due_date).toLocaleDateString(undefined, {
                           month: "short",
                           day: "numeric",
