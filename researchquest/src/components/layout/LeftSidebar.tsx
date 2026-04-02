@@ -6,6 +6,7 @@ import {
   CheckSquare,
   Plus,
   X,
+  BookOpen,
 } from "lucide-react";
 import {
   BookOpenIcon,
@@ -41,7 +42,7 @@ const TABS = [
   { id: "papers" as const, label: "Papers", icon: BookOpenIcon },
   { id: "ideas" as const, label: "Ideas", icon: Lightbulb },
   { id: "tasks" as const, label: "Tasks", icon: CheckSquare },
-  { id: "focus" as const, label: "Focus", icon: TargetIcon },
+  { id: "focus" as const, label: "Focus", icon: Target },
 ];
 
 interface DeadlinePreview {
@@ -486,24 +487,31 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
     [activeSearchQuery],
   );
 
+  // ⚡ PERFORMANCE OPTIMIZATION: Pre-compute derived text fields (like markdown title extraction and toLowerCase)
+  // so that expensive string parsing is decoupled from the fast keystroke filtering loop.
+  const searchableNotes = useMemo(() => {
+    return notes.map((note) => ({
+      note,
+      titleText: (note.title || deriveTitleFromMarkdown(note.markdown_body) || "").toLowerCase(),
+      bodyText: note.markdown_body.toLowerCase(),
+      tagsText: (note.tags || []).join(" ").toLowerCase(),
+    }));
+  }, [notes]);
+
   const filteredNotes = useMemo(() => {
     // Optimization: Don't filter if not viewing notes
     if (currentView !== "notes") return [];
 
-    return notes.filter((note) => {
-      if (!normalizedQuery) {
-        return true;
-      }
+    if (!normalizedQuery) return notes;
 
-      const title = note.title || deriveTitleFromMarkdown(note.markdown_body) || "";
-      const tags = (note.tags || []).join(" ");
-      return (
-        title.toLowerCase().includes(normalizedQuery) ||
-        note.markdown_body.toLowerCase().includes(normalizedQuery) ||
-        tags.toLowerCase().includes(normalizedQuery)
-      );
-    });
-  }, [notes, normalizedQuery, currentView]);
+    return searchableNotes
+      .filter((sn) =>
+        sn.titleText.includes(normalizedQuery) ||
+        sn.bodyText.includes(normalizedQuery) ||
+        sn.tagsText.includes(normalizedQuery)
+      )
+      .map((sn) => sn.note);
+  }, [searchableNotes, normalizedQuery, currentView, notes]);
 
   const filteredPapers = useMemo(() => {
     // Optimization: Don't filter if not viewing papers
