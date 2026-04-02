@@ -1,6 +1,25 @@
 import { useMemo, useState } from "react";
-import { Lightbulb, Sparkles, Plus, Loader2, ArrowRight } from "lucide-react";
+import {
+  Lightbulb,
+  Sparkles,
+  Plus,
+  Loader2,
+  ArrowRight,
+  Download,
+  FileText,
+  Table,
+  FileJson,
+} from "lucide-react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import type { Idea, IdeaStage } from "../../types/database";
+import {
+  convertIdeasToMarkdown,
+  convertIdeasToCSV,
+  convertIdeasToJSON,
+  downloadFile,
+} from "../../utils/export";
+import { toast } from "sonner";
+import { logger } from "../../utils/logger";
 
 interface IdeasOverviewProps {
   ideas: Idea[];
@@ -111,20 +130,100 @@ export function IdeasOverview({
     setSubmitting(false);
   };
 
+  const handleExport = (format: "markdown" | "csv" | "json") => {
+    if (ideas.length === 0) {
+      toast.error("No ideas to export");
+      return;
+    }
+
+    const timestamp = new Date().toISOString().split("T")[0];
+    let content = "";
+    let filename = "";
+    let type = "";
+
+    try {
+      switch (format) {
+        case "markdown":
+          content = convertIdeasToMarkdown(ideas);
+          filename = `research-ideas-${timestamp}.md`;
+          type = "text/markdown";
+          break;
+        case "csv":
+          content = convertIdeasToCSV(ideas);
+          filename = `research-ideas-${timestamp}.csv`;
+          type = "text/csv";
+          break;
+        case "json":
+          content = convertIdeasToJSON(ideas);
+          filename = `research-ideas-${timestamp}.json`;
+          type = "application/json";
+          break;
+      }
+
+      downloadFile(content, filename, type);
+      toast.success(
+        `Exported ${ideas.length} ideas as ${format.toUpperCase()}`
+      );
+    } catch (err) {
+      logger.error("Export failed", err);
+      toast.error("Failed to export ideas");
+    }
+  };
+
   return (
     <div className="p-6 md:p-10 max-w-6xl mx-auto space-y-8">
-      <div className="flex flex-col gap-3">
-        <div className="inline-flex items-center gap-2 text-primary-500 font-semibold uppercase tracking-wide text-sm">
-          <Lightbulb className="w-4 h-4" />
-          Ideas Workspace
+      <div className="flex items-start justify-between">
+        <div className="flex flex-col gap-3">
+          <div className="inline-flex items-center gap-2 text-primary-500 font-semibold uppercase tracking-wide text-sm">
+            <Lightbulb className="w-4 h-4" />
+            Ideas Workspace
+          </div>
+          <h1 className="text-3xl font-bold text-text-primary">
+            Shape and evolve your research ideas
+          </h1>
+          <p className="text-text-secondary max-w-3xl">
+            Use the idea board to capture sparks, nurture promising leads, and
+            track which concepts are ready for validation or publication.
+          </p>
         </div>
-        <h1 className="text-3xl font-bold text-text-primary">
-          Shape and evolve your research ideas
-        </h1>
-        <p className="text-text-secondary max-w-3xl">
-          Use the idea board to capture sparks, nurture promising leads, and
-          track which concepts are ready for validation or publication.
-        </p>
+
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger asChild>
+            <button className="px-4 py-2 bg-bg-surface border border-border-subtle text-text-secondary rounded-lg hover:bg-bg-base transition-colors flex items-center gap-2 font-medium shadow-sm">
+              <Download className="w-4 h-4" />
+              <span className="hidden sm:inline">Export</span>
+            </button>
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Portal>
+            <DropdownMenu.Content
+              className="min-w-[180px] bg-bg-surface rounded-lg shadow-lg border border-border-subtle p-1 z-50 animate-in fade-in-0 zoom-in-95"
+              align="end"
+              sideOffset={5}
+            >
+              <DropdownMenu.Item
+                onSelect={() => handleExport("markdown")}
+                className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-bg-base hover:text-text-primary rounded-md cursor-pointer outline-none transition-colors"
+              >
+                <FileText className="w-4 h-4" />
+                Markdown (.md)
+              </DropdownMenu.Item>
+              <DropdownMenu.Item
+                onSelect={() => handleExport("csv")}
+                className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-bg-base hover:text-text-primary rounded-md cursor-pointer outline-none transition-colors"
+              >
+                <Table className="w-4 h-4" />
+                CSV (.csv)
+              </DropdownMenu.Item>
+              <DropdownMenu.Item
+                onSelect={() => handleExport("json")}
+                className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-bg-base hover:text-text-primary rounded-md cursor-pointer outline-none transition-colors"
+              >
+                <FileJson className="w-4 h-4" />
+                JSON (.json)
+              </DropdownMenu.Item>
+            </DropdownMenu.Content>
+          </DropdownMenu.Portal>
+        </DropdownMenu.Root>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
