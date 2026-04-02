@@ -9,7 +9,7 @@ import {
   BookOpen,
 } from "lucide-react";
 import {
-  BookOpenIcon,
+
   MagnifyingGlassIcon,
 } from "@radix-ui/react-icons";
 import { useAppStore } from "../../store/appStore";
