@@ -26,3 +26,12 @@ Extracting a `<FormDialog>` primitive alongside the existing `<ConfirmDialog>` e
 
 Prevention:
 Do not use `window.prompt` or create inline/bespoke HTML implementations for popups or modal-based input forms. Always implement or reuse `FormDialog` to maintain UI and accessibility consistency.
+2025-05-27 — Missing Data Export on Overview Views
+Opportunity:
+The `IdeasOverview` component lacked the "Export" functionality (Markdown, CSV, JSON) that was present in the `IdeasBoard` and other main list views (like Notes, Papers, Tasks). Implementing this ensures consistency across all entity list views, making it easier for users to extract their raw research data from any context.
+
+Learning:
+Different list/overview components for the same data entity (like `IdeasBoard` vs `IdeasOverview`) sometimes drift out of feature parity. The export functionality relies on standard Radix UI dropdown menus and shared utility functions (`convertIdeasToMarkdown`, etc.) from `src/utils/export.ts`, making it straightforward to implement across new views once identified. Also discovered that `notes` can occasionally be undefined during hot reloads or state transitions inside `useMemo` hooks (like `allTags`), causing crashes if not safely fallen back (`notes || []`).
+
+Prevention:
+When adding feature-rich capabilities (like Search, Export, or Sorting) to one view of an entity, actively cross-check all other views of that entity or similar top-level lists to ensure the feature is applied consistently across the application. Always defensively program array iterations on global state slices, as they may be undefined before hydrating.
