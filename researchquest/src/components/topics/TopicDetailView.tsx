@@ -92,27 +92,39 @@ export function TopicDetailView({
       return (data || []).map((row) => row[column as keyof typeof row] as T);
     };
 
-    const [noteIds, paperIds, ideaIds] = await Promise.all([
-      fetchIds<string>("topic_notes", "note_id"),
-      fetchIds<string>("topic_papers", "paper_id"),
-      fetchIds<string>("topic_ideas", "idea_id"),
+    // ⚡ OPTIMIZATION: Combine ID fetching and row querying into independent, chained promises.
+    // This removes the sequential bottleneck of waiting for all IDs across all entity types
+    // to load before fetching *any* of the associated row data.
+    const fetchAssociatedRows = async <T,>(
+      idTable: string,
+      idColumn: string,
+      rowTable: string,
+    ): Promise<T[]> => {
+      const ids = await fetchIds<string>(idTable, idColumn);
+      if (!ids.length) return [];
+
+      const { data, error } = await supabase
+        .from(rowTable)
+        .select("*")
+        .in("id", ids);
+
+      if (error) {
+        logger.error(`Failed to load ${rowTable}`, error);
+        return [];
+      }
+
+      return (data || []) as T[];
+    };
+
+    const [notesData, papersData, ideasData] = await Promise.all([
+      fetchAssociatedRows<Note>("topic_notes", "note_id", "notes"),
+      fetchAssociatedRows<Paper>("topic_papers", "paper_id", "papers"),
+      fetchAssociatedRows<Idea>("topic_ideas", "idea_id", "ideas"),
     ]);
 
-    const [noteRows, paperRows, ideaRows] = await Promise.all([
-      noteIds.length
-        ? supabase.from("notes").select("*").in("id", noteIds)
-        : Promise.resolve({ data: [] }),
-      paperIds.length
-        ? supabase.from("papers").select("*").in("id", paperIds)
-        : Promise.resolve({ data: [] }),
-      ideaIds.length
-        ? supabase.from("ideas").select("*").in("id", ideaIds)
-        : Promise.resolve({ data: [] }),
-    ]);
-
-    setNotes((noteRows.data || []) as Note[]);
-    setPapers((paperRows.data || []) as Paper[]);
-    setIdeas((ideaRows.data || []) as Idea[]);
+    setNotes(notesData);
+    setPapers(papersData);
+    setIdeas(ideasData);
     setLoadingAssociations(false);
   }, [topic.id, userId]);
 
