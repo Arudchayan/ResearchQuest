@@ -9,7 +9,6 @@ import {
   BookOpen,
 } from "lucide-react";
 import {
-  BookOpenIcon,
   MagnifyingGlassIcon,
 } from "@radix-ui/react-icons";
 import { useAppStore } from "../../store/appStore";
@@ -39,7 +38,7 @@ import { AddIdeaDialog } from "../ideas/AddIdeaDialog";
 
 const TABS = [
   { id: "notes" as const, label: "Notes", icon: FileText },
-  { id: "papers" as const, label: "Papers", icon: BookOpenIcon },
+  { id: "papers" as const, label: "Papers", icon: BookOpen },
   { id: "ideas" as const, label: "Ideas", icon: Lightbulb },
   { id: "tasks" as const, label: "Tasks", icon: CheckSquare },
   { id: "focus" as const, label: "Focus", icon: Target },

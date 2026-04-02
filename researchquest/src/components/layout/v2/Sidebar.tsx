@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import {
   DashboardIcon,
-  BookOpenIcon,
   MagnifyingGlassIcon,
   TargetIcon,
   ExitIcon,
@@ -21,6 +20,7 @@ import {
   Database,
   Keyboard,
   Maximize2,
+  BookOpen,
 } from "lucide-react";
 import { useAppStore } from "../../../store/appStore";
 import { cn } from "../../../lib/utils";
@@ -69,7 +69,7 @@ export function Sidebar() {
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: DashboardIcon },
     { id: "notes", label: "Notes", icon: FileText },
-    { id: "papers", label: "Papers", icon: BookOpenIcon },
+    { id: "papers", label: "Papers", icon: BookOpen },
     { id: "ideas", label: "Ideas", icon: Lightbulb },
     { id: "tasks", label: "Tasks", icon: CheckSquare },
     { id: "focus", label: "Focus Studio", icon: TargetIcon },
