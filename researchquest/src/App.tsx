@@ -8,6 +8,7 @@ import { AppShell } from "./components/layout/v2/AppShell";
 import { NotesView } from "./components/notes/NotesView";
 import { PapersView } from "./components/papers/PapersView";
 import { IdeasBoard } from "./components/ideas/IdeasBoard";
+import { TopicsView } from "./components/topics/TopicsView";
 import { TaskManager } from "./components/tasks/TaskManager";
 import { FocusWorkspace } from "./components/focus/FocusWorkspace";
 import { AppLoadingSkeleton } from "./components/ui/Skeleton";
@@ -415,7 +416,7 @@ function App() {
 
       // Validate view
       if (
-        ["dashboard", "notes", "papers", "ideas", "tasks", "focus"].includes(
+        ["dashboard", "notes", "papers", "ideas", "tasks", "topics", "focus"].includes(
           view,
         )
       ) {
@@ -511,6 +512,10 @@ function App() {
           <PapersView />
         ) : currentView === "ideas" ? (
           <IdeasBoard />
+        ) : currentView === "topics" ? (
+          <div className="h-full overflow-hidden">
+            <TopicsView />
+          </div>
         ) : currentView === "tasks" ? (
           <div className="p-6 h-full overflow-auto">
             <OnboardingGuide />

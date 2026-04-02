@@ -6,6 +6,7 @@ import {
   CheckSquare,
   Plus,
   X,
+  Hash,
   BookOpen,
 } from "lucide-react";
 import {
@@ -41,6 +42,7 @@ const TABS = [
   { id: "papers" as const, label: "Papers", icon: BookOpen },
   { id: "ideas" as const, label: "Ideas", icon: Lightbulb },
   { id: "tasks" as const, label: "Tasks", icon: CheckSquare },
+  { id: "topics" as const, label: "Topics", icon: Hash },
   { id: "focus" as const, label: "Focus", icon: Target },
 ];
 
@@ -190,7 +192,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
     return false;
   }, [currentView, ideasLoading, notesLoading, papersLoading]);
 
-  const showSidebarSearch = currentView !== "tasks" && currentView !== "focus";
+  const showSidebarSearch = currentView !== "tasks" && currentView !== "focus" && currentView !== "topics";
 
   useEffect(() => {
     let isMounted = true;
@@ -810,8 +812,8 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
             </div>
           )}
 
-          {/* Add Button (hide for tasks and focus) */}
-          {currentView !== "tasks" && currentView !== "focus" && (
+          {/* Add Button (hide for tasks, topics, and focus) */}
+          {currentView !== "tasks" && currentView !== "focus" && currentView !== "topics" && (
             <button
               onClick={() => {
                 handleAddClick();
@@ -871,6 +873,13 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
               <div className="text-center py-12 text-text-tertiary">
                 <CheckSquare className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p className="text-small">Task manager is in the main panel</p>
+              </div>
+            )}
+
+            {currentView === "topics" && (
+              <div className="text-center py-12 text-text-tertiary">
+                <Hash className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p className="text-small">Topic manager is in the main panel</p>
               </div>
             )}
 

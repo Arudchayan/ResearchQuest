@@ -20,6 +20,7 @@ import {
   Database,
   Keyboard,
   Maximize2,
+  Hash,
   BookOpen,
 } from "lucide-react";
 import { useAppStore } from "../../../store/appStore";
@@ -72,6 +73,7 @@ export function Sidebar() {
     { id: "papers", label: "Papers", icon: BookOpen },
     { id: "ideas", label: "Ideas", icon: Lightbulb },
     { id: "tasks", label: "Tasks", icon: CheckSquare },
+    { id: "topics", label: "Topics", icon: Hash },
     { id: "focus", label: "Focus Studio", icon: TargetIcon },
   ] as const;
 
