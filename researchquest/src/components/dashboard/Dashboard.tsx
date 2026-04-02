@@ -7,11 +7,11 @@ import {
   Star,
   Sparkles,
   CheckSquare,
+  BookOpen,
 } from "lucide-react";
 import {
   ActivityLogIcon,
   TargetIcon,
-  BookOpenIcon,
   ArrowRightIcon,
   ClockIcon,
 } from "@radix-ui/react-icons";
@@ -280,7 +280,7 @@ export function Dashboard() {
           <section>
             <div className="flex items-center justify-between mb-4 border-b border-border-subtle pb-2">
               <h2 className="font-serif text-lg font-bold text-text-primary flex items-center gap-2">
-                <BookOpenIcon className="w-5 h-5 text-text-tertiary" />
+                <BookOpen className="w-5 h-5 text-text-tertiary" />
                 Up Next to Read
               </h2>
               <button
@@ -318,7 +318,7 @@ export function Dashboard() {
                     className="w-full text-left flex items-start gap-3 p-3 bg-bg-surface border border-border-moderate rounded-sm hover:bg-bg-elevated hover:border-border-strong cursor-pointer transition-colors"
                   >
                     <div className="p-2 bg-bg-base border border-border-moderate text-text-primary rounded-sm shrink-0">
-                      <BookOpenIcon className="w-4 h-4" />
+                      <BookOpen className="w-4 h-4" />
                     </div>
                     <div className="min-w-0">
                       <h4 className="font-medium text-text-primary truncate">
