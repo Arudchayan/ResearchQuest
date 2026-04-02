@@ -16,7 +16,7 @@ export function TopicsView() {
     }))
   );
 
-  const { topics, loading, upsertTopic, removeTopic } = useTopics(user?.id);
+  const { topics, loading, createTopic, updateTopic, deleteTopic } = useTopics(user?.id);
   const [isCreating, setIsCreating] = useState(false);
   const [newTopicName, setNewTopicName] = useState("");
 
@@ -25,11 +25,11 @@ export function TopicsView() {
     if (!newTopicName.trim()) return;
 
     try {
-      const success = await upsertTopic({ name: newTopicName.trim() });
+      const success = await createTopic({ name: newTopicName.trim() });
       if (success) {
         setNewTopicName("");
         setIsCreating(false);
-        toast.success("Topic created");
+        // toast.success("Topic created"); // createTopic already shows a toast
       }
     } catch (error) {
       toast.error("Failed to create topic");
@@ -37,11 +37,11 @@ export function TopicsView() {
   };
 
   const handleUpdateTopic = async (topicId: string, updates: { name?: string; description?: string }) => {
-    return await upsertTopic({ id: topicId, ...updates });
+    return await updateTopic(topicId, updates);
   };
 
   const handleDeleteTopic = async (topicId: string) => {
-    const success = await removeTopic(topicId);
+    const success = await deleteTopic(topicId);
     if (success && selectedTopic?.id === topicId) {
       setSelectedTopic(null);
     }
