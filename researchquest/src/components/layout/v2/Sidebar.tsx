@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   DashboardIcon,
-  BookOpenIcon,
+
   MagnifyingGlassIcon,
   TargetIcon,
   ExitIcon,
