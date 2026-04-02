@@ -21,9 +21,9 @@ interface AppState {
   setUser: (user: UserProfile | null) => void;
 
   // Current view
-  currentView: "dashboard" | "notes" | "papers" | "ideas" | "tasks" | "focus";
+  currentView: "dashboard" | "notes" | "papers" | "ideas" | "tasks" | "focus" | "topics";
   setCurrentView: (
-    view: "dashboard" | "notes" | "papers" | "ideas" | "tasks" | "focus",
+    view: "dashboard" | "notes" | "papers" | "ideas" | "tasks" | "focus" | "topics",
   ) => void;
 
   // Selected entity

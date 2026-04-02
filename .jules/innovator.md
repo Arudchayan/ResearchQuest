@@ -56,3 +56,8 @@ Prevention: When creating new list views in the future, automatically evaluate i
 Opportunity: The global data backup feature (`DataManagementDialog.tsx`) excluded Tasks, creating a friction point and risk of data loss. Users could back up Notes, Papers, Ideas, and Topics, but not Tasks.
 Learning: Unifying global export across all core entities ensures data portability and prevents partial backups, avoiding catastrophic data loss scenarios for end users relying on the backup system.
 Prevention: When adding new core entities to a project with a global backup strategy, always add the new entity explicitly to both the export utility formats and the import/export orchestrator dialog.
+
+2024-11-20 — Top-Level Entity Views
+Opportunity: The application had a `TopicDetailView` and `TopicList`, and `topics` were deeply integrated in relations and global data exports, but there was no dedicated "Topics" view for the user to manage them efficiently.
+Learning: When core entities are added to the platform (like Topics), they must be elevated to top-level navigation (in both v1 and v2 sidebars, `App.tsx` routing, and the `CommandPalette` global search) to be truly discoverable and manageable.
+Prevention: When adding new top-level entities, always ensure they are integrated into global components like sidebars, routing arrays, and command palettes.
