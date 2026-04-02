@@ -56,12 +56,13 @@ describe("TopicsView", () => {
   });
 
   it("allows creating a new topic", async () => {
-    const mockUpsertTopic = vi.fn().mockResolvedValue(true);
+    const mockCreateTopic = vi.fn().mockResolvedValue(true);
     (useTopics as any).mockReturnValue({
       topics: mockTopics,
       loading: false,
-      upsertTopic: mockUpsertTopic,
-      removeTopic: vi.fn(),
+      createTopic: mockCreateTopic,
+      updateTopic: vi.fn(),
+      deleteTopic: vi.fn(),
     });
 
     render(<TopicsView />);
@@ -72,11 +73,16 @@ describe("TopicsView", () => {
     const input = screen.getByPlaceholderText("Topic name...");
     fireEvent.change(input, { target: { value: "New Topic" } });
 
-    const submitButton = screen.getByText("Add");
-    fireEvent.click(submitButton);
+    const form = input.closest('form');
+    if (form) {
+      fireEvent.submit(form);
+    } else {
+      const submitButton = screen.getByText("Add");
+      fireEvent.click(submitButton);
+    }
 
     await waitFor(() => {
-      expect(mockUpsertTopic).toHaveBeenCalledWith({ name: "New Topic" });
+      expect(mockCreateTopic).toHaveBeenCalledWith(expect.objectContaining({ name: "New Topic" }));
     });
   });
 });
