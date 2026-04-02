@@ -146,7 +146,10 @@ export function useNotes(userId: string | undefined) {
 
       // Optimistic update
       const currentNotes = useAppStore.getState().notes;
-      const previousNotes = [...currentNotes];
+      const previousNotesMap = currentNotes.reduce((acc, note) => {
+        acc[note.id] = note;
+        return acc;
+      }, {} as Record<string, Note>);
       let optimisticSnapshot: Note | null = null;
 
       setNotes(
@@ -181,14 +184,14 @@ export function useNotes(userId: string | undefined) {
         toast.error(`Failed to update note: ${errorMessage}`);
         // Revert on error - safely using fresh state
         // Actually, revert to 'previousNotes' is NOT safe if realtime updates happened.
-        // But we captured 'previousNotes' just before 'setNotes', synchronously.
-        // So 'previousNotes' IS the state before optimistic update.
+        // But we captured 'previousNotesMap' just before 'setNotes', synchronously.
+        // So 'previousNotesMap' IS the state before optimistic update.
         // However, if we restore it after async await, we overwrite realtime updates.
         // Correct way: Only revert the specific note.
 
         const freshNotes = useAppStore.getState().notes;
-        // Find the note in 'previousNotes' (the original state)
-        const originalNote = previousNotes.find((n) => n.id === noteId);
+        // Find the note in 'previousNotesMap' (the original state)
+        const originalNote = previousNotesMap[noteId];
 
         if (originalNote) {
           setNotes(
