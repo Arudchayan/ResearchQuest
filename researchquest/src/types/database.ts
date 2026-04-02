@@ -130,6 +130,10 @@ export interface UserProfile {
   rest_days: number;
   auto_create_reading_tasks?: boolean;
   theme_preference: ThemePreference;
+  notes_count?: number;
+  papers_count?: number;
+  tasks_completed_count?: number;
+  papers_with_insights_count?: number;
   created_at: string;
   updated_at: string;
 }
