@@ -21,3 +21,7 @@
 ## 2024-05-26 - Keyboard Nav in Layout Contexts
 **Learning:** High-level layout components (like Sidebars and App Shells) often contain numerous icon-only buttons or tightly grouped navigation items that lack native focus indicators, making keyboard navigation difficult or invisible.
 **Action:** When working on navigation or layout shell components, always ensure that standard interactive elements (`<button>`, `<a>`) include explicit focus-visible styles (e.g., `focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500` or equivalent design tokens) to guarantee clear keyboard focus indicators.
+
+## 2024-05-27 - Missing ARIA Labels on Clear Input Buttons
+**Learning:** A common pattern in the app's components is to use a `<button>` with a `<X />` icon to clear input fields (like search queries or DOIs), but these buttons often lack an `aria-label`. Without an accessible name, screen reader users do not know the purpose of the button.
+**Action:** Always verify that icon-only buttons, especially those used to clear inputs, have a descriptive `aria-label` (e.g., `aria-label="Clear search"` or `aria-label="Clear input"`).
