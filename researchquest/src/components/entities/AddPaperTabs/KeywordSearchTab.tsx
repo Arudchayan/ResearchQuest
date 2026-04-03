@@ -1,6 +1,6 @@
 import { useRef, useCallback } from "react";
 import { Loader, Search, X, BookOpen, Plus, ExternalLink } from "lucide-react";
-import type { CrossrefPaper } from "../../types/database";
+import type { CrossrefPaper } from "../../../types/database";
 
 interface KeywordSearchTabProps {
   searchQuery: string;
