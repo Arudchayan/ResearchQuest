@@ -16,6 +16,19 @@ Deno.serve(async (req) => {
   
     try {
       // Get parameters from request body
+      // Ensure caller is authorized using a secret key
+      const authHeader = req.headers.get('Authorization');
+      const expectedApiKey = Deno.env.get('ADMIN_API_KEY');
+
+      if (!expectedApiKey || authHeader !== `Bearer ${expectedApiKey}`) {
+        return new Response(JSON.stringify({
+          error: { code: 'UNAUTHORIZED', message: 'Unauthorized request' }
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 401,
+        });
+      }
+
       const requestBody = await req.json();
       const { email, password, role = 'authenticated' } = requestBody;
       
