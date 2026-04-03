@@ -56,12 +56,13 @@ describe("TopicsView", () => {
   });
 
   it("allows creating a new topic", async () => {
-    const mockUpsertTopic = vi.fn().mockResolvedValue(true);
+    const mockCreateTopic = vi.fn().mockResolvedValue({ id: "new-id", name: "New Topic" });
     (useTopics as any).mockReturnValue({
       topics: mockTopics,
       loading: false,
-      upsertTopic: mockUpsertTopic,
-      removeTopic: vi.fn(),
+      createTopic: mockCreateTopic,
+      updateTopic: vi.fn(),
+      deleteTopic: vi.fn(),
     });
 
     render(<TopicsView />);
@@ -76,7 +77,7 @@ describe("TopicsView", () => {
     fireEvent.click(submitButton);
 
     await waitFor(() => {
-      expect(mockUpsertTopic).toHaveBeenCalledWith({ name: "New Topic" });
+      expect(mockCreateTopic).toHaveBeenCalledWith({ name: "New Topic" });
     });
   });
 });
