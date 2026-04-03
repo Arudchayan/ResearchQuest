@@ -224,6 +224,53 @@ export function convertTasksToMarkdown(tasks: Task[]): string {
     .join("\n\n---\n\n");
 }
 
+export function convertTopicsToJSON(topics: Topic[] | (Topic & { note_count: number; paper_count: number; idea_count: number })[]): string {
+  return JSON.stringify(topics, null, 2);
+}
+
+export function convertTopicsToCSV(topics: Topic[] | (Topic & { note_count: number; paper_count: number; idea_count: number })[]): string {
+  if (topics.length === 0) return "";
+  const headers = [
+    "Name",
+    "Description",
+    "Notes Count",
+    "Papers Count",
+    "Ideas Count",
+    "Created At",
+    "Updated At",
+  ];
+
+  const rows = topics.map((t) => {
+    return [
+      escapeCSV(t.name),
+      escapeCSV(t.description),
+      escapeCSV(("note_count" in t ? t.note_count : 0).toString()),
+      escapeCSV(("paper_count" in t ? t.paper_count : 0).toString()),
+      escapeCSV(("idea_count" in t ? t.idea_count : 0).toString()),
+      escapeCSV(t.created_at),
+      escapeCSV(t.updated_at),
+    ];
+  });
+
+  return [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+}
+
+export function convertTopicsToMarkdown(topics: Topic[] | (Topic & { note_count: number; paper_count: number; idea_count: number })[]): string {
+  if (topics.length === 0) return "";
+  return topics
+    .map((t) => {
+      const name = t.name || "Untitled Topic";
+      const date = new Date(t.created_at).toLocaleDateString();
+      const notesCount = "note_count" in t ? t.note_count : 0;
+      const papersCount = "paper_count" in t ? t.paper_count : 0;
+      const ideasCount = "idea_count" in t ? t.idea_count : 0;
+      const stats = `\nNotes: ${notesCount} | Papers: ${papersCount} | Ideas: ${ideasCount}`;
+
+      return `# ${name}\n*Created: ${date}*${stats}\n\n${t.description || "No description provided."}`;
+    })
+    .join("\n\n---\n\n");
+}
+
 function escapeCSV(str?: string | null): string {
   if (!str) return "";
 
