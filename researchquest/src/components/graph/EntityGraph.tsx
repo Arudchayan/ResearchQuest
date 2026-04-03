@@ -213,9 +213,10 @@ export function EntityGraph() {
       }
 
       // Attraction force for edges
+      const nodeMap = new Map(currentNodes.map(n => [n.id, n]));
       edges.forEach(edge => {
-        const sourceNode = currentNodes.find(n => n.id === edge.source);
-        const targetNode = currentNodes.find(n => n.id === edge.target);
+        const sourceNode = nodeMap.get(edge.source);
+        const targetNode = nodeMap.get(edge.target);
         
         if (sourceNode && targetNode) {
           const dx = targetNode.x - sourceNode.x;
@@ -392,13 +393,15 @@ export function EntityGraph() {
     );
   }
 
+  const renderNodeMap = new Map(nodes.map(n => [n.id, n]));
+
   return (
     <div className="relative w-full overflow-hidden bg-bg-base/50 rounded-lg border border-border-subtle" style={{ height: GRAPH_HEIGHT }}>
       <svg className="absolute inset-0 w-full h-full pointer-events-none">
         <AnimatePresence>
           {edges.map((edge) => {
-            const sourceNode = nodes.find((n) => n.id === edge.source);
-            const targetNode = nodes.find((n) => n.id === edge.target);
+            const sourceNode = renderNodeMap.get(edge.source);
+            const targetNode = renderNodeMap.get(edge.target);
             if (!sourceNode || !targetNode) return null;
 
             return (
