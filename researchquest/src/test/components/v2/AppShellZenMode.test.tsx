@@ -44,7 +44,7 @@ describe("AppShell Zen Mode", () => {
 
     expect(screen.queryByTestId("sidebar")).not.toBeInTheDocument();
     expect(screen.queryByTestId("right-sidebar")).not.toBeInTheDocument();
-    expect(screen.getByTestId("icon-minimize")).toBeInTheDocument();
+    expect(screen.getByTitle(/Exit Zen Mode/)).toBeInTheDocument();
   });
 
   it("exits Zen Mode when exit button is clicked", () => {

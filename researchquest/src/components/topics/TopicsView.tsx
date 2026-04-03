@@ -223,7 +223,6 @@ export function TopicsView() {
               </button>
             </form>
           )}
-
           <div className="flex flex-col gap-2">
             <div className="relative">
               <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
