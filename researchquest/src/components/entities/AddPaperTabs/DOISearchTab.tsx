@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { Loader, Search, X } from "lucide-react";
-import type { CrossrefPaper } from "../../types/database";
+import type { CrossrefPaper } from "../../../types/database";
 
 interface DOISearchTabProps {
   doiInput: string;

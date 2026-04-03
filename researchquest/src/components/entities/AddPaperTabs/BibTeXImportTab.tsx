@@ -1,5 +1,5 @@
 import { Upload, AlertCircle, Loader, Plus } from "lucide-react";
-import type { BibTeXEntry } from "../../utils/bibtexParser";
+import type { BibTeXEntry } from "../../../utils/bibtexParser";
 
 interface BibTeXImportTabProps {
   onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
