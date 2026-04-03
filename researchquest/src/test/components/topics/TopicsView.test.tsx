@@ -56,7 +56,7 @@ describe("TopicsView", () => {
   });
 
   it("allows creating a new topic", async () => {
-    const mockCreateTopic = vi.fn().mockResolvedValue(true);
+    const mockCreateTopic = vi.fn().mockResolvedValue({ id: "new-id", name: "New Topic" });
     (useTopics as any).mockReturnValue({
       topics: mockTopics,
       loading: false,
