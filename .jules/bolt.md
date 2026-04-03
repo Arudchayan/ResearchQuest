@@ -101,3 +101,6 @@
 ## 2026-04-01 - Pre-computing String Parsing for Keystroke Filters
 **Learning:** Implementing real-time keystroke-driven search filters on complex lists by computing derived properties (like extracting markdown titles or doing `.toLowerCase()`) inside the filter loop causes high CPU overhead and blocks the main thread.
 **Action:** Pre-compute and memoize expensive derived searchable text into a separate `useMemo` hook that maps over the list only when the data changes, decoupling heavy string operations from the fast filtering loop.
+## 2024-04-02 - Batched Independent Promise Chaining for Topic Associations
+**Learning:** Sequential `Promise.all` blocks waiting for multiple independent entity arrays to resolve before moving to the next `Promise.all` stage (e.g. fetching IDs, then fetching detail rows) creates artificial sequential bottlenecks. Chaining the two promises per entity independently and awaiting them in one `Promise.all` resolves latency far faster since the row query starts immediately after its respective ID query finishes.
+**Action:** Use batched independent `Promise.all` chains when fetching multi-staged data across disparate database tables.

@@ -25,6 +25,9 @@ export default tseslint.config(
       ],
       '@typescript-eslint/no-unused-vars': 'off',
       '@typescript-eslint/no-explicit-any': 'off',
+      'complexity': ['error', 10],
+      'max-lines-per-function': ['warn', 100],
+      'max-depth': ['error', 4],
     },
   },
 )
