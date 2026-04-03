@@ -9,3 +9,7 @@
 ## 2026-03-24 - Optimizing Zustand Selectors in Core Hooks and Components
 **Learning:** Subscribing to the entire Zustand store via `useAppStore()` in central hooks like `useDataSync` or root components like `App` triggers unnecessary evaluations and re-renders on EVERY state change (such as text input in a sub-component).
 **Action:** Always use granular selectors (e.g., `useAppStore(useShallow(state => ({ ... })))`) when extracting multiple properties from the store to prevent performance degradation.
+
+## 2024-03-24 - Optimizing Array.prototype.find in Animation Frames
+**Learning:** Using `Array.prototype.find()` inside high-frequency animation loops like `requestAnimationFrame` (e.g., iterating over edges to find target nodes) causes `O(N*M)` complexity and layout jank, as the full array is scanned repeatedly 60 times per second.
+**Action:** Always pre-compute a `Map` lookup object (e.g., `new Map(items.map(i => [i.id, i]))`) immediately before loops or inside the animation frame to reduce lookups from `O(N)` to `O(1)`.
