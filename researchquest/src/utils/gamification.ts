@@ -119,7 +119,7 @@ export async function awardXP(
   // Get current profile
   const { data: profile, error: fetchError } = await supabase
     .from("user_profiles")
-    .select("*")
+    .select("*, notes_count, papers_count, tasks_completed_count, papers_with_insights_count")
     .eq("id", userId)
     .single();
 
@@ -161,6 +161,19 @@ export async function awardXP(
 
   const longestStreak = Math.max(newStreak, profile.longest_streak || 0);
 
+  // Update running counts
+  const newCounts = {
+    notes_count: profile.notes_count || 0,
+    papers_count: profile.papers_count || 0,
+    tasks_completed_count: profile.tasks_completed_count || 0,
+    papers_with_insights_count: profile.papers_with_insights_count || 0,
+  };
+
+  if (action === "create_note") newCounts.notes_count++;
+  if (action === "create_paper") newCounts.papers_count++;
+  if (action === "complete_task") newCounts.tasks_completed_count++;
+  if (action === "add_paper_insights") newCounts.papers_with_insights_count++;
+
   // Update profile with ALL changes in one go
   const { error: updateError } = await supabase
     .from("user_profiles")
@@ -170,6 +183,7 @@ export async function awardXP(
       current_streak: newStreak,
       longest_streak: longestStreak,
       last_activity_date: today,
+      ...newCounts,
     })
     .eq("id", userId);
 
@@ -181,8 +195,8 @@ export async function awardXP(
   // Update or create daily log (passing streak to avoid refetch)
   await updateDailyLog(userId, xpAmount, newStreak);
 
-  // Check for achievements (passing streak to avoid refetch)
-  await checkAchievements(userId, action, newStreak);
+  // Check for achievements (passing streak and counts to avoid refetch)
+  await checkAchievements(userId, action, newStreak, newCounts);
 }
 
 // Check and award achievements
@@ -190,8 +204,14 @@ async function checkAchievements(
   userId: string,
   action: string,
   currentStreak: number,
+  counts: {
+    notes_count: number;
+    papers_count: number;
+    tasks_completed_count: number;
+    papers_with_insights_count: number;
+  },
 ): Promise<void> {
-  // Optimization: Use passed currentStreak instead of fetching profile
+  // Optimization: Use passed currentStreak and counts instead of fetching from tables
 
   // Check existing achievements
   const { data: existingAchievements } = await supabase
@@ -210,24 +230,14 @@ async function checkAchievements(
 
   // Check for first paper
   if (action === "create_paper" && !earned.has(ACHIEVEMENTS.FIRST_PAPER.type)) {
-    const { count } = await supabase
-      .from("papers")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId);
-
-    if (count === 1) {
+    if (counts.papers_count === 1) {
       await awardAchievement(userId, ACHIEVEMENTS.FIRST_PAPER);
     }
   }
 
   // Check for 50 notes
   if (action === "create_note" && !earned.has(ACHIEVEMENTS.NOTE_MASTER.type)) {
-    const { count } = await supabase
-      .from("notes")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId);
-
-    if (count && count >= 50) {
+    if (counts.notes_count >= 50) {
       await awardAchievement(userId, ACHIEVEMENTS.NOTE_MASTER);
     }
   }
@@ -237,13 +247,7 @@ async function checkAchievements(
     action === "complete_task" &&
     !earned.has(ACHIEVEMENTS.TASK_WARRIOR.type)
   ) {
-    const { count } = await supabase
-      .from("tasks")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .eq("completed", true);
-
-    if (count && count >= 25) {
+    if (counts.tasks_completed_count >= 25) {
       await awardAchievement(userId, ACHIEVEMENTS.TASK_WARRIOR);
     }
   }
@@ -261,13 +265,7 @@ async function checkAchievements(
     action === "add_paper_insights" &&
     !earned.has(ACHIEVEMENTS.INSIGHT_COLLECTOR.type)
   ) {
-    const { count } = await supabase
-      .from("papers")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .not("key_insights", "is", null);
-
-    if (count && count >= 10) {
+    if (counts.papers_with_insights_count >= 10) {
       await awardAchievement(userId, ACHIEVEMENTS.INSIGHT_COLLECTOR);
     }
   }
