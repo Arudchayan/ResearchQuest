@@ -514,40 +514,49 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
       .map((sn) => sn.note);
   }, [searchableNotes, normalizedQuery, currentView, notes]);
 
+  const searchablePapers = useMemo(() => {
+    return papers.map((paper) => ({
+      paper,
+      titleText: (paper.title || "").toLowerCase(),
+      authorsText: (paper.authors || []).join(" ").toLowerCase(),
+    }));
+  }, [papers]);
+
   const filteredPapers = useMemo(() => {
     // Optimization: Don't filter if not viewing papers
     if (currentView !== "papers") return [];
 
-    return papers.filter((paper) => {
-      if (!normalizedQuery) {
-        return true;
-      }
+    if (!normalizedQuery) return papers;
 
-      return (
-        paper.title.toLowerCase().includes(normalizedQuery) ||
-        paper.authors.some((author) =>
-          author.toLowerCase().includes(normalizedQuery),
-        )
-      );
-    });
-  }, [papers, normalizedQuery, currentView]);
+    return searchablePapers
+      .filter((sp) =>
+        sp.titleText.includes(normalizedQuery) ||
+        sp.authorsText.includes(normalizedQuery)
+      )
+      .map((sp) => sp.paper);
+  }, [searchablePapers, normalizedQuery, currentView, papers]);
+
+  const searchableIdeas = useMemo(() => {
+    return ideas.map((idea) => ({
+      idea,
+      titleText: (idea.title || "").toLowerCase(),
+      descriptionText: (idea.description || "").toLowerCase(),
+    }));
+  }, [ideas]);
 
   const filteredIdeas = useMemo(() => {
     // Optimization: Don't filter if not viewing ideas
     if (currentView !== "ideas") return [];
 
-    return ideas.filter((idea) => {
-      if (!normalizedQuery) {
-        return true;
-      }
+    if (!normalizedQuery) return ideas;
 
-      return (
-        idea.title.toLowerCase().includes(normalizedQuery) ||
-        (idea.description &&
-          idea.description.toLowerCase().includes(normalizedQuery))
-      );
-    });
-  }, [ideas, normalizedQuery, currentView]);
+    return searchableIdeas
+      .filter((si) =>
+        si.titleText.includes(normalizedQuery) ||
+        si.descriptionText.includes(normalizedQuery)
+      )
+      .map((si) => si.idea);
+  }, [searchableIdeas, normalizedQuery, currentView, ideas]);
 
   const nextDeadline = upcomingDeadlines[0];
 
