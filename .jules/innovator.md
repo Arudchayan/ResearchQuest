@@ -61,3 +61,8 @@ Prevention: When adding new core entities to a project with a global backup stra
 Opportunity: The application had a `TopicDetailView` and `TopicList`, and `topics` were deeply integrated in relations and global data exports, but there was no dedicated "Topics" view for the user to manage them efficiently.
 Learning: When core entities are added to the platform (like Topics), they must be elevated to top-level navigation (in both v1 and v2 sidebars, `App.tsx` routing, and the `CommandPalette` global search) to be truly discoverable and manageable.
 Prevention: When adding new top-level entities, always ensure they are integrated into global components like sidebars, routing arrays, and command palettes.
+
+2025-03-05 — Visual Feedback for File Drop Zones
+Opportunity: The BibTeX import tab had functional drag-and-drop for file uploads but completely lacked visual feedback when users dragged files over the UI, creating ambiguity.
+Learning: When using invisible `<input type="file" />` elements overlaid on a UI to enable native drag-and-drop, it's essential to track `onDragOver` and `onDragLeave` events on the wrapper to provide explicit visual state changes (like border highlights or message updates) to confirm the drop zone is active.
+Prevention: Always implement explicit drag state tracking (`isDragging`) and visual affordances whenever implementing custom or overlaid file upload drop zones.
