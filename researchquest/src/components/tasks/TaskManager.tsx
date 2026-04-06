@@ -114,29 +114,13 @@ export function TaskManager() {
     });
   }, []);
 
-  const sortedTasks = useMemo(() => {
-    // ⚡ PERFORMANCE OPTIMIZATION: Filter tasks inside the useMemo hook
-    // to prevent the array from being recreated on every single render.
-    // If filteredTasks was defined outside and passed as a dependency,
-    // this useMemo would invalidate on every unrelated state change (like typing in an input).
-    const normalizedQuery = searchQuery.trim().toLowerCase();
-
-    const filtered = tasks.filter((task) => {
-      const matchesFilter =
-        filter === "all" ||
-        (filter === "pending" && !task.completed) ||
-        (filter === "completed" && task.completed) ||
-        (filter === "overdue" && !task.completed && isOverdue(task.due_date));
-
-      if (!matchesFilter) {
-        return false;
-      }
-
-      if (!normalizedQuery) {
-        return true;
-      }
-
-      const haystack = [
+  // ⚡ PERFORMANCE OPTIMIZATION: Pre-compute searchable text fields
+  // so that expensive string concatenation and toLowerCase operations are
+  // decoupled from the fast keystroke filtering loop.
+  const searchableTasks = useMemo(() => {
+    return tasks.map((task) => ({
+      task,
+      searchText: [
         task.title,
         task.description ?? "",
         task.category ?? "",
@@ -145,10 +129,36 @@ export function TaskManager() {
         task.due_date ?? "",
       ]
         .join(" ")
-        .toLowerCase();
+        .toLowerCase(),
+    }));
+  }, [tasks]);
 
-      return haystack.includes(normalizedQuery);
-    });
+  const sortedTasks = useMemo(() => {
+    // ⚡ PERFORMANCE OPTIMIZATION: Filter tasks inside the useMemo hook
+    // to prevent the array from being recreated on every single render.
+    // If filteredTasks was defined outside and passed as a dependency,
+    // this useMemo would invalidate on every unrelated state change (like typing in an input).
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+
+    const filtered = searchableTasks
+      .filter(({ task, searchText }) => {
+        const matchesFilter =
+          filter === "all" ||
+          (filter === "pending" && !task.completed) ||
+          (filter === "completed" && task.completed) ||
+          (filter === "overdue" && !task.completed && isOverdue(task.due_date));
+
+        if (!matchesFilter) {
+          return false;
+        }
+
+        if (!normalizedQuery) {
+          return true;
+        }
+
+        return searchText.includes(normalizedQuery);
+      })
+      .map(({ task }) => task);
 
     if (sortOption === "priority") {
       return filtered.sort((a, b) => {
@@ -184,7 +194,7 @@ export function TaskManager() {
       // Optimization: Use string comparison for ISO dates
       return a.created_at > b.created_at ? 1 : -1;
     });
-  }, [tasks, filter, searchQuery, sortOption]);
+  }, [searchableTasks, filter, searchQuery, sortOption]);
 
   // Calculate progress
   const completedCount = tasks.filter((t) => t.completed).length;
