@@ -15,3 +15,8 @@
 **Vulnerability:** The `ErrorFallback` component in `src/components/ui/ErrorFallback.tsx` was rendering `error.stack` inside a details block.
 **Learning:** Displaying raw stack traces in the UI can leak sensitive internal file paths, component structures, and other implementation details to users in production, violating secure failing practices.
 **Prevention:** Never directly display `error.stack` in UI components. Error boundaries should fail securely by only rendering user-friendly error messages (e.g., `error.message`).
+
+## 2024-06-25 - Stop error.message leakage in fetch-paper Edge Function
+**Vulnerability:** The catch block in `supabase/functions/fetch-paper/index.ts` was directly returning `error.message` in its 500 JSON response.
+**Learning:** Returning native error objects or dynamic `error.message` strings directly to the client can inadvertently leak stack traces, internal system paths, or downstream API secrets.
+**Prevention:** Always fail securely on the backend (Edge Functions). Return a standardized, generic error message to the client (e.g., `'An unexpected error occurred'`) while logging the raw error securely on the server-side if needed.
