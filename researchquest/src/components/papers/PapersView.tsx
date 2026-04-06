@@ -327,7 +327,7 @@ export function PapersView() {
                 className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                 aria-label="Clear search"
               >
-                <X className="w-3 h-3" />
+                <X className="w-3 h-3" aria-hidden="true" />
               </button>
             )}
           </div>
