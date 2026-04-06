@@ -2,3 +2,7 @@
 **Vulnerability:** The `create-admin-user` Supabase Edge Function lacked an authorization check, allowing any unauthenticated HTTP request to create an admin user by leveraging the environment's `SUPABASE_SERVICE_ROLE_KEY`.
 **Learning:** Edge Functions in Supabase that perform administrative actions with the Service Role key bypass Row Level Security. If the function itself does not implement authentication (e.g., via a Bearer token or API key check), it effectively exposes an unauthenticated administrative endpoint to the public internet.
 **Prevention:** Always enforce explicit authorization validation (e.g., verifying an `ADMIN_API_KEY` header against `Deno.env.get()`) in Edge Functions before utilizing elevated privileges like the Service Role key.
+## 2024-05-18 - Missing Content Security Policy (CSP)
+**Vulnerability:** The application was missing a Content Security Policy (CSP) header/meta tag. While React handles a lot of XSS prevention by default via escaping, third-party libraries, improper use of `innerHTML`, or configuration mistakes could introduce XSS vulnerabilities.
+**Learning:** Adding a restrictive CSP creates a defense-in-depth layer. It ensures that even if an XSS vulnerability exists, the malicious script cannot easily execute or communicate with unauthorized external servers.
+**Prevention:** Always define a Content Security Policy (`default-src`, `script-src`, `style-src`, `connect-src`) in the entry point (e.g., `index.html`) or via HTTP headers to limit what resources the browser is permitted to load and execute.
