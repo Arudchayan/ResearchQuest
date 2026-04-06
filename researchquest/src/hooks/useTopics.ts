@@ -133,16 +133,22 @@ function getDueDate(daysAhead: number): string {
 }
 
 export function useTopics(userId: string | undefined) {
-  const { topics, setTopics, upsertTopic, removeTopic, setSelectedTopic } =
+  const { topicsRecord, setTopics, upsertTopic, removeTopic, setSelectedTopic } =
     useAppStore(
       useShallow((state) => ({
-        topics: state.topics,
+        topicsRecord: state.topics,
         setTopics: state.setTopics,
         upsertTopic: state.upsertTopic,
         removeTopic: state.removeTopic,
         setSelectedTopic: state.setSelectedTopic,
       })),
     );
+
+  const topics = useMemo(() => {
+    return Object.values(topicsRecord).sort((a, b) =>
+      a.updated_at > b.updated_at ? -1 : a.updated_at < b.updated_at ? 1 : 0
+    );
+  }, [topicsRecord]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [quests, setQuests] = useState<TopicQuestWithTopic[]>([]);
@@ -175,7 +181,7 @@ export function useTopics(userId: string | undefined) {
       }
 
       // Optimization: Check if topics are already loaded
-      const currentTopics = useAppStore.getState().topics;
+      const currentTopics = Object.values(useAppStore.getState().topics);
       if (!force) {
         // If we have fetched for this user before, skip (handles empty state)
         // Or if store has topics for this user (handles persistence)
@@ -439,7 +445,7 @@ export function useTopics(userId: string | undefined) {
 
   const adjustCounts = useCallback(
     (topicId: string, delta: Partial<Record<TopicEntityType, number>>) => {
-      const topic = useAppStore.getState().topics.find((t) => t.id === topicId);
+      const topic = useAppStore.getState().topics[topicId];
       if (!topic) return;
       const updated: TopicWithCounts = {
         ...topic,

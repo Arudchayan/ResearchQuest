@@ -55,6 +55,8 @@ export function CommandPalette() {
     }))
   );
 
+  const topicsArray = useMemo(() => Object.values(topics), [topics]);
+
   // Fetch data for search
   const { notes } = useNotes(user?.id);
   const { papers } = usePapers(user?.id);
@@ -157,7 +159,7 @@ export function CommandPalette() {
     const { user, notes, papers, ideas, topics } = useAppStore.getState();
 
     // Map TopicWithCounts to Topic (strip counts)
-    const cleanTopics = topics.map((t) => ({
+    const cleanTopics = Object.values(topics).map((t) => ({
       id: t.id,
       user_id: t.user_id,
       name: t.name,
@@ -186,9 +188,9 @@ export function CommandPalette() {
       ...papers.map((p) => ({ type: "paper", item: p, label: p.title })),
       ...ideas.map((i) => ({ type: "idea", item: i, label: i.title })),
       ...tasks.map((t) => ({ type: "task", item: t, label: t.title })),
-      ...(topics || []).map((t) => ({ type: "topic", item: t, label: t.name })),
+      ...(topicsArray || []).map((t) => ({ type: "topic", item: t, label: t.name })),
     ];
-  }, [notes, papers, ideas, tasks, topics]);
+  }, [notes, papers, ideas, tasks, topicsArray]);
 
   return (
     <Command.Dialog open={open} onOpenChange={setOpen} label="Command Menu">
