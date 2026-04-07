@@ -117,7 +117,7 @@ export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
       </div>
 
       {selectedIds.length === 0 ? (
-        <p className="text-caption text-text-tertiary">No topics linked yet.</p>
+        <p className="text-caption text-text-tertiary" role="status" aria-live="polite">No topics linked yet.</p>
       ) : (
         <div className="flex flex-wrap gap-2">
           {selectedIds.map((topicId) => {
