@@ -163,8 +163,8 @@ export function NoteList({
 
     if (searchQuery) {
       return (
-        <div className="text-center py-12 text-text-tertiary">
-          <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
+        <div className="text-center py-12 text-text-tertiary" role="status" aria-live="polite">
+          <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" aria-hidden="true" />
           <p className="text-small font-semibold text-text-secondary">
             No matches found
           </p>
@@ -176,8 +176,8 @@ export function NoteList({
     }
 
     return (
-      <div className="text-center py-12 text-text-tertiary">
-        <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
+      <div className="text-center py-12 text-text-tertiary" role="status" aria-live="polite">
+        <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" aria-hidden="true" />
         <p className="text-small">No notes yet</p>
         <p className="text-caption mt-1">Create your first note above</p>
       </div>

@@ -239,7 +239,7 @@ export function Dashboard() {
             {notesLoading ? (
               <ListSkeleton count={3} itemType="note" />
             ) : recentNotes.length === 0 ? (
-              <div className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary">
+              <div className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary" role="status" aria-live="polite">
                 <p className="mb-3">No notes yet</p>
                 <button
                   onClick={() => navigateTo("notes")}
@@ -353,7 +353,7 @@ export function Dashboard() {
               {tasksLoading ? (
                 <ListSkeleton count={3} itemType="task" />
               ) : upcomingTasks.length === 0 ? (
-                <div className="p-4 text-center text-small font-serif italic text-text-tertiary">
+                <div className="p-4 text-center text-small font-serif italic text-text-tertiary" role="status" aria-live="polite">
                   No upcoming tasks. You're all caught up.
                 </div>
               ) : (
