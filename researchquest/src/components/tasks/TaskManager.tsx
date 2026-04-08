@@ -170,12 +170,13 @@ export function TaskManager() {
         if (priorityDiff !== 0) {
           return priorityDiff;
         }
-        const aDue = parseDateInput(a.due_date)?.getTime() ?? Infinity;
-        const bDue = parseDateInput(b.due_date)?.getTime() ?? Infinity;
+        // ⚡ PERFORMANCE OPTIMIZATION: Use string comparison for ISO dates
+        // instead of parsing Date objects inside the sort callback.
+        const aDue = a.due_date || "9999-12-31";
+        const bDue = b.due_date || "9999-12-31";
         if (aDue !== bDue) {
-          return aDue - bDue;
+          return aDue > bDue ? 1 : -1;
         }
-        // Optimization: Use string comparison for ISO dates
         return b.created_at > a.created_at ? 1 : -1;
       });
     }
@@ -186,10 +187,12 @@ export function TaskManager() {
     }
 
     return filtered.sort((a, b) => {
-      const aDue = parseDateInput(a.due_date)?.getTime() ?? Infinity;
-      const bDue = parseDateInput(b.due_date)?.getTime() ?? Infinity;
+      // ⚡ PERFORMANCE OPTIMIZATION: Use string comparison for ISO dates
+      // instead of parsing Date objects inside the sort callback.
+      const aDue = a.due_date || "9999-12-31";
+      const bDue = b.due_date || "9999-12-31";
       if (aDue !== bDue) {
-        return aDue - bDue;
+        return aDue > bDue ? 1 : -1;
       }
       // Optimization: Use string comparison for ISO dates
       return a.created_at > b.created_at ? 1 : -1;

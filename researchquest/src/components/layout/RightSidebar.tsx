@@ -449,7 +449,7 @@ export function RightSidebar() {
                   Loading...
                 </div>
               ) : backlinks.length === 0 ? (
-                <div className="text-caption text-text-tertiary">
+                <div className="text-caption text-text-tertiary" role="status" aria-live="polite">
                   No items link to this yet. Link from notes or ideas to create
                   connections.
                 </div>
@@ -502,7 +502,7 @@ export function RightSidebar() {
                   Loading...
                 </div>
               ) : relatedItems.length === 0 ? (
-                <div className="text-caption text-text-tertiary">
+                <div className="text-caption text-text-tertiary" role="status" aria-live="polite">
                   No related items found. Add topics to discover connections.
                 </div>
               ) : (

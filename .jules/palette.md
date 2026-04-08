@@ -60,3 +60,7 @@
 ## 2024-05-30 - Explicitly Labeling Mixed-Content Cards
 **Learning:** Mixed-content navigation buttons (such as cards that display a combination of text, truncated descriptions, dates, and decorative icons) can be confusing or overly noisy for screen reader users if relying solely on their inner content.
 **Action:** When implementing mixed-content buttons or cards (especially those acting as navigation links in lists), always explicitly provide a descriptive `aria-label` (e.g., `aria-label="Navigate to note [Title]"`) to provide clear, concise context and hide large decorative background icons with `aria-hidden="true"`.
+
+## 2026-04-08 - Added focus-visible classes to buttons in Dashboard
+**Learning:** Found multiple interactive `<button>` elements in the application, specifically the Dashboard, missing focus indicators. This makes keyboard navigation difficult.
+**Action:** Always append the standard focus ring classes (`focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2`) to all interactive elements to ensure clear keyboard accessibility.

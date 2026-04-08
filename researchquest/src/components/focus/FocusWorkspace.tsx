@@ -842,7 +842,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                           })}
                         </ul>
                       ) : (
-                        <div className="px-5 py-6 text-sm text-text-tertiary">
+                        <div className="px-5 py-6 text-sm text-text-tertiary" role="status" aria-live="polite">
                           {group.type === "note" &&
                             "No notes yet. Create one to capture your thinking."}
                           {group.type === "paper" &&

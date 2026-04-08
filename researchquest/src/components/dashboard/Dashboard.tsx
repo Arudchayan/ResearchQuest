@@ -47,7 +47,7 @@ export function Dashboard() {
       setCurrentView: state.setCurrentView,
       setSelectedNote: state.setSelectedNote,
       setSelectedPaper: state.setSelectedPaper,
-    }))
+    })),
   );
 
   const greeting = useMemo(() => {
@@ -105,11 +105,7 @@ export function Dashboard() {
         if (!a.due_date) return 1;
         if (!b.due_date) return -1;
         // Optimization: Use direct string comparison for ISO dates instead of localeCompare
-        return a.due_date > b.due_date
-          ? 1
-          : a.due_date < b.due_date
-            ? -1
-            : 0;
+        return a.due_date > b.due_date ? 1 : a.due_date < b.due_date ? -1 : 0;
       })
       .slice(0, 3);
   }, [tasks]);
@@ -143,7 +139,7 @@ export function Dashboard() {
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigateTo("focus")}
-            className="flex items-center gap-2 px-4 py-2 bg-text-primary text-bg-base rounded-sm font-medium hover:opacity-90 transition-opacity"
+            className="flex items-center gap-2 px-4 py-2 bg-text-primary text-bg-base rounded-sm font-medium hover:opacity-90 transition-opacity focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
           >
             <TargetIcon className="w-4 h-4" aria-hidden="true" />
             Start Focus Session
@@ -162,7 +158,9 @@ export function Dashboard() {
             <div className="relative z-10">
               <div className="flex items-center gap-2 text-primary-600 font-semibold mb-2">
                 <Star className="w-4 h-4" />
-                <span className="uppercase tracking-widest text-caption">Level {stats?.level}</span>
+                <span className="uppercase tracking-widest text-caption">
+                  Level {stats?.level}
+                </span>
               </div>
               <div className="text-2xl font-serif font-bold text-text-primary mb-1">
                 {stats?.title}
@@ -187,7 +185,9 @@ export function Dashboard() {
             <div className="relative z-10">
               <div className="flex items-center gap-2 text-warning font-semibold mb-2">
                 <Flame className="w-4 h-4" />
-                <span className="uppercase tracking-widest text-caption">Day Streak</span>
+                <span className="uppercase tracking-widest text-caption">
+                  Day Streak
+                </span>
               </div>
               <div className="text-2xl font-serif font-bold text-text-primary mb-1">
                 {stats?.streak} Days
@@ -206,7 +206,9 @@ export function Dashboard() {
             <div className="relative z-10">
               <div className="flex items-center gap-2 text-purple font-semibold mb-2">
                 <TargetIcon className="w-4 h-4" />
-                <span className="uppercase tracking-widest text-caption">Active Tasks</span>
+                <span className="uppercase tracking-widest text-caption">
+                  Active Tasks
+                </span>
               </div>
               <div className="text-2xl font-serif font-bold text-text-primary mb-1">
                 {tasks.filter((t) => !t.completed).length} Pending
@@ -229,7 +231,7 @@ export function Dashboard() {
             </h2>
             <button
               onClick={() => navigateTo("notes")}
-              className="text-small text-text-secondary hover:text-text-primary font-medium flex items-center gap-1 uppercase tracking-wider transition-colors"
+              className="text-small text-text-secondary hover:text-text-primary font-medium flex items-center gap-1 uppercase tracking-wider transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 rounded-sm"
             >
               View all <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
             </button>
@@ -239,11 +241,15 @@ export function Dashboard() {
             {notesLoading ? (
               <ListSkeleton count={3} itemType="note" />
             ) : recentNotes.length === 0 ? (
-              <div className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary">
+              <div
+                className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary"
+                role="status"
+                aria-live="polite"
+              >
                 <p className="mb-3">No notes yet</p>
                 <button
                   onClick={() => navigateTo("notes")}
-                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-bg-surface border border-border-moderate rounded-sm text-small font-sans not-italic font-medium text-text-primary hover:border-border-strong transition-colors"
+                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-bg-surface border border-border-moderate rounded-sm text-small font-sans not-italic font-medium text-text-primary hover:border-border-strong transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
                 >
                   <Plus className="w-4 h-4" aria-hidden="true" /> Create Note
                 </button>
@@ -285,9 +291,10 @@ export function Dashboard() {
               </h2>
               <button
                 onClick={() => navigateTo("papers")}
-                className="text-small text-text-secondary hover:text-text-primary font-medium flex items-center gap-1 uppercase tracking-wider transition-colors"
+                className="text-small text-text-secondary hover:text-text-primary font-medium flex items-center gap-1 uppercase tracking-wider transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 rounded-sm"
               >
-                View Library <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
+                View Library{" "}
+                <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
               </button>
             </div>
 
@@ -296,12 +303,10 @@ export function Dashboard() {
                 <ListSkeleton count={3} itemType="paper" />
               ) : readingList.length === 0 ? (
                 <div className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary">
-                  <p className="mb-3">
-                    Your reading list is empty.
-                  </p>
+                  <p className="mb-3">Your reading list is empty.</p>
                   <button
                     onClick={() => navigateTo("papers")}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-bg-surface border border-border-moderate rounded-sm text-small font-sans not-italic font-medium text-text-primary hover:border-border-strong transition-colors"
+                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-bg-surface border border-border-moderate rounded-sm text-small font-sans not-italic font-medium text-text-primary hover:border-border-strong transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
                   >
                     <Plus className="w-4 h-4" aria-hidden="true" /> Add Paper
                   </button>
@@ -343,9 +348,10 @@ export function Dashboard() {
               </h2>
               <button
                 onClick={() => navigateTo("tasks")}
-                className="text-small text-text-secondary hover:text-text-primary font-medium flex items-center gap-1 uppercase tracking-wider transition-colors"
+                className="text-small text-text-secondary hover:text-text-primary font-medium flex items-center gap-1 uppercase tracking-wider transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 rounded-sm"
               >
-                All Tasks <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
+                All Tasks{" "}
+                <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
               </button>
             </div>
 
@@ -353,7 +359,11 @@ export function Dashboard() {
               {tasksLoading ? (
                 <ListSkeleton count={3} itemType="task" />
               ) : upcomingTasks.length === 0 ? (
-                <div className="p-4 text-center text-small font-serif italic text-text-tertiary">
+                <div
+                  className="p-4 text-center text-small font-serif italic text-text-tertiary"
+                  role="status"
+                  aria-live="polite"
+                >
                   No upcoming tasks. You're all caught up.
                 </div>
               ) : (
@@ -361,7 +371,7 @@ export function Dashboard() {
                   <button
                     key={task.id}
                     onClick={() => navigateTo("tasks")}
-                    className="w-full text-left flex items-center justify-between p-3 bg-bg-surface border border-border-moderate rounded-sm hover:border-border-strong cursor-pointer transition-colors"
+                    className="w-full text-left flex items-center justify-between p-3 bg-bg-surface border border-border-moderate rounded-sm hover:border-border-strong cursor-pointer transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div
