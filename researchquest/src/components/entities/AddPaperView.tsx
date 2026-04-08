@@ -210,7 +210,7 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
         )}
         {activeTab === "import" && (
           <BibTeXImportTab
-            onFileChange={(e) => e.target.files?.[0] && handleFileChange(e.target.files[0])}
+            onFileSelect={handleFileChange}
             onImport={handleImportAction}
             loading={importLoading}
             error={importError}

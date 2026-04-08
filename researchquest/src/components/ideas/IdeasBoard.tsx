@@ -76,18 +76,23 @@ export function IdeasBoard() {
   const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastDeletedRef = useRef<Idea | null>(null);
 
-  const filteredIdeas = useMemo(() => {
-    let result = ideas;
-    if (searchQuery) {
-      const escapedQuery = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const regex = new RegExp(escapedQuery, "i");
+  // ⚡ PERFORMANCE OPTIMIZATION: Pre-compute derived text fields for faster searching
+  const searchableIdeas = useMemo(() => {
+    return (ideas || []).map((idea) => ({
+      idea,
+      searchText: [idea.title || "", idea.description || ""]
+        .join(" ")
+        .toLowerCase(),
+    }));
+  }, [ideas]);
 
-      result = ideas.filter((idea) => {
-        return (
-          (idea.title && regex.test(idea.title)) ||
-          (idea.description && regex.test(idea.description))
-        );
-      });
+  const filteredIdeas = useMemo(() => {
+    let result = ideas || [];
+    if (searchQuery) {
+      const normalizedQuery = searchQuery.toLowerCase();
+      result = searchableIdeas
+        .filter((si) => si.searchText.includes(normalizedQuery))
+        .map((si) => si.idea);
     }
 
     return [...result].sort((a, b) => {
@@ -318,7 +323,7 @@ export function IdeasBoard() {
                 className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                 aria-label="Clear search"
               >
-                <X className="w-3 h-3" />
+                <X className="w-3 h-3" aria-hidden="true" />
               </button>
             )}
           </div>
@@ -430,8 +435,8 @@ export function IdeasBoard() {
                         </AnimatePresence>
 
                         {stageIdeas.length === 0 && (
-                          <div className="p-8 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-lg text-slate-400">
-                            <Lightbulb className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                          <div className="p-8 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-lg text-slate-400" role="status" aria-live="polite">
+                            <Lightbulb className="w-8 h-8 mx-auto mb-2 opacity-50" aria-hidden="true" />
                             <p className="text-sm">No ideas yet</p>
                           </div>
                         )}

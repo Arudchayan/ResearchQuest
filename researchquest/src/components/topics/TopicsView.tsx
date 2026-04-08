@@ -4,8 +4,9 @@ import { TopicList } from "./TopicList";
 import { TopicDetailView } from "./TopicDetailView";
 import { Hash, Plus, Download, FileText, Table, FileJson, Search, X, ArrowUpDown } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { useTopics } from "../../hooks/useTopics";
+import type { TopicWithCounts } from "../../types/database";
 import { toast } from "sonner";
 import { convertTopicsToCSV, convertTopicsToJSON, convertTopicsToMarkdown, downloadFile } from "../../utils/export";
 import { logger } from "../../utils/logger";
@@ -33,10 +34,11 @@ export function TopicsView() {
   const [newTopicName, setNewTopicName] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOption, setSortOption] = useState<SortOption>("updated_desc");
+  const [hiddenTopicIds, setHiddenTopicIds] = useState<Set<string>>(new Set());
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const filteredTopics = useMemo(() => {
-    let result = topics;
+    let result = topics.filter(topic => !hiddenTopicIds.has(topic.id));
 
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
@@ -90,13 +92,89 @@ export function TopicsView() {
     return await updateTopic(topicId, updates);
   };
 
-  const handleDeleteTopic = async (topicId: string) => {
-    const success = await deleteTopic(topicId);
-    if (success && selectedTopic?.id === topicId) {
-      setSelectedTopic(null);
-    }
-    return success;
-  };
+  const pendingDeletionsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  useEffect(() => {
+    return () => {
+      // Clear all timeouts on unmount and execute the deletions immediately
+      pendingDeletionsRef.current.forEach((timeoutId, topicId) => {
+        clearTimeout(timeoutId);
+        void deleteTopic(topicId);
+      });
+    };
+  }, [deleteTopic]);
+
+  const handleDeleteWithUndo = useCallback(
+    async (topicId: string) => {
+      const topic = topics.find((t) => t.id === topicId);
+      if (!topic) return false;
+
+      // Optimistically hide the topic
+      setHiddenTopicIds((prev) => {
+        const next = new Set(prev);
+        next.add(topicId);
+        return next;
+      });
+
+      if (selectedTopic?.id === topicId) {
+        setSelectedTopic(null);
+      }
+
+      // If there's an existing pending deletion for this topic (shouldn't happen, but safe), clear it
+      if (pendingDeletionsRef.current.has(topicId)) {
+        clearTimeout(pendingDeletionsRef.current.get(topicId)!);
+      }
+
+      const toastId = toast.success("Topic deleted", {
+        description: "Undo within 6 seconds to restore it.",
+        duration: 6000,
+        action: {
+          label: "Undo",
+          onClick: () => {
+            // Cancel deletion
+            const timeoutId = pendingDeletionsRef.current.get(topicId);
+            if (timeoutId) {
+              clearTimeout(timeoutId);
+              pendingDeletionsRef.current.delete(topicId);
+            }
+
+            // Restore visibility
+            setHiddenTopicIds((prev) => {
+              const next = new Set(prev);
+              next.delete(topicId);
+              return next;
+            });
+
+            // Optionally restore selection if it was the only thing unselected?
+            // Since we cleared it above, we could set it back.
+            setSelectedTopic(topic);
+            toast.dismiss(toastId);
+          },
+        },
+      });
+
+      // Schedule the actual deletion
+      const timeoutId = setTimeout(() => {
+        pendingDeletionsRef.current.delete(topicId);
+
+        // Remove from hidden state before actual deletion to avoid flashing if Supabase takes time
+        setHiddenTopicIds((prev) => {
+          const next = new Set(prev);
+          next.delete(topicId);
+          return next;
+        });
+
+        // Execute real DB deletion
+        void deleteTopic(topicId);
+        toast.dismiss(toastId);
+      }, 6000);
+
+      pendingDeletionsRef.current.set(topicId, timeoutId);
+
+      return true; // Optimistic success
+    },
+    [deleteTopic, topics, selectedTopic?.id, setSelectedTopic],
+  );
 
   const handleExport = (format: "markdown" | "csv" | "json") => {
     if (filteredTopics.length === 0) {
@@ -244,7 +322,7 @@ export function TopicsView() {
                   className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                   aria-label="Clear search"
                 >
-                  <X className="w-3 h-3" />
+                  <X className="w-3 h-3" aria-hidden="true" />
                 </button>
               )}
             </div>
@@ -274,7 +352,7 @@ export function TopicsView() {
             topics={filteredTopics}
             loading={loading}
             onSelectTopic={setSelectedTopic}
-            onDeleteTopic={handleDeleteTopic}
+            onDeleteTopic={handleDeleteWithUndo}
           />
         </div>
       </div>
@@ -285,7 +363,7 @@ export function TopicsView() {
           <TopicDetailView
             topic={selectedTopic}
             onUpdate={handleUpdateTopic}
-            onDelete={handleDeleteTopic}
+            onDelete={handleDeleteWithUndo}
           />
         ) : (
           <div className="h-full flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 space-y-4 p-8">

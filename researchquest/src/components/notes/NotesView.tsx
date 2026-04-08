@@ -87,30 +87,42 @@ export function NotesView() {
     return Array.from(tags).sort();
   }, [notes]);
 
+  // ⚡ PERFORMANCE OPTIMIZATION: Pre-compute derived text fields for faster searching
+  const searchableNotes = useMemo(() => {
+    return (notes || []).map((note) => ({
+      note,
+      searchText: [note.title || "", note.markdown_body || ""]
+        .join(" ")
+        .toLowerCase(),
+    }));
+  }, [notes]);
+
   const filteredNotes = useMemo(() => {
-    let filtered = notes || [];
+    let resultNotes = notes || [];
 
     if (selectedTag) {
-      filtered = filtered.filter(
-        (note) => note.tags && note.tags.includes(selectedTag)
+      resultNotes = resultNotes.filter(
+        (note) => note.tags && note.tags.includes(selectedTag),
       );
     }
 
     if (searchQuery) {
-      const escapedQuery = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const regex = new RegExp(escapedQuery, "i");
+      const normalizedQuery = searchQuery.toLowerCase();
+      // Only search through the tags-filtered results
+      const validNoteIds = new Set(resultNotes.map((n) => n.id));
 
-      filtered = filtered.filter((note) => {
-        return (
-          (note.title && regex.test(note.title)) ||
-          (note.markdown_body && regex.test(note.markdown_body))
-        );
-      });
+      resultNotes = searchableNotes
+        .filter(
+          (sn) =>
+            validNoteIds.has(sn.note.id) &&
+            sn.searchText.includes(normalizedQuery),
+        )
+        .map((sn) => sn.note);
     } else {
-      filtered = [...filtered];
+      resultNotes = [...resultNotes];
     }
 
-    return filtered.sort((a, b) => {
+    return resultNotes.sort((a, b) => {
       switch (sortOption) {
         case "updated_desc":
           return b.updated_at > a.updated_at ? 1 : b.updated_at < a.updated_at ? -1 : 0;
@@ -352,7 +364,7 @@ export function NotesView() {
                   className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                   aria-label="Clear search"
                 >
-                  <X className="w-3 h-3" />
+                  <X className="w-3 h-3" aria-hidden="true" />
                 </button>
               )}
             </div>

@@ -1,8 +1,9 @@
+import { useState } from "react";
 import { Upload, AlertCircle, Loader, Plus } from "lucide-react";
 import type { BibTeXEntry } from "../../../utils/bibtexParser";
 
 interface BibTeXImportTabProps {
-  onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onFileSelect: (file: File) => void;
   onImport: () => Promise<void>;
   loading: boolean;
   error: string;
@@ -13,7 +14,7 @@ interface BibTeXImportTabProps {
 }
 
 export function BibTeXImportTab({
-  onFileChange,
+  onFileSelect,
   onImport,
   loading,
   error,
@@ -22,15 +23,58 @@ export function BibTeXImportTab({
   toggleEntrySelection,
   importProgress,
 }: BibTeXImportTabProps) {
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      onFileSelect(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      onFileSelect(e.target.files[0]);
+    }
+  };
+
   return (
     <div className="space-y-6" role="tabpanel" id="view-panel-import">
       <div>
         <label className="block text-sm font-medium mb-3">Upload BibTeX File (.bib)</label>
-        <div className="border-2 border-dashed border-border-subtle rounded-lg p-6 text-center hover:bg-bg-base relative">
-          <input type="file" accept=".bib" onChange={onFileChange} className="absolute inset-0 opacity-0 cursor-pointer" />
-          <div className="flex flex-col items-center gap-2 text-text-secondary">
-            <Upload className="w-8 h-8 text-primary-500" />
-            <p className="font-medium">Click to upload or drag and drop</p>
+        <div
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={`border-2 border-dashed rounded-lg p-6 text-center relative transition-colors ${
+            isDragging
+              ? "border-primary-500 bg-primary-50 dark:bg-primary-900/10"
+              : "border-border-subtle hover:bg-bg-base"
+          }`}
+        >
+          <input
+            type="file"
+            accept=".bib"
+            onChange={handleFileInputChange}
+            className="absolute inset-0 opacity-0 cursor-pointer"
+          />
+          <div className="flex flex-col items-center gap-2 text-text-secondary pointer-events-none">
+            <Upload className={`w-8 h-8 ${isDragging ? "text-primary-600" : "text-primary-500"}`} />
+            <p className="font-medium">
+              {isDragging ? "Drop BibTeX file here" : "Click to upload or drag and drop"}
+            </p>
           </div>
         </div>
       </div>

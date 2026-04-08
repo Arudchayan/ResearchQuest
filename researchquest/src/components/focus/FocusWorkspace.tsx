@@ -123,19 +123,23 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   const [isSoundEnabled, setIsSoundEnabled] = useState(true);
   const [isNotificationEnabled, setIsNotificationEnabled] = useState(true);
 
+  const notesMap = useMemo(() => new Map(notes.map(note => [note.id, note])), [notes]);
+  const papersMap = useMemo(() => new Map(papers.map(paper => [paper.id, paper])), [papers]);
+  const tasksMap = useMemo(() => new Map(tasks.map(task => [task.id, task])), [tasks]);
+
   const selectedItem = useMemo(() => {
     if (!selectedTarget) return null;
     if (selectedTarget.type === "note") {
-      return notes.find((note) => note.id === selectedTarget.id) || null;
+      return notesMap.get(selectedTarget.id) || null;
     }
     if (selectedTarget.type === "paper") {
-      return papers.find((paper) => paper.id === selectedTarget.id) || null;
+      return papersMap.get(selectedTarget.id) || null;
     }
     if (selectedTarget.type === "task") {
-      return tasks.find((task) => task.id === selectedTarget.id) || null;
+      return tasksMap.get(selectedTarget.id) || null;
     }
     return null;
-  }, [notes, papers, tasks, selectedTarget]);
+  }, [notesMap, papersMap, tasksMap, selectedTarget]);
 
   useEffect(() => {
     setTimeLeft(sessionLength);
@@ -838,7 +842,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                           })}
                         </ul>
                       ) : (
-                        <div className="px-5 py-6 text-sm text-text-tertiary">
+                        <div className="px-5 py-6 text-sm text-text-tertiary" role="status" aria-live="polite">
                           {group.type === "note" &&
                             "No notes yet. Create one to capture your thinking."}
                           {group.type === "paper" &&

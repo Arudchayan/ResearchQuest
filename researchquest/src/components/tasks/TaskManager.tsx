@@ -114,12 +114,13 @@ export function TaskManager() {
     });
   }, []);
 
-  // ⚡ PERFORMANCE OPTIMIZATION: Pre-compute derived searchable text
-  // so that expensive string manipulation is decoupled from the fast keystroke filtering loop.
+  // ⚡ PERFORMANCE OPTIMIZATION: Pre-compute searchable text fields
+  // so that expensive string concatenation and toLowerCase operations are
+  // decoupled from the fast keystroke filtering loop.
   const searchableTasks = useMemo(() => {
     return tasks.map((task) => ({
       task,
-      haystack: [
+      searchText: [
         task.title,
         task.description ?? "",
         task.category ?? "",
@@ -140,7 +141,7 @@ export function TaskManager() {
     const normalizedQuery = searchQuery.trim().toLowerCase();
 
     const filtered = searchableTasks
-      .filter(({ task, haystack }) => {
+      .filter(({ task, searchText }) => {
         const matchesFilter =
           filter === "all" ||
           (filter === "pending" && !task.completed) ||
@@ -155,7 +156,7 @@ export function TaskManager() {
           return true;
         }
 
-        return haystack.includes(normalizedQuery);
+        return searchText.includes(normalizedQuery);
       })
       .map(({ task }) => task);
 
@@ -169,12 +170,13 @@ export function TaskManager() {
         if (priorityDiff !== 0) {
           return priorityDiff;
         }
-        const aDue = parseDateInput(a.due_date)?.getTime() ?? Infinity;
-        const bDue = parseDateInput(b.due_date)?.getTime() ?? Infinity;
+        // ⚡ PERFORMANCE OPTIMIZATION: Use string comparison for ISO dates
+        // instead of parsing Date objects inside the sort callback.
+        const aDue = a.due_date || "9999-12-31";
+        const bDue = b.due_date || "9999-12-31";
         if (aDue !== bDue) {
-          return aDue - bDue;
+          return aDue > bDue ? 1 : -1;
         }
-        // Optimization: Use string comparison for ISO dates
         return b.created_at > a.created_at ? 1 : -1;
       });
     }
@@ -185,10 +187,12 @@ export function TaskManager() {
     }
 
     return filtered.sort((a, b) => {
-      const aDue = parseDateInput(a.due_date)?.getTime() ?? Infinity;
-      const bDue = parseDateInput(b.due_date)?.getTime() ?? Infinity;
+      // ⚡ PERFORMANCE OPTIMIZATION: Use string comparison for ISO dates
+      // instead of parsing Date objects inside the sort callback.
+      const aDue = a.due_date || "9999-12-31";
+      const bDue = b.due_date || "9999-12-31";
       if (aDue !== bDue) {
-        return aDue - bDue;
+        return aDue > bDue ? 1 : -1;
       }
       // Optimization: Use string comparison for ISO dates
       return a.created_at > b.created_at ? 1 : -1;
