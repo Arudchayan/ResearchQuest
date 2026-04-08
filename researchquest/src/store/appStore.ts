@@ -55,7 +55,7 @@ interface AppState {
   setTasksLoading: (loading: boolean) => void;
 
   // Topics collection
-  topics: TopicWithCounts[];
+  topics: Record<string, TopicWithCounts>;
   setTopics: (topics: TopicWithCounts[]) => void;
   upsertTopic: (topic: TopicWithCounts) => void;
   removeTopic: (topicId: string) => void;
@@ -128,24 +128,23 @@ export const useAppStore = create<AppState>()(
       setTasksLoading: (tasksLoading) => set({ tasksLoading }),
 
       // Topics collection state
-      topics: [],
-      setTopics: (topics) => set({ topics }),
+      topics: {},
+      setTopics: (topics) => {
+        const topicsRecord = topics.reduce((acc, t) => {
+          acc[t.id] = t;
+          return acc;
+        }, {} as Record<string, TopicWithCounts>);
+        set({ topics: topicsRecord });
+      },
       upsertTopic: (topic) =>
-        set((state) => {
-          const existingIndex = state.topics.findIndex(
-            (t) => t.id === topic.id,
-          );
-          if (existingIndex === -1) {
-            return { topics: [topic, ...state.topics] };
-          }
-          const updated = [...state.topics];
-          updated[existingIndex] = topic;
-          return { topics: updated };
-        }),
-      removeTopic: (topicId) =>
         set((state) => ({
-          topics: state.topics.filter((topic) => topic.id !== topicId),
+          topics: { ...state.topics, [topic.id]: topic },
         })),
+      removeTopic: (topicId) =>
+        set((state) => {
+          const { [topicId]: removed, ...rest } = state.topics;
+          return { topics: rest };
+        }),
 
       // UI state
       isMobileSidebarOpen: false,
