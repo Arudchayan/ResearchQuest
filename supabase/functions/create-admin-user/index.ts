@@ -104,11 +104,11 @@ Deno.serve(async (req) => {
   
         if (!adminResponse.ok) {
           const errorText = await adminResponse.text();
+          console.error(`Admin API error status ${adminResponse.status}: ${errorText}`);
           return new Response(JSON.stringify({
             error: { 
               code: 'USER_CREATION_FAILED', 
-              message: `Failed to create user: ${errorText}`,
-              details: { status: adminResponse.status }
+              message: 'Failed to create admin user. Please check server logs.'
             }
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -146,9 +146,9 @@ Deno.serve(async (req) => {
       });
   
     } catch (error) {
-      logger.error('Function error:', error);
+      console.error('Function error:', error);
       return new Response(JSON.stringify({
-        error: { code: 'FUNCTION_ERROR', message: error.message }
+        error: { code: 'FUNCTION_ERROR', message: 'An internal server error occurred.' }
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,

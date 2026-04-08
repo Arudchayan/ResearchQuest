@@ -129,6 +129,16 @@ export function PapersView() {
     [setSelectedPaper],
   );
 
+  // ⚡ PERFORMANCE OPTIMIZATION: Pre-compute derived text fields for faster searching
+  const searchablePapers = useMemo(() => {
+    return (papers || []).map((paper) => ({
+      paper,
+      searchText: [paper.title || "", ...(paper.authors || [])]
+        .join(" ")
+        .toLowerCase(),
+    }));
+  }, [papers]);
+
   // Memoize filtered papers to avoid expensive recalculation on every render
   const filteredPapers = useMemo(() => {
     // Optimization: Skip filtering if query is empty and sort order matches default
@@ -136,22 +146,17 @@ export function PapersView() {
       return papers;
     }
 
-    let filtered = papers;
+    let filtered = papers || [];
 
     if (searchQuery) {
-      // Optimization: Calculate query lowercasing once outside the loop
       const query = searchQuery.toLowerCase();
-      filtered = papers.filter((paper) => {
-        return (
-          (paper.title && paper.title.toLowerCase().includes(query)) ||
-          (paper.authors &&
-            paper.authors.some((a) => a.toLowerCase().includes(query)))
-        );
-      });
+      filtered = searchablePapers
+        .filter((sp) => sp.searchText.includes(query))
+        .map((sp) => sp.paper);
     } else {
       // Create a shallow copy if we need to sort but not filter
       // (to avoid mutating the store)
-      filtered = [...papers];
+      filtered = [...filtered];
     }
 
     return filtered.sort((a, b) => {
@@ -327,7 +332,7 @@ export function PapersView() {
                 className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                 aria-label="Clear search"
               >
-                <X className="w-3 h-3" />
+                <X className="w-3 h-3" aria-hidden="true" />
               </button>
             )}
           </div>

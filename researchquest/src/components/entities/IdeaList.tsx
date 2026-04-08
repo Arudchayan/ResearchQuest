@@ -242,8 +242,8 @@ export function IdeaList({
 
   if (ideas.length === 0) {
     return (
-      <div className="text-center py-12 text-text-tertiary">
-        <Lightbulb className="w-12 h-12 mx-auto mb-3 opacity-50" />
+      <div className="text-center py-12 text-text-tertiary" role="status" aria-live="polite">
+        <Lightbulb className="w-12 h-12 mx-auto mb-3 opacity-50" aria-hidden="true" />
         <p className="text-small">No ideas yet</p>
         <p className="text-caption mt-1">Create your first idea above</p>
       </div>

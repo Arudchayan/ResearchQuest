@@ -67,7 +67,7 @@ export function KeywordSearchTab({
                 className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-text-tertiary"
                 aria-label="Clear search"
               >
-                <X className="w-4 h-4" />
+                <X className="w-4 h-4" aria-hidden="true" />
               </button>
             )}
           </div>

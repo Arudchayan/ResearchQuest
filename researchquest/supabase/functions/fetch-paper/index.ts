@@ -135,11 +135,12 @@ Deno.serve(async (req) => {
     )
 
   } catch (error) {
+    // 🛡️ Sentinel: Fail securely without exposing internal details or stack traces
     return new Response(
       JSON.stringify({
         error: {
           code: 'FUNCTION_ERROR',
-          message: error.message,
+          message: 'An unexpected error occurred during paper fetch.',
         },
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
