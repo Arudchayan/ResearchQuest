@@ -229,11 +229,12 @@ Deno.serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {
+    console.error('Fetch paper error:', error);
     return new Response(
       JSON.stringify({
         error: {
           code: 'INTERNAL_ERROR',
-          message: error instanceof Error ? error.message : 'An unknown error occurred',
+          message: 'An internal server error occurred while fetching the paper.',
         },
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
