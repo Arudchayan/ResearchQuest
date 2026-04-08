@@ -87,30 +87,42 @@ export function NotesView() {
     return Array.from(tags).sort();
   }, [notes]);
 
+  // ⚡ PERFORMANCE OPTIMIZATION: Pre-compute derived text fields for faster searching
+  const searchableNotes = useMemo(() => {
+    return (notes || []).map((note) => ({
+      note,
+      searchText: [note.title || "", note.markdown_body || ""]
+        .join(" ")
+        .toLowerCase(),
+    }));
+  }, [notes]);
+
   const filteredNotes = useMemo(() => {
-    let filtered = notes || [];
+    let resultNotes = notes || [];
 
     if (selectedTag) {
-      filtered = filtered.filter(
-        (note) => note.tags && note.tags.includes(selectedTag)
+      resultNotes = resultNotes.filter(
+        (note) => note.tags && note.tags.includes(selectedTag),
       );
     }
 
     if (searchQuery) {
-      const escapedQuery = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const regex = new RegExp(escapedQuery, "i");
+      const normalizedQuery = searchQuery.toLowerCase();
+      // Only search through the tags-filtered results
+      const validNoteIds = new Set(resultNotes.map((n) => n.id));
 
-      filtered = filtered.filter((note) => {
-        return (
-          (note.title && regex.test(note.title)) ||
-          (note.markdown_body && regex.test(note.markdown_body))
-        );
-      });
+      resultNotes = searchableNotes
+        .filter(
+          (sn) =>
+            validNoteIds.has(sn.note.id) &&
+            sn.searchText.includes(normalizedQuery),
+        )
+        .map((sn) => sn.note);
     } else {
-      filtered = [...filtered];
+      resultNotes = [...resultNotes];
     }
 
-    return filtered.sort((a, b) => {
+    return resultNotes.sort((a, b) => {
       switch (sortOption) {
         case "updated_desc":
           return b.updated_at > a.updated_at ? 1 : b.updated_at < a.updated_at ? -1 : 0;

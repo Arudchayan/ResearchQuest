@@ -76,18 +76,23 @@ export function IdeasBoard() {
   const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastDeletedRef = useRef<Idea | null>(null);
 
-  const filteredIdeas = useMemo(() => {
-    let result = ideas;
-    if (searchQuery) {
-      const escapedQuery = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const regex = new RegExp(escapedQuery, "i");
+  // ⚡ PERFORMANCE OPTIMIZATION: Pre-compute derived text fields for faster searching
+  const searchableIdeas = useMemo(() => {
+    return (ideas || []).map((idea) => ({
+      idea,
+      searchText: [idea.title || "", idea.description || ""]
+        .join(" ")
+        .toLowerCase(),
+    }));
+  }, [ideas]);
 
-      result = ideas.filter((idea) => {
-        return (
-          (idea.title && regex.test(idea.title)) ||
-          (idea.description && regex.test(idea.description))
-        );
-      });
+  const filteredIdeas = useMemo(() => {
+    let result = ideas || [];
+    if (searchQuery) {
+      const normalizedQuery = searchQuery.toLowerCase();
+      result = searchableIdeas
+        .filter((si) => si.searchText.includes(normalizedQuery))
+        .map((si) => si.idea);
     }
 
     return [...result].sort((a, b) => {
