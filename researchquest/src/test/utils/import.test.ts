@@ -35,6 +35,7 @@ describe("importData", () => {
     papers: [{ id: "p1", title: "Paper 1" }],
     ideas: [{ id: "i1", title: "Idea 1" }],
     topics: [{ id: "t1", name: "Topic 1" }],
+    tasks: [{ id: "task1", title: "Task 1" }],
   };
 
   const mockFile = createMockFile(validData);
@@ -58,9 +59,10 @@ describe("importData", () => {
     expect(mockSupabaseClient.from).toHaveBeenCalledWith("papers");
     expect(mockSupabaseClient.from).toHaveBeenCalledWith("ideas");
     expect(mockSupabaseClient.from).toHaveBeenCalledWith("topics");
+    expect(mockSupabaseClient.from).toHaveBeenCalledWith("tasks");
 
     // Check if user_id was injected
-    expect(upsertMock).toHaveBeenCalledTimes(4);
+    expect(upsertMock).toHaveBeenCalledTimes(5);
 
     expect(toast.success).toHaveBeenCalled();
   });
