@@ -85,7 +85,7 @@ export function DataManagementDialog({
     if (exportSelection.topics) {
       // Clean topics to match expected format if needed, but exportData handles raw types too usually
       // The original Sidebar logic cleaned them, so we should too to be safe
-      dataToExport.topics = topics.map((t) => ({
+      dataToExport.topics = Object.values(topics).map((t) => ({
         id: t.id,
         user_id: t.user_id,
         name: t.name,
