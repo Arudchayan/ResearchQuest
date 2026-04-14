@@ -64,3 +64,7 @@
 ## 2026-04-08 - Added focus-visible classes to buttons in Dashboard
 **Learning:** Found multiple interactive `<button>` elements in the application, specifically the Dashboard, missing focus indicators. This makes keyboard navigation difficult.
 **Action:** Always append the standard focus ring classes (`focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2`) to all interactive elements to ensure clear keyboard accessibility.
+
+## 2024-04-14 - Missing Form Label Associations
+**Learning:** Multiple form components (like AddPaperTabs/ManualEntryTab and App.tsx) use visual `<label>` elements next to `<input>` fields without establishing a programmatic connection via `htmlFor` and `id`. This breaks screen reader association and reduces click targets.
+**Action:** Always pair `<label>` and `<input>` with matching `htmlFor` and `id` attributes. This provides an immediate accessibility win and improves usability for all users by expanding the clickable focus area.
