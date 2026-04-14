@@ -10,3 +10,7 @@
 **Vulnerability:** Supabase edge functions (`create-admin-user/index.ts` and `fetch-paper/index.ts`) were exposing internal error details in their JSON response payloads by directly returning `error.message` or `adminResponse.text()`. Additionally, an undefined `logger` was being used.
 **Learning:** Returning native error objects or raw server responses in catch blocks exposes internal implementation details which can be leveraged by attackers.
 **Prevention:** Always catch and log native errors on the server side using `console.error` and return a generic error message (e.g. "An internal server error occurred") in the HTTP response to clients. Ensure all logging facilities are properly defined.
+## 2024-05-18 - Missing Timeout on External API Calls
+**Vulnerability:** The Edge Function `fetch-paper` made external API calls (`fetch`) without timeouts. If external services (like Crossref or OpenAlex) hang or are slow, the function would wait indefinitely, tying up resources and potentially leading to a Denial of Service (DoS) and excessive costs.
+**Learning:** Network requests, especially to third-party endpoints, should never be trusted to resolve in a timely manner.
+**Prevention:** Implement a timeout mechanism for all `fetch` requests (e.g., using `AbortController` and `setTimeout`) to fail fast and release resources if the external service takes too long.
