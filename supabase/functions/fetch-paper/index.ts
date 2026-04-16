@@ -1,4 +1,24 @@
 const APP_USER_AGENT = 'ResearchQuest/1.0 (mailto:research@researchquest.app)'
+const FETCH_TIMEOUT_MS = 10000; // 10 seconds timeout
+
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout = FETCH_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    return response;
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+      throw new Error('Request timed out');
+    }
+    throw error;
+  } finally {
+    clearTimeout(id);
+  }
+}
 
 function reconstructOpenAlexAbstract(index: Record<string, number[]>) {
   const positions = Object.values(index).flat()
@@ -63,7 +83,7 @@ async function safeParseJson(response: Response) {
 
 async function fetchCrossrefByDoi(doi: string) {
   const url = `https://api.crossref.org/works/${encodeURIComponent(doi)}?mailto=research@researchquest.app`
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     headers: {
       'Accept': 'application/json',
       'User-Agent': APP_USER_AGENT,
@@ -81,7 +101,7 @@ async function fetchCrossrefByDoi(doi: string) {
 
 async function fetchCrossrefByQuery(query: string) {
   const url = `https://api.crossref.org/works?query.bibliographic=${encodeURIComponent(query)}&rows=10&mailto=research@researchquest.app`
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     headers: {
       'Accept': 'application/json',
       'User-Agent': APP_USER_AGENT,
@@ -100,7 +120,7 @@ async function fetchCrossrefByQuery(query: string) {
 
 async function fetchOpenAlexByDoi(doi: string) {
   const url = `https://api.openalex.org/works/https://doi.org/${encodeURIComponent(doi)}`
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     headers: {
       'Accept': 'application/json',
       'User-Agent': APP_USER_AGENT,
@@ -117,7 +137,7 @@ async function fetchOpenAlexByDoi(doi: string) {
 
 async function fetchOpenAlexByQuery(query: string) {
   const url = `https://api.openalex.org/works?search=${encodeURIComponent(query)}&per-page=10`
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     headers: {
       'Accept': 'application/json',
       'User-Agent': APP_USER_AGENT,
