@@ -53,6 +53,21 @@ function formatOpenAlexWork(work: any) {
   }
 }
 
+async function fetchWithTimeout(resource: string, options: RequestInit & { timeout?: number } = {}) {
+  const { timeout = 8000 } = options;
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  try {
+    const response = await fetch(resource, {
+      ...options,
+      signal: controller.signal
+    });
+    return response;
+  } finally {
+    clearTimeout(id);
+  }
+}
+
 async function safeParseJson(response: Response) {
   try {
     return await response.json()
@@ -63,7 +78,7 @@ async function safeParseJson(response: Response) {
 
 async function fetchCrossrefByDoi(doi: string) {
   const url = `https://api.crossref.org/works/${encodeURIComponent(doi)}?mailto=research@researchquest.app`
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     headers: {
       'Accept': 'application/json',
       'User-Agent': APP_USER_AGENT,
@@ -81,7 +96,7 @@ async function fetchCrossrefByDoi(doi: string) {
 
 async function fetchCrossrefByQuery(query: string) {
   const url = `https://api.crossref.org/works?query.bibliographic=${encodeURIComponent(query)}&rows=10&mailto=research@researchquest.app`
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     headers: {
       'Accept': 'application/json',
       'User-Agent': APP_USER_AGENT,
@@ -100,7 +115,7 @@ async function fetchCrossrefByQuery(query: string) {
 
 async function fetchOpenAlexByDoi(doi: string) {
   const url = `https://api.openalex.org/works/https://doi.org/${encodeURIComponent(doi)}`
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     headers: {
       'Accept': 'application/json',
       'User-Agent': APP_USER_AGENT,
@@ -117,7 +132,7 @@ async function fetchOpenAlexByDoi(doi: string) {
 
 async function fetchOpenAlexByQuery(query: string) {
   const url = `https://api.openalex.org/works?search=${encodeURIComponent(query)}&per-page=10`
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     headers: {
       'Accept': 'application/json',
       'User-Agent': APP_USER_AGENT,
