@@ -81,7 +81,10 @@ export function BibTeXImportTab({
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg flex items-center gap-2">
+        <div
+          role="alert"
+          className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg flex items-center gap-2"
+        >
           <AlertCircle className="w-5 h-5" />
           {error}
         </div>
@@ -89,6 +92,9 @@ export function BibTeXImportTab({
 
       {parsedEntries.length > 0 && (
         <div className="space-y-4">
+          <p className="text-sm text-text-secondary">
+            {selectedEntryIds.size} papers selected
+          </p>
           <div className="max-h-[400px] overflow-y-auto border rounded-lg divide-y">
             {parsedEntries.map((entry) => (
               <div key={entry.id} className="p-3 flex items-start gap-3 hover:bg-bg-base">
@@ -106,12 +112,13 @@ export function BibTeXImportTab({
             ))}
           </div>
           <button
+            type="button"
             onClick={onImport}
             disabled={loading || selectedEntryIds.size === 0}
             className="w-full py-2 bg-primary-500 text-white rounded-lg flex justify-center items-center gap-2"
           >
             {loading ? <Loader className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-            Import {selectedEntryIds.size} Selected
+            Import Selected ({selectedEntryIds.size})
           </button>
         </div>
       )}
