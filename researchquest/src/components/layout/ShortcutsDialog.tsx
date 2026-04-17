@@ -52,6 +52,7 @@ const SHORTCUTS: ShortcutSection[] = [
       { keys: [META_KEY, "Alt", "4"], description: "Go to Ideas" },
       { keys: [META_KEY, "Alt", "5"], description: "Go to Tasks" },
       { keys: [META_KEY, "Alt", "6"], description: "Go to Focus" },
+      { keys: [META_KEY, "Alt", "7"], description: "Go to Topics" },
     ],
   },
   {
@@ -102,6 +103,10 @@ export function ShortcutsDialog() {
             view = "focus";
             url = "/focus";
             break;
+          case "7":
+            view = "topics";
+            url = "/topics";
+            break;
         }
 
         if (view) {
@@ -112,12 +117,14 @@ export function ShortcutsDialog() {
             setSelectedNote,
             setSelectedPaper,
             setSelectedIdea,
+            setSelectedTopic,
           } = useAppStore.getState();
 
           // Clear selections when switching main views
           if (view !== "notes") setSelectedNote(null);
           if (view !== "papers") setSelectedPaper(null);
           if (view !== "ideas") setSelectedIdea(null);
+          if (view !== "topics") setSelectedTopic(null);
 
           setCurrentView(view as any);
           window.history.pushState(null, "", url);

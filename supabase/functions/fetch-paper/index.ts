@@ -1,4 +1,42 @@
 const APP_USER_AGENT = 'ResearchQuest/1.0 (mailto:research@researchquest.app)'
+const FETCH_TIMEOUT_MS = 10000; // 10 seconds timeout
+
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout = FETCH_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    return response;
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+      throw new Error('Request timed out');
+    }
+    throw error;
+  } finally {
+    clearTimeout(id);
+  }
+}
+
+async function fetchWithTimeout(resource: RequestInfo | URL, options: RequestInit & { timeout?: number } = {}) {
+  const { timeout = 8000 } = options;
+
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const response = await fetch(resource, {
+      ...options,
+      signal: controller.signal
+    });
+    return response;
+  } finally {
+    clearTimeout(id);
+  }
+}
+
 
 function reconstructOpenAlexAbstract(index: Record<string, number[]>) {
   const positions = Object.values(index).flat()
@@ -73,6 +111,21 @@ async function safeParseJson(response: Response) {
     return await response.json()
   } catch (_err) {
     return null
+  }
+}
+
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 10000): Promise<Response> {
+  const controller = new AbortController()
+  const id = setTimeout(() => controller.abort(), timeoutMs)
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    })
+    return response
+  } finally {
+    clearTimeout(id)
   }
 }
 
