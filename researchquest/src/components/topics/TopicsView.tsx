@@ -37,16 +37,28 @@ export function TopicsView() {
   const [hiddenTopicIds, setHiddenTopicIds] = useState<Set<string>>(new Set());
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  // ⚡ PERFORMANCE OPTIMIZATION: Pre-compute derived text fields for faster searching
+  const searchableTopics = useMemo(() => {
+    return (topics || []).map((topic) => ({
+      topic,
+      searchText: [topic.name || "", topic.description || ""]
+        .join(" ")
+        .toLowerCase(),
+    }));
+  }, [topics]);
+
   const filteredTopics = useMemo(() => {
-    let result = topics.filter(topic => !hiddenTopicIds.has(topic.id));
+    let resultTopics = topics || [];
 
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      result = result.filter(topic =>
-        topic.name.toLowerCase().includes(query) ||
-        (topic.description && topic.description.toLowerCase().includes(query))
-      );
+
+      resultTopics = searchableTopics
+        .filter((st) => st.searchText.includes(query))
+        .map((st) => st.topic);
     }
+
+    let result = resultTopics.filter((topic) => !hiddenTopicIds.has(topic.id));
 
     return [...result].sort((a, b) => {
       switch (sortOption) {

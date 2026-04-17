@@ -20,3 +20,6 @@
 ## 2025-04-10 - Array.prototype.find() vs Map for Lookup Performance
 **Learning:** Using `Array.prototype.find()` inside a loop or for repeated lookups creates $O(N)$ or $O(N \times M)$ time complexity, which scales poorly.
 **Action:** Replace `Array.prototype.find()` with `Map.prototype.get()` when multiple lookups are performed on the same dataset, reducing time complexity to $O(1)$ per lookup after an initial $O(N)$ map creation.
+## 2025-04-16 - Pre-compute Searchable Text Array Avoid Intermediate Allocations
+**Learning:** When optimizing React search filters by pre-computing searchable text arrays with `useMemo`, allocating intermediate structures like `new Set()` or executing cross-referencing lookups (e.g., `validTopicIds.has(st.topic.id)`) inside the high-frequency keystroke filter loop severely degrades performance and creates massive memory pressure.
+**Action:** Instead, directly filter the pre-computed array based on the text criteria, then immediately `.map()` back to the original objects. Keep the fast path strictly O(N) string comparisons without intermediate structural allocations to prevent layout jank during keystrokes.
