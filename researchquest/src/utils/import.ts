@@ -70,6 +70,16 @@ export async function importData(file: File, userId: string) {
       }
     }
 
+    // Import Tasks
+    if (data.tasks && data.tasks.length > 0) {
+      const tasks = data.tasks.map((t) => ({ ...t, user_id: userId }));
+      const { error } = await supabase.from("tasks").upsert(tasks);
+      if (error) {
+        logger.error("Error importing tasks", error);
+        throw error;
+      }
+    }
+
     toast.success("Data imported successfully", { id: toastId });
   } catch (error) {
     logger.error("Import failed", error);
