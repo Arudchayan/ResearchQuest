@@ -98,29 +98,23 @@ export function NotesView() {
   }, [notes]);
 
   const filteredNotes = useMemo(() => {
-    let resultNotes = notes || [];
+    // ⚡ PERFORMANCE OPTIMIZATION: Filter the pre-computed searchableNotes array directly
+    // instead of allocating an intermediate Set and doing cross-reference lookups.
+    // This maintains an O(N) fast path during the high-frequency keystroke filtering loop.
+    let results = searchableNotes || [];
 
     if (selectedTag) {
-      resultNotes = resultNotes.filter(
-        (note) => note.tags && note.tags.includes(selectedTag),
+      results = results.filter(
+        (sn) => sn.note.tags && sn.note.tags.includes(selectedTag),
       );
     }
 
     if (searchQuery) {
       const normalizedQuery = searchQuery.toLowerCase();
-      // Only search through the tags-filtered results
-      const validNoteIds = new Set(resultNotes.map((n) => n.id));
-
-      resultNotes = searchableNotes
-        .filter(
-          (sn) =>
-            validNoteIds.has(sn.note.id) &&
-            sn.searchText.includes(normalizedQuery),
-        )
-        .map((sn) => sn.note);
-    } else {
-      resultNotes = [...resultNotes];
+      results = results.filter((sn) => sn.searchText.includes(normalizedQuery));
     }
+
+    const resultNotes = results.map((sn) => sn.note);
 
     return resultNotes.sort((a, b) => {
       switch (sortOption) {
