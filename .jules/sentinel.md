@@ -10,3 +10,7 @@
 **Vulnerability:** Supabase edge functions (`create-admin-user/index.ts` and `fetch-paper/index.ts`) were exposing internal error details in their JSON response payloads by directly returning `error.message` or `adminResponse.text()`. Additionally, an undefined `logger` was being used.
 **Learning:** Returning native error objects or raw server responses in catch blocks exposes internal implementation details which can be leveraged by attackers.
 **Prevention:** Always catch and log native errors on the server side using `console.error` and return a generic error message (e.g. "An internal server error occurred") in the HTTP response to clients. Ensure all logging facilities are properly defined.
+## 2025-04-12 - Missing Timeout on External Edge Function Fetch Calls
+**Vulnerability:** External `fetch` requests in the `fetch-paper` Edge Function (to OpenAlex and CrossRef APIs) lacked explicit timeouts. This exposed the function to Server-Side Request Forgery (SSRF) related resource exhaustion, where slow or hanging external responses could tie up Edge Function workers, leading to Denial of Service (DoS).
+**Learning:** Default `fetch` calls in Supabase Edge Functions (Deno) do not time out automatically. In a highly concurrent environment, relying on the platform's default execution limit (which might be too generous or handled abruptly) is insecure.
+**Prevention:** Always implement a custom `fetchWithTimeout` wrapper using `AbortController` and `setTimeout` for any outbound HTTP requests within an Edge Function.
