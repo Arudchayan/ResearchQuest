@@ -1,3 +1,3 @@
-## 2025-04-04 - Pre-compute Searchable Text in React Components
-**Learning:** In React components that render large lists and allow search filtering (like `LeftSidebar`), recalculating `.toLowerCase()` or `.join()` on every item inside the `.filter()` callback during keystrokes causes significant layout jank.
-**Action:** Decouple the string transformation from the fast filtering loop by pre-computing a separate array of `searchableItems` wrapped in a `useMemo` hook that maps over the original data. The actual keystroke `filter` can then use these pre-computed string properties, operating near-instantly.
+## 2024-05-24 - O(N) to O(1) Gamification Math Calculation
+**Learning:** Gamification logic for calculating level thresholds via linear iteration (`while (totalXP >= xpNeeded)`) caused significant execution slowdowns on large amounts of XP.
+**Action:** Replace iterative calculations matching linear formulas like $y = m*x$ with derived inverse formulas $x = y/m$. In this codebase, leveling logic uses $O(1)$ calculations (`Math.floor(totalXP / 500) + 1`).

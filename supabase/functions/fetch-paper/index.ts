@@ -61,9 +61,24 @@ async function safeParseJson(response: Response) {
   }
 }
 
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 10000): Promise<Response> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    return response;
+  } finally {
+    clearTimeout(id);
+  }
+}
+
 async function fetchCrossrefByDoi(doi: string) {
   const url = `https://api.crossref.org/works/${encodeURIComponent(doi)}?mailto=research@researchquest.app`
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     headers: {
       'Accept': 'application/json',
       'User-Agent': APP_USER_AGENT,
@@ -81,7 +96,7 @@ async function fetchCrossrefByDoi(doi: string) {
 
 async function fetchCrossrefByQuery(query: string) {
   const url = `https://api.crossref.org/works?query.bibliographic=${encodeURIComponent(query)}&rows=10&mailto=research@researchquest.app`
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     headers: {
       'Accept': 'application/json',
       'User-Agent': APP_USER_AGENT,
@@ -100,7 +115,7 @@ async function fetchCrossrefByQuery(query: string) {
 
 async function fetchOpenAlexByDoi(doi: string) {
   const url = `https://api.openalex.org/works/https://doi.org/${encodeURIComponent(doi)}`
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     headers: {
       'Accept': 'application/json',
       'User-Agent': APP_USER_AGENT,
@@ -117,7 +132,7 @@ async function fetchOpenAlexByDoi(doi: string) {
 
 async function fetchOpenAlexByQuery(query: string) {
   const url = `https://api.openalex.org/works?search=${encodeURIComponent(query)}&per-page=10`
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     headers: {
       'Accept': 'application/json',
       'User-Agent': APP_USER_AGENT,
@@ -229,11 +244,12 @@ Deno.serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {
+    console.error('Fetch paper error:', error);
     return new Response(
       JSON.stringify({
         error: {
           code: 'INTERNAL_ERROR',
-          message: error instanceof Error ? error.message : 'An unknown error occurred',
+          message: 'An internal server error occurred while fetching the paper.',
         },
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

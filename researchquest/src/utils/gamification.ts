@@ -99,15 +99,8 @@ export function getXPForLevel(level: number): number {
 
 // Calculate level from total XP
 export function getLevelFromXP(totalXP: number): number {
-  let level = 1;
-  let xpNeeded = getXPForLevel(level);
-
-  while (totalXP >= xpNeeded) {
-    level++;
-    xpNeeded = getXPForLevel(level);
-  }
-
-  return level;
+  // Optimization: O(1) mathematical calculation instead of O(N) while loop
+  return Math.floor(totalXP / 500) + 1;
 }
 
 // Award XP and update user profile
