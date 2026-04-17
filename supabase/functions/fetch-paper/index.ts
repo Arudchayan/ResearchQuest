@@ -1,4 +1,24 @@
 const APP_USER_AGENT = 'ResearchQuest/1.0 (mailto:research@researchquest.app)'
+const FETCH_TIMEOUT_MS = 10000; // 10 seconds timeout
+
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout = FETCH_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    return response;
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+      throw new Error('Request timed out');
+    }
+    throw error;
+  } finally {
+    clearTimeout(id);
+  }
+}
 
 async function fetchWithTimeout(resource: RequestInfo | URL, options: RequestInit & { timeout?: number } = {}) {
   const { timeout = 8000 } = options;
