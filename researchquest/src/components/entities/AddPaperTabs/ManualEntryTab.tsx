@@ -34,8 +34,9 @@ export function ManualEntryTab({
     <div className="space-y-6" role="tabpanel" id="view-panel-manual">
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-1">Title *</label>
+          <label htmlFor="manual-title" className="block text-sm font-medium mb-1">Title *</label>
           <input
+            id="manual-title"
             ref={manualTitleInputRef}
             type="text"
             value={manualTitle}
@@ -45,8 +46,9 @@ export function ManualEntryTab({
           />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">Authors</label>
+          <label htmlFor="manual-authors" className="block text-sm font-medium mb-1">Authors</label>
           <input
+            id="manual-authors"
             type="text"
             value={manualAuthors}
             onChange={(e) => setManualAuthors(e.target.value)}
@@ -55,8 +57,9 @@ export function ManualEntryTab({
           />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">DOI</label>
+          <label htmlFor="manual-doi" className="block text-sm font-medium mb-1">DOI</label>
           <input
+            id="manual-doi"
             type="text"
             value={manualDoi}
             onChange={(e) => setManualDoi(e.target.value)}
@@ -65,8 +68,9 @@ export function ManualEntryTab({
           />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">URL</label>
+          <label htmlFor="manual-url" className="block text-sm font-medium mb-1">URL</label>
           <input
+            id="manual-url"
             type="text"
             value={manualUrl}
             onChange={(e) => setManualUrl(e.target.value)}

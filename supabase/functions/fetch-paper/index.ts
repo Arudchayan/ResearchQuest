@@ -79,6 +79,21 @@ async function safeParseJson(response: Response) {
   }
 }
 
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 10000): Promise<Response> {
+  const controller = new AbortController()
+  const id = setTimeout(() => controller.abort(), timeoutMs)
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    })
+    return response
+  } finally {
+    clearTimeout(id)
+  }
+}
+
 async function fetchCrossrefByDoi(doi: string) {
   const url = `https://api.crossref.org/works/${encodeURIComponent(doi)}?mailto=research@researchquest.app`
   const response = await fetchWithTimeout(url, {
