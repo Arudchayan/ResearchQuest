@@ -17,6 +17,9 @@
 ## 2024-04-15 - Prevent layout jank in animation loops by pre-computing Map lookups
 **Learning:** Avoid using Array.prototype.find() or creating new Map objects inside high-frequency animation loops (like tick() or requestAnimationFrame), as this causes per-frame memory allocation and garbage collection overhead.
 **Action:** Always pre-compute Map lookups outside the loop to reduce O(N x M) complexity to O(N + M) and eliminate garbage collection spikes during layout/animation calculations.
+## 2024-04-17 - React Filter Loop Allocations
+**Learning:** Instantiating new data structures like `new Set` inside a high-frequency `useMemo` filter path (especially for keystroke searches) creates unnecessary object allocations and leads to O(M) operations per filter item inside an O(N) loop.
+**Action:** Always filter the pre-computed text array directly, without executing cross-reference lookups or instantiating Sets mid-loop, and then `.map()` back to the object instances.
 ## 2025-04-10 - Array.prototype.find() vs Map for Lookup Performance
 **Learning:** Using `Array.prototype.find()` inside a loop or for repeated lookups creates $O(N)$ or $O(N \times M)$ time complexity, which scales poorly.
 **Action:** Replace `Array.prototype.find()` with `Map.prototype.get()` when multiple lookups are performed on the same dataset, reducing time complexity to $O(1)$ per lookup after an initial $O(N)$ map creation.
