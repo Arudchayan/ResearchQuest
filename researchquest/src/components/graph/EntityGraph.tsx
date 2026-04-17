@@ -177,23 +177,21 @@ export function EntityGraph() {
     if (nodesRef.current.length <= 1) return;
 
     let isRunning = true;
-    
-    // Performance Optimization: Cache the map and only rebuild it when the node array
-    // changes to avoid per-frame memory allocation and garbage collection overhead.
-    let cachedNodeMap: Map<string, any> | null = null;
-    let previousNodes: any[] | null = null;
+
+    let cachedNodeMap = new Map<string, Node>();
+    let lastNodesRef: Node[] | null = null;
 
     const tick = () => {
       if (!isRunning) return;
 
       const currentNodes = nodesRef.current;
-      const alpha = 0.1; // damping
 
-      // Update the cached map only if the underlying array reference changes
-      if (currentNodes !== previousNodes) {
+      if (lastNodesRef !== currentNodes) {
         cachedNodeMap = new Map(currentNodes.map(n => [n.id, n]));
-        previousNodes = currentNodes;
+        lastNodesRef = currentNodes;
       }
+
+      const alpha = 0.1; // damping
 
       // Repulsion force between all nodes
       for (let i = 0; i < currentNodes.length; i++) {
@@ -225,9 +223,9 @@ export function EntityGraph() {
 
       // Attraction force for edges
       edges.forEach(edge => {
-        const sourceNode = cachedNodeMap!.get(edge.source);
-        const targetNode = cachedNodeMap!.get(edge.target);
-        
+        const sourceNode = cachedNodeMap.get(edge.source);
+        const targetNode = cachedNodeMap.get(edge.target);
+
         if (sourceNode && targetNode) {
           const dx = targetNode.x - sourceNode.x;
           const dy = targetNode.y - sourceNode.y;
