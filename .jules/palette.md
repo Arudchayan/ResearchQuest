@@ -72,3 +72,7 @@
 ## 2024-04-14 - Missing Form Label Associations
 **Learning:** Multiple form components (like AddPaperTabs/ManualEntryTab and App.tsx) use visual `<label>` elements next to `<input>` fields without establishing a programmatic connection via `htmlFor` and `id`. This breaks screen reader association and reduces click targets.
 **Action:** Always pair `<label>` and `<input>` with matching `htmlFor` and `id` attributes. This provides an immediate accessibility win and improves usability for all users by expanding the clickable focus area.
+
+## 2026-04-10 - Explicit HTMLFor Linking on Form Inputs
+**Learning:** Implicit label association (e.g. wrapping an input inside a label, or relying on visual proximity without attributes) is an accessibility anti-pattern present in multiple form tabs in the ResearchQuest codebase, such as the `AddPaperTabs`.
+**Action:** Always explicitly link `<label>` elements to their corresponding `<input>`/`<select>`/`<textarea>` fields using matching `htmlFor` and `id` attributes. This provides a larger click target for users and ensures screen readers correctly associate the label text with the input field.
