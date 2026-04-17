@@ -1,3 +1,7 @@
+## 2024-05-18 - Ensure Screen Reader Announcements on Empty State Filtering
+**Learning:** By default, when a dynamically filtered list (e.g. `NoteList`, `PaperList`) updates to have zero results due to search/filters, the empty state `div` that renders is silent to screen reader users, leaving them unaware the results are empty.
+**Action:** Always wrap empty state components for filtered lists with `role="status"` and `aria-live="polite"` so screen readers proactively announce the lack of results (e.g., "No matches found. Try a different keyword.").
+
 ## 2024-05-23 - Task Manager Accessibility
 **Learning:** React components (like the TaskManager modal) often rely on implicit labeling (nesting) or placeholders, which fails accessibility checks. Explicitly linking `label` to `input` via `htmlFor` and `id` is crucial for screen readers and improves click-target usability.
 **Action:** Always verify form inputs have associated labels. Use `aria-label` for inputs that cannot have a visible text label (like search bars). When verifying locally without a backend, bypassing auth in `App.tsx` is a valid strategy for UI testing.
@@ -64,3 +68,11 @@
 ## 2026-04-08 - Added focus-visible classes to buttons in Dashboard
 **Learning:** Found multiple interactive `<button>` elements in the application, specifically the Dashboard, missing focus indicators. This makes keyboard navigation difficult.
 **Action:** Always append the standard focus ring classes (`focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2`) to all interactive elements to ensure clear keyboard accessibility.
+
+## 2024-04-14 - Missing Form Label Associations
+**Learning:** Multiple form components (like AddPaperTabs/ManualEntryTab and App.tsx) use visual `<label>` elements next to `<input>` fields without establishing a programmatic connection via `htmlFor` and `id`. This breaks screen reader association and reduces click targets.
+**Action:** Always pair `<label>` and `<input>` with matching `htmlFor` and `id` attributes. This provides an immediate accessibility win and improves usability for all users by expanding the clickable focus area.
+
+## 2026-04-10 - Explicit HTMLFor Linking on Form Inputs
+**Learning:** Implicit label association (e.g. wrapping an input inside a label, or relying on visual proximity without attributes) is an accessibility anti-pattern present in multiple form tabs in the ResearchQuest codebase, such as the `AddPaperTabs`.
+**Action:** Always explicitly link `<label>` elements to their corresponding `<input>`/`<select>`/`<textarea>` fields using matching `htmlFor` and `id` attributes. This provides a larger click target for users and ensures screen readers correctly associate the label text with the input field.
