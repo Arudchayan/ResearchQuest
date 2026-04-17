@@ -53,7 +53,7 @@ export function BibTeXImportTab({
   return (
     <div className="space-y-6" role="tabpanel" id="view-panel-import">
       <div>
-        <label className="block text-sm font-medium mb-3">Upload BibTeX File (.bib)</label>
+        <label htmlFor="bibtex-file-upload" className="block text-sm font-medium mb-3">Upload BibTeX File (.bib)</label>
         <div
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
@@ -65,6 +65,7 @@ export function BibTeXImportTab({
           }`}
         >
           <input
+            id="bibtex-file-upload"
             type="file"
             accept=".bib"
             onChange={handleFileInputChange}
