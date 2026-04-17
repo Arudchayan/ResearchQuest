@@ -1,3 +1,7 @@
+## 2024-05-18 - Ensure Screen Reader Announcements on Empty State Filtering
+**Learning:** By default, when a dynamically filtered list (e.g. `NoteList`, `PaperList`) updates to have zero results due to search/filters, the empty state `div` that renders is silent to screen reader users, leaving them unaware the results are empty.
+**Action:** Always wrap empty state components for filtered lists with `role="status"` and `aria-live="polite"` so screen readers proactively announce the lack of results (e.g., "No matches found. Try a different keyword.").
+
 ## 2024-05-23 - Task Manager Accessibility
 **Learning:** React components (like the TaskManager modal) often rely on implicit labeling (nesting) or placeholders, which fails accessibility checks. Explicitly linking `label` to `input` via `htmlFor` and `id` is crucial for screen readers and improves click-target usability.
 **Action:** Always verify form inputs have associated labels. Use `aria-label` for inputs that cannot have a visible text label (like search bars). When verifying locally without a backend, bypassing auth in `App.tsx` is a valid strategy for UI testing.
