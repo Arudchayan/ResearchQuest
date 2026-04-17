@@ -1,5 +1,23 @@
 const APP_USER_AGENT = 'ResearchQuest/1.0 (mailto:research@researchquest.app)'
 
+async function fetchWithTimeout(resource: RequestInfo | URL, options: RequestInit & { timeout?: number } = {}) {
+  const { timeout = 8000 } = options;
+
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const response = await fetch(resource, {
+      ...options,
+      signal: controller.signal
+    });
+    return response;
+  } finally {
+    clearTimeout(id);
+  }
+}
+
+
 function reconstructOpenAlexAbstract(index: Record<string, number[]>) {
   const positions = Object.values(index).flat()
   if (positions.length === 0) return ''
