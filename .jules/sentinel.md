@@ -22,3 +22,7 @@
 **Vulnerability:** The `fetch-paper` Edge Function made external HTTP requests to OpenAlex and Crossref using the native `fetch` API without a timeout.
 **Learning:** If the upstream API hangs or responds extremely slowly, the Edge Function execution can hang until it hits the platform's maximum execution limit, leading to resource exhaustion and potential Denial of Service (DoS).
 **Prevention:** Always wrap external `fetch` calls in Edge Functions with a timeout mechanism (e.g., `AbortController` and `setTimeout`) to fail fast and release resources if the upstream dependency is unresponsive.
+## 2025-04-16 - Edge Function Fetch Timeout Vulnerability
+**Vulnerability:** Outbound requests via `fetch` were made without a timeout limit, leading to potential Denial of Service (DoS).
+**Learning:** `fetch` in Deno defaults to no timeout. An external API that is slow or hangs can tie up function resources indefinitely, exceeding limits and failing subsequent executions.
+**Prevention:** Implement a custom `fetchWithTimeout` wrapper using `AbortController` and `setTimeout` for all external outbound requests to strictly enforce timeouts.
