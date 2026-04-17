@@ -14,6 +14,9 @@
 **Learning:** In React components that render large lists and allow search filtering (like Notes, Papers, and Ideas views), recalculating `.toLowerCase()` or executing regular expressions on every item inside the `.filter()` callback during keystrokes causes significant layout jank.
 **Action:** Decouple the string transformation from the fast filtering loop by pre-computing a separate array of `searchableItems` wrapped in a `useMemo` hook that maps over the original data. The actual keystroke `filter` can then use these pre-computed string properties, operating near-instantly.
 
+## 2024-04-15 - Prevent layout jank in animation loops by pre-computing Map lookups
+**Learning:** Avoid using Array.prototype.find() or creating new Map objects inside high-frequency animation loops (like tick() or requestAnimationFrame), as this causes per-frame memory allocation and garbage collection overhead.
+**Action:** Always pre-compute Map lookups outside the loop to reduce O(N x M) complexity to O(N + M) and eliminate garbage collection spikes during layout/animation calculations.
 ## 2025-04-10 - Array.prototype.find() vs Map for Lookup Performance
 **Learning:** Using `Array.prototype.find()` inside a loop or for repeated lookups creates $O(N)$ or $O(N \times M)$ time complexity, which scales poorly.
 **Action:** Replace `Array.prototype.find()` with `Map.prototype.get()` when multiple lookups are performed on the same dataset, reducing time complexity to $O(1)$ per lookup after an initial $O(N)$ map creation.

@@ -177,7 +177,7 @@ export function EntityGraph() {
     if (nodesRef.current.length <= 1) return;
 
     let isRunning = true;
-    
+
     let cachedNodeMap = new Map<string, Node>();
     let lastNodesRef: Node[] | null = null;
 
@@ -186,7 +186,6 @@ export function EntityGraph() {
 
       const currentNodes = nodesRef.current;
 
-      // Rebuild node map only if the nodes array reference changes
       if (lastNodesRef !== currentNodes) {
         cachedNodeMap = new Map(currentNodes.map(n => [n.id, n]));
         lastNodesRef = currentNodes;
@@ -226,7 +225,7 @@ export function EntityGraph() {
       edges.forEach(edge => {
         const sourceNode = cachedNodeMap.get(edge.source);
         const targetNode = cachedNodeMap.get(edge.target);
-        
+
         if (sourceNode && targetNode) {
           const dx = targetNode.x - sourceNode.x;
           const dy = targetNode.y - sourceNode.y;
