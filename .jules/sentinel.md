@@ -18,6 +18,10 @@
 **Vulnerability:** External `fetch` requests in the `fetch-paper` Edge Function (to OpenAlex and CrossRef APIs) lacked explicit timeouts. This exposed the function to Server-Side Request Forgery (SSRF) related resource exhaustion, where slow or hanging external responses could tie up Edge Function workers, leading to Denial of Service (DoS).
 **Learning:** Default `fetch` calls in Supabase Edge Functions (Deno) do not time out automatically. In a highly concurrent environment, relying on the platform's default execution limit (which might be too generous or handled abruptly) is insecure.
 **Prevention:** Always implement a custom `fetchWithTimeout` wrapper using `AbortController` and `setTimeout` for any outbound HTTP requests within an Edge Function.
+## 2025-04-15 - Unbounded API Requests in Edge Function
+**Vulnerability:** The `fetch-paper` Edge Function (`supabase/functions/fetch-paper/index.ts`) made external API calls using `fetch()` without a timeout mechanism, exposing the function to Denial of Service (DoS) and resource exhaustion if the remote APIs (`api.crossref.org` or `api.openalex.org`) hang or take too long to respond.
+**Learning:** Standard `fetch` in Deno/Edge Functions does not time out by default.
+**Prevention:** Always implement a `fetchWithTimeout` wrapper utilizing `AbortController` and `setTimeout` (e.g., an 8-second limit) for all external API requests in serverless environments.
 ## 2025-05-18 - Missing Timeout on External API Calls
 **Vulnerability:** The `fetch-paper` Edge Function made external HTTP requests to OpenAlex and Crossref using the native `fetch` API without a timeout.
 **Learning:** If the upstream API hangs or responds extremely slowly, the Edge Function execution can hang until it hits the platform's maximum execution limit, leading to resource exhaustion and potential Denial of Service (DoS).
