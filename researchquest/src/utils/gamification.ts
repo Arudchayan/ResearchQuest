@@ -99,18 +99,12 @@ export function getXPForLevel(level: number): number {
 
 // Calculate level from total XP
 export function getLevelFromXP(totalXP: number): number {
-  let level = 1;
-  let xpNeeded = getXPForLevel(level);
-
-  while (totalXP >= xpNeeded) {
-    level++;
-    xpNeeded = getXPForLevel(level);
-  }
-
-  return level;
+  // Optimization: O(1) mathematical calculation instead of O(N) while loop
+  return Math.floor(totalXP / 500) + 1;
 }
 
 // Award XP and update user profile
+// eslint-disable-next-line complexity
 export async function awardXP(
   userId: string,
   xpAmount: number,
@@ -199,8 +193,21 @@ export async function awardXP(
   await checkAchievements(userId, action, newStreak, newCounts);
 }
 
+// Cache for user achievements to prevent N+1 queries
+const achievementsCache = new Map<string, Set<string>>();
+
+export function clearAchievementsCache(userId?: string) {
+  if (userId) {
+    achievementsCache.delete(userId);
+  } else {
+    achievementsCache.clear();
+  }
+}
+
 // Check and award achievements
+// eslint-disable-next-line complexity
 async function checkAchievements(
+
   userId: string,
   action: string,
   currentStreak: number,
@@ -214,14 +221,16 @@ async function checkAchievements(
   // Optimization: Use passed currentStreak and counts instead of fetching from tables
 
   // Check existing achievements
-  const { data: existingAchievements } = await supabase
-    .from("research_achievements")
-    .select("achievement_type")
-    .eq("user_id", userId);
+  let earned = achievementsCache.get(userId);
+  if (!earned) {
+    const { data: existingAchievements } = await supabase
+      .from("research_achievements")
+      .select("achievement_type")
+      .eq("user_id", userId);
 
-  const earned = new Set(
-    existingAchievements?.map((a) => a.achievement_type) || [],
-  );
+    earned = new Set(existingAchievements?.map((a) => a.achievement_type) || []);
+    achievementsCache.set(userId, earned);
+  }
 
   // Check for 7-day streak
   if (currentStreak >= 7 && !earned.has(ACHIEVEMENTS.RESEARCH_STREAK_7.type)) {
@@ -286,10 +295,18 @@ async function awardAchievement(
       xp_awarded: achievement.xp,
     });
 
+
   if (insertError) {
     logger.error("Failed to award achievement", insertError);
     return;
   }
+
+  // Update cache
+  const cacheEarned = achievementsCache.get(userId);
+  if (cacheEarned) {
+    cacheEarned.add(achievement.type);
+  }
+
 
   // Award XP for achievement (simplified to avoid double-counting)
   const { data: profile } = await supabase
