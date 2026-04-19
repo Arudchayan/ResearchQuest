@@ -9,8 +9,8 @@
 
 ### Navigation / App Structure
 - `src/App.tsx` is the active app entry now.
-- `src/App-Original.tsx` and `src/App-Simple.tsx` are legacy variants still present in the tree.
-- The legacy variants are cleanup debt, not the active code path.
+- Legacy app variants have now been removed from the tree.
+- The active code path is `src/App.tsx`.
 
 ### Supabase / Sync
 - Current sync path is working through the real `src/App.tsx` entry.
