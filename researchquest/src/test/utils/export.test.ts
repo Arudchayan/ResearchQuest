@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  convertPapersToMarkdown,
   convertPapersToCSV,
   convertPapersToJSON,
   convertPapersToBibTeX,
@@ -63,6 +64,32 @@ const mockNotes: Note[] = [
 
 describe("Export Utils", () => {
   describe("Papers", () => {
+    it("converts papers to Markdown correctly", () => {
+      const md = convertPapersToMarkdown(mockPapers);
+      expect(md).toContain('# Test Paper "With Quotes"');
+      expect(md).toContain("*Added:");
+      expect(md).toContain("Status: To Read");
+      expect(md).toContain("Authors: Author One, Author Two");
+      expect(md).toContain("Publication Date: 2023-01-01");
+      expect(md).toContain("DOI: 10.1000/1");
+      expect(md).toContain("Source URL: http://example.com");
+      expect(md).toContain("This is a test abstract, with commas.");
+
+      expect(md).toContain("\n\n---\n\n");
+
+      expect(md).toContain("# Another Paper");
+      expect(md).toContain("Status: Reading");
+      // Since it's a negative assertion against the entire string, it will fail
+      // if "Authors: " appears ANYWHERE in the string (e.g. from the first paper).
+      // Let's assert that the second paper's section doesn't contain these.
+      const secondPaperMd = md.split("\n\n---\n\n")[1];
+      expect(secondPaperMd).not.toContain("Authors: ");
+      expect(secondPaperMd).not.toContain("Publication Date: ");
+      expect(secondPaperMd).not.toContain("DOI: ");
+      expect(secondPaperMd).not.toContain("Source URL: ");
+      expect(secondPaperMd).toContain("No abstract provided.");
+    });
+
     it("converts papers to CSV correctly", () => {
       const csv = convertPapersToCSV(mockPapers);
       const lines = csv.split("\n");
