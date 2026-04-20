@@ -313,8 +313,10 @@ export function PapersView() {
 
         <div className="p-4 bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row gap-4">
           <div className="relative flex-1 max-w-md">
+            <label htmlFor="papers-search-input" className="sr-only">Search library</label>
             <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
             <input
+              id="papers-search-input"
               ref={searchInputRef}
               type="text"
               placeholder="Search library..."

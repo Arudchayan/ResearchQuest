@@ -58,7 +58,7 @@ export function TopicsView() {
         .map((st) => st.topic);
     }
 
-    let result = resultTopics.filter((topic) => !hiddenTopicIds.has(topic.id));
+    const result = resultTopics.filter((topic) => !hiddenTopicIds.has(topic.id));
 
     return [...result].sort((a, b) => {
       switch (sortOption) {
@@ -315,8 +315,10 @@ export function TopicsView() {
           )}
           <div className="flex flex-col gap-2">
             <div className="relative">
+              <label htmlFor="topics-search-input" className="sr-only">Search topics</label>
               <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
               <input
+                id="topics-search-input"
                 ref={searchInputRef}
                 type="text"
                 placeholder="Search topics..."
