@@ -203,7 +203,7 @@ export function CommandPalette() {
       </div>
 
       <Command.List>
-        <Command.Empty>No results found.</Command.Empty>
+        <Command.Empty role="status" aria-live="polite">No results found.</Command.Empty>
 
         <Command.Group heading="Navigation">
           <Command.Item onSelect={() => handleNavigate("dashboard")}>
