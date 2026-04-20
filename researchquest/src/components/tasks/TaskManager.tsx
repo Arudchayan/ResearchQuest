@@ -140,25 +140,30 @@ export function TaskManager() {
     // this useMemo would invalidate on every unrelated state change (like typing in an input).
     const normalizedQuery = searchQuery.trim().toLowerCase();
 
-    const filtered = searchableTasks
-      .filter(({ task, searchText }) => {
-        const matchesFilter =
-          filter === "all" ||
-          (filter === "pending" && !task.completed) ||
-          (filter === "completed" && task.completed) ||
-          (filter === "overdue" && !task.completed && isOverdue(task.due_date));
+    let filtered;
+    if (!normalizedQuery && filter === "all") {
+      filtered = [...(tasks || [])];
+    } else {
+      filtered = searchableTasks
+        .filter(({ task, searchText }) => {
+          const matchesFilter =
+            filter === "all" ||
+            (filter === "pending" && !task.completed) ||
+            (filter === "completed" && task.completed) ||
+            (filter === "overdue" && !task.completed && isOverdue(task.due_date));
 
-        if (!matchesFilter) {
-          return false;
-        }
+          if (!matchesFilter) {
+            return false;
+          }
 
-        if (!normalizedQuery) {
-          return true;
-        }
+          if (!normalizedQuery) {
+            return true;
+          }
 
-        return searchText.includes(normalizedQuery);
-      })
-      .map(({ task }) => task);
+          return searchText.includes(normalizedQuery);
+        })
+        .map(({ task }) => task);
+    }
 
     if (sortOption === "priority") {
       return filtered.sort((a, b) => {

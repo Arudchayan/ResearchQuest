@@ -143,7 +143,7 @@ export function PapersView() {
   const filteredPapers = useMemo(() => {
     // Optimization: Skip filtering if query is empty and sort order matches default
     if (!searchQuery && sortOption === "updated_desc") {
-      return papers;
+      return papers || [];
     }
 
     let filtered = papers || [];
