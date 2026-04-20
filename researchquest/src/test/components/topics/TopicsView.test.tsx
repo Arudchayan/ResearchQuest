@@ -6,6 +6,37 @@ import { useTopics } from "../../../hooks/useTopics";
 
 // Mock the hooks
 vi.mock("../../../hooks/useTopics");
+vi.mock("../../../components/ui/ConfirmDialog", () => ({
+  ConfirmDialog: () => null,
+  useConfirmDialog: () => ({
+    confirm: vi.fn().mockResolvedValue(true),
+    isOpen: false,
+    config: {},
+  }),
+}));
+vi.mock("../../../components/topics/TopicList", () => ({
+  TopicList: ({ topics, onDeleteTopic, onSelectTopic }: any) => (
+    <div>
+      {topics.map((topic: any) => (
+        <div key={topic.id}>
+          <span>{topic.name}</span>
+          <button
+            aria-label={`Delete ${topic.name}`}
+            onClick={() => onDeleteTopic(topic.id)}
+          >
+            Delete {topic.name}
+          </button>
+          <button
+            aria-label={`Select ${topic.name}`}
+            onClick={() => onSelectTopic(topic)}
+          >
+            Select {topic.name}
+          </button>
+        </div>
+      ))}
+    </div>
+  ),
+}));
 
 const mockTopics = [
   {
@@ -36,11 +67,15 @@ describe("TopicsView", () => {
     useAppStore.setState({
       user: { id: "test-user-id" } as any,
       selectedTopic: null,
+      topics: Object.fromEntries(mockTopics.map((topic) => [topic.id, topic])),
     });
 
     (useTopics as any).mockReturnValue({
       topics: mockTopics,
       loading: false,
+      createTopic: vi.fn().mockResolvedValue({ id: "new-id", name: "New Topic" }),
+      updateTopic: vi.fn().mockResolvedValue(true),
+      deleteTopic: vi.fn().mockResolvedValue(true),
       upsertTopic: vi.fn().mockResolvedValue(true),
       removeTopic: vi.fn().mockResolvedValue(true),
     });
@@ -83,6 +118,27 @@ describe("TopicsView", () => {
 
     await waitFor(() => {
       expect(mockCreateTopic).toHaveBeenCalledWith(expect.objectContaining({ name: "New Topic" }));
+    });
+  });
+
+  it("hides a topic immediately after delete", async () => {
+    const mockDeleteTopic = vi.fn().mockResolvedValue(true);
+    (useTopics as any).mockReturnValue({
+      topics: mockTopics,
+      loading: false,
+      createTopic: vi.fn(),
+      updateTopic: vi.fn(),
+      deleteTopic: mockDeleteTopic,
+    });
+
+    render(<TopicsView />);
+
+    expect(screen.getByText("Machine Learning")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText("Delete Machine Learning"));
+
+    await waitFor(() => {
+      expect(screen.queryByText("Machine Learning")).not.toBeInTheDocument();
     });
   });
 });
