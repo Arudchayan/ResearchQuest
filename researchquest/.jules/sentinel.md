@@ -20,3 +20,8 @@
 **Vulnerability:** The catch block in `supabase/functions/fetch-paper/index.ts` was directly returning `error.message` in its 500 JSON response.
 **Learning:** Returning native error objects or dynamic `error.message` strings directly to the client can inadvertently leak stack traces, internal system paths, or downstream API secrets.
 **Prevention:** Always fail securely on the backend (Edge Functions). Return a standardized, generic error message to the client (e.g., `'An unexpected error occurred'`) while logging the raw error securely on the server-side if needed.
+
+## 2024-05-18 - Sanitize errors in Edge Functions and implement fetch timeouts
+**Vulnerability:** Information Leakage & DoS via unconstrained requests in `create-admin-user` and `fetch-paper` Edge Functions.
+**Learning:** `fetch` requests inside Deno Edge Functions lacked timeouts, allowing potential unbounded blocking on external calls. Additionally, catch blocks passed raw `error` objects to `console.error()`, which risks leaking stack traces and internal metadata in server logs.
+**Prevention:** Always wrap external `fetch` calls with `AbortController` and `setTimeout` (e.g. `fetchWithTimeout`). Always sanitize error outputs in catch blocks before logging (e.g. `error instanceof Error ? error.message : 'Unknown'`).
