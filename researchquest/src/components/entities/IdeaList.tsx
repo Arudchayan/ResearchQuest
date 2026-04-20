@@ -166,6 +166,16 @@ export function IdeaList({
     };
   }, []);
 
+  // ⚡ PERFORMANCE OPTIMIZATION: Pre-compute derived text fields for faster searching
+  const searchableIdeas = useMemo(() => {
+    return (ideas || []).map((idea) => ({
+      idea,
+      searchText: [idea.title || "", idea.description || ""]
+        .join(" ")
+        .toLowerCase(),
+    }));
+  }, [ideas]);
+
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const filteredIdeas = useMemo(() => {
     // Optimization: Return original array if no filters are active
@@ -173,23 +183,25 @@ export function IdeaList({
       return ideas;
     }
 
-    return ideas.filter((idea) => {
-      const matchesStage = stageFilter === "all" || idea.stage === stageFilter;
-      if (!matchesStage) {
-        return false;
-      }
+    let result = ideas || [];
 
-      if (!normalizedQuery) {
-        return true;
-      }
+    if (stageFilter !== "all") {
+      result = result.filter((idea) => idea.stage === stageFilter);
+    }
 
-      const titleMatch = idea.title.toLowerCase().includes(normalizedQuery);
-      const descriptionMatch =
-        idea.description?.toLowerCase().includes(normalizedQuery) ?? false;
+    if (normalizedQuery) {
+      const validIdeaIds = new Set(result.map((i) => i.id));
+      result = searchableIdeas
+        .filter(
+          (si) =>
+            validIdeaIds.has(si.idea.id) &&
+            si.searchText.includes(normalizedQuery)
+        )
+        .map((si) => si.idea);
+    }
 
-      return titleMatch || descriptionMatch;
-    });
-  }, [ideas, normalizedQuery, stageFilter]);
+    return result;
+  }, [ideas, stageFilter, normalizedQuery, searchableIdeas]);
 
   const handleDeleteRequest = useCallback((candidate: Idea) => {
     setIdeaToDelete(candidate);
