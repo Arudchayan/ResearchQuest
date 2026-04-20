@@ -10,3 +10,8 @@
 **Vulnerability:** Supabase edge functions (`create-admin-user/index.ts` and `fetch-paper/index.ts`) were exposing internal error details in their JSON response payloads by directly returning `error.message` or `adminResponse.text()`. Additionally, an undefined `logger` was being used.
 **Learning:** Returning native error objects or raw server responses in catch blocks exposes internal implementation details which can be leveraged by attackers.
 **Prevention:** Always catch and log native errors on the server side using `console.error` and return a generic error message (e.g. "An internal server error occurred") in the HTTP response to clients. Ensure all logging facilities are properly defined.
+
+## 2024-06-25 - Stop error text leakage in create-admin-user Edge Function
+**Vulnerability:** The `supabase/functions/create-admin-user/index.ts` was reading and directly logging `adminResponse.text()`.
+**Learning:** Reading and logging raw server response strings via `.text()` can inadvertently leak underlying system details, schemas, or downstream errors into logs, which might be accessible to unauthorized entities if logs are exposed.
+**Prevention:** Never log raw response body text blindly. If debugging is necessary, safely parse and select non-sensitive fields or simply log the HTTP status code (e.g. `Admin API error status 500`).
