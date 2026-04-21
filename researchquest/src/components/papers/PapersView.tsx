@@ -380,7 +380,7 @@ export function PapersView() {
               role="status"
               aria-label="Loading papers..."
             >
-              {[...Array(6)].map((_, i) => (
+              {[...new Array(6)].map((_, i) => (
                 <PaperCardSkeleton key={i} />
               ))}
             </div>

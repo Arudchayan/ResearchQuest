@@ -1,4 +1,5 @@
-import { ReactNode, useEffect } from "react";
+import type { ReactNode} from "react";
+import { useEffect } from "react";
 import { Sidebar } from "./Sidebar";
 import { RightSidebar } from "../RightSidebar";
 import { HamburgerMenuIcon, Cross1Icon, DoubleArrowDownIcon, MagnifyingGlassIcon } from "@radix-ui/react-icons";

@@ -109,6 +109,6 @@ describe("Gamification Logic & Performance", () => {
 
     // But we can check if the logic is flawed as suspected (streak not incrementing because date updated first)
 
-    // Actually, checking call count is enough for performance optimization verification.
+    expect(userProfileCalls).toBeGreaterThan(0);
   });
 });

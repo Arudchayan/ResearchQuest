@@ -1,4 +1,4 @@
-import { UserProfile, Note, Paper, Idea, Topic } from "../types/database";
+import type { UserProfile, Note, Paper, Idea, Topic } from "../types/database";
 import { generateBibTeX } from "./citation";
 import type { Task } from "../hooks/useTasks";
 

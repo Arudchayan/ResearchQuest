@@ -1,5 +1,8 @@
 .browser_screenshots/
 
+# Manual Playwright / scratch verification (screenshots, videos); do not commit.
+/verification/
+
 # Duplicate path casing collides with `.jules/palette.md` on Windows; canonical file is under `.jules/`.
 .Jules/palette.md
 

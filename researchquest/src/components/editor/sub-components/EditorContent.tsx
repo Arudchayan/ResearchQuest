@@ -4,8 +4,8 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
 import rehypeHighlight from "rehype-highlight";
-import { EditorView } from "@codemirror/view";
-import { ViewMode } from "../hooks/useMarkdownEditor";
+import type { EditorView } from "@codemirror/view";
+import type { ViewMode } from "../hooks/useMarkdownEditor";
 
 interface EditorContentProps {
   content: string;
