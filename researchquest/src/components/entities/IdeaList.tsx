@@ -294,7 +294,7 @@ export function IdeaList({
         </div>
 
         {filteredIdeas.length === 0 ? (
-          <div className="text-center py-10 border border-dashed border-border-subtle rounded-md text-caption text-text-tertiary">
+          <div className="text-center py-10 border border-dashed border-border-subtle rounded-md text-caption text-text-tertiary" role="status" aria-live="polite">
             No ideas match your filters yet.
           </div>
         ) : (
