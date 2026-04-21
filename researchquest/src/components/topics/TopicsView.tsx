@@ -48,6 +48,11 @@ export function TopicsView() {
   }, [topics]);
 
   const filteredTopics = useMemo(() => {
+    // Optimization: Skip filtering if query is empty, no hidden topics, and sort order matches default
+    if (!searchQuery && hiddenTopicIds.size === 0 && sortOption === "name_asc") {
+      return topics || [];
+    }
+
     let resultTopics = topics || [];
 
     if (searchQuery) {
@@ -58,9 +63,10 @@ export function TopicsView() {
         .map((st) => st.topic);
     }
 
-    const visibleTopics = resultTopics.filter(
-      (topic) => !hiddenTopicIds.has(topic.id),
-    );
+    const visibleTopics =
+      hiddenTopicIds.size > 0
+        ? resultTopics.filter((topic) => !hiddenTopicIds.has(topic.id))
+        : resultTopics;
 
     return [...visibleTopics].sort((a, b) => {
       switch (sortOption) {

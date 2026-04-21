@@ -98,6 +98,11 @@ export function NotesView() {
   }, [notes]);
 
   const filteredNotes = useMemo(() => {
+    // Optimization: Skip filtering if query and tag are empty, and sort order matches default
+    if (!searchQuery && !selectedTag && sortOption === "updated_desc") {
+      return notes || [];
+    }
+
     // ⚡ PERFORMANCE OPTIMIZATION: Filter the pre-computed searchableNotes array directly
     // instead of allocating an intermediate Set and doing cross-reference lookups.
     // This maintains an O(N) fast path during the high-frequency keystroke filtering loop.
