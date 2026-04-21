@@ -56,6 +56,7 @@ export function DOISearchTab({
                 onClick={() => { setDoiInput(""); doiInputRef.current?.focus(); }}
                 className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-text-tertiary"
                 aria-label="Clear search"
+                title="Clear search"
               >
                 <X className="w-4 h-4" />
               </button>
