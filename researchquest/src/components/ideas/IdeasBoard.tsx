@@ -87,15 +87,23 @@ export function IdeasBoard() {
   }, [ideas]);
 
   const filteredIdeas = useMemo(() => {
+    // Optimization: Skip filtering if query is empty and sort order matches default
+    if (!searchQuery && sortOption === "updated_desc") {
+      return ideas || [];
+    }
+
     let result = ideas || [];
     if (searchQuery) {
       const normalizedQuery = searchQuery.toLowerCase();
       result = searchableIdeas
         .filter((si) => si.searchText.includes(normalizedQuery))
         .map((si) => si.idea);
+    } else {
+      // Create a shallow copy if we need to sort but not filter
+      result = [...result];
     }
 
-    return [...result].sort((a, b) => {
+    return result.sort((a, b) => {
       switch (sortOption) {
         case "updated_desc":
           return a.updated_at < b.updated_at ? 1 : a.updated_at > b.updated_at ? -1 : 0;
