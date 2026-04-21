@@ -2,6 +2,12 @@ import { useState, useRef, useCallback } from "react";
 import { Loader, Search, X } from "lucide-react";
 import type { CrossrefPaper } from "../../../types/database";
 
+function formatAuthorsLine(authors: string[]) {
+  if (authors.length === 0) return "";
+  if (authors.length <= 6) return authors.join(", ");
+  return `${authors.slice(0, 6).join(", ")}, et al.`;
+}
+
 interface DOISearchTabProps {
   doiInput: string;
   setDoiInput: (val: string) => void;
@@ -49,7 +55,8 @@ export function DOISearchTab({
               <button
                 onClick={() => { setDoiInput(""); doiInputRef.current?.focus(); }}
                 className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-text-tertiary"
-                aria-label="Clear input"
+                aria-label="Clear search"
+                title="Clear search"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -70,7 +77,9 @@ export function DOISearchTab({
         <div className="space-y-4">
           <div className="p-6 border-2 border-primary-500 rounded-lg bg-bg-elevated">
             <h3 className="text-lg font-semibold mb-2">{doiResult.title}</h3>
-            <p className="text-sm text-text-secondary mb-3">{doiResult.authors.join(", ")}</p>
+            <p className="text-sm text-text-secondary mb-3">
+              {formatAuthorsLine(doiResult.authors)}
+            </p>
             {doiResult.abstract && (
               <p className="mt-4 pt-4 border-t text-sm text-text-secondary line-clamp-4">
                 {doiResult.abstract}

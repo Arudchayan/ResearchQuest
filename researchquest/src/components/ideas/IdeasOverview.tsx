@@ -270,10 +270,11 @@ export function IdeasOverview({
           </div>
           <form onSubmit={handleCreateIdea} className="space-y-4">
             <div>
-              <label className="block text-sm font-semibold text-text-secondary mb-1">
+              <label htmlFor="idea-title" className="block text-sm font-semibold text-text-secondary mb-1">
                 Idea title
               </label>
               <input
+                id="idea-title"
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
                 placeholder="e.g. Adaptive question ranking for literature reviews"
@@ -281,10 +282,11 @@ export function IdeasOverview({
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-text-secondary mb-1">
+              <label htmlFor="idea-description" className="block text-sm font-semibold text-text-secondary mb-1">
                 Description
               </label>
               <textarea
+                id="idea-description"
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
                 placeholder="What problem does this idea solve? How might you test it?"
@@ -294,10 +296,11 @@ export function IdeasOverview({
             </div>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div className="flex items-center gap-3">
-                <label className="text-sm font-semibold text-text-secondary">
+                <label htmlFor="idea-stage" className="text-sm font-semibold text-text-secondary">
                   Stage
                 </label>
                 <select
+                  id="idea-stage"
                   value={stage}
                   onChange={(event) =>
                     setStage(event.target.value as IdeaStage)

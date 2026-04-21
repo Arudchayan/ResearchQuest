@@ -25,13 +25,6 @@ export function useBibTeXImport(onAdd: (data: any) => Promise<any>) {
     setSelectedEntryIds(new Set());
     setImportStats(null);
 
-    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-    if (file.size > MAX_FILE_SIZE) {
-      setError("File too large (max 5MB). Please split your BibTeX file.");
-      setLoading(false);
-      return;
-    }
-
     try {
       const text = await file.text();
       const entries = parseBibTeX(text);

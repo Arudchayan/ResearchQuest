@@ -144,7 +144,7 @@ export function PapersView() {
   const filteredPapers = useMemo(() => {
     // Optimization: Skip filtering if query is empty and sort order matches default
     if (!searchQuery && sortOption === "updated_desc") {
-      return papers;
+      return papers || [];
     }
 
     let filtered = papers || [];
@@ -326,8 +326,10 @@ export function PapersView() {
 
         <div className="p-4 bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row gap-4">
           <div className="relative flex-1 max-w-md">
+            <label htmlFor="papers-search-input" className="sr-only">Search library</label>
             <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
             <input
+              id="papers-search-input"
               ref={searchInputRef}
               type="text"
               placeholder="Search library..."
@@ -383,7 +385,7 @@ export function PapersView() {
               ))}
             </div>
           ) : filteredPapers.length === 0 ? (
-            <div className="text-center py-20">
+            <div className="text-center py-20" role="status" aria-live="polite">
               <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
                 <BookOpen className="w-8 h-8 text-slate-400" />
               </div>

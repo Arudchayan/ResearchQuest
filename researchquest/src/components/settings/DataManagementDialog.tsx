@@ -64,6 +64,7 @@ export function DataManagementDialog({
     topics: true,
   });
   const [importing, setImporting] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   const handleExport = () => {
     const dataToExport: any = {};
@@ -103,9 +104,32 @@ export function DataManagementDialog({
     onClose();
   };
 
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      await processFile(e.dataTransfer.files[0]);
+    }
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    await processFile(file);
+  };
+
+  const processFile = async (file: File) => {
 
     // 🛡️ Sentinel: Validate file size to prevent DoS
     const sizeValidation = validateFileSize(file);
@@ -369,20 +393,28 @@ export function DataManagementDialog({
                 className="space-y-6 outline-none animate-in fade-in duration-300"
               >
                 {!parsedData ? (
-                  <div className="flex flex-col items-center justify-center py-12 border-2 border-dashed border-border-subtle rounded-xl bg-bg-base/50">
+                  <div
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    className={`flex flex-col items-center justify-center py-12 border-2 border-dashed rounded-xl transition-colors ${
+                      isDragging
+                        ? "border-blue-500 bg-blue-50 dark:bg-blue-900/10"
+                        : "border-border-subtle bg-bg-base/50"
+                    }`}
+                  >
                     <div className="w-16 h-16 bg-bg-elevated rounded-full flex items-center justify-center mb-4">
-                      <Upload className="w-8 h-8 text-text-tertiary" />
+                      <Upload className={`w-8 h-8 ${isDragging ? "text-blue-600 dark:text-blue-400" : "text-text-tertiary"}`} />
                     </div>
                     <h3 className="text-lg font-medium text-text-primary mb-2">
                       Upload Backup File
                     </h3>
                     <p className="text-sm text-text-secondary max-w-sm text-center mb-6">
-                      Select a ResearchQuest backup JSON file to restore your
-                      data.
+                      {isDragging ? "Drop JSON file here" : "Select or drag and drop a ResearchQuest backup JSON file to restore your data."}
                     </p>
                     <button
                       onClick={() => fileInputRef.current?.click()}
-                      className="px-4 py-2 bg-bg-elevated border border-border-subtle text-text-primary rounded-lg hover:bg-bg-surface transition-colors font-medium text-sm shadow-sm"
+                      className="px-4 py-2 bg-bg-elevated border border-border-subtle text-text-primary rounded-lg hover:bg-bg-surface transition-colors font-medium text-sm shadow-sm pointer-events-auto"
                     >
                       Select File
                     </button>

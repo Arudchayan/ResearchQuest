@@ -87,15 +87,23 @@ export function IdeasBoard() {
   }, [ideas]);
 
   const filteredIdeas = useMemo(() => {
+    // Optimization: Skip filtering if query is empty and sort order matches default
+    if (!searchQuery && sortOption === "updated_desc") {
+      return ideas || [];
+    }
+
     let result = ideas || [];
     if (searchQuery) {
       const normalizedQuery = searchQuery.toLowerCase();
       result = searchableIdeas
         .filter((si) => si.searchText.includes(normalizedQuery))
         .map((si) => si.idea);
+    } else {
+      // Create a shallow copy if we need to sort but not filter
+      result = [...result];
     }
 
-    return [...result].sort((a, b) => {
+    return result.sort((a, b) => {
       switch (sortOption) {
         case "updated_desc":
           return a.updated_at < b.updated_at ? 1 : a.updated_at > b.updated_at ? -1 : 0;
@@ -304,8 +312,10 @@ export function IdeasBoard() {
 
         <div className="p-4 bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row gap-4">
           <div className="relative flex-1 max-w-md">
+            <label htmlFor="ideas-search-input" className="sr-only">Search ideas</label>
             <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
             <input
+              id="ideas-search-input"
               ref={searchInputRef}
               type="text"
               placeholder="Search ideas..."
