@@ -266,8 +266,10 @@ export function IdeaList({
       <div className="space-y-3">
         <div className="space-y-2">
           <div className="relative">
+            <label htmlFor="idea-list-search" className="sr-only">Search ideas</label>
             <Search className="w-4 h-4 text-text-tertiary absolute left-3 top-1/2 -translate-y-1/2" />
             <input
+              id="idea-list-search"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Filter ideas by keyword..."
