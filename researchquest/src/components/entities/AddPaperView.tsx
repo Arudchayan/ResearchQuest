@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { BookOpen, CheckCircle2 } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
 import type { CrossrefPaper } from "../../types/database";
@@ -17,6 +17,13 @@ interface AddPaperViewProps {
   searchByDOI: (doi: string) => Promise<CrossrefPaper | null>;
   searchByQuery: (query: string, options?: PaperSearchOptions) => Promise<CrossrefPaper[]>;
 }
+
+const TAB_LABELS: Record<"doi" | "search" | "import" | "manual", string> = {
+  doi: "DOI Search",
+  search: "Keyword Search",
+  import: "Import BibTeX",
+  manual: "Manual Entry",
+};
 
 export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperViewProps) {
   const [activeTab, setActiveTab] = useState<"doi" | "search" | "manual" | "import">("doi");
@@ -65,6 +72,12 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
   const [manualUrl, setManualUrl] = useState("");
   const [manualLoading, setManualLoading] = useState(false);
   const [manualError, setManualError] = useState("");
+
+  useEffect(() => {
+    if (manualTitle.trim() && manualError === "Title is required") {
+      setManualError("");
+    }
+  }, [manualTitle, manualError]);
 
   const showSuccess = useCallback((msg: string, paper?: any) => {
     setSuccessMessage(msg);
@@ -121,13 +134,21 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
       setManualError("Title is required");
       return;
     }
+    const trimmedUrl = manualUrl.trim();
+    if (trimmedUrl && !isValidUrl(trimmedUrl)) {
+      setManualError(
+        "Invalid URL protocol. Only http:, https:, and mailto: URLs are allowed.",
+      );
+      return;
+    }
+    setManualError("");
     setManualLoading(true);
     try {
       const paperData = {
         title: manualTitle.trim(),
         authors: manualAuthors.split(",").map(a => a.trim()).filter(Boolean),
         doi: manualDoi.trim() || undefined,
-        source_url: manualUrl.trim() || undefined,
+        source_url: trimmedUrl || undefined,
       };
       const created = await onAdd(paperData);
       if (created) {
@@ -159,7 +180,10 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
       </div>
 
       {successMessage && (
-        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
+        <div
+          role="status"
+          className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3"
+        >
           <CheckCircle2 className="w-5 h-5 text-green-600" />
           <p className="text-green-800 font-medium">{successMessage}</p>
         </div>
@@ -169,15 +193,31 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
         {(["doi", "search", "import", "manual"] as const).map((tab) => (
           <button
             key={tab}
-            onClick={() => setActiveTab(tab)}
+            type="button"
+            onClick={() => {
+              setSearchError("");
+              setImportError("");
+              setActiveTab(tab);
+            }}
             className={`px-6 py-3 text-sm font-medium transition-all relative ${activeTab === tab ? "text-primary-600" : "text-text-secondary"}`}
           >
-            {tab.toUpperCase()} {activeTab === tab && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-500" />}
+            {TAB_LABELS[tab]}
+            {activeTab === tab && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-500" />
+            )}
           </button>
         ))}
       </div>
 
       <div className="bg-bg-surface rounded-lg border border-border-subtle shadow-sm p-6">
+        {searchError && (activeTab === "doi" || activeTab === "search") && (
+          <div
+            role="alert"
+            className="mb-4 p-3 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm"
+          >
+            {searchError}
+          </div>
+        )}
         {activeTab === "doi" && (
           <DOISearchTab
             doiInput={doiInput}

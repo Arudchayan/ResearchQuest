@@ -460,6 +460,7 @@ export function RightSidebar() {
                       key={item.id}
                       onClick={() => handleNavigateToItem(item.id, item.type)}
                       aria-label={`Navigate to ${item.type} ${item.title}`}
+                      title={`Navigate to ${item.type} ${item.title}`}
                       className="w-full text-left p-2 rounded-md bg-bg-base hover:bg-primary-500/10 border border-border-subtle hover:border-primary-400 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
                     >
                       <div className="flex items-start gap-2">
@@ -512,6 +513,7 @@ export function RightSidebar() {
                       key={item.id}
                       onClick={() => handleNavigateToItem(item.id, item.type)}
                       aria-label={`Navigate to ${item.type} ${item.title}`}
+                      title={`Navigate to ${item.type} ${item.title}`}
                       className="w-full text-left p-2 rounded-md bg-bg-base hover:bg-primary-500/10 border border-border-subtle hover:border-primary-400 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
                     >
                       <div className="flex items-start gap-2">

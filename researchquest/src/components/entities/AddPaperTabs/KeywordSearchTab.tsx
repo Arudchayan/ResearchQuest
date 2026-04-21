@@ -66,6 +66,7 @@ export function KeywordSearchTab({
                 onClick={() => { setSearchQuery(""); searchInputRef.current?.focus(); }}
                 className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-text-tertiary"
                 aria-label="Clear search"
+                title="Clear search"
               >
                 <X className="w-4 h-4" aria-hidden="true" />
               </button>
@@ -117,6 +118,17 @@ export function KeywordSearchTab({
                 <h3 className="text-xl font-semibold">{selectedResult.title}</h3>
                 <p className="text-sm text-text-secondary">{selectedResult.authors.join(", ")}</p>
                 <p className="text-sm text-text-tertiary line-clamp-4">{selectedResult.abstract}</p>
+                {selectedResult.sourceUrl && isValidUrl(selectedResult.sourceUrl) && (
+                  <a
+                    href={selectedResult.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-600 hover:underline"
+                  >
+                    View original source
+                    <ExternalLink className="w-4 h-4" aria-hidden="true" />
+                  </a>
+                )}
                 <button
                   onClick={onAdd}
                   disabled={loading}

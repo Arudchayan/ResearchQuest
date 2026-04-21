@@ -79,7 +79,8 @@ export function useDataSync(userId: string | undefined) {
         // Sync selected paper if it exists in the fresh data
         const current = useAppStore.getState().selectedPaper;
         if (current) {
-          const fresh = sorted.find((paper) => paper.id === current.id);
+          const papersMap = new Map(sorted.map(paper => [paper.id, paper]));
+          const fresh = papersMap.get(current.id);
           if (fresh) {
             setSelectedPaper(fresh);
           }
@@ -103,7 +104,8 @@ export function useDataSync(userId: string | undefined) {
 
         const current = useAppStore.getState().selectedIdea;
         if (current) {
-          const fresh = sorted.find((idea) => idea.id === current.id);
+          const ideasMap = new Map(sorted.map(idea => [idea.id, idea]));
+          const fresh = ideasMap.get(current.id);
           if (fresh) {
             setSelectedIdea(fresh);
           }

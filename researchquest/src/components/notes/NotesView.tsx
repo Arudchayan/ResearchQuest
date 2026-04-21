@@ -98,29 +98,28 @@ export function NotesView() {
   }, [notes]);
 
   const filteredNotes = useMemo(() => {
-    let resultNotes = notes || [];
+    // Optimization: Skip filtering if query and tag are empty, and sort order matches default
+    if (!searchQuery && !selectedTag && sortOption === "updated_desc") {
+      return notes || [];
+    }
+
+    // ⚡ PERFORMANCE OPTIMIZATION: Filter the pre-computed searchableNotes array directly
+    // instead of allocating an intermediate Set and doing cross-reference lookups.
+    // This maintains an O(N) fast path during the high-frequency keystroke filtering loop.
+    let results = searchableNotes || [];
 
     if (selectedTag) {
-      resultNotes = resultNotes.filter(
-        (note) => note.tags && note.tags.includes(selectedTag),
+      results = results.filter(
+        (sn) => sn.note.tags && sn.note.tags.includes(selectedTag),
       );
     }
 
     if (searchQuery) {
       const normalizedQuery = searchQuery.toLowerCase();
-      // Only search through the tags-filtered results
-      const validNoteIds = new Set(resultNotes.map((n) => n.id));
-
-      resultNotes = searchableNotes
-        .filter(
-          (sn) =>
-            validNoteIds.has(sn.note.id) &&
-            sn.searchText.includes(normalizedQuery),
-        )
-        .map((sn) => sn.note);
-    } else {
-      resultNotes = [...resultNotes];
+      results = results.filter((sn) => sn.searchText.includes(normalizedQuery));
     }
+
+    const resultNotes = results.map((sn) => sn.note);
 
     return resultNotes.sort((a, b) => {
       switch (sortOption) {
@@ -345,8 +344,10 @@ export function NotesView() {
 
           <div className="flex flex-col gap-2">
             <div className="relative">
+              <label htmlFor="notes-search-input" className="sr-only">Search notes</label>
               <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
               <input
+                id="notes-search-input"
                 ref={searchInputRef}
                 type="text"
                 placeholder="Search notes..."

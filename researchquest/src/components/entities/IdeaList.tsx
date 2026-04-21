@@ -177,30 +177,26 @@ export function IdeaList({
   }, [ideas]);
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
+
   const filteredIdeas = useMemo(() => {
     // Optimization: Return original array if no filters are active
     if (stageFilter === "all" && !normalizedQuery) {
-      return ideas;
+      return ideas || [];
     }
 
-    let result = ideas || [];
-
-    if (stageFilter !== "all") {
-      result = result.filter((idea) => idea.stage === stageFilter);
-    }
-
-    if (normalizedQuery) {
-      const validIdeaIds = new Set(result.map((i) => i.id));
-      result = searchableIdeas
-        .filter(
-          (si) =>
-            validIdeaIds.has(si.idea.id) &&
-            si.searchText.includes(normalizedQuery)
-        )
-        .map((si) => si.idea);
-    }
-
-    return result;
+    return searchableIdeas
+      .filter((si) => {
+        const matchesStage =
+          stageFilter === "all" || si.idea.stage === stageFilter;
+        if (!matchesStage) {
+          return false;
+        }
+        if (!normalizedQuery) {
+          return true;
+        }
+        return si.searchText.includes(normalizedQuery);
+      })
+      .map((si) => si.idea);
   }, [ideas, stageFilter, normalizedQuery, searchableIdeas]);
 
   const handleDeleteRequest = useCallback((candidate: Idea) => {
@@ -267,8 +263,10 @@ export function IdeaList({
       <div className="space-y-3">
         <div className="space-y-2">
           <div className="relative">
+            <label htmlFor="idea-list-search" className="sr-only">Search ideas</label>
             <Search className="w-4 h-4 text-text-tertiary absolute left-3 top-1/2 -translate-y-1/2" />
             <input
+              id="idea-list-search"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Filter ideas by keyword..."
@@ -295,7 +293,7 @@ export function IdeaList({
         </div>
 
         {filteredIdeas.length === 0 ? (
-          <div className="text-center py-10 border border-dashed border-border-subtle rounded-md text-caption text-text-tertiary">
+          <div className="text-center py-10 border border-dashed border-border-subtle rounded-md text-caption text-text-tertiary" role="status" aria-live="polite">
             No ideas match your filters yet.
           </div>
         ) : (

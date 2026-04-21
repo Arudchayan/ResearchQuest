@@ -1,4 +1,8 @@
-# Innovator's Journal
+## 2026-04-11 - Implement Markdown Export for Papers
+
+**Opportunity:** Users should be able to export papers as Markdown to embed within notes or external tools, just like they can with Ideas and Notes.
+**Learning:** The export UI patterns and logic are localized in `PapersView.tsx` and `export.ts`. It's easy to add new export formats by extending the `convert[Entity]To[Format]` paradigm.
+**Prevention:** Always check if a generic export feature is implemented uniformly across all entity types. If a new export type is needed, update the specific view components and utility scripts accordingly.
 
 This journal tracks critical discoveries, patterns, and learnings encountered during feature development.
 
@@ -66,3 +70,8 @@ Prevention: When adding new top-level entities, always ensure they are integrate
 Opportunity: The BibTeX import tab had functional drag-and-drop for file uploads but completely lacked visual feedback when users dragged files over the UI, creating ambiguity.
 Learning: When using invisible `<input type="file" />` elements overlaid on a UI to enable native drag-and-drop, it's essential to track `onDragOver` and `onDragLeave` events on the wrapper to provide explicit visual state changes (like border highlights or message updates) to confirm the drop zone is active.
 Prevention: Always implement explicit drag state tracking (`isDragging`) and visual affordances whenever implementing custom or overlaid file upload drop zones.
+
+2025-04-18 — Visual Feedback for File Drop Zones
+Opportunity: The Data Management import dialog lacked drag and drop visual feedback when users dragged files over the UI, creating ambiguity for file drops.
+Learning: Following the established pattern from the BibTeX import tab, tracking `onDragOver` and `onDragLeave` events on the file dropzone container with an explicit visual state change (`isDragging`) improves affordance and creates a more robust drag and drop target.
+Prevention: Always implement explicit drag state tracking (`isDragging`) and visual affordances whenever implementing custom or overlaid file upload drop zones across the application.

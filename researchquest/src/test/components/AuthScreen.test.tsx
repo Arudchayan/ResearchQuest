@@ -57,12 +57,12 @@ describe("AuthScreen Security", () => {
 
     // Switch to Sign Up
     const toggleButton = screen.getByText(
-      /New to ResearchQuest\? Create account/i,
+      /New scholar\? Submit application\./i,
     );
     fireEvent.click(toggleButton);
 
     // Fill form with weak password
-    const emailInput = screen.getByPlaceholderText(/researcher@example.com/i);
+    const emailInput = screen.getByPlaceholderText(/scholar@university\.edu/i);
     const passwordInput = screen.getByPlaceholderText(/••••••••/i);
 
     fireEvent.change(emailInput, { target: { value: "newuser@example.com" } });
@@ -89,12 +89,12 @@ describe("AuthScreen Security", () => {
 
     // Switch to Sign Up
     const toggleButton = screen.getByText(
-      /New to ResearchQuest\? Create account/i,
+      /New scholar\? Submit application\./i,
     );
     fireEvent.click(toggleButton);
 
     // Fill form with strong password
-    const emailInput = screen.getByPlaceholderText(/researcher@example.com/i);
+    const emailInput = screen.getByPlaceholderText(/scholar@university\.edu/i);
     const passwordInput = screen.getByPlaceholderText(/••••••••/i);
 
     fireEvent.change(emailInput, { target: { value: "newuser@example.com" } });

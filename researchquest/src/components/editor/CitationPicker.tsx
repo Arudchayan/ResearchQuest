@@ -69,7 +69,7 @@ export function CitationPicker({
       </div>
 
       <Command.List>
-        <Command.Empty>
+        <Command.Empty role="status" aria-live="polite">
           {loading ? "Loading library..." : "No papers found."}
         </Command.Empty>
 
