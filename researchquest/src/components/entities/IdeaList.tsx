@@ -166,15 +166,27 @@ export function IdeaList({
     };
   }, []);
 
+  // ⚡ PERFORMANCE OPTIMIZATION: Pre-compute lowercase string representations
+  // outside the high-frequency filter loop to prevent expensive re-allocations
+  // and layout jank during keystrokes.
+  const searchableIdeas = useMemo(() => {
+    return ideas.map((idea) => ({
+      idea,
+      searchTitle: (idea.title || "").toLowerCase(),
+      searchDescription: (idea.description || "").toLowerCase(),
+    }));
+  }, [ideas]);
+
   const normalizedQuery = searchQuery.trim().toLowerCase();
+
   const filteredIdeas = useMemo(() => {
     // Optimization: Return original array if no filters are active
     if (stageFilter === "all" && !normalizedQuery) {
       return ideas;
     }
 
-    return ideas.filter((idea) => {
-      const matchesStage = stageFilter === "all" || idea.stage === stageFilter;
+    return searchableIdeas.filter((si) => {
+      const matchesStage = stageFilter === "all" || si.idea.stage === stageFilter;
       if (!matchesStage) {
         return false;
       }
@@ -183,13 +195,12 @@ export function IdeaList({
         return true;
       }
 
-      const titleMatch = idea.title.toLowerCase().includes(normalizedQuery);
-      const descriptionMatch =
-        idea.description?.toLowerCase().includes(normalizedQuery) ?? false;
+      const titleMatch = si.searchTitle.includes(normalizedQuery);
+      const descriptionMatch = si.searchDescription.includes(normalizedQuery);
 
       return titleMatch || descriptionMatch;
-    });
-  }, [ideas, normalizedQuery, stageFilter]);
+    }).map((si) => si.idea);
+  }, [searchableIdeas, normalizedQuery, stageFilter, ideas]);
 
   const handleDeleteRequest = useCallback((candidate: Idea) => {
     setIdeaToDelete(candidate);
@@ -255,8 +266,10 @@ export function IdeaList({
       <div className="space-y-3">
         <div className="space-y-2">
           <div className="relative">
+            <label htmlFor="idea-list-search" className="sr-only">Search ideas</label>
             <Search className="w-4 h-4 text-text-tertiary absolute left-3 top-1/2 -translate-y-1/2" />
             <input
+              id="idea-list-search"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Filter ideas by keyword..."
@@ -283,7 +296,7 @@ export function IdeaList({
         </div>
 
         {filteredIdeas.length === 0 ? (
-          <div className="text-center py-10 border border-dashed border-border-subtle rounded-md text-caption text-text-tertiary">
+          <div className="text-center py-10 border border-dashed border-border-subtle rounded-md text-caption text-text-tertiary" role="status" aria-live="polite">
             No ideas match your filters yet.
           </div>
         ) : (

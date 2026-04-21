@@ -56,6 +56,23 @@ export function exportData(data: Omit<ExportData, "metadata">) {
   downloadFile(jsonString, filename, "application/json");
 }
 
+export function convertPapersToMarkdown(papers: Paper[]): string {
+  if (papers.length === 0) return "";
+  return papers
+    .map((p) => {
+      const title = p.title || "Untitled Paper";
+      const date = new Date(p.created_at).toLocaleDateString();
+      const status = p.status ? `\nStatus: ${p.status}` : "";
+      const authors = p.authors?.length ? `\nAuthors: ${p.authors.join(", ")}` : "";
+      const publicationDate = p.publication_date ? `\nPublication Date: ${p.publication_date}` : "";
+      const doi = p.doi ? `\nDOI: ${p.doi}` : "";
+      const sourceUrl = p.source_url ? `\nSource URL: ${p.source_url}` : "";
+
+      return `# ${title}\n*Added: ${date}*${status}${authors}${publicationDate}${doi}${sourceUrl}\n\n${p.abstract || "No abstract provided."}`;
+    })
+    .join("\n\n---\n\n");
+}
+
 export function convertPapersToBibTeX(papers: Paper[]): string {
   return papers.map(generateBibTeX).join("\n\n");
 }

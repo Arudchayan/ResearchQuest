@@ -26,6 +26,7 @@ import { OnboardingGuide } from "../layout/OnboardingGuide";
 import type { Paper } from "../../types/database";
 import { toast } from "sonner";
 import {
+  convertPapersToMarkdown,
   convertPapersToBibTeX,
   convertPapersToCSV,
   convertPapersToJSON,
@@ -143,7 +144,7 @@ export function PapersView() {
   const filteredPapers = useMemo(() => {
     // Optimization: Skip filtering if query is empty and sort order matches default
     if (!searchQuery && sortOption === "updated_desc") {
-      return papers;
+      return papers || [];
     }
 
     let filtered = papers || [];
@@ -209,7 +210,7 @@ export function PapersView() {
     });
   }, [papers, searchQuery, sortOption]);
 
-  const handleExport = (format: "bibtex" | "csv" | "json") => {
+  const handleExport = (format: "markdown" | "bibtex" | "csv" | "json") => {
     if (filteredPapers.length === 0) {
       toast.error("No papers to export");
       return;
@@ -222,6 +223,11 @@ export function PapersView() {
 
     try {
       switch (format) {
+        case "markdown":
+          content = convertPapersToMarkdown(filteredPapers);
+          filename = `research-library-${timestamp}.md`;
+          type = "text/markdown";
+          break;
         case "bibtex":
           content = convertPapersToBibTeX(filteredPapers);
           filename = `research-library-${timestamp}.bib`;
@@ -277,6 +283,13 @@ export function PapersView() {
                   sideOffset={5}
                 >
                   <DropdownMenu.Item
+                    onSelect={() => handleExport("markdown")}
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md cursor-pointer outline-none"
+                  >
+                    <FileText className="w-4 h-4" />
+                    Markdown (.md)
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item
                     onSelect={() => handleExport("bibtex")}
                     className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md cursor-pointer outline-none"
                   >
@@ -313,8 +326,10 @@ export function PapersView() {
 
         <div className="p-4 bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row gap-4">
           <div className="relative flex-1 max-w-md">
+            <label htmlFor="papers-search-input" className="sr-only">Search library</label>
             <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
             <input
+              id="papers-search-input"
               ref={searchInputRef}
               type="text"
               placeholder="Search library..."
@@ -370,7 +385,7 @@ export function PapersView() {
               ))}
             </div>
           ) : filteredPapers.length === 0 ? (
-            <div className="text-center py-20">
+            <div className="text-center py-20" role="status" aria-live="polite">
               <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
                 <BookOpen className="w-8 h-8 text-slate-400" />
               </div>

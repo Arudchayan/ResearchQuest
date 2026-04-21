@@ -177,11 +177,20 @@ export function EntityGraph() {
     if (nodesRef.current.length <= 1) return;
 
     let isRunning = true;
-    
+
+    let cachedNodeMap = new Map<string, Node>();
+    let lastNodesRef: Node[] | null = null;
+
     const tick = () => {
       if (!isRunning) return;
 
       const currentNodes = nodesRef.current;
+
+      if (lastNodesRef !== currentNodes) {
+        cachedNodeMap = new Map(currentNodes.map(n => [n.id, n]));
+        lastNodesRef = currentNodes;
+      }
+
       const alpha = 0.1; // damping
 
       // Repulsion force between all nodes
@@ -213,11 +222,10 @@ export function EntityGraph() {
       }
 
       // Attraction force for edges
-      const nodeMap = new Map(currentNodes.map(n => [n.id, n]));
       edges.forEach(edge => {
-        const sourceNode = nodeMap.get(edge.source);
-        const targetNode = nodeMap.get(edge.target);
-        
+        const sourceNode = cachedNodeMap.get(edge.source);
+        const targetNode = cachedNodeMap.get(edge.target);
+
         if (sourceNode && targetNode) {
           const dx = targetNode.x - sourceNode.x;
           const dy = targetNode.y - sourceNode.y;

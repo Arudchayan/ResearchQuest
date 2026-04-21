@@ -62,7 +62,7 @@ describe("AuthScreen Security", () => {
     fireEvent.click(toggleButton);
 
     // Fill form with weak password
-    const emailInput = screen.getByPlaceholderText(/scholar@university.edu/i);
+    const emailInput = screen.getByPlaceholderText(/scholar@university\.edu/i);
     const passwordInput = screen.getByPlaceholderText(/••••••••/i);
 
     fireEvent.change(emailInput, { target: { value: "newuser@example.com" } });
@@ -94,7 +94,7 @@ describe("AuthScreen Security", () => {
     fireEvent.click(toggleButton);
 
     // Fill form with strong password
-    const emailInput = screen.getByPlaceholderText(/scholar@university.edu/i);
+    const emailInput = screen.getByPlaceholderText(/scholar@university\.edu/i);
     const passwordInput = screen.getByPlaceholderText(/••••••••/i);
 
     fireEvent.change(emailInput, { target: { value: "newuser@example.com" } });
