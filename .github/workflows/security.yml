@@ -14,10 +14,14 @@ jobs:
   security-checks:
     name: Scorecard & Secret Scan
     runs-on: ubuntu-latest
+    # Private repo: extra read scopes for Scorecard GraphQL (ListCommits); see ossf/scorecard-action README.
     permissions:
       security-events: write
       id-token: write
       contents: read
+      issues: read
+      pull-requests: read
+      checks: read
       actions: read
     steps:
       - name: "Checkout code"
