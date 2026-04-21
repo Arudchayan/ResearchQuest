@@ -14,6 +14,9 @@
 **Learning:** In React components that render large lists and allow search filtering (like Notes, Papers, and Ideas views), recalculating `.toLowerCase()` or executing regular expressions on every item inside the `.filter()` callback during keystrokes causes significant layout jank.
 **Action:** Decouple the string transformation from the fast filtering loop by pre-computing a separate array of `searchableItems` wrapped in a `useMemo` hook that maps over the original data. The actual keystroke `filter` can then use these pre-computed string properties, operating near-instantly.
 
+## 2025-04-11 - Pre-compute Searchable Text in React List Components
+**Learning:** In React components rendering lists with search inputs (like IdeaList and TopicsView), computing `.toLowerCase()` inside the `.filter()` callback during keystrokes triggers O(N) string processing on every render, causing layout jank for large datasets.
+**Action:** Always decouple string transformation from the fast filtering loop by pre-computing a separate array (e.g., `searchableItems`) using `useMemo` that maps the original data to its lowercase representation once. Crucially, optimize the `filteredItems` useMemo by adding an early return (e.g., `if (!query) return items;`) to bypass the `.filter().map()` iteration entirely when the search input is empty.
 ## 2024-04-15 - Prevent layout jank in animation loops by pre-computing Map lookups
 **Learning:** Avoid using Array.prototype.find() or creating new Map objects inside high-frequency animation loops (like tick() or requestAnimationFrame), as this causes per-frame memory allocation and garbage collection overhead.
 **Action:** Always pre-compute Map lookups outside the loop to reduce O(N x M) complexity to O(N + M) and eliminate garbage collection spikes during layout/animation calculations.

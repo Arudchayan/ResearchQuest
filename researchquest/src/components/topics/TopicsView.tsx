@@ -90,7 +90,7 @@ export function TopicsView() {
           return 0;
       }
     });
-  }, [topics, searchQuery, sortOption, hiddenTopicIds]);
+  }, [topics, searchQuery, sortOption, hiddenTopicIds, searchableTopics]);
 
   const handleCreateTopic = async (e: React.FormEvent) => {
     e.preventDefault();
