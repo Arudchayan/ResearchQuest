@@ -1,3 +1,24 @@
+const FETCH_TIMEOUT_MS = 10000; // 10 seconds timeout
+
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout = FETCH_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    return response;
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+      throw new Error('Request timed out');
+    }
+    throw error;
+  } finally {
+    clearTimeout(id);
+  }
+}
+
 Deno.serve(async (req) => {
     const corsHeaders = {
         'Access-Control-Allow-Origin': '*',
@@ -72,7 +93,7 @@ Deno.serve(async (req) => {
       `;
       
       // Use fetch to call Supabase REST API
-      const response = await fetch(`${supabaseUrl}/rest/v1/rpc/exec_sql`, {
+      const response = await fetchWithTimeout(`${supabaseUrl}/rest/v1/rpc/exec_sql`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${serviceRoleKey}`,
@@ -87,7 +108,7 @@ Deno.serve(async (req) => {
   
       if (!response.ok) {
         // If direct insert fails, try using Admin API to create user
-        const adminResponse = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
+        const adminResponse = await fetchWithTimeout(`${supabaseUrl}/auth/v1/admin/users`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${serviceRoleKey}`,
@@ -146,7 +167,7 @@ Deno.serve(async (req) => {
       });
   
     } catch (error) {
-      console.error('Function error:', error);
+      console.error('Function error:', error instanceof Error ? error.message : 'Unknown error');
       return new Response(JSON.stringify({
         error: { code: 'FUNCTION_ERROR', message: 'An internal server error occurred.' }
       }), {

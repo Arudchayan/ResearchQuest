@@ -461,8 +461,10 @@ export function TaskManager() {
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
             <div className="relative w-full sm:w-64">
+              <label htmlFor="task-search-input" className="sr-only">Search tasks</label>
               <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-tertiary" aria-hidden="true" />
               <input
+                id="task-search-input"
                 ref={searchInputRef}
                 type="text"
                 value={searchQuery}
@@ -480,6 +482,7 @@ export function TaskManager() {
                   }}
                   className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-tertiary hover:text-text-primary hover:bg-bg-elevated rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
                   aria-label="Clear search"
+                  title="Clear search"
                 >
                   <X className="w-3 h-3" aria-hidden="true" />
                 </button>

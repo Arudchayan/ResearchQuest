@@ -344,8 +344,10 @@ export function NotesView() {
 
           <div className="flex flex-col gap-2">
             <div className="relative">
+              <label htmlFor="notes-search-input" className="sr-only">Search notes</label>
               <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
               <input
+                id="notes-search-input"
                 ref={searchInputRef}
                 type="text"
                 placeholder="Search notes..."
