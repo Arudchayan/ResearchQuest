@@ -1,5 +1,19 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 8000): Promise<Response> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    return response;
+  } finally {
+    clearTimeout(id);
+  }
+}
+
 Deno.serve(async (req) => {
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -45,7 +59,7 @@ Deno.serve(async (req) => {
     // Handle DOI search
     if (doi) {
       const crossrefUrl = `https://api.crossref.org/works/${encodeURIComponent(doi)}`
-      const response = await fetch(crossrefUrl)
+      const response = await fetchWithTimeout(crossrefUrl)
       
       if (!response.ok) {
         return new Response(
@@ -101,7 +115,7 @@ Deno.serve(async (req) => {
       }
 
       const crossrefUrl = `https://api.crossref.org/works?${params.toString()}`
-      const response = await fetch(crossrefUrl)
+      const response = await fetchWithTimeout(crossrefUrl)
       
       if (!response.ok) {
         return new Response(

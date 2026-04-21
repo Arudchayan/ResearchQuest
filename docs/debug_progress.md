@@ -7,40 +7,15 @@
 
 ## Investigation
 
-### Navigation Issue
-- App.tsx/App-Simple.tsx both identical - using simplified inline navigation
-- LeftSidebar component exists but NOT being used in current App.tsx
-- Navigation logic in App.tsx looks correct (handleNavigation function)
-- Need to test deployed version to see actual issue
+### Navigation / App Structure
+- `src/App.tsx` is the active app entry now.
+- Legacy app variants have now been removed from the tree.
+- The active code path is `src/App.tsx`.
 
-### Supabase Error
-- HTTP 406 error on daily_logs endpoint
-- Error code: PGRST116
-- Need to check table existence and permissions
+### Supabase / Sync
+- Current sync path is working through the real `src/App.tsx` entry.
+- No current Supabase 406 issue surfaced in the active app path during this sweep.
 
-## Test Results (2025-11-08)
-### Confirmed Issues:
-1. **Navigation Routing BROKEN**: All tabs log "Navigation called: notes" - closure/build bug
-2. **Note Creation**: Works but no modal (UX issue, not critical)
-3. **Supabase API**: NO ERRORS - working fine
-
-### Root Cause Analysis:
-- App.tsx navigation has correct code structure
-- But console shows all tab clicks log "notes"
-- Likely closure issue in map() or build artifact
-- Need to rebuild with proper tab.id binding
-
-## Fixes Applied
-1. Navigation Routing - FIXED by rebuilding (closure issue resolved)
-2. Note Creation Modal - ADDED with simple textarea editor
-3. Idea Creation Modal - ADDED with simple textarea editor
-4. Made notes and ideas clickable in sidebar to open editor
-
-## Final Deployment
-URL: https://sqv47l8lrsys.space.minimax.io
-
-All critical issues resolved:
-- Navigation works correctly (Papers, Ideas, Tasks all route properly)
-- Note creation opens modal editor
-- Idea creation opens modal editor
-- No Supabase API errors
+## Current status
+- Active app path looks stable.
+- Main remaining debt here is cleanup of legacy app variants and stale docs that still mention the old routing bug.
