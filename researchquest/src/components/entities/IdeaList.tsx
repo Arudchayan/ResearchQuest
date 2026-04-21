@@ -166,14 +166,13 @@ export function IdeaList({
     };
   }, []);
 
-  // ⚡ PERFORMANCE OPTIMIZATION: Pre-compute lowercase string representations
-  // outside the high-frequency filter loop to prevent expensive re-allocations
-  // and layout jank during keystrokes.
+  // ⚡ PERFORMANCE OPTIMIZATION: Pre-compute derived text fields for faster searching
   const searchableIdeas = useMemo(() => {
-    return ideas.map((idea) => ({
+    return (ideas || []).map((idea) => ({
       idea,
-      searchTitle: (idea.title || "").toLowerCase(),
-      searchDescription: (idea.description || "").toLowerCase(),
+      searchText: [idea.title || "", idea.description || ""]
+        .join(" ")
+        .toLowerCase(),
     }));
   }, [ideas]);
 
@@ -182,25 +181,23 @@ export function IdeaList({
   const filteredIdeas = useMemo(() => {
     // Optimization: Return original array if no filters are active
     if (stageFilter === "all" && !normalizedQuery) {
-      return ideas;
+      return ideas || [];
     }
 
-    return searchableIdeas.filter((si) => {
-      const matchesStage = stageFilter === "all" || si.idea.stage === stageFilter;
-      if (!matchesStage) {
-        return false;
-      }
-
-      if (!normalizedQuery) {
-        return true;
-      }
-
-      const titleMatch = si.searchTitle.includes(normalizedQuery);
-      const descriptionMatch = si.searchDescription.includes(normalizedQuery);
-
-      return titleMatch || descriptionMatch;
-    }).map((si) => si.idea);
-  }, [searchableIdeas, normalizedQuery, stageFilter, ideas]);
+    return searchableIdeas
+      .filter((si) => {
+        const matchesStage =
+          stageFilter === "all" || si.idea.stage === stageFilter;
+        if (!matchesStage) {
+          return false;
+        }
+        if (!normalizedQuery) {
+          return true;
+        }
+        return si.searchText.includes(normalizedQuery);
+      })
+      .map((si) => si.idea);
+  }, [ideas, stageFilter, normalizedQuery, searchableIdeas]);
 
   const handleDeleteRequest = useCallback((candidate: Idea) => {
     setIdeaToDelete(candidate);
