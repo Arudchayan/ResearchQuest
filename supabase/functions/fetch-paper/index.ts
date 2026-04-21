@@ -297,7 +297,7 @@ Deno.serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {
-    console.error('Fetch paper error:', error);
+    console.error('Fetch paper error:', error instanceof Error ? error.message : 'Unknown error');
     return new Response(
       JSON.stringify({
         error: {

@@ -58,9 +58,11 @@ export function TopicsView() {
         .map((st) => st.topic);
     }
 
-    let result = resultTopics.filter((topic) => !hiddenTopicIds.has(topic.id));
+    const visibleTopics = resultTopics.filter(
+      (topic) => !hiddenTopicIds.has(topic.id),
+    );
 
-    return [...result].sort((a, b) => {
+    return [...visibleTopics].sort((a, b) => {
       switch (sortOption) {
         case "name_asc":
           return a.name.localeCompare(b.name);
@@ -82,7 +84,7 @@ export function TopicsView() {
           return 0;
       }
     });
-  }, [topics, searchQuery, sortOption]);
+  }, [topics, searchQuery, sortOption, hiddenTopicIds]);
 
   const handleCreateTopic = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,7 +120,8 @@ export function TopicsView() {
 
   const handleDeleteWithUndo = useCallback(
     async (topicId: string) => {
-      const topic = topics.find((t) => t.id === topicId);
+      const currentTopics = Object.values(useAppStore.getState().topics);
+      const topic = currentTopics.find((t) => t.id === topicId);
       if (!topic) return false;
 
       // Optimistically hide the topic
@@ -128,7 +131,8 @@ export function TopicsView() {
         return next;
       });
 
-      if (selectedTopic?.id === topicId) {
+      const currentSelected = useAppStore.getState().selectedTopic;
+      if (currentSelected?.id === topicId) {
         setSelectedTopic(null);
       }
 
@@ -185,7 +189,7 @@ export function TopicsView() {
 
       return true; // Optimistic success
     },
-    [deleteTopic, topics, selectedTopic?.id, setSelectedTopic],
+    [deleteTopic, setSelectedTopic],
   );
 
   const handleExport = (format: "markdown" | "csv" | "json") => {
@@ -315,8 +319,10 @@ export function TopicsView() {
           )}
           <div className="flex flex-col gap-2">
             <div className="relative">
+              <label htmlFor="topics-search-input" className="sr-only">Search topics</label>
               <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
               <input
+                id="topics-search-input"
                 ref={searchInputRef}
                 type="text"
                 placeholder="Search topics..."

@@ -25,24 +25,32 @@ export function useTasks(userId: string | undefined) {
   const [error, setError] = useState<string | null>(null);
 
   const sortTasksByDueDate = useCallback((taskList: Task[]) => {
-    return [...taskList].sort((a, b) => {
-      const aDueDate = parseDateInput(a.due_date);
-      const bDueDate = parseDateInput(b.due_date);
-      const aDue = aDueDate ? aDueDate.getTime() : null;
-      const bDue = bDueDate ? bDueDate.getTime() : null;
+    // ⚡ PERFORMANCE OPTIMIZATION:
+    // Implement Schwartzian transform to avoid O(N log N) Date parsing overhead during sort
+    const mapped = taskList.map((task) => {
+      const parsedDate = parseDateInput(task.due_date);
+      return {
+        task,
+        dueTime: parsedDate ? parsedDate.getTime() : null,
+      };
+    });
+
+    mapped.sort((a, b) => {
+      const aDue = a.dueTime;
+      const bDue = b.dueTime;
 
       if (aDue === null && bDue === null) {
-        // Optimization: Use string comparison for ISO dates
-        return a.created_at > b.created_at ? 1 : -1;
+        return a.task.created_at > b.task.created_at ? 1 : -1;
       }
       if (aDue === null) return 1;
       if (bDue === null) return -1;
       if (aDue === bDue) {
-        // Optimization: Use string comparison for ISO dates
-        return a.created_at > b.created_at ? 1 : -1;
+        return a.task.created_at > b.task.created_at ? 1 : -1;
       }
       return aDue - bDue;
     });
+
+    return mapped.map((m) => m.task);
   }, []);
 
   const fetchTasks = useCallback(async () => {

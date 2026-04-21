@@ -314,7 +314,6 @@ function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | undefined>(undefined);
-  const [itemNotFound, setItemNotFound] = useState(false);
   // ⚡ Optimization: Use useShallow with an object selector to prevent the App component
   // from unnecessarily re-rendering on unrelated state changes in the global appStore.
   const {
@@ -447,7 +446,6 @@ function App() {
     const itemId = pathParts[1];
 
     if (!itemId) {
-      setItemNotFound(false);
       return;
     }
 
@@ -460,18 +458,15 @@ function App() {
       const paper = papers.find((p) => p.id === itemId);
       if (paper) {
         useAppStore.getState().setSelectedPaper(paper);
-        setItemNotFound(false);
       } else if (!papersLoading) {
-        setItemNotFound(true);
+        useAppStore.getState().setSelectedPaper(null);
       }
     } else if (view === "ideas" && ideas.length >= 0) {
       const idea = ideas.find((i) => i.id === itemId);
       if (idea) {
         useAppStore.getState().setSelectedIdea(idea);
-        setItemNotFound(false);
       } else if (!ideasLoading) {
         useAppStore.getState().setSelectedIdea(null);
-        setItemNotFound(true);
       }
     }
   }, [currentView, ideas, ideasLoading, papers, papersLoading, userId]);

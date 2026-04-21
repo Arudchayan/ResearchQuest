@@ -76,3 +76,6 @@
 ## 2026-04-10 - Explicit HTMLFor Linking on Form Inputs
 **Learning:** Implicit label association (e.g. wrapping an input inside a label, or relying on visual proximity without attributes) is an accessibility anti-pattern present in multiple form tabs in the ResearchQuest codebase, such as the `AddPaperTabs`.
 **Action:** Always explicitly link `<label>` elements to their corresponding `<input>`/`<select>`/`<textarea>` fields using matching `htmlFor` and `id` attributes. This provides a larger click target for users and ensures screen readers correctly associate the label text with the input field.
+## 2024-05-14 - Empty States Accessibility
+**Learning:** React components returning conditional "empty state" UI (like "No results found") often fail to notify screen reader users when a dynamic list transitions to zero items. Simply showing a new `<div>` is visually apparent but programmatically silent.
+**Action:** Always attach `role="status"` and `aria-live="polite"` directly to the container element of the empty state (e.g., `<Command.Empty>` or `<div className="text-center">`) to ensure dynamic content changes are actively announced by assistive technologies.
