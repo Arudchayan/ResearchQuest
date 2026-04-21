@@ -2,3 +2,6 @@
 
 # Duplicate path casing collides with `.jules/palette.md` on Windows; canonical file is under `.jules/`.
 .Jules/palette.md
+
+# Agent journals live only at repo root `.jules/` (merged from former `researchquest/.jules/`).
+researchquest/.jules/

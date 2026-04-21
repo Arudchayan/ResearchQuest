@@ -32,3 +32,23 @@
 ## 2025-04-18 - Schwartzian Transform for Complex Sorting
 **Learning:** To optimize sorting performance for lists of entities, use direct string comparison for strictly uniform ISO date strings instead of instantiating `Date` objects inside the `.sort()` callback. However, if date formats might be non-uniform or require parsing, do not bypass the parser; instead, implement a Schwartzian transform (decorate-sort-undecorate) to pre-parse the dates exactly once in an O(N) mapping step prior to the O(N log N) sort.
 **Action:** Always extract expensive functions (like `parseDateInput`) from inside `.sort()` comparators. Map the array to include the computed comparable values, sort the mapped array, and then map back to the original objects.
+
+---
+
+## Merged from `researchquest/.jules/bolt.md` (app-scoped journal)
+
+# Bolt's Journal
+
+## 2024-03-24 - Optimizing Zustand Selectors in Core Layout Components
+
+**Learning:** Large React components (like `AppShell`, `Sidebar`, `RightSidebar`) that subscribe to the entire Zustand store via `useAppStore()` will re-render on EVERY state change, even if the data they need hasn't changed. This is particularly impactful when the store updates frequently (e.g., during text input in `MarkdownEditor` which updates `selectedNote`).
+
+**Action:** Always use granular selectors when subscribing to Zustand stores in high-level layout components or heavy components to prevent unnecessary re-renders. Use `useAppStore(state => state.specificValue)` instead of `const { specificValue } = useAppStore()`.
+
+## 2026-03-24 - Optimizing Zustand Selectors in Core Hooks and Components
+**Learning:** Subscribing to the entire Zustand store via `useAppStore()` in central hooks like `useDataSync` or root components like `App` triggers unnecessary evaluations and re-renders on EVERY state change (such as text input in a sub-component).
+**Action:** Always use granular selectors (e.g., `useAppStore(useShallow(state => ({ ... })))`) when extracting multiple properties from the store to prevent performance degradation.
+
+## 2024-03-24 - Optimizing Array.prototype.find in Animation Frames
+**Learning:** Using `Array.prototype.find()` inside high-frequency animation loops like `requestAnimationFrame` (e.g., iterating over edges to find target nodes) causes `O(N*M)` complexity and layout jank, as the full array is scanned repeatedly 60 times per second.
+**Action:** Always pre-compute a `Map` lookup object (e.g., `new Map(items.map(i => [i.id, i]))`) immediately before loops or inside the animation frame to reduce lookups from `O(N)` to `O(1)`.
