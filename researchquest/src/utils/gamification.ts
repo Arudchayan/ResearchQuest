@@ -104,7 +104,6 @@ export function getLevelFromXP(totalXP: number): number {
 }
 
 // Award XP and update user profile
-// eslint-disable-next-line complexity
 export async function awardXP(
   userId: string,
   xpAmount: number,
@@ -205,7 +204,6 @@ export function clearAchievementsCache(userId?: string) {
 }
 
 // Check and award achievements
-// eslint-disable-next-line complexity
 async function checkAchievements(
 
   userId: string,

@@ -50,5 +50,7 @@ describe('extractYear performance', () => {
         console.log(`New (Fast path): ${newTime.toFixed(2)}ms`);
         console.log(`Speedup: ${(oldTime / newTime).toFixed(2)}x`);
 
+        expect(oldTime).toBeGreaterThan(0);
+        expect(newTime).toBeGreaterThan(0);
     });
 });

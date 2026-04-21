@@ -82,10 +82,11 @@ export function TopicsView() {
           return b.updated_at > a.updated_at ? 1 : b.updated_at < a.updated_at ? -1 : 0;
         case "updated_asc":
           return a.updated_at > b.updated_at ? 1 : a.updated_at < b.updated_at ? -1 : 0;
-        case "count_desc":
+        case "count_desc": {
           const aCount = a.note_count + a.paper_count + a.idea_count;
           const bCount = b.note_count + b.paper_count + b.idea_count;
           return bCount - aCount;
+        }
         default:
           return 0;
       }

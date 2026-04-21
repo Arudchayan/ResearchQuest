@@ -9,6 +9,8 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     css: true,
+    // Forks pool intermittently hits startup timeouts on Windows CI and can exit non-zero despite passing tests.
+    pool: 'threads',
     exclude: [
       '**/node_modules/**',
       '**/dist/**',

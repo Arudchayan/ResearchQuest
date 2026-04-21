@@ -65,18 +65,13 @@ describe('useRelatedItems Security', () => {
 
     // Ensure we didn't log the full object with sensitive data
     errorCalls.forEach(args => {
-      args.forEach(arg => {
-        // In testing, since it defaults to DEV, the full error object is passed to console.error via logger.error.
-        // The issue was logging JSON.stringify(error) causing leakage in PROD if unhandled.
-        // We'll skip strict checking on DEV object property assertions here for the test suite,
-        // because logger.ts handles the PROD stripping logic.
-
-        // If a string is passed (like JSON.stringify), it should NOT contain sensitive data
-        if (typeof arg === 'string') {
+      args
+        .filter((arg): arg is string => typeof arg === 'string')
+        .forEach((arg) => {
+          // String logs (e.g. JSON.stringify) must not leak paths or hosts
           expect(arg).not.toContain('/secret/path/to/server.ts')
           expect(arg).not.toContain('192.168.1.5')
-        }
-      })
+        })
     })
   })
 })

@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { EditorView } from "@codemirror/view";
+import type { EditorView } from "@codemirror/view";
 import { isValidUrl } from "../../../utils/security";
 
 export function useLinkDialog(editorViewRef: React.MutableRefObject<EditorView | null>) {

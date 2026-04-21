@@ -18,7 +18,7 @@ import { useAppStore } from "../../store/appStore";
 import { useShallow } from "zustand/react/shallow";
 import { useIdeas } from "../../hooks/useIdeas";
 import { IdeaDetailView } from "../entities/IdeaDetailView";
-import { IdeaStage, Idea } from "../../types/database";
+import type { IdeaStage, Idea } from "../../types/database";
 import { cn } from "../../lib/utils";
 import * as Dialog from "@radix-ui/react-dialog";
 import { OnboardingGuide } from "../layout/OnboardingGuide";

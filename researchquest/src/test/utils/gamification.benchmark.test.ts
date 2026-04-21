@@ -62,5 +62,9 @@ describe("Gamification Benchmark", () => {
     }
 
     console.log("Table query counts:", tableQueries);
+
+    expect(end - start).toBeGreaterThanOrEqual(0);
+    expect(fromSpy).toHaveBeenCalled();
+    expect(Object.keys(tableQueries).length).toBeGreaterThan(0);
   });
 });

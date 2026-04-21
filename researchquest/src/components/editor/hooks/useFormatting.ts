@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { EditorView } from "@codemirror/view";
+import type { EditorView } from "@codemirror/view";
 
 export function useFormatting(editorViewRef: React.MutableRefObject<EditorView | null>) {
   const applyWrappedFormatting = useCallback(

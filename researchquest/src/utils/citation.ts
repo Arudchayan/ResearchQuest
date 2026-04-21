@@ -1,4 +1,4 @@
-import { Paper } from "../types/database";
+import type { Paper } from "../types/database";
 
 /**
  * Extracts the year from a date string or year string.

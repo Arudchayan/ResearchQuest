@@ -3,7 +3,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import * as Tabs from "@radix-ui/react-tabs";
 import { X, Copy, Check } from "lucide-react";
 import { useState, useEffect } from "react";
-import { Paper } from "../../types/database";
+import type { Paper } from "../../types/database";
 import {
   generateBibTeX,
   generateAPA,

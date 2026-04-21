@@ -8,7 +8,7 @@ import {
   convertNotesToJSON,
   convertNotesToMarkdown,
 } from "../../utils/export";
-import { Paper, Note } from "../../types/database";
+import type { Paper, Note } from "../../types/database";
 
 const mockPapers: Paper[] = [
   {

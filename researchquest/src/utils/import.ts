@@ -1,5 +1,5 @@
 import { supabase } from "../lib/supabase";
-import { ExportData } from "./export";
+import type { ExportData } from "./export";
 import { toast } from "sonner";
 import { logger } from "./logger";
 

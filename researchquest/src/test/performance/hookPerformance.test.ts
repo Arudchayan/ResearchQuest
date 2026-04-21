@@ -53,7 +53,7 @@ describe("table support check performance improvement", () => {
     // Simulate 5 instances of a hook calling this concurrently
     const startOld = performance.now();
     await Promise.all(
-      Array(5).fill(0).map(() =>
+      new Array(5).fill(0).map(() =>
         Promise.all(["topic_notes", "topic_papers", "topic_ideas"].map(tableSupportsUserIdOld))
       )
     );
@@ -67,7 +67,7 @@ describe("table support check performance improvement", () => {
 
     const startNew = performance.now();
     await Promise.all(
-      Array(5).fill(0).map(() =>
+      new Array(5).fill(0).map(() =>
         Promise.all(["topic_notes", "topic_papers", "topic_ideas"].map(tableSupportsUserIdNew))
       )
     );

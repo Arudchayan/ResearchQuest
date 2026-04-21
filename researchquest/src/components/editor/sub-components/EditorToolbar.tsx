@@ -16,7 +16,7 @@ import {
   Eye,
   Pencil,
 } from "lucide-react";
-import { ViewMode } from "../hooks/useMarkdownEditor";
+import type { ViewMode } from "../hooks/useMarkdownEditor";
 
 interface EditorToolbarProps {
   applyFormatting: (format: any) => void;

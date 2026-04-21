@@ -49,12 +49,12 @@ describe("Performance: Note Title Derivation", () => {
 
 
     # Deeply Nested Title
-    ${Array(10000).fill("Some content line here...").join("\n")}
+    ${new Array(10000).fill("Some content line here...").join("\n")}
   `;
 
   const massiveNote = `
     # Massive Note
-    ${Array(100000).fill("Some content line here...").join("\n")}
+    ${new Array(100000).fill("Some content line here...").join("\n")}
   `;
 
   it("verifies both implementations produce the same output", () => {
@@ -99,7 +99,7 @@ describe("Performance: Note Title Derivation", () => {
 });
 
 describe("Performance: Date Sorting", () => {
-  const dates = Array(10000)
+  const dates = new Array(10000)
     .fill(0)
     .map(() => ({
       updated_at: new Date(
