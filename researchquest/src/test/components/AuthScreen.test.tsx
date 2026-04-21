@@ -57,7 +57,7 @@ describe("AuthScreen Security", () => {
 
     // Switch to Sign Up
     const toggleButton = screen.getByText(
-      /New scholar\? Submit application/i,
+      /New scholar\? Submit application\./i,
     );
     fireEvent.click(toggleButton);
 
@@ -89,7 +89,7 @@ describe("AuthScreen Security", () => {
 
     // Switch to Sign Up
     const toggleButton = screen.getByText(
-      /New scholar\? Submit application/i,
+      /New scholar\? Submit application\./i,
     );
     fireEvent.click(toggleButton);
 

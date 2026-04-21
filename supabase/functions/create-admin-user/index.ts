@@ -124,8 +124,7 @@ Deno.serve(async (req) => {
         });
   
         if (!adminResponse.ok) {
-          const errorText = await adminResponse.text();
-          console.error(`Admin API error status ${adminResponse.status}: ${errorText}`);
+          console.error(`Admin API error status ${adminResponse.status}`);
           return new Response(JSON.stringify({
             error: { 
               code: 'USER_CREATION_FAILED', 
