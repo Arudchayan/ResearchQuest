@@ -123,23 +123,21 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   const [isSoundEnabled, setIsSoundEnabled] = useState(true);
   const [isNotificationEnabled, setIsNotificationEnabled] = useState(true);
 
-  const notesMap = useMemo(() => new Map(notes.map(note => [note.id, note])), [notes]);
-  const papersMap = useMemo(() => new Map(papers.map(paper => [paper.id, paper])), [papers]);
-  const tasksMap = useMemo(() => new Map(tasks.map(task => [task.id, task])), [tasks]);
-
+  // ⚡ PERFORMANCE OPTIMIZATION: Use Array.find() instead of pre-computing Maps for single lookups
+  // This avoids O(N) memory allocation and iteration on every list update when we only need to find one item
   const selectedItem = useMemo(() => {
     if (!selectedTarget) return null;
     if (selectedTarget.type === "note") {
-      return notesMap.get(selectedTarget.id) || null;
+      return notes.find((note) => note.id === selectedTarget.id) || null;
     }
     if (selectedTarget.type === "paper") {
-      return papersMap.get(selectedTarget.id) || null;
+      return papers.find((paper) => paper.id === selectedTarget.id) || null;
     }
     if (selectedTarget.type === "task") {
-      return tasksMap.get(selectedTarget.id) || null;
+      return tasks.find((task) => task.id === selectedTarget.id) || null;
     }
     return null;
-  }, [notesMap, papersMap, tasksMap, selectedTarget]);
+  }, [notes, papers, tasks, selectedTarget]);
 
   useEffect(() => {
     setTimeLeft(sessionLength);
