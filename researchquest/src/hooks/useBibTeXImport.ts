@@ -3,8 +3,9 @@ import { parseBibTeX, type BibTeXEntry } from "../utils/bibtexParser";
 import { validateFileSize } from "../utils/security";
 import { logger } from "../utils/logger";
 import { buildPaperPayloadFromBibTeX } from "../utils/paperUtils";
+import type { Paper, PaperDraft } from "../types/database";
 
-export function useBibTeXImport(onAdd: (data: any) => Promise<any>) {
+export function useBibTeXImport(onAdd: (data: PaperDraft) => Promise<Paper | null>) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [parsedEntries, setParsedEntries] = useState<BibTeXEntry[]>([]);
