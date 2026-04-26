@@ -2,13 +2,28 @@ import { useAppStore } from "../../store/appStore";
 import { useShallow } from "zustand/react/shallow";
 import { TopicList } from "./TopicList";
 import { TopicDetailView } from "./TopicDetailView";
-import { Hash, Plus, Download, FileText, Table, FileJson, Search, X, ArrowUpDown } from "lucide-react";
+import {
+  Hash,
+  Plus,
+  Download,
+  FileText,
+  Table,
+  FileJson,
+  Search,
+  X,
+  ArrowUpDown,
+} from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { useTopics } from "../../hooks/useTopics";
 import type { TopicWithCounts } from "../../types/database";
 import { toast } from "sonner";
-import { convertTopicsToCSV, convertTopicsToJSON, convertTopicsToMarkdown, downloadFile } from "../../utils/export";
+import {
+  convertTopicsToCSV,
+  convertTopicsToJSON,
+  convertTopicsToMarkdown,
+  downloadFile,
+} from "../../utils/export";
 import { logger } from "../../utils/logger";
 
 type SortOption =
@@ -26,10 +41,12 @@ export function TopicsView() {
       user: state.user,
       selectedTopic: state.selectedTopic,
       setSelectedTopic: state.setSelectedTopic,
-    }))
+    })),
   );
 
-  const { topics, loading, createTopic, updateTopic, deleteTopic } = useTopics(user?.id);
+  const { topics, loading, createTopic, updateTopic, deleteTopic } = useTopics(
+    user?.id,
+  );
   const [isCreating, setIsCreating] = useState(false);
   const [newTopicName, setNewTopicName] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -49,7 +66,11 @@ export function TopicsView() {
 
   const filteredTopics = useMemo(() => {
     // Optimization: Skip filtering if query is empty, no hidden topics, and sort order matches default
-    if (!searchQuery && hiddenTopicIds.size === 0 && sortOption === "name_asc") {
+    if (
+      !searchQuery &&
+      hiddenTopicIds.size === 0 &&
+      sortOption === "name_asc"
+    ) {
       return topics || [];
     }
 
@@ -75,13 +96,29 @@ export function TopicsView() {
         case "name_desc":
           return b.name.localeCompare(a.name);
         case "created_desc":
-          return b.created_at > a.created_at ? 1 : b.created_at < a.created_at ? -1 : 0;
+          return b.created_at > a.created_at
+            ? 1
+            : b.created_at < a.created_at
+              ? -1
+              : 0;
         case "created_asc":
-          return a.created_at > b.created_at ? 1 : a.created_at < b.created_at ? -1 : 0;
+          return a.created_at > b.created_at
+            ? 1
+            : a.created_at < b.created_at
+              ? -1
+              : 0;
         case "updated_desc":
-          return b.updated_at > a.updated_at ? 1 : b.updated_at < a.updated_at ? -1 : 0;
+          return b.updated_at > a.updated_at
+            ? 1
+            : b.updated_at < a.updated_at
+              ? -1
+              : 0;
         case "updated_asc":
-          return a.updated_at > b.updated_at ? 1 : a.updated_at < b.updated_at ? -1 : 0;
+          return a.updated_at > b.updated_at
+            ? 1
+            : a.updated_at < b.updated_at
+              ? -1
+              : 0;
         case "count_desc": {
           const aCount = a.note_count + a.paper_count + a.idea_count;
           const bCount = b.note_count + b.paper_count + b.idea_count;
@@ -109,11 +146,16 @@ export function TopicsView() {
     }
   };
 
-  const handleUpdateTopic = async (topicId: string, updates: { name?: string; description?: string }) => {
+  const handleUpdateTopic = async (
+    topicId: string,
+    updates: { name?: string; description?: string },
+  ) => {
     return await updateTopic(topicId, updates);
   };
 
-  const pendingDeletionsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const pendingDeletionsRef = useRef<
+    Map<string, ReturnType<typeof setTimeout>>
+  >(new Map());
 
   useEffect(() => {
     return () => {
@@ -231,7 +273,7 @@ export function TopicsView() {
 
       downloadFile(content, filename, type);
       toast.success(
-        `Exported ${filteredTopics.length} topics as ${format.toUpperCase()}`
+        `Exported ${filteredTopics.length} topics as ${format.toUpperCase()}`,
       );
     } catch (err) {
       logger.error("Export failed", err);
@@ -307,7 +349,11 @@ export function TopicsView() {
 
           {isCreating && (
             <form onSubmit={handleCreateTopic} className="flex gap-2">
+              <label htmlFor="new-topic-input" className="sr-only">
+                New topic name
+              </label>
               <input
+                id="new-topic-input"
                 type="text"
                 value={newTopicName}
                 onChange={(e) => setNewTopicName(e.target.value)}
@@ -326,7 +372,9 @@ export function TopicsView() {
           )}
           <div className="flex flex-col gap-2">
             <div className="relative">
-              <label htmlFor="topics-search-input" className="sr-only">Search topics</label>
+              <label htmlFor="topics-search-input" className="sr-only">
+                Search topics
+              </label>
               <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
               <input
                 id="topics-search-input"
@@ -399,7 +447,8 @@ export function TopicsView() {
               Select a topic
             </p>
             <p className="text-sm max-w-sm text-center">
-              Choose a topic from the list to view its details, connected notes, papers, and ideas.
+              Choose a topic from the list to view its details, connected notes,
+              papers, and ideas.
             </p>
           </div>
         )}

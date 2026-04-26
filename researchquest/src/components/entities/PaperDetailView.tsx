@@ -242,11 +242,15 @@ export function PaperDetailView({
 
             {/* Authors */}
             <div className="space-y-2 mb-4">
-              <label className="block text-sm font-medium text-text-secondary">
+              <label
+                htmlFor="paper-authors"
+                className="block text-sm font-medium text-text-secondary"
+              >
                 Authors
               </label>
               {isEditing ? (
                 <input
+                  id="paper-authors"
                   type="text"
                   value={editedAuthors}
                   onChange={(e) => setEditedAuthors(e.target.value)}
