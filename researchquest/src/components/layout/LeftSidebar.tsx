@@ -814,6 +814,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
                   }}
                   className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-sm text-text-tertiary hover:text-text-primary hover:bg-bg-elevated transition-colors focus:outline-none focus:ring-1 focus:ring-primary-500"
                   aria-label="Clear search"
+                  title="Clear search"
                 >
                   <X className="w-3.5 h-3.5" aria-hidden="true" />
                 </button>
