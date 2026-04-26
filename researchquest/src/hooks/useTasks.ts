@@ -351,6 +351,35 @@ export function useTasks(userId: string | undefined) {
     return true;
   }
 
+  async function clearCompletedTasks(): Promise<boolean> {
+    if (!userId) return false;
+
+    // Optimistic delete
+    const completedTasks = tasks.filter((t) => t.completed);
+    if (completedTasks.length === 0) return true;
+
+    setTasks((prev) => prev.filter((task) => !task.completed));
+
+    const { error: deleteError } = await supabase
+      .from("tasks")
+      .delete()
+      .eq("user_id", userId)
+      .eq("completed", true);
+
+    if (deleteError) {
+      // Sentinel: Prevent information leakage
+      logger.error("Failed to clear completed tasks", deleteError);
+      setError("Failed to clear completed tasks. Please try again.");
+      toast.error("Failed to clear completed tasks. Please try again.");
+      // Revert on error
+      fetchTasks();
+      return false;
+    }
+
+    void fetchTasks();
+    return true;
+  }
+
   async function restoreTask(task: Task): Promise<Task | null> {
     if (!userId) return null;
 
@@ -386,6 +415,7 @@ export function useTasks(userId: string | undefined) {
     updateTask,
     completeTask,
     deleteTask,
+    clearCompletedTasks,
     restoreTask,
     refreshTasks: fetchTasks,
   };

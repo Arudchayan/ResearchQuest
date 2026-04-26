@@ -21,6 +21,7 @@ import { supabase } from "../../lib/supabase";
 import { parseDateInput } from "../../utils/time";
 import { ListSkeleton } from "../ui/Skeleton";
 import { FormDialog } from "../ui/FormDialog";
+import { useConfirmDialog } from "../ui/ConfirmDialog";
 import { highlightMatch } from "../../utils/highlight";
 import {
   convertTasksToCSV,
@@ -78,7 +79,7 @@ function isOverdue(dueDate: string | undefined): boolean {
 
 export function TaskManager() {
   const [userId, setUserId] = useState<string | undefined>(undefined);
-  const { tasks, loading, createTask, updateTask, completeTask, deleteTask, restoreTask } =
+  const { tasks, loading, createTask, updateTask, completeTask, deleteTask, restoreTask, clearCompletedTasks } =
     useTasks(userId);
 
   const [filter, setFilter] = useState<TaskFilter>("all");
@@ -89,6 +90,8 @@ export function TaskManager() {
   const [compactView, setCompactView] = useState(false);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const { confirm } = useConfirmDialog();
 
   const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastDeletedRef = useRef<Task | null>(null);
@@ -312,6 +315,22 @@ export function TaskManager() {
     setFormDueDate("");
   };
 
+  const handleClearCompleted = async () => {
+    const shouldClear = await confirm({
+      title: "Clear Completed Tasks",
+      message: "Are you sure you want to permanently delete all completed tasks? This action cannot be undone.",
+      variant: "danger",
+      confirmText: "Clear Completed",
+    });
+
+    if (shouldClear) {
+      const success = await clearCompletedTasks();
+      if (success) {
+        toast.success("Completed tasks cleared");
+      }
+    }
+  };
+
   const handleExport = (format: "markdown" | "csv" | "json") => {
     if (sortedTasks.length === 0) {
       toast.error("No tasks to export");
@@ -406,6 +425,18 @@ export function TaskManager() {
                     <FileJson className="w-4 h-4" aria-hidden="true" />
                     JSON (.json)
                   </DropdownMenu.Item>
+                  {completedCount > 0 && (
+                    <>
+                      <DropdownMenu.Separator className="h-px bg-border-subtle my-1" />
+                      <DropdownMenu.Item
+                        onSelect={handleClearCompleted}
+                        className="flex items-center gap-2 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-md cursor-pointer outline-none transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" aria-hidden="true" />
+                        Clear Completed
+                      </DropdownMenu.Item>
+                    </>
+                  )}
                 </DropdownMenu.Content>
               </DropdownMenu.Portal>
             </DropdownMenu.Root>
