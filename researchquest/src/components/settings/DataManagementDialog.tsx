@@ -20,6 +20,10 @@ import { supabase } from "../../lib/supabase";
 import { toast } from "sonner";
 import type { ExportData } from "../../utils/export";
 
+type ExportPayload = Omit<ExportData, "metadata">;
+type ImportedTopic = NonNullable<ExportData["topics"]>[number];
+type ImportedTask = NonNullable<ExportData["tasks"]>[number];
+
 interface DataManagementDialogProps {
   open: boolean;
   onClose: () => void;
@@ -67,36 +71,25 @@ export function DataManagementDialog({
   const [isDragging, setIsDragging] = useState(false);
 
   const handleExport = () => {
-    const dataToExport: any = {};
-
-    if (exportSelection.user && user) dataToExport.user = user;
-
-    if (exportSelection.notes) dataToExport.notes = notes;
-    else dataToExport.notes = [];
-
-    if (exportSelection.papers) dataToExport.papers = papers;
-    else dataToExport.papers = [];
-
-    if (exportSelection.ideas) dataToExport.ideas = ideas;
-    else dataToExport.ideas = [];
-
-    if (exportSelection.tasks) dataToExport.tasks = tasks;
-    else dataToExport.tasks = [];
-
-    if (exportSelection.topics) {
-      // Clean topics to match expected format if needed, but exportData handles raw types too usually
-      // The original Sidebar logic cleaned them, so we should too to be safe
-      dataToExport.topics = Object.values(topics).map((t) => ({
-        id: t.id,
-        user_id: t.user_id,
-        name: t.name,
-        description: t.description,
-        created_at: t.created_at,
-        updated_at: t.updated_at,
-      }));
-    } else {
-      dataToExport.topics = [];
-    }
+    const dataToExport: ExportPayload = {
+      user: exportSelection.user ? user : null,
+      notes: exportSelection.notes ? notes : [],
+      papers: exportSelection.papers ? papers : [],
+      ideas: exportSelection.ideas ? ideas : [],
+      tasks: exportSelection.tasks ? tasks : [],
+      topics: exportSelection.topics
+        ? Object.values(topics).map(
+            (topic): ImportedTopic => ({
+              id: topic.id,
+              user_id: topic.user_id,
+              name: topic.name,
+              description: topic.description,
+              created_at: topic.created_at,
+              updated_at: topic.updated_at,
+            }),
+          )
+        : [],
+    };
 
     // Call the utility function
     exportData(dataToExport);
@@ -182,17 +175,19 @@ export function DataManagementDialog({
         toast.loading(`Importing ${parsedData.topics.length} topics...`, {
           id: toastId,
         });
-        const topics = parsedData.topics.map((t: any) => ({
-          id: t.id,
-          user_id: user.id,
-          name: t.name,
-          description: t.description,
-          created_at: t.created_at,
-          updated_at: t.updated_at,
-        }));
-        const { error } = await supabase.from("topics").upsert(topics);
+        const topicsToImport = parsedData.topics.map(
+          (topic): ImportedTopic => ({
+            id: topic.id,
+            user_id: user.id,
+            name: topic.name,
+            description: topic.description,
+            created_at: topic.created_at,
+            updated_at: topic.updated_at,
+          }),
+        );
+        const { error } = await supabase.from("topics").upsert(topicsToImport);
         if (error) throw error;
-        importedCount += topics.length;
+        importedCount += topicsToImport.length;
       }
 
       // Import Notes
@@ -200,13 +195,13 @@ export function DataManagementDialog({
         toast.loading(`Importing ${parsedData.notes.length} notes...`, {
           id: toastId,
         });
-        const notes = parsedData.notes.map((n: any) => ({
-          ...n,
+        const notesToImport = parsedData.notes.map((note) => ({
+          ...note,
           user_id: user.id,
         }));
-        const { error } = await supabase.from("notes").upsert(notes);
+        const { error } = await supabase.from("notes").upsert(notesToImport);
         if (error) throw error;
-        importedCount += notes.length;
+        importedCount += notesToImport.length;
       }
 
       // Import Papers
@@ -214,13 +209,13 @@ export function DataManagementDialog({
         toast.loading(`Importing ${parsedData.papers.length} papers...`, {
           id: toastId,
         });
-        const papers = parsedData.papers.map((p: any) => ({
-          ...p,
+        const papersToImport = parsedData.papers.map((paper) => ({
+          ...paper,
           user_id: user.id,
         }));
-        const { error } = await supabase.from("papers").upsert(papers);
+        const { error } = await supabase.from("papers").upsert(papersToImport);
         if (error) throw error;
-        importedCount += papers.length;
+        importedCount += papersToImport.length;
       }
 
       // Import Ideas
@@ -228,13 +223,13 @@ export function DataManagementDialog({
         toast.loading(`Importing ${parsedData.ideas.length} ideas...`, {
           id: toastId,
         });
-        const ideas = parsedData.ideas.map((i: any) => ({
-          ...i,
+        const ideasToImport = parsedData.ideas.map((idea) => ({
+          ...idea,
           user_id: user.id,
         }));
-        const { error } = await supabase.from("ideas").upsert(ideas);
+        const { error } = await supabase.from("ideas").upsert(ideasToImport);
         if (error) throw error;
-        importedCount += ideas.length;
+        importedCount += ideasToImport.length;
       }
 
       // Import Tasks
@@ -242,13 +237,15 @@ export function DataManagementDialog({
         toast.loading(`Importing ${parsedData.tasks.length} tasks...`, {
           id: toastId,
         });
-        const tasks = parsedData.tasks.map((t: any) => ({
-          ...t,
-          user_id: user.id,
-        }));
-        const { error } = await supabase.from("tasks").upsert(tasks);
+        const tasksToImport = parsedData.tasks.map(
+          (task): ImportedTask => ({
+            ...task,
+            user_id: user.id,
+          }),
+        );
+        const { error } = await supabase.from("tasks").upsert(tasksToImport);
         if (error) throw error;
-        importedCount += tasks.length;
+        importedCount += tasksToImport.length;
       }
 
       toast.success(`Successfully imported ${importedCount} items`, {

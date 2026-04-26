@@ -13,6 +13,18 @@ interface ShortcutSection {
   shortcuts: ShortcutItem[];
 }
 
+type AppView = "dashboard" | "notes" | "papers" | "ideas" | "tasks" | "focus" | "topics";
+
+const NAVIGATION_SHORTCUTS: Record<string, { view: AppView; url: string }> = {
+  "1": { view: "dashboard", url: "/" },
+  "2": { view: "notes", url: "/notes" },
+  "3": { view: "papers", url: "/papers" },
+  "4": { view: "ideas", url: "/ideas" },
+  "5": { view: "tasks", url: "/tasks" },
+  "6": { view: "focus", url: "/focus" },
+  "7": { view: "topics", url: "/topics" },
+};
+
 const isMac =
   typeof window !== "undefined" && typeof window.navigator !== "undefined"
     ? /Mac|iPod|iPhone|iPad/.test(window.navigator.platform)
@@ -75,41 +87,9 @@ export function ShortcutsDialog() {
 
       // Global Navigation (Mod+Alt+1-6)
       if (isMod && e.altKey) {
-        let view = "";
-        let url = "";
+        const destination = NAVIGATION_SHORTCUTS[e.key];
 
-        switch (e.key) {
-          case "1":
-            view = "dashboard";
-            url = "/";
-            break;
-          case "2":
-            view = "notes";
-            url = "/notes";
-            break;
-          case "3":
-            view = "papers";
-            url = "/papers";
-            break;
-          case "4":
-            view = "ideas";
-            url = "/ideas";
-            break;
-          case "5":
-            view = "tasks";
-            url = "/tasks";
-            break;
-          case "6":
-            view = "focus";
-            url = "/focus";
-            break;
-          case "7":
-            view = "topics";
-            url = "/topics";
-            break;
-        }
-
-        if (view) {
+        if (destination) {
           e.preventDefault();
 
           const {
@@ -121,13 +101,13 @@ export function ShortcutsDialog() {
           } = useAppStore.getState();
 
           // Clear selections when switching main views
-          if (view !== "notes") setSelectedNote(null);
-          if (view !== "papers") setSelectedPaper(null);
-          if (view !== "ideas") setSelectedIdea(null);
-          if (view !== "topics") setSelectedTopic(null);
+          if (destination.view !== "notes") setSelectedNote(null);
+          if (destination.view !== "papers") setSelectedPaper(null);
+          if (destination.view !== "ideas") setSelectedIdea(null);
+          if (destination.view !== "topics") setSelectedTopic(null);
 
-          setCurrentView(view as any);
-          window.history.pushState(null, "", url);
+          setCurrentView(destination.view);
+          window.history.pushState(null, "", destination.url);
           return;
         }
       }

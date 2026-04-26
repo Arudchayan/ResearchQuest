@@ -1,9 +1,9 @@
-import type { CrossrefPaper } from "../types/database";
+import type { CrossrefPaper, PaperDraft } from "../types/database";
 import { isValidUrl } from "../utils/security";
 import type { BibTeXEntry } from "../utils/bibtexParser";
 
 export const buildPaperPayload = (paper: CrossrefPaper) => {
-  const paperData: any = {
+  const paperData: PaperDraft = {
     title: paper.title,
     authors: Array.isArray(paper.authors) ? paper.authors : [],
   };
@@ -24,7 +24,7 @@ export const buildPaperPayload = (paper: CrossrefPaper) => {
 };
 
 export const buildPaperPayloadFromBibTeX = (entry: BibTeXEntry) => {
-  const paperData: any = {
+  const paperData: PaperDraft = {
     title: entry.title || "Untitled",
     authors: entry.authors || [],
   };

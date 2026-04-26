@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { BookOpen, CheckCircle2 } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
-import type { CrossrefPaper } from "../../types/database";
+import type { CrossrefPaper, Paper, PaperDraft } from "../../types/database";
 import type { PaperSearchOptions } from "../../hooks/usePapers";
 import { isValidUrl } from "../../utils/security";
 import { usePaperSearch } from "../../hooks/usePaperSearchInternal";
@@ -13,7 +13,7 @@ import { ManualEntryTab } from "./AddPaperTabs/ManualEntryTab";
 import { BibTeXImportTab } from "./AddPaperTabs/BibTeXImportTab";
 
 interface AddPaperViewProps {
-  onAdd: (paperData: any) => Promise<any>;
+  onAdd: (paperData: PaperDraft) => Promise<Paper | null>;
   searchByDOI: (doi: string) => Promise<CrossrefPaper | null>;
   searchByQuery: (query: string, options?: PaperSearchOptions) => Promise<CrossrefPaper[]>;
 }
@@ -79,7 +79,7 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
     }
   }, [manualTitle, manualError]);
 
-  const showSuccess = useCallback((msg: string, paper?: any) => {
+  const showSuccess = useCallback((msg: string, paper?: Paper | null) => {
     setSuccessMessage(msg);
     if (paper) {
       setSelectedPaper(paper);
@@ -144,7 +144,7 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
     setManualError("");
     setManualLoading(true);
     try {
-      const paperData = {
+      const paperData: PaperDraft = {
         title: manualTitle.trim(),
         authors: manualAuthors.split(",").map(a => a.trim()).filter(Boolean),
         doi: manualDoi.trim() || undefined,

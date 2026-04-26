@@ -59,6 +59,14 @@ export interface Paper {
   updated_at: string;
 }
 
+export type PaperDraft = Pick<Paper, "title" | "authors"> &
+  Partial<
+    Pick<
+      Paper,
+      "doi" | "source_url" | "status" | "topic_ids" | "abstract" | "publication_date"
+    >
+  >;
+
 export interface Note {
   id: string;
   user_id: string;
