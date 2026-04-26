@@ -713,6 +713,22 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
     <>
       <div className="flex-1 flex flex-col h-full overflow-y-auto">
         <div className="p-4 space-y-4">
+          {/* Global Search Button */}
+          <button
+            onClick={() => document.dispatchEvent(new CustomEvent("open-command-palette"))}
+            className="w-full flex items-center justify-between px-3 py-2 bg-bg-surface border border-border-moderate rounded-md text-text-tertiary hover:bg-bg-elevated hover:text-text-primary transition-all group focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 shadow-sm"
+            aria-label="Open global search command palette"
+          >
+            <div className="flex items-center gap-2">
+              <MagnifyingGlassIcon className="w-4 h-4 group-hover:text-primary-500 transition-colors" />
+              <span className="text-small font-medium">Search...</span>
+            </div>
+            <div className="hidden sm:flex items-center gap-1 opacity-70">
+              <kbd className="px-1.5 py-0.5 text-[10px] font-sans font-semibold bg-bg-base border border-border-subtle rounded text-text-secondary">Ctrl</kbd>
+              <kbd className="px-1.5 py-0.5 text-[10px] font-sans font-semibold bg-bg-base border border-border-subtle rounded text-text-secondary">K</kbd>
+            </div>
+          </button>
+
           {/* Navigation Tabs */}
           <nav className="space-y-1">
             {TABS.map((tab) => {
