@@ -190,7 +190,12 @@ export function useTasks(userId: string | undefined) {
 
     if (createError) {
       // Sentinel: Prevent information leakage by logging only the message
-      logger.error("Failed to create task", createError);
+      logger.error(
+        "Failed to create task",
+        createError instanceof Error
+          ? createError.message
+          : String(createError),
+      );
 
       setError("Failed to create task. Please try again.");
       toast.error("Failed to create task. Please try again.");
@@ -205,7 +210,10 @@ export function useTasks(userId: string | undefined) {
 
     // Award XP (don't await to avoid blocking)
     awardXP(userId, XP_REWARDS.CREATE_TASK, "create_task").catch((e) =>
-      logger.error("Failed to award XP", e),
+      logger.error(
+        "Failed to award XP",
+        e instanceof Error ? e.message : String(e),
+      ),
     );
 
     void fetchTasks();
@@ -258,7 +266,12 @@ export function useTasks(userId: string | undefined) {
 
     if (updateError) {
       // Sentinel: Prevent information leakage
-      logger.error("Failed to update task", updateError);
+      logger.error(
+        "Failed to update task",
+        updateError instanceof Error
+          ? updateError.message
+          : String(updateError),
+      );
 
       setError("Failed to update task. Please try again.");
       toast.error("Failed to update task. Please try again.");
@@ -299,7 +312,12 @@ export function useTasks(userId: string | undefined) {
 
     if (updateError) {
       // Sentinel: Prevent information leakage
-      logger.error("Failed to complete/uncomplete task", updateError);
+      logger.error(
+        "Failed to complete/uncomplete task",
+        updateError instanceof Error
+          ? updateError.message
+          : String(updateError),
+      );
 
       setError("Failed to update task. Please try again.");
       toast.error("Failed to update task. Please try again.");
@@ -315,7 +333,10 @@ export function useTasks(userId: string | undefined) {
     // Award XP only when completing (not un-completing, don't await to avoid blocking)
     if (newCompletedStatus && userId) {
       awardXP(userId, XP_REWARDS.COMPLETE_TASK, "complete_task").catch((e) =>
-        logger.error("Failed to award XP", e),
+        logger.error(
+          "Failed to award XP",
+          e instanceof Error ? e.message : String(e),
+        ),
       );
     }
 
@@ -336,7 +357,12 @@ export function useTasks(userId: string | undefined) {
 
     if (deleteError) {
       // Sentinel: Prevent information leakage
-      logger.error("Failed to delete task", deleteError);
+      logger.error(
+        "Failed to delete task",
+        deleteError instanceof Error
+          ? deleteError.message
+          : String(deleteError),
+      );
 
       setError("Failed to delete task. Please try again.");
       toast.error("Failed to delete task. Please try again.");
@@ -364,7 +390,12 @@ export function useTasks(userId: string | undefined) {
       .single();
 
     if (restoreError) {
-      logger.error("Failed to restore task", restoreError);
+      logger.error(
+        "Failed to restore task",
+        restoreError instanceof Error
+          ? restoreError.message
+          : String(restoreError),
+      );
       setError("Failed to restore task. Please try again.");
       toast.error("Failed to restore task");
 
