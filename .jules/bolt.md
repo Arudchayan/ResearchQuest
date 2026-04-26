@@ -29,3 +29,6 @@
 ## 2025-04-18 - Schwartzian Transform for Complex Sorting
 **Learning:** To optimize sorting performance for lists of entities, use direct string comparison for strictly uniform ISO date strings instead of instantiating `Date` objects inside the `.sort()` callback. However, if date formats might be non-uniform or require parsing, do not bypass the parser; instead, implement a Schwartzian transform (decorate-sort-undecorate) to pre-parse the dates exactly once in an O(N) mapping step prior to the O(N log N) sort.
 **Action:** Always extract expensive functions (like `parseDateInput`) from inside `.sort()` comparators. Map the array to include the computed comparable values, sort the mapped array, and then map back to the original objects.
+## 2025-04-20 - Early Return in useMemo Filter Loops
+**Learning:** In React components that render large lists (like `TopicsView`), executing an empty `.filter().map()` chain or sorting operations when no search/sort overrides are active consumes unnecessary CPU cycles and triggers array allocations.
+**Action:** Always include an early return (skip condition) in the `useMemo` filter block. If the search query is empty, no hidden constraints apply, and the active sort matches the default, return the original data array (`topics || []`) directly rather than executing an O(N) chain.

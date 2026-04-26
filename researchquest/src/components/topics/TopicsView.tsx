@@ -56,11 +56,17 @@ export function TopicsView() {
       resultTopics = searchableTopics
         .filter((st) => st.searchText.includes(query))
         .map((st) => st.topic);
+    } else {
+      // Optimization: Skip filtering if query is empty
+      // Only filter by hiddenTopicIds when rendering visible topics
     }
 
-    const visibleTopics = resultTopics.filter(
-      (topic) => !hiddenTopicIds.has(topic.id),
-    );
+    let visibleTopics = resultTopics;
+    if (hiddenTopicIds.size > 0) {
+      visibleTopics = resultTopics.filter(
+        (topic) => !hiddenTopicIds.has(topic.id),
+      );
+    }
 
     return [...visibleTopics].sort((a, b) => {
       switch (sortOption) {

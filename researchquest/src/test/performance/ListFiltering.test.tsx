@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { vi, describe, it, expect, beforeEach } from "vitest";
 import { NotesView } from "../../components/notes/NotesView";
 import { PapersView } from "../../components/papers/PapersView";
+import { TopicsView } from "../../components/topics/TopicsView";
 import { useAppStore } from "../../store/appStore";
 
 // Mock dependencies
@@ -29,6 +30,19 @@ vi.mock("../../hooks/usePapers", () => ({
     restorePaper: vi.fn(),
     searchPaperByDOI: vi.fn(),
     searchPapersByQuery: vi.fn(),
+  })),
+}));
+
+vi.mock("../../hooks/useTopics", () => ({
+  useTopics: vi.fn(() => ({
+    topics: [
+      { id: 't1', name: 'Topic 1', description: 'Desc 1', note_count: 0, paper_count: 0, idea_count: 0 },
+      { id: 't2', name: 'Topic 2', description: 'Desc 2', note_count: 0, paper_count: 0, idea_count: 0 },
+    ],
+    loading: false,
+    createTopic: vi.fn(),
+    updateTopic: vi.fn(),
+    deleteTopic: vi.fn(),
   })),
 }));
 
@@ -95,12 +109,32 @@ describe("ListFiltering Performance", () => {
     },
   ];
 
+  const mockTopics = [
+    {
+      id: "t1",
+      name: "Topic 1",
+      description: "Desc 1",
+      note_count: 0,
+      paper_count: 0,
+      idea_count: 0
+    },
+    {
+      id: "t2",
+      name: "Topic 2",
+      description: "Desc 2",
+      note_count: 0,
+      paper_count: 0,
+      idea_count: 0
+    },
+  ];
+
   beforeEach(() => {
     vi.clearAllMocks();
     (useAppStore as any).mockImplementation((selector: any) => {
       const state = {
         notes: mockNotes,
         papers: mockPapers,
+        topics: mockTopics,
         papersLoading: false,
         selectedNote: null,
         selectedPaper: null,
@@ -116,6 +150,7 @@ describe("ListFiltering Performance", () => {
       selectedPaper: null,
       notes: mockNotes,
       papers: mockPapers,
+      topics: mockTopics,
     });
   });
 
@@ -136,6 +171,16 @@ describe("ListFiltering Performance", () => {
       (instance) => instance === mockPapers,
     );
     expect(calledOnMockPapers).toBe(false);
+    filterSpy.mockRestore();
+  });
+
+  it("should verify optimization: filter is NOT called on topics when search query is empty", () => {
+    const filterSpy = vi.spyOn(Array.prototype, "filter");
+    render(<TopicsView />);
+    const calledOnMockTopics = filterSpy.mock.instances.some(
+      (instance) => instance.length === 2 && instance[0] && instance[0].id === 't1' && instance[1].id === 't2'
+    );
+    expect(calledOnMockTopics).toBe(false);
     filterSpy.mockRestore();
   });
 });
