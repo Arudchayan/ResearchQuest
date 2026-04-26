@@ -73,3 +73,7 @@
 **Vulnerability:** Information Leakage & DoS via unconstrained requests in `create-admin-user` and `fetch-paper` Edge Functions.
 **Learning:** `fetch` requests inside Deno Edge Functions lacked timeouts, allowing potential unbounded blocking on external calls. Additionally, catch blocks passed raw `error` objects to `console.error()`, which risks leaking stack traces and internal metadata in server logs.
 **Prevention:** Always wrap external `fetch` calls with `AbortController` and `setTimeout` (e.g. `fetchWithTimeout`). Always sanitize error outputs in catch blocks before logging (e.g. `error instanceof Error ? error.message : 'Unknown'`).
+## 2026-04-26 - URL Validation Bypass using Control Characters
+**Vulnerability:** URL validation could be bypassed using control characters (e.g. `​`, `	`, ` `) to obfuscate malicious protocols like `javascript:`.
+**Learning:** Browsers silently strip non-printable/control characters from URLs, meaning an obfuscated URL that passes naive string-matching validation can still execute as a malicious script when clicked.
+**Prevention:** Always strip zero-width and control characters (e.g., using `/[ --\x9f​-‍﻿]/g`) from input strings before executing URL validation or protocol checking.

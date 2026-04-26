@@ -33,6 +33,13 @@ describe("Security Utils", () => {
       expect(isValidUrl("javascript:alert(1)")).toBe(false);
     });
 
+    it("should reject javascript protocol disguised with control characters", () => {
+      expect(isValidUrl("java\x00script:alert(1)")).toBe(false);
+      expect(isValidUrl("java\tscript:alert(1)")).toBe(false);
+      expect(isValidUrl("java\u200Bscript:alert(1)")).toBe(false); // Zero-width space
+      expect(isValidUrl("\u200Bjavascript:alert(1)")).toBe(false);
+    });
+
     it("should reject data protocol", () => {
       expect(isValidUrl("data:text/html,<script>alert(1)</script>")).toBe(
         false,
