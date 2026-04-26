@@ -66,3 +66,8 @@ Prevention: When adding new top-level entities, always ensure they are integrate
 Opportunity: The BibTeX import tab had functional drag-and-drop for file uploads but completely lacked visual feedback when users dragged files over the UI, creating ambiguity.
 Learning: When using invisible `<input type="file" />` elements overlaid on a UI to enable native drag-and-drop, it's essential to track `onDragOver` and `onDragLeave` events on the wrapper to provide explicit visual state changes (like border highlights or message updates) to confirm the drop zone is active.
 Prevention: Always implement explicit drag state tracking (`isDragging`) and visual affordances whenever implementing custom or overlaid file upload drop zones.
+
+YYYY-MM-DD — Playwright Local Auth Bypass
+Opportunity: Verifying features within authenticated routing components locally using Playwright was failing due to complex React lifecycle loading bypassing injected `__TEST_USER__` scripts.
+Learning: When using Playwright to visually verify isolated React components locally, relying on `window.__TEST_USER__` to bypass `App.tsx` authentication can be unreliable. Creating a minimal `test_harness.html` file that directly mounts the target component and injects required Zustand state (`useAppStore.setState({ user: ... })`) provides a stable rendering environment.
+Prevention: N/A
