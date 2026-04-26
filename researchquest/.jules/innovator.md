@@ -35,3 +35,8 @@ Different list/overview components for the same data entity (like `IdeasBoard` v
 
 Prevention:
 When adding feature-rich capabilities (like Search, Export, or Sorting) to one view of an entity, actively cross-check all other views of that entity or similar top-level lists to ensure the feature is applied consistently across the application. Always defensively program array iterations on global state slices, as they may be undefined before hydrating.
+
+2024-11-20 — Standardize Search and Export across List Views
+Opportunity: IdeasOverview lacked parity with NotesView, PapersView, and IdeasBoard regarding search and sort functionality.
+Learning: Ensuring consistent features (like search and sort) across similar list views (Notes, Papers, Ideas) enhances overall usability and predictability for users.
+Prevention: When creating new list views in the future, automatically evaluate if search, sort, and export functionalities are needed based on existing patterns.
