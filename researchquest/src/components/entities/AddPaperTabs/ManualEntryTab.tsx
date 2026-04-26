@@ -97,15 +97,17 @@ export function ManualEntryTab({
           onClick={onAdd}
           disabled={loading}
           className="w-full py-4 bg-primary-500 text-white rounded-lg font-semibold flex justify-center items-center gap-2"
+          aria-live="polite"
+          aria-atomic="true"
         >
           {loading ? (
             <>
-              <Loader className="w-6 h-6 animate-spin" />
+              <Loader className="w-6 h-6 animate-spin" aria-hidden="true" />
               Adding Paper...
             </>
           ) : (
             <>
-              <Plus className="w-6 h-6" />
+              <Plus className="w-6 h-6" aria-hidden="true" />
               Add Paper
             </>
           )}
