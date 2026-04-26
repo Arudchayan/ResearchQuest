@@ -227,6 +227,7 @@ export function TopicDetailView({
                 onChange={(event) => setName(event.target.value)}
                 maxLength={50}
                 className="w-full px-3 py-2 text-xl font-semibold bg-bg-base border border-border-subtle rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                aria-label="Topic name"
               />
             ) : (
               <h1 className="text-2xl font-bold text-text-primary">
