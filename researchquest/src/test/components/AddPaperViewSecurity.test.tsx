@@ -5,6 +5,11 @@ import { AddPaperView } from "../../components/entities/AddPaperView";
 import type { CrossrefPaper } from "../../types/database";
 import { useAppStore } from "../../store/appStore";
 
+const TAB_NAMES = {
+  import: /import bibtex/i,
+  manual: /manual entry/i,
+} as const;
+
 describe("AddPaperView Security", () => {
   const mockOnAdd = vi.fn();
   const mockSearchByDOI = vi.fn();
@@ -60,7 +65,7 @@ describe("AddPaperView Security", () => {
       />,
     );
 
-    const manualTab = screen.getByText("Manual Entry");
+    const manualTab = screen.getByRole("button", { name: TAB_NAMES.manual });
     await userEvent.click(manualTab);
 
     const titleInput = screen.getByPlaceholderText(/enter paper title/i);
@@ -88,7 +93,7 @@ describe("AddPaperView Security", () => {
       />,
     );
 
-    const importTab = screen.getByText("Import BibTeX");
+    const importTab = screen.getByRole("button", { name: TAB_NAMES.import });
     await userEvent.click(importTab);
 
     const fileInput = screen.getByLabelText(/upload bibtex file/i);
@@ -96,7 +101,10 @@ describe("AddPaperView Security", () => {
     // Create a mock large file
     const largeFile = new File(["a"], "large.bib", { type: "text/plain" });
     // Mock the size property to be > 5MB (5 * 1024 * 1024 + 1)
-    Object.defineProperty(largeFile, 'size', { get: () => 5 * 1024 * 1024 + 1, configurable: true });
+    Object.defineProperty(largeFile, "size", {
+      get: () => 5 * 1024 * 1024 + 1,
+      configurable: true,
+    });
 
     await userEvent.upload(fileInput, largeFile);
 
