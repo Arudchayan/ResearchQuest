@@ -5,6 +5,13 @@ import { AddPaperView } from "../../components/entities/AddPaperView";
 import type { CrossrefPaper } from "../../types/database";
 import { useAppStore } from "../../store/appStore";
 
+const TAB_NAMES = {
+  doi: /doi search/i,
+  search: /keyword search/i,
+  import: /import bibtex/i,
+  manual: /manual entry/i,
+} as const;
+
 describe("AddPaperView Component", () => {
   const mockOnAdd = vi.fn();
   const mockSearchByDOI = vi.fn();
@@ -66,9 +73,10 @@ describe("AddPaperView Component", () => {
         />,
       );
 
-      expect(screen.getByText("DOI Search")).toBeInTheDocument();
-      expect(screen.getByText("Keyword Search")).toBeInTheDocument();
-      expect(screen.getByText("Manual Entry")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: TAB_NAMES.doi })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: TAB_NAMES.search })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: TAB_NAMES.import })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: TAB_NAMES.manual })).toBeInTheDocument();
     });
 
     it("should switch between tabs", async () => {
@@ -80,14 +88,14 @@ describe("AddPaperView Component", () => {
         />,
       );
 
-      const keywordTab = screen.getByText("Keyword Search");
+      const keywordTab = screen.getByRole("button", { name: TAB_NAMES.search });
       await userEvent.click(keywordTab);
 
       expect(
         screen.getByPlaceholderText(/e.g., CRISPR gene editing/i),
       ).toBeInTheDocument();
 
-      const manualTab = screen.getByText("Manual Entry");
+      const manualTab = screen.getByRole("button", { name: TAB_NAMES.manual });
       await userEvent.click(manualTab);
 
       expect(
@@ -118,7 +126,7 @@ describe("AddPaperView Component", () => {
       });
 
       // Switch tabs - error should clear
-      const keywordTab = screen.getByText("Keyword Search");
+      const keywordTab = screen.getByRole("button", { name: TAB_NAMES.search });
       await userEvent.click(keywordTab);
 
       await waitFor(() => {
@@ -283,7 +291,7 @@ describe("AddPaperView Component", () => {
         />,
       );
 
-      const keywordTab = screen.getByText("Keyword Search");
+      const keywordTab = screen.getByRole("button", { name: TAB_NAMES.search });
       await userEvent.click(keywordTab);
 
       const searchInput = screen.getByPlaceholderText(
@@ -325,7 +333,7 @@ describe("AddPaperView Component", () => {
         />,
       );
 
-      const keywordTab = screen.getByText("Keyword Search");
+      const keywordTab = screen.getByRole("button", { name: TAB_NAMES.search });
       await userEvent.click(keywordTab);
 
       const searchInput = screen.getByPlaceholderText(
@@ -370,7 +378,7 @@ describe("AddPaperView Component", () => {
         />,
       );
 
-      const keywordTab = screen.getByText("Keyword Search");
+      const keywordTab = screen.getByRole("button", { name: TAB_NAMES.search });
       await userEvent.click(keywordTab);
 
       const searchInput = screen.getByPlaceholderText(
@@ -397,7 +405,7 @@ describe("AddPaperView Component", () => {
         />,
       );
 
-      const manualTab = screen.getByText("Manual Entry");
+      const manualTab = screen.getByRole("button", { name: TAB_NAMES.manual });
       await userEvent.click(manualTab);
 
       const titleInput = screen.getByPlaceholderText(/enter paper title/i);
@@ -426,7 +434,7 @@ describe("AddPaperView Component", () => {
         />,
       );
 
-      const manualTab = screen.getByText("Manual Entry");
+      const manualTab = screen.getByRole("button", { name: TAB_NAMES.manual });
       await userEvent.click(manualTab);
 
       const addButton = screen.getByRole("button", { name: /add paper/i });
@@ -459,7 +467,7 @@ describe("AddPaperView Component", () => {
         />,
       );
 
-      const manualTab = screen.getByText("Manual Entry");
+      const manualTab = screen.getByRole("button", { name: TAB_NAMES.manual });
       await userEvent.click(manualTab);
 
       const titleInput = screen.getByPlaceholderText(/enter paper title/i);
@@ -547,7 +555,7 @@ describe("AddPaperView Component", () => {
       );
 
       // Switch to Manual Entry
-      const manualTab = screen.getByText("Manual Entry");
+      const manualTab = screen.getByRole("button", { name: TAB_NAMES.manual });
       await userEvent.click(manualTab);
 
       // Fill form
@@ -661,7 +669,7 @@ describe("AddPaperView Component", () => {
         />,
       );
 
-      const importTab = screen.getByText("Import BibTeX");
+      const importTab = screen.getByRole("button", { name: TAB_NAMES.import });
       await userEvent.click(importTab);
 
       expect(screen.getByText(/upload bibtex file/i)).toBeInTheDocument();
@@ -676,7 +684,7 @@ describe("AddPaperView Component", () => {
         />,
       );
 
-      await userEvent.click(screen.getByText("Import BibTeX"));
+      await userEvent.click(screen.getByRole("button", { name: TAB_NAMES.import }));
 
       const fileContent = `
 @article{key1,
@@ -710,7 +718,7 @@ describe("AddPaperView Component", () => {
         />,
       );
 
-      await userEvent.click(screen.getByText("Import BibTeX"));
+      await userEvent.click(screen.getByRole("button", { name: TAB_NAMES.import }));
 
       const fileContent = `
 @article{key1,
