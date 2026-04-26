@@ -110,6 +110,23 @@ export function Dashboard() {
       .slice(0, 3);
   }, [tasks]);
 
+  // ⚡ PERFORMANCE OPTIMIZATION:
+  // Pre-calculate completed and pending counts in a single O(N) pass,
+  // avoiding multiple O(N) filters during render.
+  const taskStats = useMemo(() => {
+    let pending = 0;
+    let completed = 0;
+    const len = tasks.length;
+    for (let i = 0; i < len; i++) {
+      if (tasks[i].completed) {
+        completed++;
+      } else {
+        pending++;
+      }
+    }
+    return { pending, completed };
+  }, [tasks]);
+
   const handleCreateNote = () => {
     setCurrentView("notes");
   };
@@ -211,10 +228,10 @@ export function Dashboard() {
                 </span>
               </div>
               <div className="text-2xl font-serif font-bold text-text-primary mb-1">
-                {tasks.filter((t) => !t.completed).length} Pending
+                {taskStats.pending} Pending
               </div>
               <div className="text-small text-text-secondary font-serif italic">
-                {tasks.filter((t) => t.completed).length} completed so far
+                {taskStats.completed} completed so far
               </div>
             </div>
           </div>

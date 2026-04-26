@@ -52,3 +52,6 @@
 ## 2024-03-24 - Optimizing Array.prototype.find in Animation Frames
 **Learning:** Using `Array.prototype.find()` inside high-frequency animation loops like `requestAnimationFrame` (e.g., iterating over edges to find target nodes) causes `O(N*M)` complexity and layout jank, as the full array is scanned repeatedly 60 times per second.
 **Action:** Always pre-compute a `Map` lookup object (e.g., `new Map(items.map(i => [i.id, i]))`) immediately before loops or inside the animation frame to reduce lookups from `O(N)` to `O(1)`.
+## 2026-04-26 - [Optimize multiple array filters into single passes]
+**Learning:** Chaining `.filter().length` multiple times on the same array inside JSX (like in Dashboard task counts) causes redundant O(N) array scans and allocates intermediate arrays on every render.
+**Action:** Use a single `useMemo` block with a manual loop to compute multiple aggregates (like pending and completed counts) in one O(N) pass, reducing overhead.
