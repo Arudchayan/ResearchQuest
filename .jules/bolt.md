@@ -52,3 +52,6 @@
 ## 2024-03-24 - Optimizing Array.prototype.find in Animation Frames
 **Learning:** Using `Array.prototype.find()` inside high-frequency animation loops like `requestAnimationFrame` (e.g., iterating over edges to find target nodes) causes `O(N*M)` complexity and layout jank, as the full array is scanned repeatedly 60 times per second.
 **Action:** Always pre-compute a `Map` lookup object (e.g., `new Map(items.map(i => [i.id, i]))`) immediately before loops or inside the animation frame to reduce lookups from `O(N)` to `O(1)`.
+## 2025-04-18 - Defer Map Allocations in Background Tabs
+**Learning:** Pre-computing mapping loops for search fields (e.g., `useMemo` returning mapped arrays with `.toLowerCase()` or string extraction) can cause significant background O(N) allocation and performance drops when updating global stores if these components are mounted but not currently visible to the user.
+**Action:** Always wrap these expensive list projections in React hooks with an early return (e.g., `if (currentView !== 'notes') return [];`) so that inactive tabs bypass computation completely.
