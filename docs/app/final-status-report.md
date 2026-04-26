@@ -26,8 +26,6 @@
 - **Production Version**: https://fx46d9nhqj3x.space.minimax.io (Fixed & Deployed)
 
 ## 🔑 **Login Credentials**
-- **Email**: arudchayan01@gmail.com
-- **Password**: 3As278ePfWCBFLZ
 
 ## 📊 **Current Data Status**
 - **User Profile**: Level 1, 470 XP
