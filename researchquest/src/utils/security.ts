@@ -11,6 +11,7 @@ export function isValidUrl(url: string): boolean {
 
   // Strip control characters and zero-width spaces that could bypass validation
   let trimmed = url.trim();
+  // eslint-disable-next-line no-control-regex
   trimmed = trimmed.replace(/[\x00-\x1F\x7F-\x9F\u200B-\u200D\uFEFF]/g, "");
 
   if (!trimmed) return false;
