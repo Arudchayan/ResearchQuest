@@ -117,3 +117,13 @@ Different list/overview components for the same data entity (like `IdeasBoard` v
 
 Prevention:
 When adding feature-rich capabilities (like Search, Export, or Sorting) to one view of an entity, actively cross-check all other views of that entity or similar top-level lists to ensure the feature is applied consistently across the application. Always defensively program array iterations on global state slices, as they may be undefined before hydrating.
+
+2024-05-27 — Add Data Export to Topic Detail View
+Opportunity:
+The `TopicDetailView` component lacked the "Export" functionality (Markdown, CSV, JSON) that was present in the `TopicsView` and other main list views (like Notes, Papers, Tasks). Implementing this ensures consistency across all entity list views, making it easier for users to extract their raw research data from any context.
+
+Learning:
+Different list/overview components for the same data entity (like `TopicsView` vs `TopicDetailView`) sometimes drift out of feature parity. The export functionality relies on standard Radix UI dropdown menus and shared utility functions (`convertTopicsToMarkdown`, etc.) from `src/utils/export.ts`, making it straightforward to implement across new views once identified. Also discovered that `topic` can be exported as a single item array `[topic]` using existing pluralized utils.
+
+Prevention:
+When adding feature-rich capabilities (like Search, Export, or Sorting) to one view of an entity, actively cross-check all other views of that entity or similar top-level lists to ensure the feature is applied consistently across the application. Always defensively program array iterations on global state slices.
