@@ -1,5 +1,9 @@
 .browser_screenshots/
 
+# Local env with secrets (never commit)
+.env
+.env.local
+
 # Manual Playwright / scratch verification (screenshots, videos); do not commit.
 /verification/
 
