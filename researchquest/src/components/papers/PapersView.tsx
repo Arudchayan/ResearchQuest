@@ -19,6 +19,7 @@ import { usePapers } from "../../hooks/usePapers";
 import { AddPaperView } from "../entities/AddPaperView";
 import { PaperDetailView } from "../entities/PaperDetailView";
 import { PaperCard } from "./PaperCard";
+import { InlineError } from "../ui/ErrorFallback";
 import { PaperCardSkeleton } from "../ui/Skeleton";
 import { cn } from "../../lib/utils";
 import * as Dialog from "@radix-ui/react-dialog";
@@ -47,16 +48,23 @@ export function PapersView() {
   // ⚡ PERFORMANCE OPTIMIZATION:
   // Using useShallow to prevent unnecessary re-renders of the entire PapersView
   // when unrelated properties in the global appStore change.
-  const { papers, papersLoading, selectedPaper, setSelectedPaper, userId } =
-    useAppStore(
-      useShallow((state) => ({
-        papers: state.papers,
-        papersLoading: state.papersLoading,
-        selectedPaper: state.selectedPaper,
-        setSelectedPaper: state.setSelectedPaper,
-        userId: state.user?.id,
-      }))
-    );
+  const {
+    papers,
+    papersLoading,
+    selectedPaper,
+    setSelectedPaper,
+    userId,
+    papersSyncError,
+  } = useAppStore(
+    useShallow((state) => ({
+      papers: state.papers,
+      papersLoading: state.papersLoading,
+      selectedPaper: state.selectedPaper,
+      setSelectedPaper: state.setSelectedPaper,
+      userId: state.user?.id,
+      papersSyncError: state.dataSyncErrors?.papers ?? null,
+    })),
+  );
   const {
     createPaper,
     updatePaper,
@@ -256,11 +264,16 @@ export function PapersView() {
   };
 
   return (
-    <div className="flex h-full bg-slate-50 dark:bg-slate-900 overflow-hidden">
+    <div className="relative flex h-full bg-slate-50 dark:bg-slate-900 overflow-hidden">
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <div className="p-6 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex items-center justify-between">
-          <div>
+      <div
+        className={cn(
+          "flex-1 flex flex-col min-w-0",
+          selectedPaper && "max-lg:hidden",
+        )}
+      >
+        <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="min-w-0">
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
               Research Library
             </h1>
@@ -268,7 +281,7 @@ export function PapersView() {
               Manage and organize your research papers
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <DropdownMenu.Root>
               <DropdownMenu.Trigger asChild>
                 <button className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-2 font-medium">
@@ -325,7 +338,7 @@ export function PapersView() {
         </div>
 
         <div className="p-4 bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1 max-w-md">
+          <div className="relative flex-1 sm:max-w-md">
             <label htmlFor="papers-search-input" className="sr-only">Search library</label>
             <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
             <input
@@ -372,9 +385,14 @@ export function PapersView() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-auto p-6">
+        <div className="flex-1 overflow-auto p-4 sm:p-6">
           <OnboardingGuide />
-          {papersLoading ? (
+          {papersSyncError ? (
+            <InlineError
+              message={papersSyncError.message}
+              className="mb-4"
+            />
+          ) : papersLoading ? (
             <div
               className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"
               role="status"
@@ -422,7 +440,7 @@ export function PapersView() {
 
       {/* Detail Drawer (Sheet) */}
       {selectedPaper && (
-        <div className="w-[500px] border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col h-full shadow-2xl relative z-20">
+        <div className="absolute inset-0 w-full border-l-0 lg:border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col h-full shadow-2xl z-20 lg:relative lg:inset-auto lg:w-[500px]">
           <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50 backdrop-blur-sm">
             <h2 className="font-semibold text-slate-900 dark:text-white">
               Paper Details
@@ -435,7 +453,7 @@ export function PapersView() {
               <X className="w-5 h-5 text-slate-500" />
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden">
             <PaperDetailView
               paper={selectedPaper}
               onUpdate={updatePaper}

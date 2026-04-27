@@ -10,6 +10,15 @@ import type {
   Task,
 } from "../types/database";
 
+export type DataSyncResource = "notes" | "papers" | "ideas";
+
+export interface DataSyncError {
+  resource: DataSyncResource;
+  message: string;
+}
+
+type DataSyncErrorState = Record<DataSyncResource, DataSyncError | null>;
+
 interface AppState {
   // Theme
   theme: ThemePreference;
@@ -45,14 +54,21 @@ interface AppState {
   papersLoading: boolean;
   ideasLoading: boolean;
   tasksLoading: boolean;
+  dataSyncErrors: DataSyncErrorState;
   setNotes: (notes: Note[]) => void;
   setPapers: (papers: Paper[]) => void;
   setIdeas: (ideas: Idea[]) => void;
   setTasks: (tasks: Task[]) => void;
+  /** Sum of `duration_seconds` for the signed-in user's focus sessions completed today (local midnight). */
+  focusSessionSecondsToday: number;
+  setFocusSessionSecondsToday: (seconds: number) => void;
   setNotesLoading: (loading: boolean) => void;
   setPapersLoading: (loading: boolean) => void;
   setIdeasLoading: (loading: boolean) => void;
   setTasksLoading: (loading: boolean) => void;
+  setDataSyncError: (resource: DataSyncResource, message: string) => void;
+  clearDataSyncError: (resource: DataSyncResource) => void;
+  clearDataSyncErrors: () => void;
 
   // Topics collection
   topics: Record<string, TopicWithCounts>;
@@ -114,10 +130,18 @@ export const useAppStore = create<AppState>()(
       papers: [],
       ideas: [],
       tasks: [],
+      focusSessionSecondsToday: 0,
+      setFocusSessionSecondsToday: (focusSessionSecondsToday) =>
+        set({ focusSessionSecondsToday }),
       notesLoading: false,
       papersLoading: false,
       ideasLoading: false,
       tasksLoading: false,
+      dataSyncErrors: {
+        notes: null,
+        papers: null,
+        ideas: null,
+      },
       setNotes: (notes) => set({ notes }),
       setPapers: (papers) => set({ papers }),
       setIdeas: (ideas) => set({ ideas }),
@@ -126,6 +150,28 @@ export const useAppStore = create<AppState>()(
       setPapersLoading: (papersLoading) => set({ papersLoading }),
       setIdeasLoading: (ideasLoading) => set({ ideasLoading }),
       setTasksLoading: (tasksLoading) => set({ tasksLoading }),
+      setDataSyncError: (resource, message) =>
+        set((state) => ({
+          dataSyncErrors: {
+            ...state.dataSyncErrors,
+            [resource]: { resource, message },
+          },
+        })),
+      clearDataSyncError: (resource) =>
+        set((state) => ({
+          dataSyncErrors: {
+            ...state.dataSyncErrors,
+            [resource]: null,
+          },
+        })),
+      clearDataSyncErrors: () =>
+        set({
+          dataSyncErrors: {
+            notes: null,
+            papers: null,
+            ideas: null,
+          },
+        }),
 
       // Topics collection state
       topics: {},

@@ -22,6 +22,7 @@ import type { IdeaStage, Idea } from "../../types/database";
 import { cn } from "../../lib/utils";
 import * as Dialog from "@radix-ui/react-dialog";
 import { OnboardingGuide } from "../layout/OnboardingGuide";
+import { InlineError } from "../ui/ErrorFallback";
 import { toast } from "sonner";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { ListSkeleton } from "../ui/Skeleton";
@@ -52,16 +53,23 @@ export function IdeasBoard() {
   // ⚡ PERFORMANCE OPTIMIZATION:
   // Using useShallow to prevent unnecessary re-renders of the entire IdeasBoard
   // when unrelated properties in the global appStore change.
-  const { ideas, selectedIdea, setSelectedIdea, ideasLoading, userId } =
-    useAppStore(
-      useShallow((state) => ({
-        ideas: state.ideas,
-        selectedIdea: state.selectedIdea,
-        setSelectedIdea: state.setSelectedIdea,
-        ideasLoading: state.ideasLoading,
-        userId: state.user?.id,
-      }))
-    );
+  const {
+    ideas,
+    selectedIdea,
+    setSelectedIdea,
+    ideasLoading,
+    userId,
+    ideasSyncError,
+  } = useAppStore(
+    useShallow((state) => ({
+      ideas: state.ideas,
+      selectedIdea: state.selectedIdea,
+      setSelectedIdea: state.setSelectedIdea,
+      ideasLoading: state.ideasLoading,
+      userId: state.user?.id,
+      ideasSyncError: state.dataSyncErrors?.ideas ?? null,
+    })),
+  );
   const { createIdea, updateIdea, deleteIdea, restoreIdea } = useIdeas(userId);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newIdeaTitle, setNewIdeaTitle] = useState("");
@@ -251,10 +259,15 @@ export function IdeasBoard() {
   };
 
   return (
-    <div className="flex h-full bg-slate-50 dark:bg-slate-900 overflow-hidden">
-      <div className="flex-1 flex flex-col min-w-0">
-        <div className="p-6 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex items-center justify-between">
-          <div>
+    <div className="relative flex h-full bg-slate-50 dark:bg-slate-900 overflow-hidden">
+      <div
+        className={cn(
+          "flex-1 flex flex-col min-w-0",
+          selectedIdea && "max-lg:hidden",
+        )}
+      >
+        <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="min-w-0">
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
               Idea Board
             </h1>
@@ -262,7 +275,7 @@ export function IdeasBoard() {
               Track the evolution of your research concepts
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <DropdownMenu.Root>
               <DropdownMenu.Trigger asChild>
                 <button className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-2 font-medium">
@@ -311,7 +324,7 @@ export function IdeasBoard() {
         </div>
 
         <div className="p-4 bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1 max-w-md">
+          <div className="relative flex-1 sm:max-w-md">
             <label htmlFor="ideas-search-input" className="sr-only">Search ideas</label>
             <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
             <input
@@ -356,18 +369,21 @@ export function IdeasBoard() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-x-auto overflow-y-hidden p-6 flex flex-col">
+        <div className="flex-1 overflow-auto p-4 sm:p-6 flex flex-col">
           <div className="mb-4">
             <OnboardingGuide />
           </div>
-          <div className="flex gap-6 h-full min-w-max">
+          {ideasSyncError && (
+            <InlineError message={ideasSyncError.message} className="mb-4" />
+          )}
+          <div className="grid grid-cols-1 gap-4 lg:flex lg:gap-6 lg:h-full lg:min-w-max">
             {STAGES.map((stage) => {
               const stageIdeas = filteredIdeas.filter((i) => i.stage === stage.id);
 
               return (
                 <div
                   key={stage.id}
-                  className="w-80 flex flex-col h-full rounded-xl bg-slate-100/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800"
+                  className="w-full lg:w-80 flex flex-col min-h-[280px] lg:h-full rounded-xl bg-slate-100/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800"
                 >
                   <div className="p-4 flex items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 rounded-t-xl sticky top-0 z-10">
                     <div className="flex items-center gap-2">
@@ -462,7 +478,7 @@ export function IdeasBoard() {
 
       {/* Idea Detail Drawer */}
       {selectedIdea && (
-        <div className="w-[450px] border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col h-full shadow-2xl relative z-20">
+        <div className="absolute inset-0 w-full border-l-0 lg:border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col h-full shadow-2xl z-20 lg:relative lg:inset-auto lg:w-[450px]">
           <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
             <h2 className="font-semibold text-slate-900 dark:text-white">
               Idea Details
@@ -475,7 +491,7 @@ export function IdeasBoard() {
               <X className="w-5 h-5" />
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden p-4">
             <IdeaDetailView
               idea={selectedIdea}
               onUpdate={updateIdea}

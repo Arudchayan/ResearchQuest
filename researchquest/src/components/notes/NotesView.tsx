@@ -18,6 +18,7 @@ import { useNotes } from "../../hooks/useNotes";
 import { MarkdownEditor } from "../editor/MarkdownEditor";
 import { NoteCard } from "./NoteCard";
 import { ConfirmDialog, useConfirmDialog } from "../ui/ConfirmDialog";
+import { InlineError } from "../ui/ErrorFallback";
 import { ListSkeleton } from "../ui/Skeleton";
 import type { Note } from "../../types/database";
 import { toast } from "sonner";
@@ -39,11 +40,12 @@ type SortOption =
 export function NotesView() {
   // Use useShallow to prevent re-renders when other store parts update
   // Optimization: Select only required state slices instead of full store
-  const { selectedNote, setSelectedNote, userId } = useAppStore(
+  const { selectedNote, setSelectedNote, userId, notesSyncError } = useAppStore(
     useShallow((state) => ({
       selectedNote: state.selectedNote,
       setSelectedNote: state.setSelectedNote,
       userId: state.user?.id,
+      notesSyncError: state.dataSyncErrors?.notes ?? null,
     })),
   );
 
@@ -277,9 +279,9 @@ export function NotesView() {
   };
 
   return (
-    <div className="flex h-full bg-white dark:bg-slate-950">
+    <div className="flex h-full flex-col overflow-hidden bg-white dark:bg-slate-950 lg:flex-row">
       {/* Notes List Sidebar */}
-      <div className="w-80 flex-shrink-0 border-r border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex flex-col">
+      <div className="w-full max-h-[45vh] flex-shrink-0 border-b border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900 flex flex-col lg:h-full lg:max-h-none lg:w-80 lg:border-b-0 lg:border-r">
         <div className="p-4 border-b border-slate-200 dark:border-slate-800 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
@@ -408,7 +410,11 @@ export function NotesView() {
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {notesLoading ? (
+          {notesSyncError ? (
+            <div className="p-4">
+              <InlineError message={notesSyncError.message} />
+            </div>
+          ) : notesLoading ? (
             <div className="p-4">
               <ListSkeleton count={6} itemType="note" />
             </div>
@@ -457,7 +463,7 @@ export function NotesView() {
       </div>
 
       {/* Editor Area */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden bg-white dark:bg-slate-950">
+      <div className="w-full min-w-0 min-h-0 flex-1 flex flex-col h-full overflow-hidden bg-white dark:bg-slate-950">
         {selectedNote ? (
           <MarkdownEditor />
         ) : (

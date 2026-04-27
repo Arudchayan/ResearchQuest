@@ -35,9 +35,15 @@ const { mockState } = vi.hoisted(() => {
   return {
     mockState: {
       papers,
+      papersLoading: false,
       selectedPaper: null,
       setSelectedPaper: vi.fn(),
       user: { id: "user1" },
+      dataSyncErrors: {
+        notes: null,
+        papers: null,
+        ideas: null,
+      },
     },
   };
 });
@@ -59,13 +65,13 @@ vi.mock("../../hooks/usePapers", () => ({
 }));
 
 // Mock other components used in PapersView to avoid rendering them fully
-vi.mock("../entities/AddPaperView", () => ({
+vi.mock("../../components/entities/AddPaperView", () => ({
   AddPaperView: () => <div>AddPaperView</div>,
 }));
-vi.mock("../entities/PaperDetailView", () => ({
+vi.mock("../../components/entities/PaperDetailView", () => ({
   PaperDetailView: () => <div>PaperDetailView</div>,
 }));
-vi.mock("../layout/OnboardingGuide", () => ({
+vi.mock("../../components/layout/OnboardingGuide", () => ({
   OnboardingGuide: () => <div>OnboardingGuide</div>,
 }));
 // Mock dialog
@@ -83,5 +89,34 @@ describe("PapersView", () => {
     render(<PapersView />);
     expect(screen.getByText("Optimized React")).toBeInTheDocument();
     expect(screen.getByText("Slow React")).toBeInTheDocument();
+  });
+
+  it("uses a full-width mobile detail panel when a paper is selected", () => {
+    mockState.selectedPaper = mockState.papers[0] as Paper;
+
+    render(<PapersView />);
+
+    const detailPanel = screen.getByText("Paper Details").closest("div")
+      ?.parentElement;
+
+    expect(detailPanel).toHaveClass("w-full");
+    expect(detailPanel).toHaveClass("lg:w-[500px]");
+    expect(detailPanel).toHaveClass("absolute");
+    expect(detailPanel).toHaveClass("lg:relative");
+
+    mockState.selectedPaper = null;
+  });
+
+  it("renders a papers sync error instead of silently showing an empty state", () => {
+    mockState.dataSyncErrors.papers = {
+      resource: "papers",
+      message: "Papers unavailable",
+    };
+
+    render(<PapersView />);
+
+    expect(screen.getByText("Papers unavailable")).toBeInTheDocument();
+
+    mockState.dataSyncErrors.papers = null;
   });
 });

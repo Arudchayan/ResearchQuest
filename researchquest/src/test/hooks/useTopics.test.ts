@@ -30,6 +30,8 @@ describe("useTopics", () => {
     builder.update = vi.fn().mockReturnValue(builder);
     builder.upsert = vi.fn().mockReturnValue(builder);
     builder.delete = vi.fn().mockReturnValue(builder);
+    builder.insert = vi.fn().mockReturnValue(builder);
+    builder.limit = vi.fn().mockReturnValue(builder);
     builder.then = ((onFulfilled?: (value: typeof response) => any) =>
       Promise.resolve(response).then(onFulfilled)) as any;
     builder.single = vi.fn().mockResolvedValue(response);
@@ -136,5 +138,57 @@ describe("useTopics", () => {
       expect(result.current.quests[0].progress_count).toBe(1);
       expect(result.current.quests[0].status).toBe("completed");
     });
+  });
+
+  it("returns and stores the inserted topic row on create", async () => {
+    const userId = "user-create";
+    const insertedTopic = {
+      id: "topic-new",
+      user_id: userId,
+      name: "Visualization",
+      description: null,
+      created_at: "2026-04-26T00:00:00Z",
+      updated_at: "2026-04-26T00:00:00Z",
+    };
+
+    const insertBuilder = createBuilder({ data: insertedTopic, error: null });
+    const insertSpy = vi.fn().mockReturnValue(insertBuilder);
+
+    mockSupabaseClient.from.mockImplementation((table: string) => {
+      if (table === "topics") {
+        return {
+          ...createBuilder({ data: [], error: null }),
+          insert: insertSpy,
+        };
+      }
+      if (table === "topic_quests") {
+        return createBuilder({ data: [], error: null });
+      }
+      return createBuilder({ data: null, error: null });
+    });
+
+    const { result } = renderHook(() => useTopics(userId));
+
+    await waitFor(() => {
+      expect(mockSupabaseClient.from).toHaveBeenCalledWith("topics");
+    });
+
+    const created = await result.current.createTopic({ name: "Visualization" });
+
+    expect(insertSpy).toHaveBeenCalledWith({
+      user_id: userId,
+      name: "Visualization",
+      description: null,
+    });
+    expect(insertBuilder.select).toHaveBeenCalledWith("*");
+    expect(created).toEqual({
+      ...insertedTopic,
+      note_count: 0,
+      paper_count: 0,
+      idea_count: 0,
+    });
+    expect(useAppStore.getState().topics["topic-new"]?.name).toBe(
+      "Visualization",
+    );
   });
 });

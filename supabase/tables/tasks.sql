@@ -3,8 +3,10 @@ CREATE TABLE tasks (
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
     description TEXT,
-    status VARCHAR(50) DEFAULT 'pending',
-    priority VARCHAR(20) DEFAULT 'medium',
+    completed BOOLEAN NOT NULL DEFAULT false,
+    priority VARCHAR(20) NOT NULL DEFAULT 'medium',
+    category TEXT,
+    project_id UUID,
     due_date TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()

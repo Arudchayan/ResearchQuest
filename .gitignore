@@ -1,5 +1,12 @@
 .browser_screenshots/
 
+# Local env with secrets (never commit)
+.env
+.env.local
+
+# Cursor / MCP browser scratch logs
+.playwright-mcp/
+
 # Manual Playwright / scratch verification (screenshots, videos); do not commit.
 /verification/
 
