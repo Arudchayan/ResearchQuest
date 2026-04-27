@@ -27,6 +27,7 @@ export default defineConfig({
     timeout: 120_000,
     env: {
       ...process.env,
+      PLAYWRIGHT_TEST_NO_SUPABASE: "1",
       VITE_SUPABASE_URL: "",
       VITE_SUPABASE_ANON_KEY: "",
     },

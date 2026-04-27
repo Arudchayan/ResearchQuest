@@ -1,11 +1,29 @@
 import path from "path"
 import react from "@vitejs/plugin-react"
-import { defineConfig } from "vite"
+import { defineConfig, loadEnv } from "vite"
 import sourceIdentifierPlugin from 'vite-plugin-source-identifier'
+
+const repoRoot = path.resolve(__dirname, "..")
 
 export default defineConfig(({ mode }) => {
   const isProd = mode === 'prod'
+  // Root `.env` (monorepo) + local `researchquest/.env*` — local wins.
+  const merged = { ...loadEnv(mode, repoRoot, ""), ...loadEnv(mode, __dirname, "") }
+  // Playwright smoke runs Vite with empty VITE_* vars but loadEnv would still read `.env` from disk.
+  const forceNoSupabase = process.env.PLAYWRIGHT_TEST_NO_SUPABASE === "1"
+  const supabaseUrl = forceNoSupabase
+    ? ""
+    : merged.VITE_SUPABASE_URL || merged.NEXT_PUBLIC_SUPABASE_URL || ""
+  const supabaseAnonKey = forceNoSupabase
+    ? ""
+    : merged.VITE_SUPABASE_ANON_KEY || merged.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+
   return {
+    envDir: repoRoot,
+    define: {
+      "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(supabaseUrl),
+      "import.meta.env.VITE_SUPABASE_ANON_KEY": JSON.stringify(supabaseAnonKey),
+    },
     plugins: [
       react(), 
       sourceIdentifierPlugin({
