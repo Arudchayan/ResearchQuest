@@ -43,6 +43,14 @@ describe("Security Utils", () => {
       expect(isValidUrl('vbscript:msgbox("test")')).toBe(false);
     });
 
+    it("should reject protocols obfuscated with control characters", () => {
+      expect(isValidUrl("\x00javascript:alert(1)")).toBe(false);
+      expect(isValidUrl("\x01javascript:alert(1)")).toBe(false);
+      expect(isValidUrl("\u200Bjavascript:alert(1)")).toBe(false);
+      expect(isValidUrl("java\u200Bscript:alert(1)")).toBe(false);
+      expect(isValidUrl("javascript:alert(1)\u200B")).toBe(false);
+    });
+
     it("should handle whitespace", () => {
       expect(isValidUrl("  https://example.com  ")).toBe(true);
     });
