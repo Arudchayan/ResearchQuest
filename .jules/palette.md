@@ -111,3 +111,9 @@
 ## 2024-05-27 - Missing ARIA Labels on Clear Input Buttons
 **Learning:** A common pattern in the app's components is to use a `<button>` with a `<X />` icon to clear input fields (like search queries or DOIs), but these buttons often lack an `aria-label`. Without an accessible name, screen reader users do not know the purpose of the button.
 **Action:** Always verify that icon-only buttons, especially those used to clear inputs, have a descriptive `aria-label` (e.g., `aria-label="Clear search"` or `aria-label="Clear input"`).
+## 2024-05-30 - Explicitly Labeling Mixed-Content Cards
+**Learning:** Mixed-content navigation buttons (such as cards that display a combination of text, truncated descriptions, dates, and decorative icons) can be confusing or overly noisy for screen reader users if relying solely on their inner content.
+**Action:** When implementing mixed-content buttons or cards (especially those acting as navigation links in lists), always explicitly provide a descriptive `aria-label` (e.g., `aria-label="Navigate to note [Title]"`) to provide clear, concise context and hide large decorative background icons with `aria-hidden="true"`.
+## 2024-05-31 - Focus States for Complex Map Items
+**Learning:** High-level layout components (like Dashboards) frequently use map blocks to render interactive `<button>` elements that act as complex cards. Often, the default styling focuses on mouse hover interactions and forgets `focus-visible` classes, making keyboard navigation difficult to track.
+**Action:** When implementing or editing map blocks that render interactive cards or buttons, ensure standard focus indicators (like `focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2`) are appended to the main interactive container.

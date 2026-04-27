@@ -263,7 +263,8 @@ export function Dashboard() {
                     navigateTo("notes");
                     window.history.pushState(null, "", `/notes/${note.id}`);
                   }}
-                  className="w-full text-left group p-4 bg-bg-surface border border-border-moderate rounded-sm hover:border-border-strong cursor-pointer transition-all shadow-sm"
+                  className="w-full text-left group p-4 bg-bg-surface border border-border-moderate rounded-sm hover:border-border-strong cursor-pointer transition-all shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+                  aria-label={`Navigate to note: ${note.title || "Untitled Note"}`}
                 >
                   <h3 className="font-semibold text-text-primary mb-1 truncate group-hover:underline decoration-border-strong underline-offset-2 transition-all">
                     {note.title || "Untitled Note"}
@@ -320,7 +321,8 @@ export function Dashboard() {
                       navigateTo("papers");
                       window.history.pushState(null, "", `/papers/${paper.id}`);
                     }}
-                    className="w-full text-left flex items-start gap-3 p-3 bg-bg-surface border border-border-moderate rounded-sm hover:bg-bg-elevated hover:border-border-strong cursor-pointer transition-colors"
+                    className="w-full text-left flex items-start gap-3 p-3 bg-bg-surface border border-border-moderate rounded-sm hover:bg-bg-elevated hover:border-border-strong cursor-pointer transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+                    aria-label={`Navigate to paper: ${paper.title}`}
                   >
                     <div className="p-2 bg-bg-base border border-border-moderate text-text-primary rounded-sm shrink-0">
                       <BookOpen className="w-4 h-4" />
@@ -372,6 +374,7 @@ export function Dashboard() {
                     key={task.id}
                     onClick={() => navigateTo("tasks")}
                     className="w-full text-left flex items-center justify-between p-3 bg-bg-surface border border-border-moderate rounded-sm hover:border-border-strong cursor-pointer transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+                    aria-label={`Navigate to task: ${task.title}`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div
