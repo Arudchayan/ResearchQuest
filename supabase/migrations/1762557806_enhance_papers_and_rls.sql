@@ -20,6 +20,27 @@ CREATE POLICY "Users can insert own tasks" ON tasks FOR INSERT WITH CHECK (auth.
 CREATE POLICY "Users can update own tasks" ON tasks FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users can delete own tasks" ON tasks FOR DELETE USING (auth.uid() = user_id);
 
+-- Align tasks with the frontend task contract before creating task indexes.
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS completed BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS category TEXT;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS project_id UUID;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'tasks'
+      AND column_name = 'status'
+  ) THEN
+    UPDATE tasks
+    SET completed = true
+    WHERE status IN ('completed', 'done')
+      AND completed = false;
+  END IF;
+END $$;
+
 -- Research goals policies
 CREATE POLICY "Users can view own goals" ON research_goals FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can insert own goals" ON research_goals FOR INSERT WITH CHECK (auth.uid() = user_id);

@@ -125,8 +125,6 @@ RETURNS TABLE (
   title TEXT,
   description TEXT,
   stage VARCHAR(50),
-  confidence_level INT,
-  evidence_count INT,
   created_at TIMESTAMPTZ,
   updated_at TIMESTAMPTZ,
   rank REAL
@@ -140,8 +138,6 @@ AS $$
     i.title,
     i.description,
     i.stage,
-    i.confidence_level,
-    i.evidence_count,
     i.created_at,
     i.updated_at,
     ts_rank(

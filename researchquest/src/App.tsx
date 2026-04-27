@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { EyeOpenIcon, EyeClosedIcon } from "@radix-ui/react-icons";
-import { supabase } from "./lib/supabase";
+import {
+  hasSupabaseConfig,
+  supabase,
+  supabaseConfigErrorMessage,
+} from "./lib/supabase";
 import { useShallow } from "zustand/react/shallow";
 import { useAppStore } from "./store/appStore";
 import { useGamificationStore } from "./store/gamificationStore";
@@ -29,7 +33,6 @@ export function AuthScreen() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [resetting, setResetting] = useState(false);
-  const [oauthLoading, setOauthLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -90,29 +93,6 @@ export function AuthScreen() {
     }
   };
 
-  const handleOAuthLogin = async () => {
-    setOauthLoading(true);
-    setMessage("");
-
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
-
-      if (error) throw error;
-    } catch (error: any) {
-      setMessage(
-        error?.message ||
-          "Unable to start Google sign-in. Please try again or use email/password.",
-      );
-    } finally {
-      setOauthLoading(false);
-    }
-  };
-
   const handleTestLogin = async () => {
     setLoading(true);
     setMessage("");
@@ -163,39 +143,8 @@ export function AuthScreen() {
         </div>
 
         <form onSubmit={handleAuth} className="space-y-4">
-          <div className="space-y-3">
-            <button
-              type="button"
-              onClick={handleOAuthLogin}
-              disabled={oauthLoading}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-border-strong rounded-sm text-text-primary font-medium hover:bg-bg-elevated transition-colors disabled:opacity-60 bg-transparent"
-            >
-              <svg
-                className="w-5 h-5"
-                viewBox="0 0 533.5 544.3"
-                aria-hidden="true"
-              >
-                <path
-                  fill="#4285f4"
-                  d="M533.5 278.4c0-17.4-1.6-34.1-4.6-50.3H272v95.2h147.5c-6.4 34.7-25.7 64-54.7 83.6v69.4h88.5c51.8-47.8 80.2-118.2 80.2-197.9z"
-                />
-                <path
-                  fill="#34a853"
-                  d="M272 544.3c73.8 0 135.8-24.5 181.1-66.6l-88.5-69.4c-24.6 16.5-56.1 26-92.6 26-71.2 0-131.5-48-153.1-112.5H27.6v70.7c45 89.1 137.5 151.8 244.4 151.8z"
-                />
-                <path
-                  fill="#fbbc05"
-                  d="M118.9 322.8c-10.9-32.6-10.9-67.6 0-100.2V151.9H27.6c-46.5 92-46.5 201.1 0 293.1l91.3-70.2z"
-                />
-                <path
-                  fill="#ea4335"
-                  d="M272 107.7c39.9-.6 78.2 14.9 107.3 42.9l80-80C405.8 24.2 344.1-1.3 272 0 165.1 0 72.6 62.7 27.6 151.9l91.3 70.7C140.5 155.7 200.8 107.7 272 107.7z"
-                />
-              </svg>
-              {oauthLoading ? "Contacting Google…" : "Continue with Google"}
-            </button>
-
-            {showTestLogin && (
+          {showTestLogin && (
+            <div className="space-y-3">
               <button
                 type="button"
                 onClick={handleTestLogin}
@@ -204,20 +153,20 @@ export function AuthScreen() {
               >
                 🛠️ Use Test Login
               </button>
-            )}
 
-            <div className="flex items-center gap-3 text-small text-text-tertiary font-serif italic py-2">
-              <span
-                className="h-px flex-1 bg-border-subtle"
-                aria-hidden="true"
-              />
-              <span>or use email</span>
-              <span
-                className="h-px flex-1 bg-border-subtle"
-                aria-hidden="true"
-              />
+              <div className="flex items-center gap-3 text-small text-text-tertiary font-serif italic py-2">
+                <span
+                  className="h-px flex-1 bg-border-subtle"
+                  aria-hidden="true"
+                />
+                <span>or use email</span>
+                <span
+                  className="h-px flex-1 bg-border-subtle"
+                  aria-hidden="true"
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           <div>
             <label className="block text-small font-medium text-text-primary mb-1.5 uppercase tracking-wide">
@@ -310,6 +259,37 @@ export function AuthScreen() {
   );
 }
 
+export function SupabaseConfigErrorScreen() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-bg-base p-6">
+      <div className="w-full max-w-lg bg-bg-surface border border-border-subtle rounded-md shadow-lg p-8">
+        <div className="w-14 h-14 bg-bg-elevated border border-border-subtle rounded-md mb-5 flex items-center justify-center text-text-primary font-serif font-bold text-xl">
+          RQ
+        </div>
+        <h1 className="font-serif text-title font-bold text-text-primary">
+          Supabase configuration required
+        </h1>
+        <p className="text-body text-text-secondary mt-3">
+          ResearchQuest needs Supabase credentials before it can start.
+        </p>
+        <div className="mt-5 rounded-sm border border-border-moderate bg-bg-elevated p-4">
+          <p className="text-small font-medium text-text-primary">
+            Required environment variables
+          </p>
+          <ul className="mt-2 space-y-1 text-small text-text-secondary font-mono">
+            <li>VITE_SUPABASE_URL</li>
+            <li>VITE_SUPABASE_ANON_KEY</li>
+          </ul>
+        </div>
+        <p className="text-caption text-text-tertiary mt-4">
+          {supabaseConfigErrorMessage}. Add them to your local environment or
+          deployment settings, then reload the app.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -354,12 +334,20 @@ function App() {
       ;(window as any).__APP_STORE__ = useAppStore
       return
     }
-    // Check active sessions
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setUserId(session?.user?.id);
+
+    if (!hasSupabaseConfig) {
       setLoading(false);
-    });
+      return;
+    }
+
+    // Check active sessions
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        setUser(session?.user ?? null);
+        setUserId(session?.user?.id);
+      })
+      .finally(() => setLoading(false));
 
     // Listen for auth changes
     const {
@@ -473,6 +461,10 @@ function App() {
 
   if (loading) {
     return <AppLoadingSkeleton />;
+  }
+
+  if (!hasSupabaseConfig) {
+    return <SupabaseConfigErrorScreen />;
   }
 
   if (!user) {

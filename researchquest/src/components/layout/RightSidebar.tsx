@@ -168,10 +168,9 @@ export function RightSidebar() {
 
       const { data, error } = await supabase
         .from("tasks")
-        .select("id, title, due_date, status")
+        .select("id, title, due_date, completed")
         .eq("user_id", userId)
-        .neq("status", "completed")
-        .neq("status", "done")
+        .eq("completed", false)
         .not("due_date", "is", null)
         .gte("due_date", now.toISOString())
         .lte("due_date", horizon.toISOString())

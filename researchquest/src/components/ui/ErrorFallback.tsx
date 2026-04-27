@@ -1,5 +1,4 @@
 import { AlertTriangle, RefreshCw, Home } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 
 interface ErrorFallbackProps {
   error: Error;
@@ -14,8 +13,6 @@ export function ErrorFallback({
   title = "Something went wrong",
   showHomeButton = true,
 }: ErrorFallbackProps) {
-  const navigate = useNavigate();
-
   const handleGoHome = () => {
     window.location.href = "/";
   };

@@ -5,5 +5,5 @@
 ALTER PUBLICATION supabase_realtime ADD TABLE tasks;
 
 -- Also ensure other tables are enabled
-ALTER PUBLICATION supabase_realtime ADD TABLE IF NOT EXISTS user_profiles;
-ALTER PUBLICATION supabase_realtime ADD TABLE IF NOT EXISTS daily_logs;;
+ALTER PUBLICATION supabase_realtime ADD TABLE user_profiles;
+ALTER PUBLICATION supabase_realtime ADD TABLE daily_logs;

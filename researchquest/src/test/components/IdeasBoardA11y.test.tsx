@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { IdeasBoard } from "../../components/ideas/IdeasBoard";
-import { vi, describe, it, expect } from "vitest";
+import { vi, describe, it, expect, beforeEach } from "vitest";
 import { mockIdea } from "../mocks/supabase";
 
 // Hoist the mock function so it can be used in vi.mock
@@ -12,14 +12,25 @@ const defaultStore = {
   ideas: [mockIdea],
   selectedIdea: null,
   setSelectedIdea: vi.fn(),
+  ideasLoading: false,
   user: { id: "test-user-id" },
+  dataSyncErrors: {
+    notes: null,
+    papers: null,
+    ideas: null,
+  },
 };
 
-// Set default implementation
-mockUseAppStore.mockReturnValue(defaultStore);
-Object.assign(mockUseAppStore, {
-  getState: () => ({ user: { id: "test-user-id" } }),
-});
+const setStore = (store: typeof defaultStore) => {
+  mockUseAppStore.mockImplementation((selector: any) =>
+    typeof selector === "function" ? selector(store) : store,
+  );
+  Object.assign(mockUseAppStore, {
+    getState: () => store,
+  });
+};
+
+setStore(defaultStore);
 
 // Mock the store and hooks
 vi.mock("../../store/appStore", () => ({
@@ -44,14 +55,16 @@ vi.mock("../../components/entities/IdeaDetailView", () => ({
 }));
 
 describe("IdeasBoard Accessibility", () => {
+  beforeEach(() => {
+    setStore(defaultStore);
+  });
+
   it('renders "New Idea" button', () => {
-    mockUseAppStore.mockReturnValue(defaultStore);
     render(<IdeasBoard />);
     expect(screen.getByText("New Idea")).toBeInTheDocument();
   });
 
   it("renders idea cards with accessible delete button", () => {
-    mockUseAppStore.mockReturnValue(defaultStore);
     render(<IdeasBoard />);
     expect(screen.getByText("Test Idea")).toBeInTheDocument();
 
@@ -63,7 +76,6 @@ describe("IdeasBoard Accessibility", () => {
   });
 
   it('renders "Advance" button with accessible label', () => {
-    mockUseAppStore.mockReturnValue(defaultStore);
     render(<IdeasBoard />);
 
     const advanceBtns = screen.getAllByRole("button", {
@@ -73,7 +85,6 @@ describe("IdeasBoard Accessibility", () => {
   });
 
   it("dialog inputs have accessible labels", async () => {
-    mockUseAppStore.mockReturnValue(defaultStore);
     render(<IdeasBoard />);
 
     // Open the dialog
@@ -93,7 +104,7 @@ describe("IdeasBoard Accessibility", () => {
 
   it("renders close button with accessible label in detail view", async () => {
     // Update the mock to return a selected idea
-    mockUseAppStore.mockReturnValue({
+    setStore({
       ...defaultStore,
       selectedIdea: mockIdea,
     });
@@ -104,5 +115,39 @@ describe("IdeasBoard Accessibility", () => {
     expect(
       screen.getByRole("button", { name: /close details/i }),
     ).toBeInTheDocument();
+  });
+
+  it("uses a full-width mobile detail panel when an idea is selected", () => {
+    setStore({
+      ...defaultStore,
+      selectedIdea: mockIdea,
+    });
+
+    render(<IdeasBoard />);
+
+    const detailPanel = screen.getByText("Idea Details").closest("div")
+      ?.parentElement;
+
+    expect(detailPanel).toHaveClass("w-full");
+    expect(detailPanel).toHaveClass("lg:w-[450px]");
+    expect(detailPanel).toHaveClass("absolute");
+    expect(detailPanel).toHaveClass("lg:relative");
+  });
+
+  it("renders an ideas sync error instead of silently showing an empty state", () => {
+    setStore({
+      ...defaultStore,
+      dataSyncErrors: {
+        ...defaultStore.dataSyncErrors,
+        ideas: {
+          resource: "ideas",
+          message: "Ideas unavailable",
+        },
+      },
+    });
+
+    render(<IdeasBoard />);
+
+    expect(screen.getByText("Ideas unavailable")).toBeInTheDocument();
   });
 });
