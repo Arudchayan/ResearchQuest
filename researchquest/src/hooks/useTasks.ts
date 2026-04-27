@@ -4,25 +4,36 @@ import { awardXP, XP_REWARDS } from "../utils/gamification";
 import { toast } from "sonner";
 import { parseDateInput } from "../utils/time";
 import { logger } from "../utils/logger";
+import { useAppStore } from "../store/appStore";
+import type { Task } from "../types/database";
 
-export interface Task {
-  id: string;
-  user_id: string;
-  title: string;
-  description?: string;
-  priority: "high" | "medium" | "low";
-  due_date?: string;
-  completed: boolean;
-  category?: string;
-  project_id?: string;
-  created_at: string;
-  updated_at: string;
-}
+export type { Task } from "../types/database";
 
 export function useTasks(userId: string | undefined) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const setGlobalTasks = useAppStore((state) => state.setTasks);
+  const setGlobalTasksLoading = useAppStore((state) => state.setTasksLoading);
+
+  const commitTasks = useCallback(
+    (nextTasks: Task[]) => {
+      setTasks(nextTasks);
+      setGlobalTasks(nextTasks);
+    },
+    [setGlobalTasks],
+  );
+
+  const updateCommittedTasks = useCallback(
+    (updater: (previousTasks: Task[]) => Task[]) => {
+      setTasks((previousTasks) => {
+        const nextTasks = updater(previousTasks);
+        setGlobalTasks(nextTasks);
+        return nextTasks;
+      });
+    },
+    [setGlobalTasks],
+  );
 
   const sortTasksByDueDate = useCallback((taskList: Task[]) => {
     // ⚡ PERFORMANCE OPTIMIZATION:
@@ -56,24 +67,35 @@ export function useTasks(userId: string | undefined) {
   const fetchTasks = useCallback(async () => {
     if (!userId) return;
 
-    const { data, error: fetchError } = await supabase
-      .from("tasks")
-      .select("*")
-      .eq("user_id", userId)
-      .order("due_date", { ascending: true, nullsFirst: false });
+    setGlobalTasksLoading(true);
+    setError(null);
 
-    if (fetchError) {
+    try {
+      const { data, error: fetchError } = await supabase
+        .from("tasks")
+        .select("*")
+        .eq("user_id", userId)
+        .order("due_date", { ascending: true, nullsFirst: false });
+
+      if (fetchError) {
+        setError("Failed to fetch tasks");
+      } else {
+        commitTasks(sortTasksByDueDate(data || []));
+      }
+    } catch (fetchError) {
+      logger.error("Failed to fetch tasks", fetchError);
       setError("Failed to fetch tasks");
-    } else {
-      setTasks(sortTasksByDueDate(data || []));
+    } finally {
+      setLoading(false);
+      setGlobalTasksLoading(false);
     }
-    setLoading(false);
-  }, [userId, sortTasksByDueDate]);
+  }, [userId, sortTasksByDueDate, commitTasks, setGlobalTasksLoading]);
 
   useEffect(() => {
     if (!userId) {
-      setTasks([]);
+      commitTasks([]);
       setLoading(false);
+      setGlobalTasksLoading(false);
       return;
     }
 
@@ -95,7 +117,7 @@ export function useTasks(userId: string | undefined) {
           // Optimistic UI update based on event type
           if (payload.eventType === "INSERT") {
             // Check if task already exists (from optimistic update) to avoid duplicates
-            setTasks((prev) => {
+            updateCommittedTasks((prev) => {
               const exists = prev.some(
                 (t) => t.id === (payload.new as Task).id,
               );
@@ -108,13 +130,15 @@ export function useTasks(userId: string | undefined) {
               return sortTasksByDueDate([...(prev ?? []), payload.new as Task]);
             });
           } else if (payload.eventType === "UPDATE") {
-            setTasks((prev) =>
-              prev.map((task) =>
-                task.id === payload.new.id ? (payload.new as Task) : task,
+            updateCommittedTasks((prev) =>
+              sortTasksByDueDate(
+                prev.map((task) =>
+                  task.id === payload.new.id ? (payload.new as Task) : task,
+                ),
               ),
             );
           } else if (payload.eventType === "DELETE") {
-            setTasks((prev) =>
+            updateCommittedTasks((prev) =>
               prev.filter((task) => task.id !== payload.old.id),
             );
           }
@@ -127,7 +151,14 @@ export function useTasks(userId: string | undefined) {
     return () => {
       subscription.unsubscribe();
     };
-  }, [fetchTasks, sortTasksByDueDate, userId]);
+  }, [
+    commitTasks,
+    fetchTasks,
+    setGlobalTasksLoading,
+    sortTasksByDueDate,
+    updateCommittedTasks,
+    userId,
+  ]);
 
   async function createTask(taskData: Partial<Task>): Promise<Task | null> {
     if (!userId) {
@@ -201,7 +232,7 @@ export function useTasks(userId: string | undefined) {
     toast.success("Task created successfully");
 
     // Optimistic update - add to local state immediately
-    setTasks((prev) => sortTasksByDueDate([...(prev ?? []), data]));
+    updateCommittedTasks((prev) => sortTasksByDueDate([...(prev ?? []), data]));
 
     // Award XP (don't await to avoid blocking)
     awardXP(userId, XP_REWARDS.CREATE_TASK, "create_task").catch((e) =>
@@ -238,15 +269,17 @@ export function useTasks(userId: string | undefined) {
         : sanitizedUpdates.due_date;
     }
 
-    setTasks((prev) =>
-      prev.map((task) =>
-        task.id === taskId
-          ? {
-              ...task,
-              ...sanitizedUpdates,
-              updated_at: new Date().toISOString(),
-            }
-          : task,
+    updateCommittedTasks((prev) =>
+      sortTasksByDueDate(
+        prev.map((task) =>
+          task.id === taskId
+            ? {
+                ...task,
+                ...sanitizedUpdates,
+                updated_at: new Date().toISOString(),
+              }
+            : task,
+        ),
       ),
     );
 
@@ -279,7 +312,7 @@ export function useTasks(userId: string | undefined) {
     const newCompletedStatus = !task.completed;
 
     // Optimistic update
-    setTasks((prev) =>
+    updateCommittedTasks((prev) =>
       prev.map((t) =>
         t.id === taskId
           ? {
@@ -326,7 +359,7 @@ export function useTasks(userId: string | undefined) {
   async function deleteTask(taskId: string): Promise<boolean> {
     // Optimistic delete
     const deletedTask = tasks.find((t) => t.id === taskId);
-    setTasks((prev) => prev.filter((task) => task.id !== taskId));
+    updateCommittedTasks((prev) => prev.filter((task) => task.id !== taskId));
 
     const { error: deleteError } = await supabase
       .from("tasks")
@@ -342,7 +375,9 @@ export function useTasks(userId: string | undefined) {
       toast.error("Failed to delete task. Please try again.");
       // Revert on error
       if (deletedTask) {
-        setTasks((prev) => [...prev, deletedTask]);
+        updateCommittedTasks((prev) =>
+          sortTasksByDueDate([...prev, deletedTask]),
+        );
       }
       return false;
     }
@@ -355,11 +390,17 @@ export function useTasks(userId: string | undefined) {
     if (!userId) return null;
 
     // Optimistic restore
-    setTasks((prev) => sortTasksByDueDate([...(prev ?? []), task]));
+    updateCommittedTasks((prev) => sortTasksByDueDate([...(prev ?? []), task]));
+
+    const payload = {
+      ...task,
+      user_id: userId,
+      updated_at: new Date().toISOString(),
+    };
 
     const { data, error: restoreError } = await supabase
       .from("tasks")
-      .insert(task)
+      .upsert(payload, { onConflict: "id" })
       .select()
       .single();
 
@@ -369,7 +410,7 @@ export function useTasks(userId: string | undefined) {
       toast.error("Failed to restore task");
 
       // Revert optimistic update
-      setTasks((prev) => prev.filter((t) => t.id !== task.id));
+      updateCommittedTasks((prev) => prev.filter((t) => t.id !== task.id));
       return null;
     }
 

@@ -1,6 +1,37 @@
-import type { UserProfile, Note, Paper, Idea, Topic } from "../types/database";
+import type { UserProfile, Note, Paper, Idea, Topic, Task } from "../types/database";
 import { generateBibTeX } from "./citation";
-import type { Task } from "../hooks/useTasks";
+import { supabase } from "../lib/supabase";
+import { logger } from "./logger";
+
+/** Rows from `topic_notes` (export/import backup). */
+export interface TopicNoteLink {
+  id: string;
+  user_id: string;
+  topic_id: string;
+  note_id: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+/** Rows from `topic_papers` (export/import backup). */
+export interface TopicPaperLink {
+  id: string;
+  user_id: string;
+  topic_id: string;
+  paper_id: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+/** Rows from `topic_ideas` (export/import backup). */
+export interface TopicIdeaLink {
+  id: string;
+  user_id: string;
+  topic_id: string;
+  idea_id: string;
+  created_at?: string;
+  updated_at?: string;
+}
 
 export interface ExportData {
   metadata: {
@@ -12,8 +43,11 @@ export interface ExportData {
   notes: Note[];
   papers: Paper[];
   ideas: Idea[];
-  topics?: Topic[];
-  tasks?: Task[];
+  topics: Topic[];
+  tasks: Task[];
+  topicNotes: TopicNoteLink[];
+  topicPapers: TopicPaperLink[];
+  topicIdeas: TopicIdeaLink[];
 }
 
 /**
@@ -35,18 +69,43 @@ export function downloadFile(
   URL.revokeObjectURL(url);
 }
 
+export type ExportDataInput = Omit<
+  ExportData,
+  "metadata" | "topicNotes" | "topicPapers" | "topicIdeas"
+>;
+
 /**
- * Exports the provided data as a JSON file download.
- * @param data The data to export (user, notes, papers, ideas, topics)
+ * Builds a full backup JSON and triggers download, including topic junction rows.
  */
-export function exportData(data: Omit<ExportData, "metadata">) {
+export async function exportData(input: ExportDataInput & { userId: string }) {
+  const { userId, ...entityPayload } = input;
+
+  const [topicNotesRes, topicPapersRes, topicIdeasRes] = await Promise.all([
+    supabase.from("topic_notes").select("*").eq("user_id", userId),
+    supabase.from("topic_papers").select("*").eq("user_id", userId),
+    supabase.from("topic_ideas").select("*").eq("user_id", userId),
+  ]);
+
+  if (topicNotesRes.error) {
+    logger.error("[RQ] topic_notes export fetch failed", topicNotesRes.error);
+  }
+  if (topicPapersRes.error) {
+    logger.error("[RQ] topic_papers export fetch failed", topicPapersRes.error);
+  }
+  if (topicIdeasRes.error) {
+    logger.error("[RQ] topic_ideas export fetch failed", topicIdeasRes.error);
+  }
+
   const exportPayload: ExportData = {
     metadata: {
       version: "1.0",
       timestamp: new Date().toISOString(),
       appName: "ResearchQuest",
     },
-    ...data,
+    ...entityPayload,
+    topicNotes: (topicNotesRes.data ?? []) as TopicNoteLink[],
+    topicPapers: (topicPapersRes.data ?? []) as TopicPaperLink[],
+    topicIdeas: (topicIdeasRes.data ?? []) as TopicIdeaLink[],
   };
 
   const jsonString = JSON.stringify(exportPayload, null, 2);

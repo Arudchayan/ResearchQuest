@@ -59,7 +59,7 @@ CREATE INDEX IF NOT EXISTS idx_papers_publication_date
 CREATE INDEX IF NOT EXISTS idx_papers_search 
   ON papers USING GIN(
     to_tsvector('english', 
-      title || ' ' || COALESCE(abstract, '') || ' ' || array_to_string(authors, ' ')
+      title || ' ' || COALESCE(abstract, '')
     )
   );
 
@@ -171,15 +171,15 @@ COMMENT ON INDEX idx_daily_logs_date IS 'Speed up date range queries';
 
 -- Source entity lookups
 CREATE INDEX IF NOT EXISTS idx_links_source 
-  ON links(source_entity_type, source_entity_id);
+  ON links(source_type, source_id);
 
 -- Target entity lookups
 CREATE INDEX IF NOT EXISTS idx_links_target 
-  ON links(target_entity_type, target_entity_id);
+  ON links(target_type, target_id);
 
 -- Bidirectional link queries
 CREATE INDEX IF NOT EXISTS idx_links_bidirectional 
-  ON links(source_entity_id, target_entity_id);
+  ON links(source_id, target_id);
 
 COMMENT ON INDEX idx_links_source IS 'Speed up source entity link queries';
 COMMENT ON INDEX idx_links_target IS 'Speed up target entity link queries';

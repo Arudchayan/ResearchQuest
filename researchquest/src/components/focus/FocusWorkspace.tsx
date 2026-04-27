@@ -21,8 +21,7 @@ import { useNotes } from "../../hooks/useNotes";
 import { usePapers } from "../../hooks/usePapers";
 import { useTasks } from "../../hooks/useTasks";
 import { useAppStore } from "../../store/appStore";
-import type { Note, Paper } from "../../types/database";
-import type { Task } from "../../hooks/useTasks";
+import type { Note, Paper, Task } from "../../types/database";
 import { ListSkeleton, Skeleton } from "../ui/Skeleton";
 import { awardXP, XP_REWARDS } from "../../utils/gamification";
 import { deriveTitleFromMarkdown } from "../../utils/text";
@@ -33,6 +32,10 @@ import {
   warmupAudio,
 } from "../../utils/alerts";
 import { toast } from "sonner";
+import { supabase } from "../../lib/supabase";
+import { logger } from "../../utils/logger";
+
+// KNOWN LIMITATION (RQ-M2-06): Timer state is local to this component. Navigating away resets the timer. Fix deferred to post-M2.
 
 interface FocusWorkspaceProps {
   userId: string | undefined;
@@ -181,6 +184,26 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                 description: `You earned ${xpEarned} XP for ${durationMinutes} minutes of focus.`,
               });
             }
+
+            void supabase
+              .from("focus_sessions")
+              .insert({
+                user_id: userId,
+                duration_seconds: sessionLength,
+                target_type: selectedTarget?.type ?? null,
+                target_id: selectedTarget?.id ?? null,
+              })
+              .then(({ error }) => {
+                if (error) {
+                  logger.error("[RQ] focus_sessions insert failed", error);
+                  return;
+                }
+                const { focusSessionSecondsToday, setFocusSessionSecondsToday } =
+                  useAppStore.getState();
+                setFocusSessionSecondsToday(
+                  focusSessionSecondsToday + sessionLength,
+                );
+              });
           }
 
           return 0;
@@ -202,6 +225,11 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
 
   const isLoading = notesLoading || papersLoading || tasksLoading;
   const effectiveTimeLeft = Math.max(0, timeLeft);
+  const isPaused =
+    !isRunning &&
+    !hasCompletedSession &&
+    effectiveTimeLeft > 0 &&
+    effectiveTimeLeft < sessionLength;
   const progress =
     sessionLength > 0 ? (sessionLength - effectiveTimeLeft) / sessionLength : 0;
 
@@ -580,7 +608,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                   ) : (
                     <Play className="w-5 h-5" />
                   )}
-                  {isRunning ? "Pause" : "Start focus"}
+                  {isRunning ? "Pause" : isPaused ? "Resume" : "Start focus"}
                 </button>
                 <button
                   onClick={() => {

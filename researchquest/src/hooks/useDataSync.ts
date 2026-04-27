@@ -6,6 +6,21 @@ import { sortByUpdatedAt } from "../utils/sort";
 import type { Note, Paper, Idea } from "../types/database";
 import { dedupeById } from "../utils/collections";
 
+function getFetchErrorMessage(error: unknown, fallback: string) {
+  if (error && typeof error === "object" && "message" in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string" && message.trim()) {
+      return message;
+    }
+  }
+
+  if (typeof error === "string" && error.trim()) {
+    return error;
+  }
+
+  return fallback;
+}
+
 export function useDataSync(userId: string | undefined) {
   // ⚡ Optimization: Always use useShallow with an object selector when extracting multiple 
   // properties from a Zustand store inside custom hooks to maintain referential equality 
@@ -17,9 +32,13 @@ export function useDataSync(userId: string | undefined) {
     setNotesLoading,
     setPapersLoading,
     setIdeasLoading,
+    setDataSyncError,
+    clearDataSyncError,
+    clearDataSyncErrors,
     setSelectedNote,
     setSelectedPaper,
     setSelectedIdea,
+    setFocusSessionSecondsToday,
   } = useAppStore(
     useShallow((state) => ({
       setNotes: state.setNotes,
@@ -28,9 +47,13 @@ export function useDataSync(userId: string | undefined) {
       setNotesLoading: state.setNotesLoading,
       setPapersLoading: state.setPapersLoading,
       setIdeasLoading: state.setIdeasLoading,
+      setDataSyncError: state.setDataSyncError,
+      clearDataSyncError: state.clearDataSyncError,
+      clearDataSyncErrors: state.clearDataSyncErrors,
       setSelectedNote: state.setSelectedNote,
       setSelectedPaper: state.setSelectedPaper,
       setSelectedIdea: state.setSelectedIdea,
+      setFocusSessionSecondsToday: state.setFocusSessionSecondsToday,
     })),
   );
 
@@ -45,79 +68,153 @@ export function useDataSync(userId: string | undefined) {
       setNotesLoading(false);
       setPapersLoading(false);
       setIdeasLoading(false);
+      setFocusSessionSecondsToday(0);
+      clearDataSyncErrors();
       return;
     }
 
     // --- NOTES ---
     const fetchNotes = async () => {
       setNotesLoading(true);
-      const { data, error } = await supabase
-        .from("notes")
-        .select("*")
-        .eq("user_id", userId)
-        .order("updated_at", { ascending: false });
+      try {
+        const { data, error } = await supabase
+          .from("notes")
+          .select("*")
+          .eq("user_id", userId)
+          .order("updated_at", { ascending: false });
 
-      if (!error && data) {
-        setNotes(sortByUpdatedAt(data));
+        if (error) {
+          setDataSyncError(
+            "notes",
+            getFetchErrorMessage(error, "Failed to load notes."),
+          );
+          return;
+        }
+
+        clearDataSyncError("notes");
+        if (data) {
+          setNotes(sortByUpdatedAt(data));
+        }
+      } catch (error) {
+        setDataSyncError(
+          "notes",
+          getFetchErrorMessage(error, "Failed to load notes."),
+        );
+      } finally {
+        setNotesLoading(false);
       }
-      setNotesLoading(false);
     };
 
     // --- PAPERS ---
     const fetchPapers = async () => {
       setPapersLoading(true);
-      const { data, error } = await supabase
-        .from("papers")
-        .select("*")
-        .eq("user_id", userId)
-        .order("updated_at", { ascending: false });
+      try {
+        const { data, error } = await supabase
+          .from("papers")
+          .select("*")
+          .eq("user_id", userId)
+          .order("updated_at", { ascending: false });
 
-      if (!error && data) {
-        const sorted = sortByUpdatedAt(data);
-        setPapers(sorted);
+        if (error) {
+          setDataSyncError(
+            "papers",
+            getFetchErrorMessage(error, "Failed to load papers."),
+          );
+          return;
+        }
 
-        // Sync selected paper if it exists in the fresh data
-        const current = useAppStore.getState().selectedPaper;
-        if (current) {
-          const papersMap = new Map(sorted.map(paper => [paper.id, paper]));
-          const fresh = papersMap.get(current.id);
-          if (fresh) {
-            setSelectedPaper(fresh);
+        clearDataSyncError("papers");
+        if (data) {
+          const sorted = sortByUpdatedAt(data);
+          setPapers(sorted);
+
+          // Sync selected paper if it exists in the fresh data
+          const current = useAppStore.getState().selectedPaper;
+          if (current) {
+            const papersMap = new Map(sorted.map(paper => [paper.id, paper]));
+            const fresh = papersMap.get(current.id);
+            if (fresh) {
+              setSelectedPaper(fresh);
+            }
           }
         }
+      } catch (error) {
+        setDataSyncError(
+          "papers",
+          getFetchErrorMessage(error, "Failed to load papers."),
+        );
+      } finally {
+        setPapersLoading(false);
       }
-      setPapersLoading(false);
     };
 
     // --- IDEAS ---
     const fetchIdeas = async () => {
       setIdeasLoading(true);
-      const { data, error } = await supabase
-        .from("ideas")
-        .select("*")
-        .eq("user_id", userId)
-        .order("updated_at", { ascending: false });
+      try {
+        const { data, error } = await supabase
+          .from("ideas")
+          .select("*")
+          .eq("user_id", userId)
+          .order("updated_at", { ascending: false });
 
-      if (!error && data) {
-        const sorted = data; // ideas sort might be handled differently in UI? No, usually updated_at
-        setIdeas(sorted);
+        if (error) {
+          setDataSyncError(
+            "ideas",
+            getFetchErrorMessage(error, "Failed to load ideas."),
+          );
+          return;
+        }
 
-        const current = useAppStore.getState().selectedIdea;
-        if (current) {
-          const ideasMap = new Map(sorted.map(idea => [idea.id, idea]));
-          const fresh = ideasMap.get(current.id);
-          if (fresh) {
-            setSelectedIdea(fresh);
+        clearDataSyncError("ideas");
+        if (data) {
+          const sorted = data; // ideas sort might be handled differently in UI? No, usually updated_at
+          setIdeas(sorted);
+
+          const current = useAppStore.getState().selectedIdea;
+          if (current) {
+            const ideasMap = new Map(sorted.map(idea => [idea.id, idea]));
+            const fresh = ideasMap.get(current.id);
+            if (fresh) {
+              setSelectedIdea(fresh);
+            }
           }
         }
+      } catch (error) {
+        setDataSyncError(
+          "ideas",
+          getFetchErrorMessage(error, "Failed to load ideas."),
+        );
+      } finally {
+        setIdeasLoading(false);
       }
-      setIdeasLoading(false);
+    };
+
+    const fetchFocusSessionsToday = async () => {
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      const { data, error } = await supabase
+        .from("focus_sessions")
+        .select("duration_seconds")
+        .eq("user_id", userId)
+        .gte("completed_at", startOfDay.toISOString());
+
+      if (error) {
+        return;
+      }
+
+      const total = (data ?? []).reduce(
+        (sum, row) => sum + (Number(row.duration_seconds) || 0),
+        0,
+      );
+      setFocusSessionSecondsToday(total);
     };
 
     // Initial fetch
     void fetchNotes();
     void fetchPapers();
     void fetchIdeas();
+    void fetchFocusSessionsToday();
 
     // --- SUBSCRIPTIONS ---
     const channels: ReturnType<typeof supabase.channel>[] = [];
@@ -257,6 +354,23 @@ export function useDataSync(userId: string | undefined) {
       .subscribe();
     channels.push(ideasSub);
 
+    const focusSessionsSub = supabase
+      .channel(`focus_sessions_sync_${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "focus_sessions",
+          filter: `user_id=eq.${userId}`,
+        },
+        () => {
+          void fetchFocusSessionsToday();
+        },
+      )
+      .subscribe();
+    channels.push(focusSessionsSub);
+
     return () => {
       channels.forEach((sub) => sub.unsubscribe());
     };
@@ -268,7 +382,11 @@ export function useDataSync(userId: string | undefined) {
     setNotesLoading,
     setPapersLoading,
     setIdeasLoading,
+    setDataSyncError,
+    clearDataSyncError,
+    clearDataSyncErrors,
     setSelectedPaper,
     setSelectedIdea,
+    setFocusSessionSecondsToday,
   ]);
 }

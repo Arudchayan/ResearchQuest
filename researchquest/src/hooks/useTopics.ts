@@ -418,6 +418,7 @@ export function useTopics(userId: string | undefined) {
       const { data, error: insertError } = await supabase
         .from("topics")
         .insert(payload)
+        .select("*")
         .single();
 
       if (insertError) {

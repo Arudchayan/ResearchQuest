@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useTasks } from "../../hooks/useTasks";
 import { supabase } from "../../lib/supabase";
+import { useAppStore } from "../../store/appStore";
 
 // Mock toast
 vi.mock("sonner", () => ({
@@ -39,6 +40,48 @@ describe("useTasks Security Extended", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    useAppStore.setState({
+      tasks: [],
+      tasksLoading: false,
+    });
+  });
+
+  describe("Global task state", () => {
+    it("syncs fetched tasks into the app store", async () => {
+      const fetchedTask = {
+        id: taskId,
+        user_id: userId,
+        title: "Canonical Task",
+        description: "Visible in dashboard/export",
+        priority: "medium",
+        due_date: "2026-05-01",
+        completed: false,
+        category: "Research",
+        project_id: "project-1",
+        created_at: "2026-04-26T00:00:00Z",
+        updated_at: "2026-04-26T00:00:00Z",
+      };
+
+      vi.mocked(supabase.from).mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            order: vi
+              .fn()
+              .mockResolvedValue({ data: [fetchedTask], error: null }),
+          }),
+        }),
+      } as any);
+
+      const { result } = renderHook(() => useTasks(userId));
+
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+
+      expect(result.current.tasks).toEqual([fetchedTask]);
+      expect(useAppStore.getState().tasks).toEqual([fetchedTask]);
+      expect(useAppStore.getState().tasksLoading).toBe(false);
+    });
   });
 
   describe("IDOR Prevention", () => {

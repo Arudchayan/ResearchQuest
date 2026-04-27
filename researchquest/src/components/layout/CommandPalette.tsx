@@ -155,10 +155,13 @@ export function CommandPalette() {
     setOpen(false);
   };
 
-  const handleExport = () => {
-    const { user, notes, papers, ideas, topics } = useAppStore.getState();
+  const handleExport = async () => {
+    const { user, notes, papers, ideas, topics, tasks } = useAppStore.getState();
+    if (!user?.id) {
+      setOpen(false);
+      return;
+    }
 
-    // Map TopicWithCounts to Topic (strip counts)
     const cleanTopics = Object.values(topics).map((t) => ({
       id: t.id,
       user_id: t.user_id,
@@ -168,7 +171,15 @@ export function CommandPalette() {
       updated_at: t.updated_at,
     }));
 
-    exportData({ user, notes, papers, ideas, topics: cleanTopics });
+    await exportData({
+      userId: user.id,
+      user,
+      notes,
+      papers,
+      ideas,
+      topics: cleanTopics,
+      tasks,
+    });
     setOpen(false);
   };
 

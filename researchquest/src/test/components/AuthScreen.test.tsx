@@ -23,6 +23,12 @@ describe("AuthScreen Security", () => {
     expect(screen.queryByText(/Use Test Login/i)).not.toBeInTheDocument();
   });
 
+  it("does not render Google sign-in", () => {
+    render(<AuthScreen />);
+
+    expect(screen.queryByText(/Continue with Google/i)).not.toBeInTheDocument();
+  });
+
   it('shows "Use Test Login" button when env vars are present', () => {
     vi.stubEnv("VITE_TEST_EMAIL", "test@example.com");
     vi.stubEnv("VITE_TEST_PASSWORD", "password123");

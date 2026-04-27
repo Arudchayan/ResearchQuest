@@ -1,7 +1,7 @@
 create or replace function public.save_idea_with_links(
   p_user_id uuid,
   p_idea_id uuid default null,
-  p_title text,
+  p_title text default null,
   p_description text default null,
   p_stage text default 'Seed',
   p_linked_note_ids text[] default null,

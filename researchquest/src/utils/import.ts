@@ -3,28 +3,103 @@ import type { ExportData } from "./export";
 import { toast } from "sonner";
 import { logger } from "./logger";
 
-export async function importData(file: File, userId: string) {
+export type ImportDataResult =
+  | { success: true; imported: number; skipped: number }
+  | { success: false; error: string };
+
+const REQUIRED_ARRAY_KEYS = [
+  "notes",
+  "papers",
+  "ideas",
+  "tasks",
+  "topics",
+] as const satisfies readonly (keyof ExportData)[];
+
+function validateImportPayload(parsed: unknown):
+  | { ok: true; data: ExportData }
+  | { ok: false; error: string } {
+  if (!parsed || typeof parsed !== "object") {
+    return { ok: false, error: "Invalid backup file: expected a JSON object" };
+  }
+
+  const record = parsed as Record<string, unknown>;
+
+  if (!record.metadata || typeof record.metadata !== "object") {
+    return { ok: false, error: "Missing required field: metadata" };
+  }
+
+  const meta = record.metadata as Record<string, unknown>;
+  if (typeof meta.appName !== "string") {
+    return { ok: false, error: "Missing required field: metadata.appName" };
+  }
+
+  for (const key of REQUIRED_ARRAY_KEYS) {
+    if (!(key in record)) {
+      return { ok: false, error: `Missing required field: ${key}` };
+    }
+    if (!Array.isArray(record[key])) {
+      return { ok: false, error: `Invalid backup file: ${key} must be an array` };
+    }
+  }
+
+  return { ok: true, data: parsed as ExportData };
+}
+
+export async function importData(
+  file: File,
+  userId: string,
+): Promise<ImportDataResult> {
+  let text: string;
   try {
-    const text = await file.text();
-    let data: ExportData;
+    text = await file.text();
+  } catch {
+    toast.error("Invalid JSON file");
+    return { success: false, error: "Invalid JSON file" };
+  }
 
-    try {
-      data = JSON.parse(text);
-    } catch (e) {
-      toast.error("Invalid JSON file");
-      return;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    toast.error("Invalid JSON file");
+    return { success: false, error: "Invalid JSON file" };
+  }
+
+  const validated = validateImportPayload(parsed);
+  if (validated.ok === false) {
+    toast.error(validated.error);
+    return { success: false, error: validated.error };
+  }
+
+  const data = validated.data;
+
+  if (data.metadata.appName !== "ResearchQuest") {
+    toast.error("Invalid backup file: Not a ResearchQuest backup");
+    return {
+      success: false,
+      error: "Invalid backup file: Not a ResearchQuest backup",
+    };
+  }
+
+  const toastId = toast.loading("Importing data...");
+  let imported = 0;
+  const skipped = 0;
+
+  const upsertOnId = async (table: string, rows: Record<string, unknown>[]) => {
+    if (rows.length === 0) return;
+    const { error } = await supabase.from(table).upsert(rows, {
+      onConflict: "id",
+      ignoreDuplicates: true,
+    });
+    if (error) {
+      logger.error(`[RQ] import upsert failed: ${table}`, error);
+      throw error;
     }
+    imported += rows.length;
+  };
 
-    // Validate metadata basics
-    if (!data.metadata || data.metadata.appName !== "ResearchQuest") {
-      toast.error("Invalid backup file: Not a ResearchQuest backup");
-      return;
-    }
-
-    const toastId = toast.loading("Importing data...");
-
-    // Import Topics
-    if (data.topics && data.topics.length > 0) {
+  try {
+    if (data.topics.length > 0) {
       const topics = data.topics.map((t) => ({
         id: t.id,
         user_id: userId,
@@ -33,56 +108,57 @@ export async function importData(file: File, userId: string) {
         created_at: t.created_at,
         updated_at: t.updated_at,
       }));
-      const { error } = await supabase.from("topics").upsert(topics);
-      if (error) {
-        logger.error("Error importing topics", error);
-        throw error;
-      }
+      await upsertOnId("topics", topics);
     }
 
-    // Import Notes
-    if (data.notes && data.notes.length > 0) {
+    if (data.notes.length > 0) {
       const notes = data.notes.map((n) => ({ ...n, user_id: userId }));
-      const { error } = await supabase.from("notes").upsert(notes);
-      if (error) {
-        logger.error("Error importing notes", error);
-        throw error;
-      }
+      await upsertOnId("notes", notes);
     }
 
-    // Import Papers
-    if (data.papers && data.papers.length > 0) {
+    if (data.papers.length > 0) {
       const papers = data.papers.map((p) => ({ ...p, user_id: userId }));
-      const { error } = await supabase.from("papers").upsert(papers);
-      if (error) {
-        logger.error("Error importing papers", error);
-        throw error;
-      }
+      await upsertOnId("papers", papers);
     }
 
-    // Import Ideas
-    if (data.ideas && data.ideas.length > 0) {
+    if (data.ideas.length > 0) {
       const ideas = data.ideas.map((i) => ({ ...i, user_id: userId }));
-      const { error } = await supabase.from("ideas").upsert(ideas);
-      if (error) {
-        logger.error("Error importing ideas", error);
-        throw error;
-      }
+      await upsertOnId("ideas", ideas);
     }
 
-    // Import Tasks
-    if (data.tasks && data.tasks.length > 0) {
+    if (data.tasks.length > 0) {
       const tasks = data.tasks.map((t) => ({ ...t, user_id: userId }));
-      const { error } = await supabase.from("tasks").upsert(tasks);
-      if (error) {
-        logger.error("Error importing tasks", error);
-        throw error;
-      }
+      await upsertOnId("tasks", tasks);
     }
 
-    toast.success("Data imported successfully", { id: toastId });
+    const topicNotes = Array.isArray(data.topicNotes) ? data.topicNotes : [];
+    if (topicNotes.length > 0) {
+      const rows = topicNotes.map((r) => ({ ...r, user_id: userId }));
+      await upsertOnId("topic_notes", rows);
+    }
+
+    const topicPapers = Array.isArray(data.topicPapers) ? data.topicPapers : [];
+    if (topicPapers.length > 0) {
+      const rows = topicPapers.map((r) => ({ ...r, user_id: userId }));
+      await upsertOnId("topic_papers", rows);
+    }
+
+    const topicIdeas = Array.isArray(data.topicIdeas) ? data.topicIdeas : [];
+    if (topicIdeas.length > 0) {
+      const rows = topicIdeas.map((r) => ({ ...r, user_id: userId }));
+      await upsertOnId("topic_ideas", rows);
+    }
+
+    toast.success(`Imported ${imported} rows`, { id: toastId });
+    return { success: true, imported, skipped };
   } catch (error) {
     logger.error("Import failed", error);
-    toast.error("Failed to import data. Please check the file and try again.");
+    toast.error("Failed to import data. Please check the file and try again.", {
+      id: toastId,
+    });
+    return {
+      success: false,
+      error: "Failed to import data. Please check the file and try again.",
+    };
   }
 }

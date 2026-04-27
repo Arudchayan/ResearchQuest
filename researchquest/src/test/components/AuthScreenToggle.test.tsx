@@ -8,7 +8,6 @@ vi.mock("../../lib/supabase", () => ({
     auth: {
       signInWithPassword: vi.fn(),
       signUp: vi.fn(),
-      signInWithOAuth: vi.fn(),
       resetPasswordForEmail: vi.fn(),
     },
   },

@@ -113,19 +113,36 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Ensure pg_cron is available for scheduling
-CREATE EXTENSION IF NOT EXISTS pg_cron;
-
--- Schedule the daily streak evaluation (runs at 5 minutes past midnight UTC)
-DO $$
+-- Schedule the daily streak evaluation when pg_cron is available.
+-- Local and restricted Supabase environments can run without this job; the
+-- evaluate_user_streaks() function remains available for manual/hosted calls.
+DO $cron$
 DECLARE
   existing_job_id INTEGER;
 BEGIN
-  SELECT jobid INTO existing_job_id FROM cron.job WHERE jobname = 'daily-streak-evaluation';
-  IF existing_job_id IS NOT NULL THEN
-    PERFORM cron.unschedule(existing_job_id);
-  END IF;
+  BEGIN
+    EXECUTE 'CREATE EXTENSION IF NOT EXISTS pg_cron';
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'pg_cron is unavailable; skipping daily streak schedule: %', SQLERRM;
+    RETURN;
+  END;
 
-  PERFORM cron.schedule('daily-streak-evaluation', '5 0 * * *', $$SELECT public.evaluate_user_streaks();$$);
+  BEGIN
+    SELECT jobid INTO existing_job_id
+    FROM cron.job
+    WHERE jobname = 'daily-streak-evaluation';
+
+    IF existing_job_id IS NOT NULL THEN
+      PERFORM cron.unschedule(existing_job_id);
+    END IF;
+
+    PERFORM cron.schedule(
+      'daily-streak-evaluation',
+      '5 0 * * *',
+      'SELECT public.evaluate_user_streaks();'
+    );
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'Could not schedule daily streak evaluation: %', SQLERRM;
+  END;
 END;
-$$;
+$cron$;
