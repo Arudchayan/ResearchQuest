@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useTasks } from "../../hooks/useTasks";
-import type { Task } from "../../hooks/useTasks";
+import type { Task } from "../../types/database";
 import { supabase } from "../../lib/supabase";
 import { parseDateInput } from "../../utils/time";
 import { ListSkeleton } from "../ui/Skeleton";
@@ -82,6 +82,10 @@ export function TaskManager() {
     useTasks(userId);
 
   const [filter, setFilter] = useState<TaskFilter>("all");
+  const [categoryFilter, setCategoryFilter] = useState<"all" | TaskCategory>(
+    "all",
+  );
+  const [projectFilter, setProjectFilter] = useState<string>("all");
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -124,6 +128,7 @@ export function TaskManager() {
         task.title,
         task.description ?? "",
         task.category ?? "",
+        task.project_id ?? "",
         task.priority,
         task.completed ? "completed done" : "pending active",
         task.due_date ?? "",
@@ -131,6 +136,15 @@ export function TaskManager() {
         .join(" ")
         .toLowerCase(),
     }));
+  }, [tasks]);
+
+  const projectIdsInUse = useMemo(() => {
+    const ids = new Set<string>();
+    for (const t of tasks) {
+      const pid = t.project_id?.trim();
+      if (pid) ids.add(pid);
+    }
+    return Array.from(ids).sort((a, b) => a.localeCompare(b));
   }, [tasks]);
 
   const sortedTasks = useMemo(() => {
@@ -163,6 +177,13 @@ export function TaskManager() {
           return searchText.includes(normalizedQuery);
         })
         .map(({ task }) => task);
+    }
+
+    if (categoryFilter !== "all") {
+      filtered = filtered.filter((t) => (t.category || "") === categoryFilter);
+    }
+    if (projectFilter !== "all") {
+      filtered = filtered.filter((t) => (t.project_id || "") === projectFilter);
     }
 
     if (sortOption === "priority") {
@@ -202,7 +223,15 @@ export function TaskManager() {
       // Optimization: Use string comparison for ISO dates
       return a.created_at > b.created_at ? 1 : -1;
     });
-  }, [searchableTasks, filter, searchQuery, sortOption]);
+  }, [
+    searchableTasks,
+    tasks,
+    filter,
+    searchQuery,
+    sortOption,
+    categoryFilter,
+    projectFilter,
+  ]);
 
   // Calculate progress
   const completedCount = tasks.filter((t) => t.completed).length;
@@ -457,6 +486,43 @@ export function TaskManager() {
                 </button>
               ),
             )}
+          </div>
+
+          <div className="flex flex-wrap gap-2 items-center">
+            <label htmlFor="task-filter-category" className="sr-only">
+              Filter by category
+            </label>
+            <select
+              id="task-filter-category"
+              value={categoryFilter}
+              onChange={(e) =>
+                setCategoryFilter(e.target.value as "all" | TaskCategory)
+              }
+              className="px-3 py-1.5 bg-bg-base border border-border-subtle rounded-md text-caption focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              <option value="all">All categories</option>
+              {CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+            <label htmlFor="task-filter-project" className="sr-only">
+              Filter by project
+            </label>
+            <select
+              id="task-filter-project"
+              value={projectFilter}
+              onChange={(e) => setProjectFilter(e.target.value)}
+              className="px-3 py-1.5 bg-bg-base border border-border-subtle rounded-md text-caption focus:outline-none focus:ring-2 focus:ring-primary-500 max-w-[14rem]"
+            >
+              <option value="all">All projects</option>
+              {projectIdsInUse.map((id) => (
+                <option key={id} value={id}>
+                  {id}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">

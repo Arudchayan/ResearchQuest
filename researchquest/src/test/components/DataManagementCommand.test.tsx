@@ -25,7 +25,9 @@ vi.mock("../../hooks/useIdeas", () => ({
 // Mock exportData
 const mockExportData = vi.fn();
 vi.mock("../../utils/export", () => ({
-  exportData: (data: any) => mockExportData(data),
+  exportData: vi.fn(async (data: unknown) => {
+    mockExportData(data);
+  }),
 }));
 
 describe("CommandPalette Data Management", () => {
@@ -46,15 +48,20 @@ describe("CommandPalette Data Management", () => {
       notes: [],
       papers: [],
       ideas: [],
-      topics: [
-        {
+      tasks: [],
+      topics: {
+        t1: {
           id: "t1",
           name: "Topic 1",
           user_id: "u1",
+          description: "",
           created_at: "",
           updated_at: "",
+          note_count: 0,
+          paper_count: 0,
+          idea_count: 0,
         },
-      ],
+      },
     });
   });
 
@@ -103,9 +110,17 @@ describe("CommandPalette Data Management", () => {
       fireEvent.click(item);
     });
 
-    expect(mockExportData).toHaveBeenCalled();
-    const callArgs = mockExportData.mock.calls[0][0];
+    await waitFor(() => {
+      expect(mockExportData).toHaveBeenCalled();
+    });
+    const callArgs = mockExportData.mock.calls[0][0] as {
+      userId: string;
+      topics: { name: string }[];
+      tasks: unknown[];
+    };
+    expect(callArgs.userId).toBe("test-user");
     expect(callArgs.topics).toHaveLength(1);
     expect(callArgs.topics[0].name).toBe("Topic 1");
+    expect(Array.isArray(callArgs.tasks)).toBe(true);
   });
 });

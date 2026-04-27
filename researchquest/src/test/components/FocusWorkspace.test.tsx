@@ -2,6 +2,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, act, fireEvent } from "@testing-library/react";
 import { FocusWorkspace } from "../../components/focus/FocusWorkspace";
 import { useAppStore } from "../../store/appStore";
+
+vi.mock("../../lib/supabase", () => ({
+  supabase: {
+    from: () => ({
+      insert: vi.fn().mockResolvedValue({ error: null }),
+    }),
+  },
+}));
 import { awardXP } from "../../utils/gamification";
 import { toast } from "sonner";
 import {
@@ -65,12 +73,17 @@ describe("FocusWorkspace", () => {
     vi.clearAllMocks();
     vi.useFakeTimers();
 
-    // Mock store implementation
     const storeMock = (selector: any) => {
-      // Return dummy setters
       return vi.fn();
     };
     (useAppStore as any).mockImplementation(storeMock);
+    (useAppStore as any).getState = () => ({
+      focusSessionSecondsToday: 0,
+      setFocusSessionSecondsToday: vi.fn(),
+      setSelectedNote: vi.fn(),
+      setSelectedPaper: vi.fn(),
+      setCurrentView: vi.fn(),
+    });
   });
 
   afterEach(() => {

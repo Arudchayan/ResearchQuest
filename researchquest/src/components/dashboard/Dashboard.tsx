@@ -28,7 +28,9 @@ export function Dashboard() {
     user,
     notes,
     papers,
+    ideas,
     tasks,
+    focusSessionSecondsToday,
     notesLoading,
     papersLoading,
     tasksLoading,
@@ -40,7 +42,9 @@ export function Dashboard() {
       user: state.user,
       notes: state.notes,
       papers: state.papers,
+      ideas: state.ideas,
       tasks: state.tasks,
+      focusSessionSecondsToday: state.focusSessionSecondsToday,
       notesLoading: state.notesLoading,
       papersLoading: state.papersLoading,
       tasksLoading: state.tasksLoading,
@@ -66,10 +70,14 @@ export function Dashboard() {
       level: user.current_level || 1,
       title: getLevelTitle(user.current_level || 1),
       xp: user.total_xp || 0,
-      streak: user.current_streak || 0,
+      streak: user.current_streak ?? 0,
       progress,
     };
   }, [user]);
+
+  const focusMinutesToday = Math.floor(focusSessionSecondsToday / 60);
+  const pendingTaskCount = tasks.filter((t) => !t.completed).length;
+  const completedTaskCount = tasks.filter((t) => t.completed).length;
 
   const recentNotes = useMemo(() => {
     return [...notes]
@@ -116,7 +124,7 @@ export function Dashboard() {
 
   const navigateTo = (view: "notes" | "papers" | "focus" | "tasks") => {
     setCurrentView(view);
-    window.history.pushState(null, "", view === "notes" ? "/" : `/${view}`);
+    window.history.pushState(null, "", `/${view}`);
   };
 
   if (!user) {
@@ -147,10 +155,21 @@ export function Dashboard() {
         </div>
       </div>
 
+      {/* RQ-M2-07 entity counts — source: store */}
+      <div
+        className="flex flex-wrap gap-x-6 gap-y-2 text-small text-text-secondary border border-border-subtle rounded-sm px-4 py-3 bg-bg-surface"
+        aria-label="Library counts"
+      >
+        <span>Notes {notes.length}</span>
+        <span>Papers {papers.length}</span>
+        <span>Ideas {ideas.length}</span>
+        <span>Tasks {tasks.length}</span>
+      </div>
+
       {stats && stats.progress !== undefined && (
         /* Stats Grid */
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Level Card */}
+          {/* Level Card — source: user profile (gamification) */}
           <div className="bg-bg-surface p-5 rounded-sm border border-border-moderate shadow-sm relative overflow-hidden group hover:border-primary-500 transition-colors">
             <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
               <Award className="w-24 h-24 text-text-primary" />
@@ -177,7 +196,7 @@ export function Dashboard() {
             </div>
           </div>
 
-          {/* Streak Card */}
+          {/* Streak Card — source: user profile (gamification streak) */}
           <div className="bg-bg-surface p-5 rounded-sm border border-border-moderate shadow-sm relative overflow-hidden group hover:border-warning transition-colors">
             <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
               <Flame className="w-24 h-24 text-warning" />
@@ -198,7 +217,7 @@ export function Dashboard() {
             </div>
           </div>
 
-          {/* Focus Card - Placeholder for now, maybe total focus time? */}
+          {/* Focus & tasks — source: store (focus_sessions aggregate + tasks array) */}
           <div className="bg-bg-surface p-5 rounded-sm border border-border-moderate shadow-sm relative overflow-hidden group hover:border-purple transition-colors">
             <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
               <ClockIcon className="w-24 h-24 text-purple" />
@@ -207,14 +226,14 @@ export function Dashboard() {
               <div className="flex items-center gap-2 text-purple font-semibold mb-2">
                 <TargetIcon className="w-4 h-4" />
                 <span className="uppercase tracking-widest text-caption">
-                  Active Tasks
+                  {"Today's focus"}
                 </span>
               </div>
               <div className="text-2xl font-serif font-bold text-text-primary mb-1">
-                {tasks.filter((t) => !t.completed).length} Pending
+                {focusMinutesToday} min
               </div>
               <div className="text-small text-text-secondary font-serif italic">
-                {tasks.filter((t) => t.completed).length} completed so far
+                {pendingTaskCount} pending · {completedTaskCount} completed tasks
               </div>
             </div>
           </div>

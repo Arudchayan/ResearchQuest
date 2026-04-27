@@ -7,7 +7,9 @@ import { useAppStore } from "../../store/appStore";
 // Mock dependencies
 const mockExportData = vi.fn();
 vi.mock("../../utils/export", () => ({
-  exportData: (data: any) => mockExportData(data),
+  exportData: vi.fn(async (data: unknown) => {
+    mockExportData(data);
+  }),
 }));
 
 // Mock Supabase
@@ -39,7 +41,8 @@ describe("DataManagementDialog", () => {
       notes: [{ id: "n1" }],
       papers: [],
       ideas: [],
-      topics: [],
+      topics: {},
+      tasks: [],
     });
   });
 
@@ -58,8 +61,12 @@ describe("DataManagementDialog", () => {
     const downloadBtn = screen.getByText("Download Backup");
     await user.click(downloadBtn);
 
-    expect(mockExportData).toHaveBeenCalled();
-    expect(mockExportData.mock.calls[0][0].notes).toHaveLength(1);
+    await waitFor(() => {
+      expect(mockExportData).toHaveBeenCalled();
+    });
+    const payload = mockExportData.mock.calls[0][0] as { userId: string; notes: unknown[] };
+    expect(payload.userId).toBe("test-user");
+    expect(payload.notes).toHaveLength(1);
     expect(onClose).toHaveBeenCalled();
   });
 

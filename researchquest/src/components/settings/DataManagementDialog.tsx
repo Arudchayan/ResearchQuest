@@ -1,5 +1,7 @@
 import { logger } from "../../utils/logger";
 import { useState, useRef } from "react";
+import type { ExportData } from "../../utils/export";
+import { importData } from "../../utils/import";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Tabs from "@radix-ui/react-tabs";
 import {
@@ -16,13 +18,48 @@ import { useAppStore } from "../../store/appStore";
 import { useShallow } from "zustand/react/shallow";
 import { exportData } from "../../utils/export";
 import { validateFileSize } from "../../utils/security";
-import { supabase } from "../../lib/supabase";
 import { toast } from "sonner";
-import type { ExportData } from "../../utils/export";
 
 interface DataManagementDialogProps {
   open: boolean;
   onClose: () => void;
+}
+
+function buildImportPayload(
+  parsed: ExportData,
+  selection: {
+    notes: boolean;
+    papers: boolean;
+    ideas: boolean;
+    tasks: boolean;
+    topics: boolean;
+  },
+): ExportData {
+  const raw = parsed as unknown as Record<string, unknown>;
+  function sliceArray<T>(key: keyof ExportData, selected: boolean): T[] {
+    if (!selected) return [];
+    const v = raw[key as string];
+    return Array.isArray(v) ? (v as T[]) : [];
+  }
+
+  return {
+    metadata: parsed.metadata,
+    user: parsed.user ?? null,
+    notes: sliceArray("notes", selection.notes),
+    papers: sliceArray("papers", selection.papers),
+    ideas: sliceArray("ideas", selection.ideas),
+    tasks: sliceArray("tasks", selection.tasks),
+    topics: sliceArray("topics", selection.topics),
+    topicNotes: selection.topics
+      ? sliceArray("topicNotes", true)
+      : [],
+    topicPapers: selection.topics
+      ? sliceArray("topicPapers", true)
+      : [],
+    topicIdeas: selection.topics
+      ? sliceArray("topicIdeas", true)
+      : [],
+  };
 }
 
 export function DataManagementDialog({
@@ -66,40 +103,32 @@ export function DataManagementDialog({
   const [importing, setImporting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
-  const handleExport = () => {
-    const dataToExport: any = {};
-
-    if (exportSelection.user && user) dataToExport.user = user;
-
-    if (exportSelection.notes) dataToExport.notes = notes;
-    else dataToExport.notes = [];
-
-    if (exportSelection.papers) dataToExport.papers = papers;
-    else dataToExport.papers = [];
-
-    if (exportSelection.ideas) dataToExport.ideas = ideas;
-    else dataToExport.ideas = [];
-
-    if (exportSelection.tasks) dataToExport.tasks = tasks;
-    else dataToExport.tasks = [];
-
-    if (exportSelection.topics) {
-      // Clean topics to match expected format if needed, but exportData handles raw types too usually
-      // The original Sidebar logic cleaned them, so we should too to be safe
-      dataToExport.topics = Object.values(topics).map((t) => ({
-        id: t.id,
-        user_id: t.user_id,
-        name: t.name,
-        description: t.description,
-        created_at: t.created_at,
-        updated_at: t.updated_at,
-      }));
-    } else {
-      dataToExport.topics = [];
+  const handleExport = async () => {
+    if (!user?.id) {
+      toast.error("You must be signed in to export");
+      return;
     }
 
-    // Call the utility function
-    exportData(dataToExport);
+    const dataToExport = {
+      userId: user.id,
+      user: exportSelection.user && user ? user : null,
+      notes: exportSelection.notes ? notes : [],
+      papers: exportSelection.papers ? papers : [],
+      ideas: exportSelection.ideas ? ideas : [],
+      tasks: exportSelection.tasks ? tasks : [],
+      topics: exportSelection.topics
+        ? Object.values(topics).map((t) => ({
+            id: t.id,
+            user_id: t.user_id,
+            name: t.name,
+            description: t.description,
+            created_at: t.created_at,
+            updated_at: t.updated_at,
+          }))
+        : [],
+    };
+
+    await exportData(dataToExport);
     toast.success("Export started");
     onClose();
   };
@@ -172,102 +201,22 @@ export function DataManagementDialog({
     if (!parsedData || !user) return;
 
     setImporting(true);
-    const toastId = toast.loading("Starting import...");
 
     try {
-      let importedCount = 0;
-
-      // Import Topics
-      if (importSelection.topics && parsedData.topics?.length) {
-        toast.loading(`Importing ${parsedData.topics.length} topics...`, {
-          id: toastId,
-        });
-        const topics = parsedData.topics.map((t: any) => ({
-          id: t.id,
-          user_id: user.id,
-          name: t.name,
-          description: t.description,
-          created_at: t.created_at,
-          updated_at: t.updated_at,
-        }));
-        const { error } = await supabase.from("topics").upsert(topics);
-        if (error) throw error;
-        importedCount += topics.length;
-      }
-
-      // Import Notes
-      if (importSelection.notes && parsedData.notes?.length) {
-        toast.loading(`Importing ${parsedData.notes.length} notes...`, {
-          id: toastId,
-        });
-        const notes = parsedData.notes.map((n: any) => ({
-          ...n,
-          user_id: user.id,
-        }));
-        const { error } = await supabase.from("notes").upsert(notes);
-        if (error) throw error;
-        importedCount += notes.length;
-      }
-
-      // Import Papers
-      if (importSelection.papers && parsedData.papers?.length) {
-        toast.loading(`Importing ${parsedData.papers.length} papers...`, {
-          id: toastId,
-        });
-        const papers = parsedData.papers.map((p: any) => ({
-          ...p,
-          user_id: user.id,
-        }));
-        const { error } = await supabase.from("papers").upsert(papers);
-        if (error) throw error;
-        importedCount += papers.length;
-      }
-
-      // Import Ideas
-      if (importSelection.ideas && parsedData.ideas?.length) {
-        toast.loading(`Importing ${parsedData.ideas.length} ideas...`, {
-          id: toastId,
-        });
-        const ideas = parsedData.ideas.map((i: any) => ({
-          ...i,
-          user_id: user.id,
-        }));
-        const { error } = await supabase.from("ideas").upsert(ideas);
-        if (error) throw error;
-        importedCount += ideas.length;
-      }
-
-      // Import Tasks
-      if (importSelection.tasks && parsedData.tasks?.length) {
-        toast.loading(`Importing ${parsedData.tasks.length} tasks...`, {
-          id: toastId,
-        });
-        const tasks = parsedData.tasks.map((t: any) => ({
-          ...t,
-          user_id: user.id,
-        }));
-        const { error } = await supabase.from("tasks").upsert(tasks);
-        if (error) throw error;
-        importedCount += tasks.length;
-      }
-
-      toast.success(`Successfully imported ${importedCount} items`, {
-        id: toastId,
+      const payload = buildImportPayload(parsedData, importSelection);
+      const json = JSON.stringify(payload);
+      const file = new File([json], "import.json", {
+        type: "application/json",
       });
 
-      // Reset state
-      setImportFile(null);
-      setParsedData(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      const result = await importData(file, user.id);
 
-      onClose();
-    } catch (err) {
-      logger.error("Import failed", err);
-      toast.error(
-        "Import failed: " +
-          (err instanceof Error ? err.message : "Unknown error"),
-        { id: toastId },
-      );
+      if (result.success) {
+        setImportFile(null);
+        setParsedData(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        onClose();
+      }
     } finally {
       setImporting(false);
     }
