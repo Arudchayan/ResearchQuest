@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { EyeOpenIcon, EyeClosedIcon } from "@radix-ui/react-icons";
 import {
   hasSupabaseConfig,
@@ -9,23 +9,81 @@ import { useShallow } from "zustand/react/shallow";
 import { useAppStore } from "./store/appStore";
 import { useGamificationStore } from "./store/gamificationStore";
 import { AppShell } from "./components/layout/v2/AppShell";
-import { NotesView } from "./components/notes/NotesView";
-import { PapersView } from "./components/papers/PapersView";
-import { IdeasBoard } from "./components/ideas/IdeasBoard";
-import { TopicsView } from "./components/topics/TopicsView";
-import { TaskManager } from "./components/tasks/TaskManager";
-import { FocusWorkspace } from "./components/focus/FocusWorkspace";
 import { AppLoadingSkeleton } from "./components/ui/Skeleton";
 import { Toaster } from "sonner";
 import type { User } from "@supabase/supabase-js";
 import { usePapers } from "./hooks/usePapers";
 import { useIdeas } from "./hooks/useIdeas";
 import { useDataSync } from "./hooks/useDataSync";
-import { OnboardingGuide } from "./components/layout/OnboardingGuide";
-import { CommandPalette } from "./components/layout/CommandPalette";
-import { ShortcutsDialog } from "./components/layout/ShortcutsDialog";
 import { isStrongPassword } from "./utils/security";
-import { Dashboard } from "./components/dashboard/Dashboard";
+
+const Dashboard = lazy(() =>
+  import("./components/dashboard/Dashboard").then((module) => ({
+    default: module.Dashboard,
+  })),
+);
+
+const NotesView = lazy(() =>
+  import("./components/notes/NotesView").then((module) => ({
+    default: module.NotesView,
+  })),
+);
+
+const PapersView = lazy(() =>
+  import("./components/papers/PapersView").then((module) => ({
+    default: module.PapersView,
+  })),
+);
+
+const IdeasBoard = lazy(() =>
+  import("./components/ideas/IdeasBoard").then((module) => ({
+    default: module.IdeasBoard,
+  })),
+);
+
+const TopicsView = lazy(() =>
+  import("./components/topics/TopicsView").then((module) => ({
+    default: module.TopicsView,
+  })),
+);
+
+const TaskManager = lazy(() =>
+  import("./components/tasks/TaskManager").then((module) => ({
+    default: module.TaskManager,
+  })),
+);
+
+const FocusWorkspace = lazy(() =>
+  import("./components/focus/FocusWorkspace").then((module) => ({
+    default: module.FocusWorkspace,
+  })),
+);
+
+const OnboardingGuide = lazy(() =>
+  import("./components/layout/OnboardingGuide").then((module) => ({
+    default: module.OnboardingGuide,
+  })),
+);
+
+const CommandPalette = lazy(() =>
+  import("./components/layout/CommandPalette").then((module) => ({
+    default: module.CommandPalette,
+  })),
+);
+
+const ShortcutsDialog = lazy(() =>
+  import("./components/layout/ShortcutsDialog").then((module) => ({
+    default: module.ShortcutsDialog,
+  })),
+);
+
+function RouteLoadingFallback() {
+  return (
+    <div className="flex h-full min-h-[320px] items-center justify-center px-6 py-10 text-sm text-text-secondary">
+      Loading view…
+    </div>
+  );
+}
 
 export function AuthScreen() {
   const [email, setEmail] = useState("");
@@ -471,10 +529,39 @@ function App() {
     return <AuthScreen />;
   }
 
+  const routeContent =
+    currentView === "dashboard" ? (
+      <div className="h-full overflow-auto">
+        <Dashboard />
+      </div>
+    ) : currentView === "notes" ? (
+      <NotesView />
+    ) : currentView === "papers" ? (
+      <PapersView />
+    ) : currentView === "ideas" ? (
+      <IdeasBoard />
+    ) : currentView === "topics" ? (
+      <div className="h-full overflow-hidden">
+        <TopicsView />
+      </div>
+    ) : currentView === "tasks" ? (
+      <div className="p-6 h-full overflow-auto">
+        <OnboardingGuide />
+        <TaskManager />
+      </div>
+    ) : currentView === "focus" ? (
+      <div className="p-6 h-full overflow-auto">
+        <OnboardingGuide storageKey="rq_focus_onboarding_bridge" />
+        <FocusWorkspace userId={userId} />
+      </div>
+    ) : null;
+
   return (
     <div className="min-h-screen bg-bg-base text-text-primary selection:bg-primary-500 selection:text-bg-base">
-      <CommandPalette />
-      <ShortcutsDialog />
+      <Suspense fallback={null}>
+        <CommandPalette />
+        <ShortcutsDialog />
+      </Suspense>
 
       <Toaster
         position="top-right"
@@ -489,31 +576,7 @@ function App() {
       />
 
       <AppShell>
-        {currentView === "dashboard" ? (
-          <div className="h-full overflow-auto">
-            <Dashboard />
-          </div>
-        ) : currentView === "notes" ? (
-          <NotesView />
-        ) : currentView === "papers" ? (
-          <PapersView />
-        ) : currentView === "ideas" ? (
-          <IdeasBoard />
-        ) : currentView === "topics" ? (
-          <div className="h-full overflow-hidden">
-            <TopicsView />
-          </div>
-        ) : currentView === "tasks" ? (
-          <div className="p-6 h-full overflow-auto">
-            <OnboardingGuide />
-            <TaskManager />
-          </div>
-        ) : currentView === "focus" ? (
-          <div className="p-6 h-full overflow-auto">
-            <OnboardingGuide storageKey="rq_focus_onboarding_bridge" />
-            <FocusWorkspace userId={userId} />
-          </div>
-        ) : null}
+        <Suspense fallback={<RouteLoadingFallback />}>{routeContent}</Suspense>
       </AppShell>
     </div>
   );

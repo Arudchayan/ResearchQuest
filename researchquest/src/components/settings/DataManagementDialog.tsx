@@ -1,7 +1,7 @@
 import { logger } from "../../utils/logger";
 import { useState, useRef } from "react";
-import type { ExportData } from "../../utils/export";
-import { importData } from "../../utils/import";
+import type { ExportData } from "../../utils/import";
+import { exportData, importData } from "../../utils/import";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Tabs from "@radix-ui/react-tabs";
 import {
@@ -16,9 +16,12 @@ import {
 } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
 import { useShallow } from "zustand/react/shallow";
-import { exportData } from "../../utils/export";
 import { validateFileSize } from "../../utils/security";
 import { toast } from "sonner";
+
+type ExportPayload = Omit<ExportData, "metadata">;
+type ImportedTopic = NonNullable<ExportData["topics"]>[number];
+type ImportedTask = NonNullable<ExportData["tasks"]>[number];
 
 interface DataManagementDialogProps {
   open: boolean;
@@ -103,7 +106,7 @@ export function DataManagementDialog({
   const [importing, setImporting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
-  const handleExport = async () => {
+const handleExport = () => {
     if (!user?.id) {
       toast.error("You must be signed in to export");
       return;
@@ -128,7 +131,7 @@ export function DataManagementDialog({
         : [],
     };
 
-    await exportData(dataToExport);
+    exportData(dataToExport);
     toast.success("Export started");
     onClose();
   };
@@ -215,8 +218,12 @@ export function DataManagementDialog({
         setImportFile(null);
         setParsedData(null);
         if (fileInputRef.current) fileInputRef.current.value = "";
+        toast.success("Import successful");
         onClose();
       }
+    } catch (err) {
+      logger.error("Import error", err);
+      toast.error("Import failed");
     } finally {
       setImporting(false);
     }

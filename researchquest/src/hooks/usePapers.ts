@@ -4,12 +4,44 @@ import { awardXP, XP_REWARDS } from "../utils/gamification";
 import { sortByUpdatedAt } from "../utils/sort";
 import { isValidUrl } from "../utils/security";
 import { toast } from "sonner";
-import type { Paper, CrossrefPaper } from "../types/database";
+import type { Paper, CrossrefPaper, PaperDraft } from "../types/database";
 import { logger } from "../utils/logger";
 import { useAppStore } from "../store/appStore";
 
 const PAPER_TITLE_MAX_LENGTH = 255;
 const PAPER_ABSTRACT_MAX_LENGTH = 5000;
+
+type PaperInsertPayload = Pick<Paper, "user_id" | "title" | "authors" | "status"> &
+  Partial<Pick<Paper, "doi" | "source_url" | "abstract" | "publication_date" | "topic_ids">>;
+
+interface FunctionErrorPayload<T> {
+  error?: {
+    message?: string;
+  };
+  data?: T;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function getMessage(value: unknown): string | null {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed || null;
+  }
+
+  if (isRecord(value) && typeof value.message === "string") {
+    const trimmed = value.message.trim();
+    return trimmed || null;
+  }
+
+  return null;
+}
+
+function getFunctionPayload<T>(value: unknown): FunctionErrorPayload<T> | null {
+  return isRecord(value) ? (value as FunctionErrorPayload<T>) : null;
+}
 
 // Helper function to create a reading task for a newly added paper
 async function createReadingTaskForPaper(
@@ -57,7 +89,7 @@ async function createReadingTaskForPaper(
         duration: 2000,
       });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     // 🛡️ Security: Log only the message, not the full error object
     logger.error(
       "Error creating reading task",
@@ -72,27 +104,19 @@ export interface PaperSearchOptions {
   order?: "asc" | "desc";
 }
 
-function extractFunctionErrorMessage(error: any, fallback: string): string {
+function extractFunctionErrorMessage(error: unknown, fallback: string): string {
   if (!error) return fallback;
 
-  // 🛡️ Security: Simplified error extraction to prevent leaking internal details like 'details', 'hint', or full stack traces.
-  // We prioritize 'message' properties.
-
-  const candidates: any[] = [];
-
-  // Check top-level message
-  if (typeof error === "string") return error.trim() || fallback;
-  if (error.message) candidates.push(error.message);
-
-  // Check context (Supabase Edge Functions)
-  if (error.context?.response?.error) {
-    candidates.push(error.context.response.error);
+  const topLevelMessage = getMessage(error);
+  if (topLevelMessage) {
+    return topLevelMessage;
   }
 
-  for (const candidate of candidates) {
-    if (!candidate) continue;
-    if (typeof candidate === "string") return candidate.trim();
-    if (typeof candidate.message === "string") return candidate.message.trim();
+  if (isRecord(error) && isRecord(error.context) && isRecord(error.context.response)) {
+    const nestedMessage = getMessage(error.context.response.error);
+    if (nestedMessage) {
+      return nestedMessage;
+    }
   }
 
   return fallback;
@@ -163,17 +187,20 @@ export function usePapers(userId: string | undefined) {
           return null;
         }
 
-        if (response.data?.error) {
+        const payload = getFunctionPayload<CrossrefPaper | null>(response.data);
+
+        if (payload?.error) {
           const errorMessage =
-            response.data.error.message || "Failed to search for paper";
+            payload.error.message || "Failed to search for paper";
           setError(errorMessage);
           toast.error(errorMessage);
           return null;
         }
 
-        return response.data?.data || null;
-      } catch (err: any) {
-        const errorMessage = err.message || "An error occurred while searching";
+        return payload?.data ?? null;
+      } catch (err: unknown) {
+        const errorMessage =
+          extractFunctionErrorMessage(err, "An error occurred while searching");
         setError(errorMessage);
         toast.error(errorMessage);
         return null;
@@ -212,17 +239,20 @@ export function usePapers(userId: string | undefined) {
           return [];
         }
 
-        if (response.data?.error) {
+        const payload = getFunctionPayload<CrossrefPaper[]>(response.data);
+
+        if (payload?.error) {
           const errorMessage =
-            response.data.error.message || "Failed to search for papers";
+            payload.error.message || "Failed to search for papers";
           setError(errorMessage);
           toast.error(errorMessage);
           return [];
         }
 
-        return response.data?.data || [];
-      } catch (err: any) {
-        const errorMessage = err.message || "An error occurred while searching";
+        return payload?.data ?? [];
+      } catch (err: unknown) {
+        const errorMessage =
+          extractFunctionErrorMessage(err, "An error occurred while searching");
         setError(errorMessage);
         toast.error(errorMessage);
         return [];
@@ -232,7 +262,7 @@ export function usePapers(userId: string | undefined) {
   );
 
   const createPaper = useCallback(
-    async (paperData: Partial<Paper>): Promise<Paper | null> => {
+    async (paperData: PaperDraft): Promise<Paper | null> => {
       if (!userId) {
         setError("User not authenticated");
         toast.error("You must be logged in to add papers");
@@ -262,7 +292,7 @@ export function usePapers(userId: string | undefined) {
         return null;
       }
 
-      const cleanData: any = {
+      const cleanData: PaperInsertPayload = {
         user_id: userId,
         title: paperData.title.trim(),
         authors: Array.isArray(paperData.authors) ? paperData.authors : [],
