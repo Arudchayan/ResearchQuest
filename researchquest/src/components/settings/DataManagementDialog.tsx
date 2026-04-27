@@ -1,7 +1,8 @@
 import { logger } from "../../utils/logger";
 import { useState, useRef } from "react";
-import type { ExportData } from "../../utils/import";
-import { exportData, importData } from "../../utils/import";
+import type { ExportData } from "../../utils/export";
+import { exportData } from "../../utils/export";
+import { importData } from "../../utils/import";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Tabs from "@radix-ui/react-tabs";
 import {
