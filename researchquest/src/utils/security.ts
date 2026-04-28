@@ -10,6 +10,7 @@ export function isValidUrl(url: string): boolean {
   if (!url || typeof url !== "string") return false;
 
   // Strip control characters and zero-width spaces that could obfuscate malicious protocols
+  // eslint-disable-next-line no-control-regex
   const sanitized = url.replace(/[\x00-\x1F\x7F-\x9F\u200B-\u200D\uFEFF]/g, "");
 
   const trimmed = sanitized.trim();
