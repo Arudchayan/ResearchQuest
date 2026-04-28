@@ -96,16 +96,18 @@ export function ManualEntryTab({
           type="button"
           onClick={onAdd}
           disabled={loading}
-          className="w-full py-4 bg-primary-500 text-white rounded-lg font-semibold flex justify-center items-center gap-2"
+          className="w-full py-4 bg-primary-500 text-white rounded-lg font-semibold flex justify-center items-center gap-2 hover:bg-primary-600 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 disabled:opacity-70 disabled:cursor-not-allowed"
+          aria-live="polite"
+          aria-atomic="true"
         >
           {loading ? (
             <>
-              <Loader className="w-6 h-6 animate-spin" />
+              <Loader className="w-6 h-6 animate-spin" aria-hidden="true" />
               Adding Paper...
             </>
           ) : (
             <>
-              <Plus className="w-6 h-6" />
+              <Plus className="w-6 h-6" aria-hidden="true" />
               Add Paper
             </>
           )}
