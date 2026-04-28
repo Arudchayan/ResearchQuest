@@ -9,7 +9,10 @@
 export function isValidUrl(url: string): boolean {
   if (!url || typeof url !== "string") return false;
 
-  const trimmed = url.trim();
+  // Strip control characters and zero-width spaces that could obfuscate malicious protocols
+  const sanitized = url.replace(/[\x00-\x1F\x7F-\x9F\u200B-\u200D\uFEFF]/g, "");
+
+  const trimmed = sanitized.trim();
   if (!trimmed) return false;
 
   // Explicitly reject protocol-relative URLs to prevent open redirect vulnerabilities
