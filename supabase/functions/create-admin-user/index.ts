@@ -61,6 +61,16 @@ Deno.serve(async (req) => {
           status: 400,
         });
       }
+
+      // Sentinel: Prevent DoS via excessively large inputs
+      if (email.length > 255 || password.length > 72 || role.length > 50) {
+        return new Response(JSON.stringify({
+          error: { code: 'INVALID_PARAMS', message: 'Input values exceed maximum allowed length' }
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        });
+      }
   
       // Get environment variables
       const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
