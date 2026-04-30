@@ -76,8 +76,6 @@ export function Dashboard() {
   }, [user]);
 
   const focusMinutesToday = Math.floor(focusSessionSecondsToday / 60);
-  const pendingTaskCount = tasks.filter((t) => !t.completed).length;
-  const completedTaskCount = tasks.filter((t) => t.completed).length;
 
   const recentNotes = useMemo(() => {
     return [...notes]
@@ -116,6 +114,21 @@ export function Dashboard() {
         return a.due_date > b.due_date ? 1 : a.due_date < b.due_date ? -1 : 0;
       })
       .slice(0, 3);
+  }, [tasks]);
+
+  // ⚡ PERFORMANCE OPTIMIZATION: Compute multiple aggregates in a single O(N) pass
+  // instead of chaining multiple .filter().length calls during render
+  const taskStats = useMemo(() => {
+    let pending = 0;
+    let completed = 0;
+    for (const task of tasks) {
+      if (task.completed) {
+        completed++;
+      } else {
+        pending++;
+      }
+    }
+    return { pending, completed };
   }, [tasks]);
 
   const handleCreateNote = () => {
@@ -233,7 +246,7 @@ export function Dashboard() {
                 {focusMinutesToday} min
               </div>
               <div className="text-small text-text-secondary font-serif italic">
-                {pendingTaskCount} pending · {completedTaskCount} completed tasks
+                {taskStats.pending} pending · {taskStats.completed} completed tasks
               </div>
             </div>
           </div>

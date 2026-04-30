@@ -291,13 +291,22 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   const focusInsights = useMemo(() => {
     const insights: { title: string; detail: string }[] = [];
 
-    const unreadPapers = papers.filter(
-      (paper) => paper.status === "To Read",
-    ).length;
-    const inProgressTasks = tasks.filter((task) => !task.completed).length;
-    const notesWithoutTitles = notes.filter(
-      (note) => !note.title || note.title.trim() === "",
-    ).length;
+    // ⚡ PERFORMANCE OPTIMIZATION: Compute multiple aggregates in an O(N) pass
+    // to avoid intermediate array allocations from .filter().length
+    let unreadPapers = 0;
+    for (const paper of papers) {
+      if (paper.status === "To Read") unreadPapers++;
+    }
+
+    let inProgressTasks = 0;
+    for (const task of tasks) {
+      if (!task.completed) inProgressTasks++;
+    }
+
+    let notesWithoutTitles = 0;
+    for (const note of notes) {
+      if (!note.title || note.title.trim() === "") notesWithoutTitles++;
+    }
 
     if (unreadPapers > 0) {
       insights.push({
