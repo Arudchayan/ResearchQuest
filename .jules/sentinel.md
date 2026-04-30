@@ -7,3 +7,8 @@
 **Vulnerability:** The `importData` utility in `researchquest/src/utils/import.ts` loaded the entire content of uploaded JSON files into memory (`await file.text()`) and parsed them without any prior size validation. An attacker or user could crash the browser by uploading a massive file.
 **Learning:** File size constraints must be applied before executing any memory-intensive operations (like `.text()` or `JSON.parse()`) on file uploads, even if the processing is entirely client-side.
 **Prevention:** Always use `validateFileSize` (or similar guardrails) immediately upon receiving file objects from user input before attempting to read their contents.
+
+## 2025-04-25 - Prevent Information Leakage in Generic Error Handlers
+**Vulnerability:** The global error parsing utility (`extractFunctionErrorMessage`) was extracting and returning the `.details` and `.error.details` properties from backend error objects (like Supabase responses), which often contain sensitive database schema information, constraint names, or raw queries.
+**Learning:** These properties are meant for debugging or logging in safe environments, but surfacing them to user-facing UI components (via toasts or state errors) exposes the application's internal structure to potential attackers.
+**Prevention:** Never extract verbose or debug-specific error properties (`details`, `hint`, etc.) for UI display. Strip these out in global error parsers and rely on generic `.message` properties or fallback strings to communicate failures securely to end-users.
