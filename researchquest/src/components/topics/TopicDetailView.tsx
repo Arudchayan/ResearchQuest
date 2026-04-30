@@ -256,7 +256,7 @@ export function TopicDetailView({
                   onClick={handleSave}
                   className="inline-flex items-center gap-2 px-3 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors"
                 >
-                  <Save className="w-4 h-4" />
+                  <Save className="w-4 h-4" aria-hidden="true" />
                   Save
                 </button>
                 <button
@@ -267,7 +267,7 @@ export function TopicDetailView({
                   }}
                   className="inline-flex items-center gap-2 px-3 py-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
                 >
-                  <XCircle className="w-4 h-4" />
+                  <XCircle className="w-4 h-4" aria-hidden="true" />
                   Cancel
                 </button>
               </div>
@@ -336,7 +336,7 @@ export function TopicDetailView({
               <div key={label} className="px-6 py-4">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <Icon className="w-4 h-4 text-primary-500" />
+                    <Icon className="w-4 h-4 text-primary-500" aria-hidden="true" />
                     <h3 className="text-small font-semibold text-text-primary">
                       {label}{" "}
                       <span className="text-text-tertiary font-normal">
