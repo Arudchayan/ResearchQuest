@@ -830,7 +830,8 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
               onClick={() => {
                 handleAddClick();
               }}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-500 text-bg-base rounded-sm hover:opacity-90 transition-opacity font-medium"
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-500 text-bg-base rounded-sm hover:opacity-90 transition-opacity font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500"
+              aria-label={`Create new ${currentView.slice(0, -1)}`}
             >
               <Plus className="w-5 h-5" aria-hidden="true" />
               <span>{`New ${currentView.slice(0, -1)}`}</span>
