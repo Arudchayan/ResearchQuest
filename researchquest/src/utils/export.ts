@@ -2,6 +2,7 @@ import type { UserProfile, Note, Paper, Idea, Topic, Task } from "../types/datab
 import { generateBibTeX } from "./citation";
 import { supabase } from "../lib/supabase";
 import { logger } from "./logger";
+import { deriveTitleFromMarkdown } from "./text";
 
 /** Rows from `topic_notes` (export/import backup). */
 export interface TopicNoteLink {
@@ -204,7 +205,7 @@ export function convertNotesToMarkdown(notes: Note[]): string {
   if (notes.length === 0) return "";
   return notes
     .map((n) => {
-      const title = n.title || "Untitled Note";
+      const title = n.title || deriveTitleFromMarkdown(n.markdown_body) || "Untitled Note";
       const date = new Date(n.created_at).toLocaleDateString();
       const tags = n.tags.length > 0 ? `\nTags: ${n.tags.join(", ")}` : "";
 
