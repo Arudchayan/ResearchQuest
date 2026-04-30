@@ -491,13 +491,14 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   // ⚡ PERFORMANCE OPTIMIZATION: Pre-compute derived text fields (like markdown title extraction and toLowerCase)
   // so that expensive string parsing is decoupled from the fast keystroke filtering loop.
   const searchableNotes = useMemo(() => {
+    if (currentView !== "notes") return [];
     return notes.map((note) => ({
       note,
       titleText: (note.title || deriveTitleFromMarkdown(note.markdown_body) || "").toLowerCase(),
       bodyText: note.markdown_body.toLowerCase(),
       tagsText: (note.tags || []).join(" ").toLowerCase(),
     }));
-  }, [notes]);
+  }, [notes, currentView]);
 
   const filteredNotes = useMemo(() => {
     // Optimization: Don't filter if not viewing notes
@@ -515,12 +516,13 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   }, [searchableNotes, normalizedQuery, currentView, notes]);
 
   const searchablePapers = useMemo(() => {
+    if (currentView !== "papers") return [];
     return papers.map((paper) => ({
       paper,
       titleText: (paper.title || "").toLowerCase(),
       authorsText: (paper.authors || []).join(" ").toLowerCase(),
     }));
-  }, [papers]);
+  }, [papers, currentView]);
 
   const filteredPapers = useMemo(() => {
     // Optimization: Don't filter if not viewing papers
@@ -537,12 +539,13 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   }, [searchablePapers, normalizedQuery, currentView, papers]);
 
   const searchableIdeas = useMemo(() => {
+    if (currentView !== "ideas") return [];
     return ideas.map((idea) => ({
       idea,
       titleText: (idea.title || "").toLowerCase(),
       descriptionText: (idea.description || "").toLowerCase(),
     }));
-  }, [ideas]);
+  }, [ideas, currentView]);
 
   const filteredIdeas = useMemo(() => {
     // Optimization: Don't filter if not viewing ideas
