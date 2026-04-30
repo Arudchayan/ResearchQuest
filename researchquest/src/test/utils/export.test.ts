@@ -259,7 +259,7 @@ describe("Export Utils", () => {
       expect(md).toContain("\n\n---\n\n");
 
       // Second note
-      expect(md).toContain("# Untitled Note"); // Fallback title
+      expect(md).toContain("# Just a quick thought"); // Derived title from content
       expect(md).toContain("Just a quick thought");
     });
   });
