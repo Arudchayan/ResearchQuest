@@ -11,7 +11,11 @@ import {
   Trash,
   Quote,
   FileText,
+  Download,
+  Table,
+  FileJson,
 } from "lucide-react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import type { Paper, ReadingStatus } from "../../types/database";
 import { toast } from "sonner";
 import { isValidUrl } from "../../utils/security";
@@ -20,6 +24,14 @@ import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { CitationDialog } from "../papers/CitationDialog";
 import { useNotes } from "../../hooks/useNotes";
 import { useAppStore } from "../../store/appStore";
+import {
+  convertPapersToMarkdown,
+  convertPapersToCSV,
+  convertPapersToJSON,
+  convertPapersToBibTeX,
+  downloadFile,
+} from "../../utils/export";
+import { logger } from "../../utils/logger";
 
 interface PaperDetailViewProps {
   paper: Paper;
@@ -151,6 +163,39 @@ export function PaperDetailView({
     ((statusIndex + 1) / statusOrder.length) * 100,
   );
 
+  const handleExport = (format: "markdown" | "bibtex" | "csv" | "json") => {
+    try {
+      let content = "";
+      let filename = "";
+      const timestamp = new Date().toISOString().split("T")[0];
+
+      switch (format) {
+        case "markdown":
+          content = convertPapersToMarkdown([paper]);
+          filename = `paper-${paper.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${timestamp}.md`;
+          break;
+        case "bibtex":
+          content = convertPapersToBibTeX([paper]);
+          filename = `paper-${paper.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${timestamp}.bib`;
+          break;
+        case "csv":
+          content = convertPapersToCSV([paper]);
+          filename = `paper-${paper.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${timestamp}.csv`;
+          break;
+        case "json":
+          content = convertPapersToJSON([paper]);
+          filename = `paper-${paper.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${timestamp}.json`;
+          break;
+      }
+
+      downloadFile(content, filename, format);
+      toast.success(`Exported paper as ${format.toUpperCase()}`);
+    } catch (err: any) {
+      logger.error("Export failed", err);
+      toast.error(err.message || "Failed to export paper");
+    }
+  };
+
   return (
     <>
       <div className="p-6 max-w-4xl mx-auto">
@@ -201,6 +246,52 @@ export function PaperDetailView({
                   </>
                 ) : (
                   <div className="flex items-center gap-2">
+                    <DropdownMenu.Root>
+                      <DropdownMenu.Trigger asChild>
+                        <button
+                          className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
+                          title="Export paper"
+                          aria-label="Export paper"
+                        >
+                          <Download className="w-5 h-5" aria-hidden="true" />
+                        </button>
+                      </DropdownMenu.Trigger>
+                      <DropdownMenu.Portal>
+                        <DropdownMenu.Content
+                          className="min-w-[160px] bg-bg-surface border border-border-subtle rounded-md shadow-md p-1 z-50 animate-in fade-in zoom-in-95"
+                          align="end"
+                        >
+                          <DropdownMenu.Item
+                            className="flex items-center gap-2 px-2 py-1.5 text-sm text-text-primary hover:bg-bg-elevated rounded cursor-pointer outline-none"
+                            onSelect={() => handleExport("markdown")}
+                          >
+                            <FileText className="w-4 h-4 text-text-secondary" />
+                            Markdown
+                          </DropdownMenu.Item>
+                          <DropdownMenu.Item
+                            className="flex items-center gap-2 px-2 py-1.5 text-sm text-text-primary hover:bg-bg-elevated rounded cursor-pointer outline-none"
+                            onSelect={() => handleExport("bibtex")}
+                          >
+                            <Quote className="w-4 h-4 text-text-secondary" />
+                            BibTeX
+                          </DropdownMenu.Item>
+                          <DropdownMenu.Item
+                            className="flex items-center gap-2 px-2 py-1.5 text-sm text-text-primary hover:bg-bg-elevated rounded cursor-pointer outline-none"
+                            onSelect={() => handleExport("csv")}
+                          >
+                            <Table className="w-4 h-4 text-text-secondary" />
+                            CSV
+                          </DropdownMenu.Item>
+                          <DropdownMenu.Item
+                            className="flex items-center gap-2 px-2 py-1.5 text-sm text-text-primary hover:bg-bg-elevated rounded cursor-pointer outline-none"
+                            onSelect={() => handleExport("json")}
+                          >
+                            <FileJson className="w-4 h-4 text-text-secondary" />
+                            JSON
+                          </DropdownMenu.Item>
+                        </DropdownMenu.Content>
+                      </DropdownMenu.Portal>
+                    </DropdownMenu.Root>
                     <button
                       onClick={() => setIsEditing(true)}
                       className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
