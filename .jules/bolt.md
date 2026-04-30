@@ -60,3 +60,8 @@
 ## 2026-04-30 - Pre-computing Aggregates Avoids Filter Loop Overheads
 **Learning:** Computing multiple aggregate statistics by chaining multiple `.filter().length` calls during React renders allocates throwaway intermediate arrays and forces multiple O(N) passes, creating performance overhead.
 **Action:** When calculating multiple statistics from a single array (e.g., pending and completed counts), compute all values in a single O(N) pass using a `for` loop inside a `useMemo` block.
+
+## 2025-04-28 - Optimize aggregate statistics calculations
+
+**Learning:** When components calculate multiple aggregate statistics from a single array (e.g., counting pending and completed tasks), chaining multiple `.filter().length` calls creates unnecessary intermediate arrays and triggers redundant iterations during render.
+**Action:** Compute all aggregates in a single O(N) pass inside a `useMemo` block using a for-loop. This significantly reduces allocations and iteration overhead.
