@@ -2,6 +2,7 @@ import { supabase } from "../lib/supabase";
 import type { ExportData } from "./export";
 import { toast } from "sonner";
 import { logger } from "./logger";
+import { validateFileSize } from "./security";
 
 export type ImportDataResult =
   | { success: true; imported: number; skipped: number }
@@ -49,6 +50,12 @@ export async function importData(
   file: File,
   userId: string,
 ): Promise<ImportDataResult> {
+  const sizeValidation = validateFileSize(file);
+  if (!sizeValidation.valid) {
+    toast.error(sizeValidation.message);
+    return { success: false, error: sizeValidation.message! };
+  }
+
   let text: string;
   try {
     text = await file.text();
