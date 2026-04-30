@@ -16,7 +16,17 @@ import {
   Lightbulb,
   ArrowRight,
   Trash2,
+  Download,
+  Table,
+  FileJson,
 } from "lucide-react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import {
+  convertTopicsToMarkdown,
+  convertTopicsToCSV,
+  convertTopicsToJSON,
+  downloadFile,
+} from "../../utils/export";
 
 interface TopicDetailViewProps {
   topic: TopicWithCounts;
@@ -171,6 +181,35 @@ export function TopicDetailView({
     [setCurrentView, setSelectedIdea, setSelectedNote, setSelectedPaper],
   );
 
+  const handleExport = (format: "markdown" | "csv" | "json") => {
+    try {
+      let content = "";
+      let filename = "";
+      const timestamp = new Date().toISOString().split("T")[0];
+
+      switch (format) {
+        case "markdown":
+          content = convertTopicsToMarkdown([topic]);
+          filename = `topic-${topic.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${timestamp}.md`;
+          break;
+        case "csv":
+          content = convertTopicsToCSV([topic]);
+          filename = `topic-${topic.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${timestamp}.csv`;
+          break;
+        case "json":
+          content = convertTopicsToJSON([topic]);
+          filename = `topic-${topic.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${timestamp}.json`;
+          break;
+      }
+
+      downloadFile(content, filename, format);
+      toast.success(`Exported topic as ${format.toUpperCase()}`);
+    } catch (err: any) {
+      logger.error("Export failed", err);
+      toast.error(err.message || "Failed to export topic");
+    }
+  };
+
   const associationSummary = useMemo(
     () => [
       {
@@ -273,6 +312,46 @@ export function TopicDetailView({
               </div>
             ) : (
               <div className="flex gap-2">
+                <DropdownMenu.Root>
+                  <DropdownMenu.Trigger asChild>
+                    <button
+                      className="inline-flex items-center gap-2 px-3 py-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
+                      title="Export topic"
+                      aria-label="Export topic"
+                    >
+                      <Download className="w-4 h-4" />
+                      Export
+                    </button>
+                  </DropdownMenu.Trigger>
+                  <DropdownMenu.Portal>
+                    <DropdownMenu.Content
+                      className="min-w-[160px] bg-bg-surface border border-border-subtle rounded-md shadow-md p-1 z-50 animate-in fade-in zoom-in-95"
+                      align="end"
+                    >
+                      <DropdownMenu.Item
+                        className="flex items-center gap-2 px-2 py-1.5 text-sm text-text-primary hover:bg-bg-elevated rounded cursor-pointer outline-none"
+                        onSelect={() => handleExport("markdown")}
+                      >
+                        <FileText className="w-4 h-4 text-text-secondary" />
+                        Markdown
+                      </DropdownMenu.Item>
+                      <DropdownMenu.Item
+                        className="flex items-center gap-2 px-2 py-1.5 text-sm text-text-primary hover:bg-bg-elevated rounded cursor-pointer outline-none"
+                        onSelect={() => handleExport("csv")}
+                      >
+                        <Table className="w-4 h-4 text-text-secondary" />
+                        CSV
+                      </DropdownMenu.Item>
+                      <DropdownMenu.Item
+                        className="flex items-center gap-2 px-2 py-1.5 text-sm text-text-primary hover:bg-bg-elevated rounded cursor-pointer outline-none"
+                        onSelect={() => handleExport("json")}
+                      >
+                        <FileJson className="w-4 h-4 text-text-secondary" />
+                        JSON
+                      </DropdownMenu.Item>
+                    </DropdownMenu.Content>
+                  </DropdownMenu.Portal>
+                </DropdownMenu.Root>
                 <button
                   onClick={() => setIsEditing(true)}
                   className="inline-flex items-center gap-2 px-3 py-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
