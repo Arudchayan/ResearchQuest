@@ -1,5 +1,5 @@
 import { useMemo, useState, memo, useCallback, useRef, useEffect } from "react";
-import { Clock, Lightbulb, Trash2, TrendingUp, Search } from "lucide-react";
+import { Clock, Lightbulb, Trash2, TrendingUp, Search, Copy } from "lucide-react";
 import type { Idea, IdeaStage } from "../../types/database";
 import { ListSkeleton } from "../ui/Skeleton";
 import { highlightMatch } from "../../utils/highlight";
@@ -10,6 +10,7 @@ interface IdeaCardProps {
   idea: Idea;
   onSelect: (idea: Idea) => void;
   onDelete: (idea: Idea) => void;
+  onDuplicate?: (idea: Idea) => void;
   onStageChange: (id: string, stage: IdeaStage, oldStage: IdeaStage) => void;
   isSelected: boolean;
   searchQuery?: string;
@@ -27,6 +28,7 @@ const IdeaCardComponent = ({
   idea,
   onSelect,
   onDelete,
+  onDuplicate,
   onStageChange,
   isSelected,
   searchQuery = "",
@@ -34,6 +36,11 @@ const IdeaCardComponent = ({
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
     onDelete(idea);
+  };
+
+  const handleDuplicate = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDuplicate?.(idea);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -75,14 +82,26 @@ const IdeaCardComponent = ({
             {highlightMatch(idea.title, searchQuery)}
           </h4>
         </div>
-        <button
-          onClick={handleDelete}
-          className="p-1 rounded hover:bg-bg-elevated transition-colors flex-shrink-0 text-text-tertiary"
-          title="Delete idea"
-          aria-label="Delete idea"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+          {onDuplicate && (
+            <button
+              onClick={handleDuplicate}
+              className="p-1.5 text-text-tertiary hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
+              title="Duplicate idea"
+              aria-label="Duplicate idea"
+            >
+              <Copy className="w-4 h-4" />
+            </button>
+          )}
+          <button
+            onClick={handleDelete}
+            className="p-1.5 text-text-tertiary hover:text-warning hover:bg-warning-bg rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-warning"
+            title="Delete idea"
+            aria-label="Delete idea"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {idea.description && (
@@ -137,6 +156,7 @@ interface IdeaListProps {
   onSelectIdea: (idea: Idea) => void;
   onDeleteIdea: (id: string) => Promise<boolean>;
   onRestoreIdea: (idea: Idea) => Promise<Idea | null>;
+  onDuplicate?: (idea: Idea) => void;
   onStageChange: (id: string, stage: IdeaStage, oldStage: IdeaStage) => void;
   selectedIdeaId?: string;
   loading?: boolean;
@@ -147,6 +167,7 @@ export function IdeaList({
   onSelectIdea,
   onDeleteIdea,
   onRestoreIdea,
+  onDuplicate,
   onStageChange,
   selectedIdeaId,
   loading = false,
@@ -304,6 +325,7 @@ export function IdeaList({
                 idea={idea}
                 onSelect={onSelectIdea}
                 onDelete={handleDeleteRequest}
+                onDuplicate={onDuplicate}
                 onStageChange={onStageChange}
                 isSelected={idea.id === selectedIdeaId}
                 searchQuery={searchQuery}

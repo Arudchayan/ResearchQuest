@@ -1,5 +1,5 @@
 import { useState, memo, useCallback, useRef, useEffect } from "react";
-import { Clock, BookOpen, Trash2, ExternalLink } from "lucide-react";
+import { Clock, BookOpen, Trash2, ExternalLink, Copy } from "lucide-react";
 import type { Paper, ReadingStatus } from "../../types/database";
 import { ListSkeleton } from "../ui/Skeleton";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
@@ -9,6 +9,7 @@ interface PaperCardProps {
   paper: Paper;
   onSelect: (paper: Paper) => void;
   onDelete: (paper: Paper) => void;
+  onDuplicate?: (paper: Paper) => void;
   onStatusChange: (id: string, status: ReadingStatus) => void;
   isSelected: boolean;
 }
@@ -17,6 +18,7 @@ const PaperCardComponent = ({
   paper,
   onSelect,
   onDelete,
+  onDuplicate,
   onStatusChange,
   isSelected,
 }: PaperCardProps) => {
@@ -26,6 +28,14 @@ const PaperCardComponent = ({
       onDelete(paper);
     },
     [onDelete, paper],
+  );
+
+  const handleDuplicate = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onDuplicate?.(paper);
+    },
+    [onDuplicate, paper],
   );
 
   const handleSelect = useCallback(() => {
@@ -80,14 +90,26 @@ const PaperCardComponent = ({
             {paper.title}
           </h4>
         </div>
-        <button
-          onClick={handleDelete}
-          className="p-1 rounded hover:bg-bg-elevated transition-colors flex-shrink-0 text-text-tertiary"
-          title="Delete paper"
-          aria-label="Delete paper"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+          {onDuplicate && (
+            <button
+              onClick={handleDuplicate}
+              className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+              title="Duplicate paper"
+              aria-label="Duplicate paper"
+            >
+              <Copy className="w-4 h-4" />
+            </button>
+          )}
+          <button
+            onClick={handleDelete}
+            className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
+            title="Delete paper"
+            aria-label="Delete paper"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {paper.authors && paper.authors.length > 0 && (
@@ -138,6 +160,7 @@ interface PaperListProps {
   onSelectPaper: (paper: Paper) => void;
   onDeletePaper: (id: string) => Promise<boolean>;
   onRestorePaper: (paper: Paper) => Promise<Paper | null>;
+  onDuplicate?: (paper: Paper) => void;
   onStatusChange: (id: string, status: ReadingStatus) => void;
   selectedPaperId?: string;
   loading?: boolean;
@@ -149,6 +172,7 @@ export function PaperList({
   onSelectPaper,
   onDeletePaper,
   onRestorePaper,
+  onDuplicate,
   onStatusChange,
   selectedPaperId,
   loading = false,
@@ -253,6 +277,7 @@ export function PaperList({
             paper={paper}
             onSelect={onSelectPaper}
             onDelete={handleDeleteRequest}
+            onDuplicate={onDuplicate}
             onStatusChange={onStatusChange}
             isSelected={paper.id === selectedPaperId}
           />

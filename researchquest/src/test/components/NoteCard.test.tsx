@@ -25,6 +25,7 @@ describe("NoteCard Accessibility", () => {
     render(
       <NoteCard
         note={mockNote}
+        onDuplicate={vi.fn()}
         isSelected={false}
         onSelect={onSelect}
         onDelete={onDelete}
@@ -37,6 +38,7 @@ describe("NoteCard Accessibility", () => {
     render(
       <NoteCard
         note={mockNote}
+        onDuplicate={vi.fn()}
         isSelected={false}
         onSelect={onSelect}
         onDelete={onDelete}
@@ -54,6 +56,7 @@ describe("NoteCard Accessibility", () => {
     render(
       <NoteCard
         note={mockNote}
+        onDuplicate={vi.fn()}
         isSelected={false}
         onSelect={onSelect}
         onDelete={onDelete}
@@ -79,6 +82,7 @@ describe("NoteCard Accessibility", () => {
     render(
       <NoteCard
         note={mockNote}
+        onDuplicate={vi.fn()}
         isSelected={false}
         onSelect={onSelect}
         onDelete={onDelete}
