@@ -16,12 +16,8 @@ import { usePapers } from "./hooks/usePapers";
 import { useIdeas } from "./hooks/useIdeas";
 import { useDataSync } from "./hooks/useDataSync";
 import { isStrongPassword } from "./utils/security";
-
-const Dashboard = lazy(() =>
-  import("./components/dashboard/Dashboard").then((module) => ({
-    default: module.Dashboard,
-  })),
-);
+import { Dashboard } from "./components/dashboard/Dashboard";
+import { TooltipProvider } from "./components/ui/tooltip";
 
 const NotesView = lazy(() =>
   import("./components/notes/NotesView").then((module) => ({
@@ -84,7 +80,6 @@ function RouteLoadingFallback() {
     </div>
   );
 }
-
 export function AuthScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -558,26 +553,28 @@ function App() {
 
   return (
     <div className="min-h-screen bg-bg-base text-text-primary selection:bg-primary-500 selection:text-bg-base">
-      <Suspense fallback={null}>
-        <CommandPalette />
-        <ShortcutsDialog />
-      </Suspense>
+      <TooltipProvider delayDuration={300}>
+        <Suspense fallback={null}>
+          <CommandPalette />
+          <ShortcutsDialog />
+        </Suspense>
 
-      <Toaster
-        position="top-right"
-        richColors
-        expand={false}
-        duration={2500}
-        offset={16}
-        visibleToasts={3}
-        theme={useAppStore.getState().effectiveTheme}
-        closeButton
-        toastOptions={{ duration: 2500 }}
-      />
+        <Toaster
+          position="top-right"
+          richColors
+          expand={false}
+          duration={2500}
+          offset={16}
+          visibleToasts={3}
+          theme={useAppStore.getState().effectiveTheme}
+          closeButton
+          toastOptions={{ duration: 2500 }}
+        />
 
-      <AppShell>
-        <Suspense fallback={<RouteLoadingFallback />}>{routeContent}</Suspense>
-      </AppShell>
+        <AppShell>
+          <Suspense fallback={<RouteLoadingFallback />}>{routeContent}</Suspense>
+        </AppShell>
+      </TooltipProvider>
     </div>
   );
 }

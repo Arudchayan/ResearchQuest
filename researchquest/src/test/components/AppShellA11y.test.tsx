@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { AppShell } from "../../components/layout/v2/AppShell";
 import { useAppStore } from "../../store/appStore";
+import { TooltipProvider } from "../../components/ui/tooltip";
 
 // Mock dependencies
 vi.mock("../../lib/supabase", () => ({
@@ -49,9 +50,11 @@ describe("AppShell Accessibility", () => {
 
   it("should render a skip to content link", () => {
     render(
-      <AppShell>
-        <div>Content</div>
-      </AppShell>,
+      <TooltipProvider>
+        <AppShell>
+          <div>Content</div>
+        </AppShell>
+      </TooltipProvider>
     );
 
     const skipLink = screen.getByRole("link", { name: /skip to content/i });
@@ -69,9 +72,11 @@ describe("AppShell Accessibility", () => {
 
   it("should have a main content area with correct ID", () => {
     render(
-      <AppShell>
-        <div>Test Content</div>
-      </AppShell>,
+      <TooltipProvider>
+        <AppShell>
+          <div>Content</div>
+        </AppShell>
+      </TooltipProvider>
     );
 
     const main = screen.getByRole("main");
@@ -84,9 +89,11 @@ describe("AppShell Accessibility", () => {
     useAppStore.setState({ currentView: "papers" });
 
     render(
-      <AppShell>
-        <div>Content</div>
-      </AppShell>,
+      <TooltipProvider>
+        <AppShell>
+          <div>Content</div>
+        </AppShell>
+      </TooltipProvider>
     );
 
     // AppShell renders two sidebars (mobile/desktop), so we get multiple links

@@ -6,6 +6,7 @@ import { HamburgerMenuIcon, Cross1Icon, DoubleArrowDownIcon, MagnifyingGlassIcon
 import { useAppStore } from "../../../store/appStore";
 import { cn } from "../../../lib/utils";
 import { useShallow } from "zustand/react/shallow";
+import { Tooltip, TooltipTrigger, TooltipContent } from "../../ui/tooltip";
 
 interface AppShellProps {
   children: ReactNode;
@@ -139,14 +140,20 @@ export function AppShell({ children }: AppShellProps) {
 
       {/* Zen Mode Exit Button */}
       {isZenMode && (
-        <button
-          onClick={() => toggleZenMode()}
-          className="fixed bottom-6 right-6 z-[100] p-3 rounded-full bg-bg-elevated/80 text-text-secondary hover:bg-bg-base hover:text-text-primary backdrop-blur-sm transition-all shadow-lg border border-border-moderate group focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
-          title="Exit Zen Mode (Ctrl+Shift+F)"
-          aria-label="Exit Zen Mode"
-        >
-          <DoubleArrowDownIcon className="w-5 h-5 group-hover:scale-110 transition-transform" aria-hidden="true" />
-        </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => toggleZenMode()}
+              className="fixed bottom-6 right-6 z-[100] p-3 rounded-full bg-bg-elevated/80 text-text-secondary hover:bg-bg-base hover:text-text-primary backdrop-blur-sm transition-all shadow-lg border border-border-moderate group focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+              aria-label="Exit Zen Mode"
+            >
+              <DoubleArrowDownIcon className="w-5 h-5 group-hover:scale-110 transition-transform" aria-hidden="true" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Exit Zen Mode (Ctrl+Shift+F)</p>
+          </TooltipContent>
+        </Tooltip>
       )}
     </div>
   );
