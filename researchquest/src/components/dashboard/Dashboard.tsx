@@ -77,6 +77,23 @@ export function Dashboard() {
 
   const focusMinutesToday = Math.floor(focusSessionSecondsToday / 60);
 
+  // ⚡ PERFORMANCE OPTIMIZATION:
+  // Compute multiple aggregate statistics in a single O(N) pass inside useMemo.
+  // This avoids chaining multiple .filter().length calls that create unnecessary
+  // intermediate arrays and trigger redundant iterations during render.
+  const { pendingTaskCount, completedTaskCount } = useMemo(() => {
+    let pending = 0;
+    let completed = 0;
+    for (let i = 0; i < tasks.length; i++) {
+      if (tasks[i].completed) {
+        completed++;
+      } else {
+        pending++;
+      }
+    }
+    return { pendingTaskCount: pending, completedTaskCount: completed };
+  }, [tasks]);
+
   const recentNotes = useMemo(() => {
     return [...notes]
       .sort((a, b) => {
@@ -246,7 +263,7 @@ export function Dashboard() {
                 {focusMinutesToday} min
               </div>
               <div className="text-small text-text-secondary font-serif italic">
-                {taskStats.pending} pending · {taskStats.completed} completed tasks
+                {pendingTaskCount} pending · {completedTaskCount} completed tasks
               </div>
             </div>
           </div>

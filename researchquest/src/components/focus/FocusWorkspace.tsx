@@ -291,21 +291,23 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   const focusInsights = useMemo(() => {
     const insights: { title: string; detail: string }[] = [];
 
-    // ⚡ PERFORMANCE OPTIMIZATION: Compute multiple aggregates in an O(N) pass
-    // to avoid intermediate array allocations from .filter().length
+    // ⚡ PERFORMANCE OPTIMIZATION:
+    // Compute multiple aggregate statistics in single O(N) passes.
+    // This avoids chaining multiple .filter().length calls that create unnecessary
+    // intermediate arrays and trigger redundant iterations during render.
     let unreadPapers = 0;
-    for (const paper of papers) {
-      if (paper.status === "To Read") unreadPapers++;
+    for (let i = 0; i < papers.length; i++) {
+      if (papers[i].status === "To Read") unreadPapers++;
     }
 
     let inProgressTasks = 0;
-    for (const task of tasks) {
-      if (!task.completed) inProgressTasks++;
+    for (let i = 0; i < tasks.length; i++) {
+      if (!tasks[i].completed) inProgressTasks++;
     }
 
     let notesWithoutTitles = 0;
-    for (const note of notes) {
-      if (!note.title || note.title.trim() === "") notesWithoutTitles++;
+    for (let i = 0; i < notes.length; i++) {
+      if (!notes[i].title || notes[i].title.trim() === "") notesWithoutTitles++;
     }
 
     if (unreadPapers > 0) {
