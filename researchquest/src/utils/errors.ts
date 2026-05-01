@@ -40,17 +40,6 @@ export function extractFunctionErrorMessage(
       ) {
         return candidate.error.message.trim();
       }
-
-      if (
-        typeof candidate.error.details === "string" &&
-        candidate.error.details.trim()
-      ) {
-        return candidate.error.details.trim();
-      }
-    }
-
-    if (typeof candidate.details === "string" && candidate.details.trim()) {
-      return candidate.details.trim();
     }
   }
 
