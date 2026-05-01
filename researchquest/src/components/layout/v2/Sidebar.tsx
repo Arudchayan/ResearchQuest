@@ -30,6 +30,7 @@ import { XPExplainer } from "../XPExplainer";
 import { ProfileDialog } from "../ProfileDialog";
 import { DataManagementDialog } from "../../settings/DataManagementDialog";
 import { useShallow } from "zustand/react/shallow";
+import { Tooltip, TooltipTrigger, TooltipContent } from "../../ui/tooltip";
 
 export function Sidebar() {
   const {
@@ -210,34 +211,55 @@ export function Sidebar() {
             </div>
           </button>
           <div className="flex items-center gap-1">
-            <button
-              onClick={handleOpenShortcuts}
-              className="p-1.5 text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-sm transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500"
-              aria-label="Keyboard Shortcuts"
-              title="Keyboard Shortcuts"
-            >
-              <Keyboard className="w-4 h-4" aria-hidden="true" />
-            </button>
-            <button
-              onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
-              className="p-1.5 text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-sm transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500"
-              aria-label={
-                isRightSidebarOpen
-                  ? "Close context panel"
-                  : "Open context panel"
-              }
-              title="Toggle Context Panel"
-            >
-              <ViewVerticalIcon className="w-4 h-4" aria-hidden="true" />
-            </button>
-            <button
-              onClick={() => setZenMode(true)}
-              className="p-1.5 text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-sm transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500"
-              aria-label="Enter Zen Mode"
-              title="Enter Zen Mode (Ctrl+Shift+F)"
-            >
-              <Maximize2 className="w-4 h-4" aria-hidden="true" />
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={handleOpenShortcuts}
+                  className="p-1.5 text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-sm transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500"
+                  aria-label="Keyboard Shortcuts"
+                >
+                  <Keyboard className="w-4 h-4" aria-hidden="true" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Keyboard Shortcuts</p>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
+                  className="p-1.5 text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-sm transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500"
+                  aria-label={
+                    isRightSidebarOpen
+                      ? "Close context panel"
+                      : "Open context panel"
+                  }
+                >
+                  <ViewVerticalIcon className="w-4 h-4" aria-hidden="true" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Toggle Context Panel</p>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => setZenMode(true)}
+                  className="p-1.5 text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-sm transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500"
+                  aria-label="Enter Zen Mode"
+                >
+                  <Maximize2 className="w-4 h-4" aria-hidden="true" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Enter Zen Mode (Ctrl+Shift+F)</p>
+              </TooltipContent>
+            </Tooltip>
+
             <button
               onClick={toggleTheme}
               className="p-1.5 text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-sm transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500"

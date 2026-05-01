@@ -21,6 +21,7 @@ import { formatTimeUntil, formatDateLabel } from "../../utils/time";
 import { useBacklinks } from "../../hooks/useBacklinks";
 import { useRelatedItems } from "../../hooks/useRelatedItems";
 import { useShallow } from "zustand/react/shallow";
+import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
 
 export function RightSidebar() {
   const {
@@ -455,27 +456,32 @@ export function RightSidebar() {
               ) : (
                 <div className="space-y-2">
                   {backlinks.slice(0, 5).map((item) => (
-                    <button
-                      key={item.id}
-                      onClick={() => handleNavigateToItem(item.id, item.type)}
-                      aria-label={`Navigate to ${item.type} ${item.title}`}
-                      title={`Navigate to ${item.type} ${item.title}`}
-                      className="w-full text-left p-2 rounded-md bg-bg-base hover:bg-primary-500/10 border border-border-subtle hover:border-primary-400 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
-                    >
-                      <div className="flex items-start gap-2">
-                        <div className="text-text-tertiary mt-0.5">
-                          {getItemIcon(item.type)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-caption font-medium text-text-primary line-clamp-2">
-                            {item.title}
+                    <Tooltip key={item.id}>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => handleNavigateToItem(item.id, item.type)}
+                          aria-label={`Navigate to ${item.type} ${item.title}`}
+                          className="w-full text-left p-2 rounded-md bg-bg-base hover:bg-primary-500/10 border border-border-subtle hover:border-primary-400 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
+                        >
+                          <div className="flex items-start gap-2">
+                            <div className="text-text-tertiary mt-0.5">
+                              {getItemIcon(item.type)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-caption font-medium text-text-primary line-clamp-2">
+                                {item.title}
+                              </div>
+                              <div className="text-xs text-text-tertiary mt-0.5">
+                                {getItemTypeLabel(item.type)}
+                              </div>
+                            </div>
                           </div>
-                          <div className="text-xs text-text-tertiary mt-0.5">
-                            {getItemTypeLabel(item.type)}
-                          </div>
-                        </div>
-                      </div>
-                    </button>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Navigate to {item.type} "{item.title}"</p>
+                      </TooltipContent>
+                    </Tooltip>
                   ))}
                   {backlinks.length > 5 && (
                     <div className="text-xs text-text-tertiary text-center pt-1">
@@ -508,33 +514,38 @@ export function RightSidebar() {
               ) : (
                 <div className="space-y-2">
                   {relatedItems.slice(0, 5).map((item) => (
-                    <button
-                      key={item.id}
-                      onClick={() => handleNavigateToItem(item.id, item.type)}
-                      aria-label={`Navigate to ${item.type} ${item.title}`}
-                      title={`Navigate to ${item.type} ${item.title}`}
-                      className="w-full text-left p-2 rounded-md bg-bg-base hover:bg-primary-500/10 border border-border-subtle hover:border-primary-400 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
-                    >
-                      <div className="flex items-start gap-2">
-                        <div className="text-text-tertiary mt-0.5">
-                          {getItemIcon(item.type)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-caption font-medium text-text-primary line-clamp-2">
-                            {item.title}
+                    <Tooltip key={item.id}>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => handleNavigateToItem(item.id, item.type)}
+                          aria-label={`Navigate to ${item.type} ${item.title}`}
+                          className="w-full text-left p-2 rounded-md bg-bg-base hover:bg-primary-500/10 border border-border-subtle hover:border-primary-400 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
+                        >
+                          <div className="flex items-start gap-2">
+                            <div className="text-text-tertiary mt-0.5">
+                              {getItemIcon(item.type)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-caption font-medium text-text-primary line-clamp-2">
+                                {item.title}
+                              </div>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-xs text-text-tertiary">
+                                  {getItemTypeLabel(item.type)}
+                                </span>
+                                <span className="text-xs text-primary-600 dark:text-primary-400">
+                                  {item.sharedTopics} topic
+                                  {item.sharedTopics === 1 ? "" : "s"}
+                                </span>
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-xs text-text-tertiary">
-                              {getItemTypeLabel(item.type)}
-                            </span>
-                            <span className="text-xs text-primary-600 dark:text-primary-400">
-                              {item.sharedTopics} topic
-                              {item.sharedTopics === 1 ? "" : "s"}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </button>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Navigate to {item.type} "{item.title}"</p>
+                      </TooltipContent>
+                    </Tooltip>
                   ))}
                   {relatedItems.length > 5 && (
                     <div className="text-xs text-text-tertiary text-center pt-1">

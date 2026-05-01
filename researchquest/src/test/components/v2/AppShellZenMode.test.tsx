@@ -2,6 +2,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { vi, describe, it, expect, beforeEach } from "vitest";
 import { AppShell } from "../../../components/layout/v2/AppShell";
 import { useAppStore } from "../../../store/appStore";
+import { TooltipProvider } from "../../../components/ui/tooltip";
 
 // Mock dependencies
 vi.mock("../../../components/layout/v2/Sidebar", () => ({
@@ -22,6 +23,14 @@ vi.mock("lucide-react", () => ({
 }));
 
 describe("AppShell Zen Mode", () => {
+  const renderAppShell = () => {
+    return render(
+      <TooltipProvider>
+        <AppShell>Content</AppShell>
+      </TooltipProvider>
+    );
+  };
+
   beforeEach(() => {
     useAppStore.setState({
       isZenMode: false,
@@ -31,7 +40,7 @@ describe("AppShell Zen Mode", () => {
   });
 
   it("renders sidebars by default", () => {
-    render(<AppShell>Content</AppShell>);
+    renderAppShell();
     // Should find 2 sidebars (desktop and mobile)
     expect(screen.getAllByTestId("sidebar")).toHaveLength(2);
     expect(screen.getByTestId("right-sidebar")).toBeInTheDocument();
@@ -40,25 +49,25 @@ describe("AppShell Zen Mode", () => {
 
   it("hides sidebars when Zen Mode is active", () => {
     useAppStore.setState({ isZenMode: true });
-    render(<AppShell>Content</AppShell>);
+    renderAppShell();
 
     expect(screen.queryByTestId("sidebar")).not.toBeInTheDocument();
     expect(screen.queryByTestId("right-sidebar")).not.toBeInTheDocument();
-    expect(screen.getByTitle(/Exit Zen Mode/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Exit Zen Mode/)).toBeInTheDocument();
   });
 
   it("exits Zen Mode when exit button is clicked", () => {
     useAppStore.setState({ isZenMode: true });
-    render(<AppShell>Content</AppShell>);
+    renderAppShell();
 
-    const exitButton = screen.getByTitle(/Exit Zen Mode/);
+    const exitButton = screen.getByLabelText(/Exit Zen Mode/);
     fireEvent.click(exitButton);
 
     expect(useAppStore.getState().isZenMode).toBe(false);
   });
 
   it("toggles Zen Mode with keyboard shortcut (Ctrl+Shift+F)", () => {
-    render(<AppShell>Content</AppShell>);
+    renderAppShell();
 
     // Default: Zen Mode OFF
     expect(useAppStore.getState().isZenMode).toBe(false);

@@ -1,6 +1,7 @@
 import { render } from "@testing-library/react";
 import { RightSidebar } from "../../../components/layout/RightSidebar";
 import { useAppStore } from "../../../store/appStore";
+import { TooltipProvider } from "../../../components/ui/tooltip";
 import { mockSupabaseClient } from "../../mocks/supabase";
 import { vi, describe, it, expect, beforeEach } from "vitest";
 
@@ -23,7 +24,7 @@ describe("RightSidebar Performance", () => {
 
   it("does not fetch data when sidebar is closed", () => {
     useAppStore.setState({ isRightSidebarOpen: false });
-    render(<RightSidebar />);
+    render(<TooltipProvider><RightSidebar /></TooltipProvider>);
 
     // With current implementation (unoptimized), this will FAIL as it fetches
     // After optimization, this should PASS
@@ -33,7 +34,7 @@ describe("RightSidebar Performance", () => {
 
   it("fetches data when sidebar is open", () => {
     useAppStore.setState({ isRightSidebarOpen: true });
-    render(<RightSidebar />);
+    render(<TooltipProvider><RightSidebar /></TooltipProvider>);
 
     expect(mockSupabaseClient.from).toHaveBeenCalled();
     expect(mockSupabaseClient.channel).toHaveBeenCalled();
