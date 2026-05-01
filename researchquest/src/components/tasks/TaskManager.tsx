@@ -234,7 +234,16 @@ export function TaskManager() {
   ]);
 
   // Calculate progress
-  const completedCount = tasks.filter((t) => t.completed).length;
+  // ⚡ PERFORMANCE OPTIMIZATION: Count completed tasks with a simple O(N) loop
+  // instead of allocating a new array with .filter() just to get its length.
+  const completedCount = useMemo(() => {
+    let count = 0;
+    for (const task of tasks) {
+      if (task.completed) count++;
+    }
+    return count;
+  }, [tasks]);
+
   const totalCount = tasks.length;
   const progressPercentage =
     totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
