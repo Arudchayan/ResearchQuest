@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { Sidebar } from "../../../components/layout/v2/Sidebar";
 import { useAppStore } from "../../../store/appStore";
+import { TooltipProvider } from "../../../components/ui/tooltip";
 import "../../mocks/supabase"; // This sets up the mock for lib/supabase
 
 // Mock other dependencies
@@ -43,7 +44,7 @@ describe("Sidebar (v2)", () => {
   });
 
   it("renders navigation links as <a> tags", () => {
-    render(<Sidebar />);
+    render(<TooltipProvider><Sidebar /></TooltipProvider>);
 
     // Check if Notes is an anchor tag
     const notesLink = screen.getByText("Notes").closest("a");
@@ -56,7 +57,7 @@ describe("Sidebar (v2)", () => {
   });
 
   it("updates view and URL on click", () => {
-    render(<Sidebar />);
+    render(<TooltipProvider><Sidebar /></TooltipProvider>);
 
     const papersLink = screen.getByText("Papers").closest("a");
     expect(papersLink).toBeInTheDocument();
@@ -69,7 +70,7 @@ describe("Sidebar (v2)", () => {
 
   it('marks current view with aria-current="page"', () => {
     useAppStore.setState({ currentView: "ideas" });
-    render(<Sidebar />);
+    render(<TooltipProvider><Sidebar /></TooltipProvider>);
 
     const ideasLink = screen.getByText("Ideas").closest("a");
     expect(ideasLink).toHaveAttribute("aria-current", "page");
@@ -79,7 +80,7 @@ describe("Sidebar (v2)", () => {
   });
 
   it("allows default behavior when modifier keys are pressed (Ctrl+Click)", () => {
-    render(<Sidebar />);
+    render(<TooltipProvider><Sidebar /></TooltipProvider>);
 
     const papersLink = screen.getByText("Papers").closest("a");
     expect(papersLink).toBeInTheDocument();
