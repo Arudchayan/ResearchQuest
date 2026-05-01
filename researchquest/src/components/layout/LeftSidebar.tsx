@@ -172,6 +172,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   const {
     papers,
     loading: papersLoading,
+    createPaper,
     updatePaper,
     deletePaper,
     restorePaper,
@@ -468,6 +469,62 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
       updateIdea(id, { stage }, oldStage);
     },
     [updateIdea],
+  );
+
+  const handleDuplicateNote = useCallback(
+    async (note: Note) => {
+      const title = (note.title || "Untitled") + " (Copy)";
+      const newNote = await createNote({
+        title,
+        markdown_body: note.markdown_body,
+        tags: note.tags || [],
+      });
+      if (newNote) {
+        setSelectedNote(newNote);
+        window.history.pushState(null, "", `/notes/${newNote.id}`);
+        onNavigate?.();
+      }
+    },
+    [createNote, setSelectedNote, onNavigate]
+  );
+
+  const handleDuplicatePaper = useCallback(
+    async (paper: Paper) => {
+      const title = paper.title + " (Copy)";
+      const newPaper = await createPaper({
+        title,
+        authors: paper.authors || [],
+        doi: paper.doi,
+        source_url: paper.source_url,
+        status: paper.status,
+        abstract: paper.abstract,
+        publication_date: paper.publication_date,
+        topic_ids: paper.topic_ids || [],
+      });
+      if (newPaper) {
+        setSelectedPaper(newPaper);
+        window.history.pushState(null, "", `/papers/${newPaper.id}`);
+        onNavigate?.();
+      }
+    },
+    [createPaper, setSelectedPaper, onNavigate]
+  );
+
+  const handleDuplicateIdea = useCallback(
+    async (idea: Idea) => {
+      const title = idea.title + " (Copy)";
+      const newIdea = await createIdea({
+        title,
+        description: idea.description,
+        stage: idea.stage,
+      });
+      if (newIdea) {
+        setSelectedIdea(newIdea);
+        window.history.pushState(null, "", `/ideas/${newIdea.id}`);
+        onNavigate?.();
+      }
+    },
+    [createIdea, setSelectedIdea, onNavigate]
   );
 
   const handleRestoreIdea = useCallback(
@@ -851,6 +908,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
                 onSelectNote={handleSelectNote}
                 onDeleteNote={handleDeleteNote}
                 onRestoreNote={handleRestoreNote}
+                onDuplicate={handleDuplicateNote}
                 selectedNoteId={selectedNote?.id}
                 selectedNote={selectedNote}
                 searchQuery={activeSearchQuery}
@@ -864,6 +922,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
                 onSelectPaper={handleSelectPaper}
                 onDeletePaper={deletePaper}
                 onRestorePaper={handleRestorePaper}
+                onDuplicate={handleDuplicatePaper}
                 onStatusChange={handlePaperStatusChange}
                 selectedPaperId={selectedPaper?.id}
                 searchQuery={activeSearchQuery}
@@ -877,6 +936,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
                 onSelectIdea={handleSelectIdea}
                 onDeleteIdea={deleteIdea}
                 onRestoreIdea={handleRestoreIdea}
+                onDuplicate={handleDuplicateIdea}
                 onStageChange={handleIdeaStageChange}
                 selectedIdeaId={selectedIdea?.id}
               />
