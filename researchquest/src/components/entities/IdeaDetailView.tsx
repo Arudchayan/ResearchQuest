@@ -10,7 +10,11 @@ import {
   FileText,
   Search,
   Loader,
+  Download,
+  Table,
+  FileJson,
 } from "lucide-react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import type { Idea, IdeaStage } from "../../types/database";
 import { toast } from "sonner";
 import { TopicSelector } from "../topics/TopicSelector";
@@ -19,6 +23,12 @@ import { useNotes } from "../../hooks/useNotes";
 import { useAppStore } from "../../store/appStore";
 import { performDeepResearch } from "../../utils/deepResearch";
 import { logger } from "../../utils/logger";
+import {
+  convertIdeasToMarkdown,
+  convertIdeasToCSV,
+  convertIdeasToJSON,
+  downloadFile,
+} from "../../utils/export";
 
 interface IdeaDetailViewProps {
   idea: Idea;
@@ -177,6 +187,34 @@ export function IdeaDetailView({
     }
   };
 
+  const handleExport = (format: "markdown" | "csv" | "json") => {
+    try {
+      let content = "";
+      let filename = "";
+      const timestamp = new Date().toISOString().split("T")[0];
+
+      switch (format) {
+        case "markdown":
+          content = convertIdeasToMarkdown([idea]);
+          filename = `idea-${idea.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${timestamp}.md`;
+          break;
+        case "csv":
+          content = convertIdeasToCSV([idea]);
+          filename = `idea-${idea.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${timestamp}.csv`;
+          break;
+        case "json":
+          content = convertIdeasToJSON([idea]);
+          filename = `idea-${idea.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${timestamp}.json`;
+          break;
+      }
+
+      downloadFile(content, filename, format);
+      toast.success(`Exported idea as ${format.toUpperCase()}`);
+    } catch (err: any) {
+      logger.error("Export failed", err);
+      toast.error(err.message || "Failed to export idea");
+    }
+  };
 
   const getStageColor = (stage: IdeaStage) => {
     switch (stage) {
@@ -254,6 +292,45 @@ export function IdeaDetailView({
                   </>
                 ) : (
                   <div className="flex items-center gap-2 md:self-start">
+                    <DropdownMenu.Root>
+                      <DropdownMenu.Trigger asChild>
+                        <button
+                          className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
+                          title="Export idea"
+                          aria-label="Export idea"
+                        >
+                          <Download className="w-5 h-5" aria-hidden="true" />
+                        </button>
+                      </DropdownMenu.Trigger>
+                      <DropdownMenu.Portal>
+                        <DropdownMenu.Content
+                          className="min-w-[160px] bg-bg-surface border border-border-subtle rounded-md shadow-md p-1 z-50 animate-in fade-in zoom-in-95"
+                          align="end"
+                        >
+                          <DropdownMenu.Item
+                            className="flex items-center gap-2 px-2 py-1.5 text-sm text-text-primary hover:bg-bg-elevated rounded cursor-pointer outline-none"
+                            onSelect={() => handleExport("markdown")}
+                          >
+                            <FileText className="w-4 h-4 text-text-secondary" />
+                            Markdown
+                          </DropdownMenu.Item>
+                          <DropdownMenu.Item
+                            className="flex items-center gap-2 px-2 py-1.5 text-sm text-text-primary hover:bg-bg-elevated rounded cursor-pointer outline-none"
+                            onSelect={() => handleExport("csv")}
+                          >
+                            <Table className="w-4 h-4 text-text-secondary" />
+                            CSV
+                          </DropdownMenu.Item>
+                          <DropdownMenu.Item
+                            className="flex items-center gap-2 px-2 py-1.5 text-sm text-text-primary hover:bg-bg-elevated rounded cursor-pointer outline-none"
+                            onSelect={() => handleExport("json")}
+                          >
+                            <FileJson className="w-4 h-4 text-text-secondary" />
+                            JSON
+                          </DropdownMenu.Item>
+                        </DropdownMenu.Content>
+                      </DropdownMenu.Portal>
+                    </DropdownMenu.Root>
                     <button
                       onClick={handleDeepResearch}
                       disabled={isDeepResearching}
