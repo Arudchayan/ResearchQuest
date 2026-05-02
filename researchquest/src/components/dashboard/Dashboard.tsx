@@ -8,6 +8,7 @@ import {
   Sparkles,
   CheckSquare,
   BookOpen,
+  Lightbulb,
 } from "lucide-react";
 import {
   ActivityLogIcon,
@@ -29,24 +30,30 @@ export function Dashboard() {
     notes,
     papers,
     tasks,
+    ideas,
     notesLoading,
     papersLoading,
     tasksLoading,
+    ideasLoading,
     setCurrentView,
     setSelectedNote,
     setSelectedPaper,
+    setSelectedIdea,
   } = useAppStore(
     useShallow((state) => ({
       user: state.user,
       notes: state.notes,
       papers: state.papers,
       tasks: state.tasks,
+      ideas: state.ideas,
       notesLoading: state.notesLoading,
       papersLoading: state.papersLoading,
       tasksLoading: state.tasksLoading,
+      ideasLoading: state.ideasLoading,
       setCurrentView: state.setCurrentView,
       setSelectedNote: state.setSelectedNote,
       setSelectedPaper: state.setSelectedPaper,
+      setSelectedIdea: state.setSelectedIdea,
     })),
   );
 
@@ -110,11 +117,20 @@ export function Dashboard() {
       .slice(0, 3);
   }, [tasks]);
 
+  const activeIdeas = useMemo(() => {
+    return (ideas || [])
+      .filter((i) => i.stage === "Developing" || i.stage === "Supported")
+      .sort((a, b) => {
+        return b.updated_at > a.updated_at ? 1 : b.updated_at < a.updated_at ? -1 : 0;
+      })
+      .slice(0, 3);
+  }, [ideas]);
+
   const handleCreateNote = () => {
     setCurrentView("notes");
   };
 
-  const navigateTo = (view: "notes" | "papers" | "focus" | "tasks") => {
+  const navigateTo = (view: "notes" | "papers" | "ideas" | "focus" | "tasks") => {
     setCurrentView(view);
     window.history.pushState(null, "", view === "notes" ? "/" : `/${view}`);
   };
@@ -273,6 +289,69 @@ export function Dashboard() {
                   </p>
                   <div className="mt-3 text-caption text-text-tertiary">
                     Updated {new Date(note.updated_at).toLocaleDateString()}
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+        </section>
+
+        {/* Active Ideas */}
+        <section>
+          <div className="flex items-center justify-between mb-4 border-b border-border-subtle pb-2">
+            <h2 className="font-serif text-lg font-bold text-text-primary flex items-center gap-2">
+              <Lightbulb className="w-5 h-5 text-text-tertiary" />
+              Active Ideas
+            </h2>
+            <button
+              onClick={() => navigateTo("ideas")}
+              className="text-small text-text-secondary hover:text-text-primary font-medium flex items-center gap-1 uppercase tracking-wider transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 rounded-sm"
+            >
+              View Board <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            {ideasLoading ? (
+              <ListSkeleton count={3} itemType="idea" />
+            ) : activeIdeas.length === 0 ? (
+              <div
+                className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary"
+                role="status"
+                aria-live="polite"
+              >
+                <p className="mb-3">No active ideas</p>
+                <button
+                  onClick={() => navigateTo("ideas")}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-bg-surface border border-border-moderate rounded-sm text-small font-sans not-italic font-medium text-text-primary hover:border-border-strong transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+                >
+                  <Plus className="w-4 h-4" aria-hidden="true" /> Add Idea
+                </button>
+              </div>
+            ) : (
+              activeIdeas.map((idea) => (
+                <button
+                  key={idea.id}
+                  onClick={() => {
+                    setSelectedIdea(idea);
+                    navigateTo("ideas");
+                    window.history.pushState(null, "", `/ideas/${idea.id}`);
+                  }}
+                  className="w-full text-left group p-4 bg-bg-surface border border-border-moderate rounded-sm hover:border-border-strong cursor-pointer transition-all shadow-sm"
+                >
+                  <div className="flex justify-between items-start gap-2 mb-1">
+                    <h3 className="font-semibold text-text-primary truncate group-hover:underline decoration-border-strong underline-offset-2 transition-all">
+                      {idea.title}
+                    </h3>
+                    <span className="text-xs px-2 py-0.5 rounded-sm bg-primary-50 text-primary-700 dark:bg-primary-900/40 dark:text-primary-200 border border-primary-200 dark:border-primary-800 whitespace-nowrap font-medium">
+                      {idea.stage}
+                    </span>
+                  </div>
+                  <p className="text-small text-text-secondary line-clamp-2">
+                    {idea.description || "No description"}
+                  </p>
+                  <div className="mt-3 text-caption text-text-tertiary">
+                    Updated {new Date(idea.updated_at).toLocaleDateString()}
                   </div>
                 </button>
               ))
