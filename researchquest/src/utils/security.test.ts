@@ -29,6 +29,15 @@ describe("Security Utils", () => {
       expect(isValidUrl("//127.0.0.1")).toBe(false);
     });
 
+    it("should reject obfuscated protocol-relative urls and schemes", () => {
+      expect(isValidUrl("/\\javascript:alert(1)")).toBe(false);
+      expect(isValidUrl("\\/javascript:alert(1)")).toBe(false);
+      expect(isValidUrl("\\\\javascript:alert(1)")).toBe(false);
+      expect(isValidUrl("/\\example.com")).toBe(false);
+      expect(isValidUrl("\\/example.com")).toBe(false);
+      expect(isValidUrl("\\\\example.com")).toBe(false);
+    });
+
     it("should reject javascript protocol", () => {
       expect(isValidUrl("javascript:alert(1)")).toBe(false);
     });
