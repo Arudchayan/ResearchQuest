@@ -1,14 +1,16 @@
 import { ConfirmDialog, useConfirmDialog } from "../ui/ConfirmDialog";
-import { Loader2, Trash2, Notebook, BookOpen, Lightbulb } from "lucide-react";
+import { Loader2, Trash2, Notebook, BookOpen, Lightbulb, Hash } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
 import type { TopicWithCounts } from "../../types/database";
 import { useCallback } from "react";
+import { highlightMatch } from "../../utils/highlight";
 
 interface TopicListProps {
   topics: TopicWithCounts[];
   loading: boolean;
   onSelectTopic: (topic: TopicWithCounts) => void;
   onDeleteTopic: (topicId: string) => Promise<boolean>;
+  searchQuery?: string;
 }
 
 export function TopicList({
@@ -16,6 +18,7 @@ export function TopicList({
   loading,
   onSelectTopic,
   onDeleteTopic,
+  searchQuery = "",
 }: TopicListProps) {
   const selectedTopic = useAppStore((state) => state.selectedTopic);
   const { confirm: confirmDialog, isOpen, config } = useConfirmDialog();
@@ -40,8 +43,22 @@ export function TopicList({
   }
 
   if (!topics.length) {
+    if (searchQuery) {
+      return (
+        <div className="text-center py-12 text-text-tertiary" role="status" aria-live="polite">
+          <Hash className="w-12 h-12 mx-auto mb-3 opacity-50" aria-hidden="true" />
+          <p className="text-small font-semibold text-text-secondary">
+            No matches found
+          </p>
+          <p className="text-caption mt-1">
+            Try a different keyword or clear your search.
+          </p>
+        </div>
+      );
+    }
     return (
-      <div className="text-center py-12 text-text-tertiary">
+      <div className="text-center py-12 text-text-tertiary" role="status" aria-live="polite">
+        <Hash className="w-12 h-12 mx-auto mb-3 opacity-50" aria-hidden="true" />
         <p className="text-small">
           Create a topic to start organizing your research
         </p>
@@ -81,11 +98,11 @@ export function TopicList({
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="font-semibold text-small text-text-primary">
-                  {topic.name}
+                  {highlightMatch(topic.name, searchQuery)}
                 </p>
                 {topic.description && (
                   <p className="text-caption text-text-secondary mt-1 line-clamp-2">
-                    {topic.description}
+                    {highlightMatch(topic.description, searchQuery)}
                   </p>
                 )}
               </div>

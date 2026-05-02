@@ -117,3 +117,13 @@ Different list/overview components for the same data entity (like `IdeasBoard` v
 
 Prevention:
 When adding feature-rich capabilities (like Search, Export, or Sorting) to one view of an entity, actively cross-check all other views of that entity or similar top-level lists to ensure the feature is applied consistently across the application. Always defensively program array iterations on global state slices, as they may be undefined before hydrating.
+
+2024-05-28 — Standardize Search Highlighting and Empty States
+Opportunity:
+The `TopicList` component lacked search highlighting and specific empty states for "no matches found" when filtering, causing UX friction and accessibility issues compared to `NoteList` and `PaperList`.
+
+Learning:
+When implementing Search/Filter across multiple entity views, it's easy to forget to implement visual feedback (highlighting matches) and accessibility feedback (rendering specific empty states with `role="status"`). Ensuring list views consistently utilize the `highlightMatch` utility and semantic empty states improves standard UX parity.
+
+Prevention:
+When implementing or modifying list views with search functionality, always implement `highlightMatch` for searchable text fields and ensure a specific "no matches found" state is rendered when `searchQuery` is active but results are empty.

@@ -378,6 +378,7 @@ export function TopicsView() {
             loading={loading}
             onSelectTopic={setSelectedTopic}
             onDeleteTopic={handleDeleteWithUndo}
+            searchQuery={searchQuery}
           />
         </div>
       </div>
