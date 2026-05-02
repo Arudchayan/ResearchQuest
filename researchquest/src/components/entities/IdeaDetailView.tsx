@@ -275,7 +275,7 @@ export function IdeaDetailView({
                     <button
                       onClick={handleSave}
                       disabled={saving}
-                      className="p-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="p-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
                       title="Save changes"
                       aria-label="Save changes"
                     >

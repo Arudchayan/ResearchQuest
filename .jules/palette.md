@@ -8,3 +8,7 @@
 ## 2024-05-01 - Standardize Primary CTA Accessibility
 **Learning:** Primary call-to-action buttons in dynamic interfaces (like Add/Search panels) frequently miss standard focus visibility and hover states, and dynamic status changes (like spinners during loading) are invisible to screen readers without explicit ARIA live regions.
 **Action:** When implementing or updating primary CTA buttons, always include `focus-visible` utilities (e.g., `focus-visible:outline-primary-500`) alongside hover/disabled styling. If the button content changes dynamically (such as showing "Adding Paper..." or a spinner), ensure `aria-live="polite"` and `aria-atomic="true"` are present to announce the state change correctly.
+
+## 2025-05-01 - Missing Focus Visibility on Detail Views and Dialogs
+**Learning:** Action buttons in secondary or detail views (like `Save` in `IdeaDetailView`) and modular components (like `ConfirmDialog`) often lack explicit focus visibility and dynamic screen-reader attributes when first implemented, hurting accessibility for keyboard and assistive tech users.
+**Action:** When auditing or adding interactive controls, systematically apply `focus-visible:outline` utilities and `aria-live` regions to components nested deep within the UI, not just primary dashboard buttons.

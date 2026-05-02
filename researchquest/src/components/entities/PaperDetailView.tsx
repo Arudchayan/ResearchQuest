@@ -229,7 +229,7 @@ export function PaperDetailView({
                   <>
                     <button
                       onClick={handleSave}
-                      className="p-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors"
+                      className="p-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
                       title="Save changes"
                       aria-label="Save changes"
                     >
