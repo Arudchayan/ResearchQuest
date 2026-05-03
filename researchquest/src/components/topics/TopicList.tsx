@@ -2,11 +2,13 @@ import { ConfirmDialog, useConfirmDialog } from "../ui/ConfirmDialog";
 import { Loader2, Trash2, Notebook, BookOpen, Lightbulb } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
 import type { TopicWithCounts } from "../../types/database";
+import { highlightMatch } from "../../utils/highlight";
 import { useCallback } from "react";
 
 interface TopicListProps {
   topics: TopicWithCounts[];
   loading: boolean;
+  highlightQuery?: string;
   onSelectTopic: (topic: TopicWithCounts) => void;
   onDeleteTopic: (topicId: string) => Promise<boolean>;
 }
@@ -14,6 +16,7 @@ interface TopicListProps {
 export function TopicList({
   topics,
   loading,
+  highlightQuery = "",
   onSelectTopic,
   onDeleteTopic,
 }: TopicListProps) {
@@ -81,11 +84,11 @@ export function TopicList({
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="font-semibold text-small text-text-primary">
-                  {topic.name}
+                  {topic.name ? highlightMatch(topic.name, highlightQuery) : "Untitled"}
                 </p>
                 {topic.description && (
                   <p className="text-caption text-text-secondary mt-1 line-clamp-2">
-                    {topic.description}
+                    {highlightMatch(topic.description, highlightQuery)}
                   </p>
                 )}
               </div>

@@ -453,6 +453,7 @@ export function NotesView() {
                   key={note.id}
                   note={note}
                   isSelected={selectedNote?.id === note.id}
+                  highlightQuery={searchQuery}
                   onSelect={handleSelectNote}
                   onDelete={handleDeleteNote}
                 />

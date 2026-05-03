@@ -376,6 +376,7 @@ export function TopicsView() {
           <TopicList
             topics={filteredTopics}
             loading={loading}
+            highlightQuery={searchQuery}
             onSelectTopic={setSelectedTopic}
             onDeleteTopic={handleDeleteWithUndo}
           />
