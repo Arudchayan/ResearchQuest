@@ -3,10 +3,12 @@ import { Trash2, Clock } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "../../lib/utils";
 import type { Note } from "../../types/database";
+import { highlightMatch } from "../../utils/highlight";
 
 interface NoteCardProps {
   note: Note;
   isSelected: boolean;
+  highlightQuery?: string;
   onSelect: (note: Note) => void;
   onDelete: (noteId: string) => void;
 }
@@ -14,6 +16,7 @@ interface NoteCardProps {
 export const NoteCard = React.memo(function NoteCard({
   note,
   isSelected,
+  highlightQuery = "",
   onSelect,
   onDelete,
 }: NoteCardProps) {
@@ -53,7 +56,7 @@ export const NoteCard = React.memo(function NoteCard({
               : "text-slate-900 dark:text-slate-100",
           )}
         >
-          {note.title || "Untitled Note"}
+          {note.title ? highlightMatch(note.title, highlightQuery) : "Untitled Note"}
         </h3>
         <button
           onClick={handleDelete}
@@ -65,7 +68,7 @@ export const NoteCard = React.memo(function NoteCard({
       </div>
 
       <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mb-2 h-8">
-        {note.markdown_body || "No content..."}
+        {note.markdown_body ? highlightMatch(note.markdown_body, highlightQuery) : "No content..."}
       </p>
 
       {note.tags && note.tags.length > 0 && (

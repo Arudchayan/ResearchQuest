@@ -1,14 +1,17 @@
 import React from "react";
 import { BookOpen, ExternalLink, Calendar } from "lucide-react";
 import type { Paper } from "../../types/database";
+import { highlightMatch } from "../../utils/highlight";
 
 interface PaperCardProps {
   paper: Paper;
+  highlightQuery?: string;
   onSelect: (paper: Paper) => void;
 }
 
 export const PaperCard = React.memo(function PaperCard({
   paper,
+  highlightQuery = "",
   onSelect,
 }: PaperCardProps) {
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -50,11 +53,13 @@ export const PaperCard = React.memo(function PaperCard({
       </div>
 
       <h3 className="font-semibold text-slate-900 dark:text-white mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
-        {paper.title}
+        {paper.title ? highlightMatch(paper.title, highlightQuery) : "Untitled"}
       </h3>
 
       <p className="text-sm text-slate-500 dark:text-slate-400 mb-4 line-clamp-2">
-        {paper.authors?.join(", ") || "Unknown Authors"}
+        {paper.authors && paper.authors.length > 0
+          ? highlightMatch(paper.authors.join(", "), highlightQuery)
+          : "Unknown Authors"}
       </p>
 
       <div className="flex items-center gap-4 text-xs text-slate-400">
