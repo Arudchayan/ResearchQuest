@@ -1,14 +1,4 @@
-## 2024-04-28 - URL Obfuscation Defense-in-Depth
-**Vulnerability:** While the existing `isValidUrl` implementation was protected against obfuscated `javascript:` protocols due to robust protocol allow-listing (`["http:", "https:", "mailto:"]`) combined with the WHATWG URL parser, there is a general risk when parsing un-sanitized external input. Future code might rely on simple string manipulation (`startsWith`) or loose regex before strict parsing occurs, making obfuscated inputs (using zero-width spaces or control characters) dangerous.
-**Learning:** Checking for safe protocols or explicitly rejecting dangerous ones like `javascript:` using string methods (e.g., `startsWith` or `includes`) fails if the attacker obfuscates the string with characters that the browser ignores or trims. While `new URL()` handles this well, explicit sanitization provides defense-in-depth against subtle parsing anomalies across different browsers or environments.
-**Prevention:** As a general security enhancement, explicitly sanitize the input by stripping control characters (`[\x00-\x1F\x7F-\x9F]`) and zero-width spaces (`[\u200B-\u200D\uFEFF]`) before performing validation or attempting to parse the URL.
-
-## 2024-04-30 - Client-Side Denial of Service via Large File Parsing
-**Vulnerability:** The `importData` utility in `researchquest/src/utils/import.ts` loaded the entire content of uploaded JSON files into memory (`await file.text()`) and parsed them without any prior size validation. An attacker or user could crash the browser by uploading a massive file.
-**Learning:** File size constraints must be applied before executing any memory-intensive operations (like `.text()` or `JSON.parse()`) on file uploads, even if the processing is entirely client-side.
-**Prevention:** Always use `validateFileSize` (or similar guardrails) immediately upon receiving file objects from user input before attempting to read their contents.
-
-## 2025-04-25 - Prevent Information Leakage in Generic Error Handlers
-**Vulnerability:** The global error parsing utility (`extractFunctionErrorMessage`) was extracting and returning the `.details` and `.error.details` properties from backend error objects (like Supabase responses), which often contain sensitive database schema information, constraint names, or raw queries.
-**Learning:** These properties are meant for debugging or logging in safe environments, but surfacing them to user-facing UI components (via toasts or state errors) exposes the application's internal structure to potential attackers.
-**Prevention:** Never extract verbose or debug-specific error properties (`details`, `hint`, etc.) for UI display. Strip these out in global error parsers and rely on generic `.message` properties or fallback strings to communicate failures securely to end-users.
+## 2025-05-02 - Obfuscated Protocol-Relative URL Bypass
+**Vulnerability:** A URL validation bypass in `isValidUrl` (`researchquest/src/utils/security.ts`) allowed obfuscated protocol-relative paths (e.g., `/\example.com` or `\\javascript:alert(1)`) to evade the `//` blocklist check and be incorrectly validated as safe relative URLs because they started with `/` or had obfuscated slashes.
+**Learning:** Browsers and WHATWG URL parsers often tolerate or auto-correct backslashes into forward slashes, turning strings like `/\javascript:alert(1)` into `//javascript:alert(1)`. Simple string checks like `startsWith('//')` are insufficient without prior normalization.
+**Prevention:** Always normalize backslashes to forward slashes (e.g., `url.replace(/\\/g, '/')`) before evaluating URL structure or using `startsWith` to block dangerous patterns.

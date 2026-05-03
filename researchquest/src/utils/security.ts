@@ -16,16 +16,17 @@ export function isValidUrl(url: string): boolean {
   const trimmed = sanitized.trim();
   if (!trimmed) return false;
 
+  // Normalize backslashes to forward slashes to catch obfuscated protocol-relative paths
+  // or bypasses like "/\javascript:alert(1)"
+  const normalized = trimmed.replace(/\\/g, "/");
+
   // Explicitly reject protocol-relative URLs to prevent open redirect vulnerabilities
-  if (trimmed.startsWith("//")) return false;
+  if (normalized.startsWith("//")) return false;
 
   // Allow relative URLs (often safe in context of app navigation, but be careful)
   // For external links, we usually want http/https.
   // If it starts with /, it's relative.
-  if (trimmed.startsWith("/")) {
-    // 🛡️ Sentinel: Reject protocol-relative URLs (//) as they bypass protocol checks
-    // and can be used for open redirects or unexpected external resource loading.
-    if (trimmed.startsWith("//")) return false;
+  if (normalized.startsWith("/")) {
     return true;
   }
 
