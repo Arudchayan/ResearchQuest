@@ -69,3 +69,7 @@
 ## 2024-05-18 - Avoid View/Tab State in Data Memoization
 **Learning:** Adding active UI state (like `currentView`) to the dependency array of data transformation `useMemo` hooks is an anti-pattern. While it seems like a way to prevent allocations when a tab is hidden by using an early return, it causes a severe performance regression by forcing the entire dataset (e.g., Markdown parsing for searchable notes) to be synchronously re-calculated from scratch every single time the user switches back to that tab.
 **Action:** Memoization arrays for data should strictly depend on the underlying data itself (e.g., `notes`), decoupling expensive string and text transformations from fast UI interactions like tab switching or keystroke filtering.
+
+## 2024-05-18 - Deduplicate Aggregate Computations
+**Learning:** Computing the same aggregate statistics (e.g., counting pending and completed tasks) in multiple separate `useMemo` blocks within the same component unnecessarily repeats O(N) loops.
+**Action:** Always compute related aggregate statistics in a single O(N) pass inside a single `useMemo` block, and reuse the resulting variables throughout the component to eliminate duplicate work.
