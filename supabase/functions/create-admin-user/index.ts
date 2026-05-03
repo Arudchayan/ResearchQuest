@@ -1,5 +1,18 @@
 const FETCH_TIMEOUT_MS = 10000; // 10 seconds timeout
 
+// Sentinel: Constant-time string comparison to prevent timing attacks
+function secureCompare(a: string, b: string): boolean {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  let mismatch = a.length === b.length ? 0 : 1;
+  const len = Math.max(a.length, b.length);
+  for (let i = 0; i < len; i++) {
+    const charA = i < a.length ? a.charCodeAt(i) : 0;
+    const charB = i < b.length ? b.charCodeAt(i) : 0;
+    mismatch |= charA ^ charB;
+  }
+  return mismatch === 0;
+}
+
 async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout = FETCH_TIMEOUT_MS) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
@@ -41,7 +54,7 @@ Deno.serve(async (req) => {
       const authHeader = req.headers.get('Authorization');
       const expectedApiKey = Deno.env.get('ADMIN_API_KEY');
 
-      if (!expectedApiKey || authHeader !== `Bearer ${expectedApiKey}`) {
+      if (!expectedApiKey || !authHeader || !secureCompare(authHeader, `Bearer ${expectedApiKey}`)) {
         return new Response(JSON.stringify({
           error: { code: 'UNAUTHORIZED', message: 'Unauthorized request' }
         }), {
