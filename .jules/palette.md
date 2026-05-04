@@ -12,3 +12,7 @@
 ## 2026-05-03 - Empty State Search Consistency
 **Learning:** List views with search functionality need a distinct "No matches found" empty state to provide clear feedback when filters yield no results, differing from the generic "Create your first item" empty state.
 **Action:** When implementing or updating search in list components, always check for existing empty states and add a condition (e.g., `if (searchQuery)`) to render a specific "No matches found" message with `role="status"` and `aria-live="polite"` for accessibility.
+
+## 2024-05-04 - Accessible Tooltips for Action Icons
+**Learning:** In list and card views (like `NoteCard`), using native HTML `title` attributes on icon-only buttons causes inconsistent styling, delayed interaction feedback, and potential accessibility issues for screen reader or keyboard-only users.
+**Action:** Replace all instances of native `title` attributes on interactive icon buttons with the custom `<Tooltip>` primitive components (`Tooltip`, `TooltipTrigger`, `TooltipContent`) leveraging `@radix-ui/react-tooltip`. Ensure tests are wrapped with `<TooltipProvider>` to support this update.

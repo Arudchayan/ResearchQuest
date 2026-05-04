@@ -3,6 +3,7 @@ import { Clock, Hash, Link2, Trash2, FileText, Copy } from "lucide-react";
 import type { Note } from "../../types/database";
 import { ListSkeleton } from "../ui/Skeleton";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
+import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
 import { toast } from "sonner";
 import { highlightMatch } from "../../utils/highlight";
 import { deriveTitleFromMarkdown } from "../../utils/text";
@@ -84,23 +85,35 @@ const NoteCardComponent = ({
           </h4>
         </div>
         {onDuplicate && (
-          <button
-            onClick={handleDuplicate}
-            className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 text-slate-400 hover:text-blue-500 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
-            title="Duplicate note"
-            aria-label="Duplicate note"
-          >
-            <Copy className="w-4 h-4" />
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={handleDuplicate}
+                className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 text-slate-400 hover:text-blue-500 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+                aria-label="Duplicate note"
+              >
+                <Copy className="w-4 h-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Duplicate note</p>
+            </TooltipContent>
+          </Tooltip>
         )}
-        <button
-          onClick={handleDelete}
-          className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 text-slate-400 hover:text-red-500 transition-all focus:outline-none focus:ring-2 focus:ring-red-500 rounded"
-          title="Delete note"
-          aria-label="Delete note"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={handleDelete}
+              className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 text-slate-400 hover:text-red-500 transition-all focus:outline-none focus:ring-2 focus:ring-red-500 rounded"
+              aria-label="Delete note"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Delete note</p>
+          </TooltipContent>
+        </Tooltip>
       </div>
 
       <p className="text-caption text-text-secondary line-clamp-2 mb-2">
