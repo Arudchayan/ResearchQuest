@@ -1,3 +1,4 @@
+import { TooltipProvider } from "../../components/ui/tooltip";
 import { render, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { useAppStore } from '../../store/appStore'
@@ -49,10 +50,10 @@ describe('NotesView Re-renders', () => {
     })
 
     // Initial render
-    render(
+    render(<TooltipProvider delayDuration={0}>
       <Profiler id="NotesView" onRender={onRender}>
         <NotesView />
-      </Profiler>
+      </Profiler></TooltipProvider>
     )
 
     // Capture initial render count

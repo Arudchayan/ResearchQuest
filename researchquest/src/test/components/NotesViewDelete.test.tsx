@@ -1,3 +1,4 @@
+import { TooltipProvider } from "../../components/ui/tooltip";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { vi, describe, it, expect, beforeEach } from "vitest";
 import { NotesView } from "../../components/notes/NotesView";
@@ -81,7 +82,7 @@ describe("NotesView Deletion UX", () => {
       .spyOn(window, "confirm")
       .mockImplementation(() => true);
 
-    render(<NotesView />);
+    render(<TooltipProvider delayDuration={0}><NotesView /></TooltipProvider>);
 
     // Find the delete button
     const deleteButton = screen.getByRole("button", { name: /Delete note/i });
@@ -111,7 +112,7 @@ describe("NotesView Deletion UX", () => {
   });
 
   it("cancels deletion when cancel is clicked", async () => {
-    render(<NotesView />);
+    render(<TooltipProvider delayDuration={0}><NotesView /></TooltipProvider>);
 
     const deleteButton = screen.getByRole("button", { name: /Delete note/i });
     fireEvent.click(deleteButton);
@@ -136,7 +137,7 @@ describe("NotesView Deletion UX", () => {
   });
 
   it("shows success toast with undo action after deletion", async () => {
-    render(<NotesView />);
+    render(<TooltipProvider delayDuration={0}><NotesView /></TooltipProvider>);
 
     const deleteButton = screen.getByRole("button", { name: /Delete note/i });
     fireEvent.click(deleteButton);
@@ -161,7 +162,7 @@ describe("NotesView Deletion UX", () => {
   });
 
   it("calls restoreNote when undo is clicked", async () => {
-    render(<NotesView />);
+    render(<TooltipProvider delayDuration={0}><NotesView /></TooltipProvider>);
 
     const deleteButton = screen.getByRole("button", { name: /Delete note/i });
     fireEvent.click(deleteButton);
