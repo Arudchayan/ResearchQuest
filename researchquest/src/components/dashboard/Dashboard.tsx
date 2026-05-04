@@ -8,6 +8,7 @@ import {
   Sparkles,
   CheckSquare,
   BookOpen,
+  Lightbulb,
 } from "lucide-react";
 import {
   ActivityLogIcon,
@@ -33,10 +34,12 @@ export function Dashboard() {
     focusSessionSecondsToday,
     notesLoading,
     papersLoading,
+    ideasLoading,
     tasksLoading,
     setCurrentView,
     setSelectedNote,
     setSelectedPaper,
+    setSelectedIdea,
   } = useAppStore(
     useShallow((state) => ({
       user: state.user,
@@ -47,10 +50,12 @@ export function Dashboard() {
       focusSessionSecondsToday: state.focusSessionSecondsToday,
       notesLoading: state.notesLoading,
       papersLoading: state.papersLoading,
+      ideasLoading: state.ideasLoading,
       tasksLoading: state.tasksLoading,
       setCurrentView: state.setCurrentView,
       setSelectedNote: state.setSelectedNote,
       setSelectedPaper: state.setSelectedPaper,
+      setSelectedIdea: state.setSelectedIdea,
     })),
   );
 
@@ -121,6 +126,19 @@ export function Dashboard() {
       .slice(0, 3);
   }, [papers]);
 
+  const activeIdeas = useMemo(() => {
+    return [...ideas]
+      .sort((a, b) => {
+        // Optimization: Use direct string comparison for ISO dates instead of localeCompare
+        return b.updated_at > a.updated_at
+          ? 1
+          : b.updated_at < a.updated_at
+            ? -1
+            : 0;
+      })
+      .slice(0, 3);
+  }, [ideas]);
+
   const upcomingTasks = useMemo(() => {
     return tasks
       .filter((t) => !t.completed)
@@ -152,7 +170,7 @@ export function Dashboard() {
     setCurrentView("notes");
   };
 
-  const navigateTo = (view: "notes" | "papers" | "focus" | "tasks") => {
+  const navigateTo = (view: "notes" | "papers" | "focus" | "tasks" | "ideas") => {
     setCurrentView(view);
     window.history.pushState(null, "", `/${view}`);
   };
@@ -271,63 +289,125 @@ export function Dashboard() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Recent Notes */}
-        <section>
-          <div className="flex items-center justify-between mb-4 border-b border-border-subtle pb-2">
-            <h2 className="font-serif text-lg font-bold text-text-primary flex items-center gap-2">
-              <FileText className="w-5 h-5 text-text-tertiary" />
-              Recent Notes
-            </h2>
-            <button
-              onClick={() => navigateTo("notes")}
-              className="text-small text-text-secondary hover:text-text-primary font-medium flex items-center gap-1 uppercase tracking-wider transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 rounded-sm"
-            >
-              View all <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
-            </button>
-          </div>
-
-          <div className="space-y-3">
-            {notesLoading ? (
-              <ListSkeleton count={3} itemType="note" />
-            ) : recentNotes.length === 0 ? (
-              <div
-                className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary"
-                role="status"
-                aria-live="polite"
+        <div className="space-y-8">
+          {/* Recent Notes */}
+          <section>
+            <div className="flex items-center justify-between mb-4 border-b border-border-subtle pb-2">
+              <h2 className="font-serif text-lg font-bold text-text-primary flex items-center gap-2">
+                <FileText className="w-5 h-5 text-text-tertiary" />
+                Recent Notes
+              </h2>
+              <button
+                onClick={() => navigateTo("notes")}
+                className="text-small text-text-secondary hover:text-text-primary font-medium flex items-center gap-1 uppercase tracking-wider transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 rounded-sm"
               >
-                <p className="mb-3">No notes yet</p>
-                <button
-                  onClick={() => navigateTo("notes")}
-                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-bg-surface border border-border-moderate rounded-sm text-small font-sans not-italic font-medium text-text-primary hover:border-border-strong transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+                View all <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {notesLoading ? (
+                <ListSkeleton count={3} itemType="note" />
+              ) : recentNotes.length === 0 ? (
+                <div
+                  className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary"
+                  role="status"
+                  aria-live="polite"
                 >
-                  <Plus className="w-4 h-4" aria-hidden="true" /> Create Note
-                </button>
-              </div>
-            ) : (
-              recentNotes.map((note) => (
-                <button
-                  key={note.id}
-                  onClick={() => {
-                    setSelectedNote(note);
-                    navigateTo("notes");
-                    window.history.pushState(null, "", `/notes/${note.id}`);
-                  }}
-                  className="w-full text-left group p-4 bg-bg-surface border border-border-moderate rounded-sm hover:border-border-strong cursor-pointer transition-all shadow-sm"
-                >
-                  <h3 className="font-semibold text-text-primary mb-1 truncate group-hover:underline decoration-border-strong underline-offset-2 transition-all">
-                    {note.title || "Untitled Note"}
-                  </h3>
-                  <p className="text-small text-text-secondary line-clamp-2">
-                    {note.markdown_body.slice(0, 150) || "No content"}
-                  </p>
-                  <div className="mt-3 text-caption text-text-tertiary">
-                    Updated {new Date(note.updated_at).toLocaleDateString()}
-                  </div>
-                </button>
-              ))
-            )}
-          </div>
-        </section>
+                  <p className="mb-3">No notes yet</p>
+                  <button
+                    onClick={() => navigateTo("notes")}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-bg-surface border border-border-moderate rounded-sm text-small font-sans not-italic font-medium text-text-primary hover:border-border-strong transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+                  >
+                    <Plus className="w-4 h-4" aria-hidden="true" /> Create Note
+                  </button>
+                </div>
+              ) : (
+                recentNotes.map((note) => (
+                  <button
+                    key={note.id}
+                    onClick={() => {
+                      setSelectedNote(note);
+                      navigateTo("notes");
+                      window.history.pushState(null, "", `/notes/${note.id}`);
+                    }}
+                    className="w-full text-left group p-4 bg-bg-surface border border-border-moderate rounded-sm hover:border-border-strong cursor-pointer transition-all shadow-sm"
+                  >
+                    <h3 className="font-semibold text-text-primary mb-1 truncate group-hover:underline decoration-border-strong underline-offset-2 transition-all">
+                      {note.title || "Untitled Note"}
+                    </h3>
+                    <p className="text-small text-text-secondary line-clamp-2">
+                      {note.markdown_body.slice(0, 150) || "No content"}
+                    </p>
+                    <div className="mt-3 text-caption text-text-tertiary">
+                      Updated {new Date(note.updated_at).toLocaleDateString()}
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </section>
+
+          {/* Active Ideas */}
+          <section>
+            <div className="flex items-center justify-between mb-4 border-b border-border-subtle pb-2">
+              <h2 className="font-serif text-lg font-bold text-text-primary flex items-center gap-2">
+                <Lightbulb className="w-5 h-5 text-text-tertiary" />
+                Active Ideas
+              </h2>
+              <button
+                onClick={() => navigateTo("ideas")}
+                className="text-small text-text-secondary hover:text-text-primary font-medium flex items-center gap-1 uppercase tracking-wider transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 rounded-sm"
+              >
+                View Board <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {ideasLoading ? (
+                <ListSkeleton count={3} itemType="idea" />
+              ) : activeIdeas.length === 0 ? (
+                <div className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary">
+                  <p className="mb-3">No active ideas.</p>
+                  <button
+                    onClick={() => navigateTo("ideas")}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-bg-surface border border-border-moderate rounded-sm text-small font-sans not-italic font-medium text-text-primary hover:border-border-strong transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+                  >
+                    <Plus className="w-4 h-4" aria-hidden="true" /> Add Idea
+                  </button>
+                </div>
+              ) : (
+                activeIdeas.map((idea) => (
+                  <button
+                    key={idea.id}
+                    onClick={() => {
+                      setSelectedIdea(idea);
+                      navigateTo("ideas");
+                      window.history.pushState(null, "", `/ideas/${idea.id}`);
+                    }}
+                    className="w-full text-left group p-4 bg-bg-surface border border-border-moderate rounded-sm hover:border-border-strong cursor-pointer transition-all shadow-sm"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h3 className="font-semibold text-text-primary mb-1 truncate group-hover:underline decoration-border-strong underline-offset-2 transition-all">
+                          {idea.title}
+                        </h3>
+                        {idea.description && (
+                          <p className="text-small text-text-secondary line-clamp-2 mt-1">
+                            {idea.description}
+                          </p>
+                        )}
+                      </div>
+                      <span className="shrink-0 inline-block px-2 py-0.5 bg-bg-elevated text-text-secondary text-caption rounded border border-border-subtle">
+                        {idea.stage}
+                      </span>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </section>
+        </div>
 
         {/* Reading List & Tasks */}
         <div className="space-y-8">
