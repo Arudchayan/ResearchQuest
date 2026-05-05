@@ -1,3 +1,4 @@
+import { TooltipProvider } from "../../components/ui/tooltip";
 import { render, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NotesView } from "../../components/notes/NotesView";
@@ -125,7 +126,7 @@ describe("NotesView Performance", () => {
     useAppStore.setState({ notes: initialNotes });
 
     // 2. Render the component
-    render(<NotesView />);
+    render(<TooltipProvider delayDuration={0}><NotesView /></TooltipProvider>);
 
     // Check initial render counts
     expect(noteCardRenderCounts["1"]).toBe(1);
@@ -159,7 +160,7 @@ describe("NotesView Performance", () => {
 
     useAppStore.setState({ notes: initialNotes });
 
-    render(<NotesView />);
+    render(<TooltipProvider delayDuration={0}><NotesView /></TooltipProvider>);
 
     // Initial render
     const initialRenderCount = mockUseConfirmDialog.mock.calls.length;

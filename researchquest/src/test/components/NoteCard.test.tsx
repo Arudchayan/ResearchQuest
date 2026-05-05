@@ -2,6 +2,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { vi, describe, it, expect, beforeEach } from "vitest";
 import { NoteCard } from "../../components/notes/NoteCard";
 import type { Note } from "../../types/database";
+import { TooltipProvider } from "../../components/ui/tooltip";
 
 const mockNote: Note = {
   id: "1",
@@ -23,26 +24,30 @@ describe("NoteCard Accessibility", () => {
 
   it("renders note content", () => {
     render(
-      <NoteCard
-        note={mockNote}
-        onDuplicate={vi.fn()}
-        isSelected={false}
-        onSelect={onSelect}
-        onDelete={onDelete}
-      />,
+      <TooltipProvider delayDuration={0}>
+        <NoteCard
+          note={mockNote}
+          onDuplicate={vi.fn()}
+          isSelected={false}
+          onSelect={onSelect}
+          onDelete={onDelete}
+        />
+      </TooltipProvider>,
     );
     expect(screen.getByText("Test Note")).toBeInTheDocument();
   });
 
   it("has an accessible delete button", () => {
     render(
-      <NoteCard
-        note={mockNote}
-        onDuplicate={vi.fn()}
-        isSelected={false}
-        onSelect={onSelect}
-        onDelete={onDelete}
-      />,
+      <TooltipProvider delayDuration={0}>
+        <NoteCard
+          note={mockNote}
+          onDuplicate={vi.fn()}
+          isSelected={false}
+          onSelect={onSelect}
+          onDelete={onDelete}
+        />
+      </TooltipProvider>,
     );
     // Should fail if aria-label is missing
     const deleteButton = screen.getByRole("button", { name: /Delete note/i });
@@ -54,13 +59,15 @@ describe("NoteCard Accessibility", () => {
 
   it("is keyboard accessible and has correct role", () => {
     render(
-      <NoteCard
-        note={mockNote}
-        onDuplicate={vi.fn()}
-        isSelected={false}
-        onSelect={onSelect}
-        onDelete={onDelete}
-      />,
+      <TooltipProvider delayDuration={0}>
+        <NoteCard
+          note={mockNote}
+          onDuplicate={vi.fn()}
+          isSelected={false}
+          onSelect={onSelect}
+          onDelete={onDelete}
+        />
+      </TooltipProvider>,
     );
 
     // Should fail if role="button" or aria-label is missing on the card container
@@ -80,13 +87,15 @@ describe("NoteCard Accessibility", () => {
 
   it("does not trigger selection when key event bubbles from children", () => {
     render(
-      <NoteCard
-        note={mockNote}
-        onDuplicate={vi.fn()}
-        isSelected={false}
-        onSelect={onSelect}
-        onDelete={onDelete}
-      />,
+      <TooltipProvider delayDuration={0}>
+        <NoteCard
+          note={mockNote}
+          onDuplicate={vi.fn()}
+          isSelected={false}
+          onSelect={onSelect}
+          onDelete={onDelete}
+        />
+      </TooltipProvider>,
     );
 
     const deleteButton = screen.getByRole("button", { name: /Delete note/i });

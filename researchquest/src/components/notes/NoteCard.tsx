@@ -4,6 +4,7 @@ import { formatDistanceToNow } from "date-fns";
 import { cn } from "../../lib/utils";
 import type { Note } from "../../types/database";
 import { highlightMatch } from "../../utils/highlight";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
 interface NoteCardProps {
   note: Note;
@@ -58,13 +59,20 @@ export const NoteCard = React.memo(function NoteCard({
         >
           {note.title ? highlightMatch(note.title, highlightQuery) : "Untitled Note"}
         </h3>
-        <button
-          onClick={handleDelete}
-          aria-label="Delete note"
-          className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 text-slate-400 hover:text-red-500 transition-all focus:outline-none focus:ring-2 focus:ring-red-500 rounded"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={handleDelete}
+              aria-label="Delete note"
+              className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 text-slate-400 hover:text-red-500 transition-all focus:outline-none focus:ring-2 focus:ring-red-500 rounded"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Delete note</p>
+          </TooltipContent>
+        </Tooltip>
       </div>
 
       <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mb-2 h-8">
