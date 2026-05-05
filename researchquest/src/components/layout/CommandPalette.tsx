@@ -254,7 +254,43 @@ export function CommandPalette() {
             }}
           >
             <Plus />
-            <span>Create New Note (Go to Notes)</span>
+            <span>New Note</span>
+          </Command.Item>
+
+          <Command.Item
+            onSelect={() => {
+              handleNavigate("papers");
+            }}
+          >
+            <Plus />
+            <span>New Paper</span>
+          </Command.Item>
+
+          <Command.Item
+            onSelect={() => {
+              handleNavigate("ideas");
+            }}
+          >
+            <Plus />
+            <span>New Idea</span>
+          </Command.Item>
+
+          <Command.Item
+            onSelect={() => {
+              handleNavigate("tasks");
+            }}
+          >
+            <Plus />
+            <span>New Task</span>
+          </Command.Item>
+
+          <Command.Item
+            onSelect={() => {
+              handleNavigate("topics");
+            }}
+          >
+            <Plus />
+            <span>New Topic</span>
           </Command.Item>
 
           <Command.Item onSelect={handleOpenDataManagement}>
