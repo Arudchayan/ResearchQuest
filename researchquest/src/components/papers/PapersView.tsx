@@ -430,6 +430,7 @@ export function PapersView() {
                 <PaperCard
                   key={paper.id}
                   paper={paper}
+                  highlightQuery={searchQuery}
                   onSelect={handleSelectPaper}
                 />
               ))}
