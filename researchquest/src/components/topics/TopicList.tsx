@@ -1,5 +1,5 @@
 import { ConfirmDialog, useConfirmDialog } from "../ui/ConfirmDialog";
-import { Loader2, Trash2, Notebook, BookOpen, Lightbulb } from "lucide-react";
+import { Loader2, Trash2, Notebook, BookOpen, Lightbulb, Hash } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
 import type { TopicWithCounts } from "../../types/database";
 import { highlightMatch } from "../../utils/highlight";
@@ -43,11 +43,29 @@ export function TopicList({
   }
 
   if (!topics.length) {
+    if (highlightQuery) {
+      return (
+        <div
+          className="text-center py-12 text-text-tertiary"
+          role="status"
+          aria-live="polite"
+        >
+          <Hash className="w-12 h-12 mx-auto mb-3 opacity-50" aria-hidden="true" />
+          <p className="text-small font-semibold text-text-secondary">
+            No matches found
+          </p>
+          <p className="text-caption mt-1">
+            Try a different keyword or clear your search.
+          </p>
+        </div>
+      );
+    }
+
     return (
-      <div className="text-center py-12 text-text-tertiary">
-        <p className="text-small">
-          Create a topic to start organizing your research
-        </p>
+      <div className="text-center py-12 text-text-tertiary" role="status" aria-live="polite">
+        <Hash className="w-12 h-12 mx-auto mb-3 opacity-50" aria-hidden="true" />
+        <p className="text-small">No topics yet</p>
+        <p className="text-caption mt-1">Create a topic to start organizing your research</p>
       </div>
     );
   }
