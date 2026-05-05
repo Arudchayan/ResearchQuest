@@ -67,6 +67,12 @@ describe("Security Utils", () => {
       expect(isStrongPassword("short").valid).toBe(false);
     });
 
+    it("should reject passwords exceeding 72 characters", () => {
+      const longPassword = "A1!" + "a".repeat(70); // 73 characters
+      expect(isStrongPassword(longPassword).valid).toBe(false);
+      expect(isStrongPassword(longPassword).message).toContain("no more than 72 characters");
+    });
+
     it("should reject passwords without uppercase", () => {
       expect(isStrongPassword("longpassword123!").valid).toBe(false);
       expect(isStrongPassword("longpassword123!").message).toContain(

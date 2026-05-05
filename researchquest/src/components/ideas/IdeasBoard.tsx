@@ -16,6 +16,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useAppStore } from "../../store/appStore";
 import { useShallow } from "zustand/react/shallow";
+import { highlightMatch } from "../../utils/highlight";
 import { useIdeas } from "../../hooks/useIdeas";
 import { IdeaDetailView } from "../entities/IdeaDetailView";
 import type { IdeaStage, Idea } from "../../types/database";
@@ -424,7 +425,7 @@ export function IdeasBoard() {
                             >
                               <div className="flex items-start justify-between mb-2">
                                 <h4 className="font-medium text-slate-900 dark:text-white line-clamp-2 leading-snug">
-                                  {idea.title}
+                                  {idea.title ? highlightMatch(idea.title, searchQuery) : "Untitled"}
                                 </h4>
                                 <button
                                   onClick={(e) => {
@@ -439,8 +440,9 @@ export function IdeasBoard() {
                               </div>
 
                               <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-3 mb-3">
-                                {idea.description ||
-                                  "No description provided..."}
+                                {idea.description
+                                  ? highlightMatch(idea.description, searchQuery)
+                                  : "No description provided..."}
                               </p>
 
                               {stage.id !== "Mature" && (
