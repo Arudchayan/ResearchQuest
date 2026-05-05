@@ -64,6 +64,20 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Sentinel: Prevent DoS via excessively large inputs
+    if (query.length > 2000) {
+      return jsonResponse(
+        {
+          error: {
+            code: "INVALID_REQUEST",
+            message: "Query exceeds maximum allowed length",
+          },
+        },
+        400,
+        corsHeaders,
+      );
+    }
+
     const steps = [
       `Analyzing the research query: "${query}"`,
       "Deconstructing the topic into core components.",

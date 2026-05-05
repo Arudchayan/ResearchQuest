@@ -94,6 +94,23 @@ Deno.serve(async (req) => {
 
     const { doi, query, rows, sort, order } = await req.json();
 
+    // Sentinel: Prevent DoS via excessively large inputs
+    if (doi && (typeof doi !== "string" || doi.length > 300)) {
+      return jsonResponse(
+        { error: { code: "INVALID_REQUEST", message: "DOI exceeds maximum allowed length" } },
+        400,
+        corsHeaders,
+      );
+    }
+
+    if (query && (typeof query !== "string" || query.length > 2000)) {
+      return jsonResponse(
+        { error: { code: "INVALID_REQUEST", message: "Query exceeds maximum allowed length" } },
+        400,
+        corsHeaders,
+      );
+    }
+
     if (doi) {
       const crossrefUrl = `https://api.crossref.org/works/${encodeURIComponent(doi)}`;
       const response = await fetchWithTimeout(crossrefUrl, {
