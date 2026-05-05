@@ -413,13 +413,13 @@ Goal: prove the product can be released safely.
 
 | ID | Priority | Status | Task | Depends On | Acceptance Criteria |
 | --- | --- | --- | --- | --- | --- |
-| RQ-M6-01 | P0 | Not Started | Run fresh Supabase migration rehearsal | Month 1 tasks | Fresh project migrates successfully and supports first user workflow |
-| RQ-M6-02 | P0 | Not Started | Run RLS/security audit for all user-owned tables | Month 1-3 tasks | Users cannot read/write another user's data |
-| RQ-M6-03 | P1 | Not Started | Run full production-like browser smoke | Month 2-5 tasks | Auth, dashboard, all workspaces, import/export, and deep links pass |
-| RQ-M6-04 | P1 | Not Started | Run backup and restore drill | RQ-M2-08, RQ-M3-06 | Exported backup can restore release-supported data |
-| RQ-M6-05 | P2 | Not Started | Run performance and bundle budget check | RQ-M4-08 | No release-blocking performance issues remain |
-| RQ-M6-06 | P1 | Not Started | Create final launch checklist and known-issues list | All prior tasks | Release decision can be made from one checklist |
-| RQ-M6-07 | P0 | Not Started | Final release gate review | RQ-M6-01 through RQ-M6-06 | Zero P0 open; zero unaccepted P1 open; build/test/browser gates pass |
+| RQ-M6-01 | P0 | Done | Run fresh Supabase migration rehearsal | Month 1 tasks | Fresh project migrates successfully and supports first user workflow |
+| RQ-M6-02 | P0 | Done | Run RLS/security audit for all user-owned tables | Month 1-3 tasks | Users cannot read/write another user's data |
+| RQ-M6-03 | P1 | Done | Run full production-like browser smoke | Month 2-5 tasks | Auth, dashboard, all workspaces, import/export, and deep links pass |
+| RQ-M6-04 | P1 | Done | Run backup and restore drill | RQ-M2-08, RQ-M3-06 | Exported backup can restore release-supported data |
+| RQ-M6-05 | P2 | Done | Run performance and bundle budget check | RQ-M4-08 | No release-blocking performance issues remain |
+| RQ-M6-06 | P1 | Done | Create final launch checklist and known-issues list | All prior tasks | Release decision can be made from one checklist |
+| RQ-M6-07 | P0 | Done | Final release gate review | RQ-M6-01 through RQ-M6-06 | Zero P0 open; zero unaccepted P1 open; build/test/browser gates pass |
 
 ### RQ-M6-01 — Fresh Supabase Migration Rehearsal Sub-Tasks
 
