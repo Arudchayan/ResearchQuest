@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { TooltipProvider } from "../../components/ui/tooltip";
 import "../mocks/supabase";
 import {
   mockSupabaseClient,
@@ -97,7 +98,7 @@ describe("LeftSidebar Component", () => {
 
   describe("Navigation Tabs", () => {
     it("should render all navigation tabs", () => {
-      render(<LeftSidebar />);
+      render(<TooltipProvider delayDuration={0}><LeftSidebar /></TooltipProvider>);
 
       expect(
         screen.getByRole("button", { name: /^Notes$/i }),
@@ -118,14 +119,14 @@ describe("LeftSidebar Component", () => {
 
     it("should highlight active tab", () => {
       useAppStore.setState({ currentView: "papers" });
-      render(<LeftSidebar />);
+      render(<TooltipProvider delayDuration={0}><LeftSidebar /></TooltipProvider>);
 
       const papersTab = screen.getByRole("button", { name: /^Papers$/i });
       expect(papersTab).toHaveClass("bg-primary-50");
     });
 
     it("should switch views when clicking tabs", async () => {
-      render(<LeftSidebar />);
+      render(<TooltipProvider delayDuration={0}><LeftSidebar /></TooltipProvider>);
 
       const papersTab = screen.getByRole("button", { name: /^Papers$/i });
       await userEvent.click(papersTab);
@@ -137,7 +138,7 @@ describe("LeftSidebar Component", () => {
 
     it("should update URL when switching tabs", async () => {
       const pushStateSpy = vi.spyOn(window.history, "pushState");
-      render(<LeftSidebar />);
+      render(<TooltipProvider delayDuration={0}><LeftSidebar /></TooltipProvider>);
 
       const papersTab = screen.getByRole("button", { name: /^Papers$/i });
       await userEvent.click(papersTab);
@@ -151,7 +152,7 @@ describe("LeftSidebar Component", () => {
         selectedPaper: mockPaper,
       });
 
-      render(<LeftSidebar />);
+      render(<TooltipProvider delayDuration={0}><LeftSidebar /></TooltipProvider>);
 
       const notesTab = screen.getByRole("button", { name: /^Notes$/i });
       await userEvent.click(notesTab);
@@ -164,14 +165,14 @@ describe("LeftSidebar Component", () => {
 
   describe("Search Functionality", () => {
     it("should render search input", () => {
-      render(<LeftSidebar />);
+      render(<TooltipProvider delayDuration={0}><LeftSidebar /></TooltipProvider>);
 
       const searchInput = screen.getByPlaceholderText(/search notes/i);
       expect(searchInput).toBeInTheDocument();
     });
 
     it("should update search query on input", async () => {
-      render(<LeftSidebar />);
+      render(<TooltipProvider delayDuration={0}><LeftSidebar /></TooltipProvider>);
 
       const searchInput = screen.getByPlaceholderText(/search notes/i);
       await userEvent.type(searchInput, "test query");
@@ -180,7 +181,7 @@ describe("LeftSidebar Component", () => {
     });
 
     it("should update placeholder based on current view", async () => {
-      render(<LeftSidebar />);
+      render(<TooltipProvider delayDuration={0}><LeftSidebar /></TooltipProvider>);
 
       // Switch to papers
       const papersTab = screen.getByRole("button", { name: /^Papers$/i });
@@ -196,20 +197,20 @@ describe("LeftSidebar Component", () => {
   describe("Add Button", () => {
     it("should show add button for notes, papers, and ideas", () => {
       useAppStore.setState({ currentView: "notes" });
-      const { rerender } = render(<LeftSidebar />);
+      const { rerender } = render(<TooltipProvider delayDuration={0}><LeftSidebar /></TooltipProvider>);
 
       expect(
         screen.getByRole("button", { name: /new note/i }),
       ).toBeInTheDocument();
 
       useAppStore.setState({ currentView: "papers" });
-      rerender(<LeftSidebar />);
+      rerender(<TooltipProvider delayDuration={0}><LeftSidebar /></TooltipProvider>);
       expect(
         screen.getByRole("button", { name: /new paper/i }),
       ).toBeInTheDocument();
 
       useAppStore.setState({ currentView: "ideas" });
-      rerender(<LeftSidebar />);
+      rerender(<TooltipProvider delayDuration={0}><LeftSidebar /></TooltipProvider>);
       expect(
         screen.getByRole("button", { name: /new idea/i }),
       ).toBeInTheDocument();
@@ -217,14 +218,14 @@ describe("LeftSidebar Component", () => {
 
     it("should hide add button for tasks and focus", () => {
       useAppStore.setState({ currentView: "tasks" });
-      const { rerender } = render(<LeftSidebar />);
+      const { rerender } = render(<TooltipProvider delayDuration={0}><LeftSidebar /></TooltipProvider>);
 
       expect(
         screen.queryByRole("button", { name: /new/i }),
       ).not.toBeInTheDocument();
 
       useAppStore.setState({ currentView: "focus" });
-      rerender(<LeftSidebar />);
+      rerender(<TooltipProvider delayDuration={0}><LeftSidebar /></TooltipProvider>);
       expect(
         screen.queryByRole("button", { name: /new/i }),
       ).not.toBeInTheDocument();
@@ -241,7 +242,7 @@ describe("LeftSidebar Component", () => {
       } as any);
 
       useAppStore.setState({ currentView: "notes" });
-      render(<LeftSidebar />);
+      render(<TooltipProvider delayDuration={0}><LeftSidebar /></TooltipProvider>);
 
       const addButton = screen.getByRole("button", { name: /new note/i });
       await userEvent.click(addButton);
@@ -257,7 +258,7 @@ describe("LeftSidebar Component", () => {
         selectedPaper: mockPaper,
       });
 
-      render(<LeftSidebar />);
+      render(<TooltipProvider delayDuration={0}><LeftSidebar /></TooltipProvider>);
 
       const addButton = screen.getByRole("button", { name: /new paper/i });
       await userEvent.click(addButton);
@@ -269,21 +270,21 @@ describe("LeftSidebar Component", () => {
   describe("Entity Lists", () => {
     it("should display papers in papers view", () => {
       useAppStore.setState({ currentView: "papers" });
-      render(<LeftSidebar />);
+      render(<TooltipProvider delayDuration={0}><LeftSidebar /></TooltipProvider>);
 
       expect(screen.getByText(mockPaper.title)).toBeInTheDocument();
     });
 
     it("should display ideas in ideas view", () => {
       useAppStore.setState({ currentView: "ideas" });
-      render(<LeftSidebar />);
+      render(<TooltipProvider delayDuration={0}><LeftSidebar /></TooltipProvider>);
 
       expect(screen.getByText(mockIdea.title)).toBeInTheDocument();
     });
 
     it("should display notes in notes view", async () => {
       useAppStore.setState({ currentView: "notes" });
-      render(<LeftSidebar />);
+      render(<TooltipProvider delayDuration={0}><LeftSidebar /></TooltipProvider>);
 
       const note = await screen.findByText(mockNote.title);
       expect(note).toBeInTheDocument();
@@ -291,7 +292,7 @@ describe("LeftSidebar Component", () => {
 
     it("should display focus helpers in focus view", () => {
       useAppStore.setState({ currentView: "focus" });
-      render(<LeftSidebar />);
+      render(<TooltipProvider delayDuration={0}><LeftSidebar /></TooltipProvider>);
 
       expect(
         screen.getByText(/set a target in the main panel/i),
@@ -313,7 +314,7 @@ describe("LeftSidebar Component", () => {
       });
 
       useAppStore.setState({ currentView: "papers" });
-      render(<LeftSidebar />);
+      render(<TooltipProvider delayDuration={0}><LeftSidebar /></TooltipProvider>);
 
       // Should show loading skeleton
       expect(screen.queryByText(mockPaper.title)).not.toBeInTheDocument();
@@ -334,7 +335,7 @@ describe("LeftSidebar Component", () => {
         },
       });
 
-      render(<LeftSidebar />);
+      render(<TooltipProvider delayDuration={0}><LeftSidebar /></TooltipProvider>);
 
       await waitFor(() => {
         expect(screen.getByText(/Focus Studio/i)).toBeInTheDocument();
@@ -349,14 +350,14 @@ describe("LeftSidebar Component", () => {
 
   describe("Accessibility", () => {
     it("should have proper ARIA labels for navigation", () => {
-      render(<LeftSidebar />);
+      render(<TooltipProvider delayDuration={0}><LeftSidebar /></TooltipProvider>);
 
       const nav = screen.getByRole("navigation", { hidden: true });
       expect(nav).toBeInTheDocument();
     });
 
     it("should support keyboard navigation", async () => {
-      render(<LeftSidebar />);
+      render(<TooltipProvider delayDuration={0}><LeftSidebar /></TooltipProvider>);
 
       const papersTabButton = screen.getByRole("button", { name: /^Papers$/i });
       papersTabButton.focus();
@@ -387,7 +388,7 @@ describe("LeftSidebar Component", () => {
       } as any);
 
       useAppStore.setState({ currentView: "papers" });
-      render(<LeftSidebar />);
+      render(<TooltipProvider delayDuration={0}><LeftSidebar /></TooltipProvider>);
 
       const searchInput = screen.getByPlaceholderText(/search papers/i);
       await userEvent.type(searchInput, "Quantum");

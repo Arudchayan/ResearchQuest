@@ -1,3 +1,4 @@
+import { TooltipProvider } from "../../components/ui/tooltip";
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { NotesView } from "../../components/notes/NotesView";
@@ -60,7 +61,7 @@ vi.mock("../ui/ConfirmDialog", () => ({
 describe("NotesView Search", () => {
   it("shows clear button when typing and clears input on click", async () => {
     const user = userEvent.setup();
-    render(<NotesView />);
+    render(<TooltipProvider delayDuration={0}><NotesView /></TooltipProvider>);
 
     const searchInput = screen.getByPlaceholderText("Search notes...");
 
