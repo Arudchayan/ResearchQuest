@@ -268,8 +268,8 @@ Goal: make the product coherent, responsive, and keyboard-accessible.
 | RQ-M4-03 | P1 | Done | Finish responsive Papers layout | RQ-M2-02 | Paper list/detail drawer has no mobile clipping or hidden controls |
 | RQ-M4-04 | P1 | Done | Finish responsive Ideas layout | RQ-M2-03 | Kanban and detail drawer work on narrow screens |
 | RQ-M4-05 | P1 | Done | Finish responsive Tasks, Topics, and Focus layouts | RQ-M2-04, RQ-M2-05, RQ-M2-06 | Primary controls fit and remain reachable on mobile |
-| RQ-M4-06 | P1 | Not Started | Fix dialog focus, keyboard flow, labels, and escape behavior | RQ-M2 workflow tasks | Keyboard-only usage works for auth, create/edit dialogs, and command palette |
-| RQ-M4-07 | P2 | Not Started | Complete command palette navigation and creation actions | RQ-M3 routing tasks | Command palette routes and creates expected entities without stale state |
+| RQ-M4-06 | P1 | Done | Fix dialog focus, keyboard flow, labels, and escape behavior | RQ-M2 workflow tasks | Keyboard-only usage works for auth, create/edit dialogs, and command palette |
+| RQ-M4-07 | P2 | Done | Complete command palette navigation and creation actions | RQ-M3 routing tasks | Command palette routes and creates expected entities without stale state |
 | RQ-M4-08 | P2 | Done | Reduce obvious bundle-size risk with code splitting where low-risk | RQ-M2 workflow tasks | Production chunks are reviewed; release-blocking size issues are addressed |
 
 ### RQ-M4-01 — Visual Normalization Sub-Tasks
@@ -333,12 +333,12 @@ Goal: keep advanced features honest and useful.
 
 | ID | Priority | Status | Task | Depends On | Acceptance Criteria |
 | --- | --- | --- | --- | --- | --- |
-| RQ-M5-01 | P1 | Not Started | Decide Deep Research release path: real cited backend, relabel as simulated, or remove | RQ-M1-04 | No simulated output is presented as real research |
+| RQ-M5-01 | P1 | Done | Decide Deep Research release path: real cited backend, relabel as simulated, or remove | RQ-M1-04 | No simulated output is presented as real research |
 | RQ-M5-02 | P1 | Not Started | Implement the chosen Deep Research path | RQ-M5-01 | Feature either returns source-backed output or is clearly out of release scope |
 | RQ-M5-03 | P2 | Done | Strengthen citation and bibliography workflows | RQ-M2-02 | Citation behavior is clear, tested, and useful for academic workflows |
 | RQ-M5-04 | P2 | Done | Improve related items, backlinks, and topic graph behavior | RQ-M2-05, RQ-M3 routing tasks | Related panels use current data and do not disappear as critical workflow state |
 | RQ-M5-05 | P2 | Done | Add meaningful first-run empty states and onboarding | RQ-M4 UX tasks | New users understand what to do without reading docs |
-| RQ-M5-06 | P2 | Not Started | Define beta analytics and error visibility | RQ-M3-05 | Beta can surface failures and usage patterns without exposing sensitive data |
+| RQ-M5-06 | P2 | Done | Define beta analytics and error visibility | RQ-M3-05 | Beta can surface failures and usage patterns without exposing sensitive data |
 
 ### RQ-M5-01 — Deep Research Decision Sub-Tasks
 
