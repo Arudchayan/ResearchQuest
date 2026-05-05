@@ -10,7 +10,7 @@ import type {
   Task,
 } from "../types/database";
 
-export type DataSyncResource = "notes" | "papers" | "ideas";
+export type DataSyncResource = "notes" | "papers" | "ideas" | "tasks" | "topics";
 
 export interface DataSyncError {
   resource: DataSyncResource;
@@ -40,10 +40,12 @@ interface AppState {
   selectedPaper: Paper | null;
   selectedIdea: Idea | null;
   selectedTopic: TopicWithCounts | null;
+  selectedTask: Task | null;
   setSelectedNote: (note: Note | null) => void;
   setSelectedPaper: (paper: Paper | null) => void;
   setSelectedIdea: (idea: Idea | null) => void;
   setSelectedTopic: (topic: TopicWithCounts | null) => void;
+  setSelectedTask: (task: Task | null) => void;
 
   // Entity collections (Global Cache)
   notes: Note[];
@@ -54,6 +56,7 @@ interface AppState {
   papersLoading: boolean;
   ideasLoading: boolean;
   tasksLoading: boolean;
+  topicsLoading: boolean;
   dataSyncErrors: DataSyncErrorState;
   setNotes: (notes: Note[]) => void;
   setPapers: (papers: Paper[]) => void;
@@ -66,6 +69,7 @@ interface AppState {
   setPapersLoading: (loading: boolean) => void;
   setIdeasLoading: (loading: boolean) => void;
   setTasksLoading: (loading: boolean) => void;
+  setTopicsLoading: (loading: boolean) => void;
   setDataSyncError: (resource: DataSyncResource, message: string) => void;
   clearDataSyncError: (resource: DataSyncResource) => void;
   clearDataSyncErrors: () => void;
@@ -120,10 +124,12 @@ export const useAppStore = create<AppState>()(
       selectedPaper: null,
       selectedIdea: null,
       selectedTopic: null,
+      selectedTask: null,
       setSelectedNote: (selectedNote) => set({ selectedNote }),
       setSelectedPaper: (selectedPaper) => set({ selectedPaper }),
       setSelectedIdea: (selectedIdea) => set({ selectedIdea }),
       setSelectedTopic: (selectedTopic) => set({ selectedTopic }),
+      setSelectedTask: (selectedTask) => set({ selectedTask }),
 
       // Entity collections (Global Cache)
       notes: [],
@@ -137,10 +143,13 @@ export const useAppStore = create<AppState>()(
       papersLoading: false,
       ideasLoading: false,
       tasksLoading: false,
+      topicsLoading: false,
       dataSyncErrors: {
         notes: null,
         papers: null,
         ideas: null,
+        tasks: null,
+        topics: null,
       },
       setNotes: (notes) => set({ notes }),
       setPapers: (papers) => set({ papers }),
@@ -150,6 +159,7 @@ export const useAppStore = create<AppState>()(
       setPapersLoading: (papersLoading) => set({ papersLoading }),
       setIdeasLoading: (ideasLoading) => set({ ideasLoading }),
       setTasksLoading: (tasksLoading) => set({ tasksLoading }),
+      setTopicsLoading: (topicsLoading) => set({ topicsLoading }),
       setDataSyncError: (resource, message) =>
         set((state) => ({
           dataSyncErrors: {
@@ -170,6 +180,8 @@ export const useAppStore = create<AppState>()(
             notes: null,
             papers: null,
             ideas: null,
+            tasks: null,
+            topics: null,
           },
         }),
 
