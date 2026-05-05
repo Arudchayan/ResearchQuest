@@ -1,3 +1,4 @@
+import { TooltipProvider } from "../../components/ui/tooltip";
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { NotesView } from "../../components/notes/NotesView";
@@ -70,7 +71,7 @@ vi.mock("../../components/ui/Skeleton", () => ({
 
 describe("NotesView responsive layout", () => {
   it("uses a mobile-first single column and restores the split layout on large screens", () => {
-    const { container } = render(<NotesView />);
+    const { container } = render(<TooltipProvider delayDuration={0}><NotesView /></TooltipProvider>);
 
     const root = container.firstElementChild;
     expect(root).toHaveClass("flex-col");
@@ -96,7 +97,7 @@ describe("NotesView responsive layout", () => {
       message: "Notes unavailable",
     };
 
-    render(<NotesView />);
+    render(<TooltipProvider delayDuration={0}><NotesView /></TooltipProvider>);
 
     expect(screen.getByText("Notes unavailable")).toBeInTheDocument();
 
