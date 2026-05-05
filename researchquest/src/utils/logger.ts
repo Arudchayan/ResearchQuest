@@ -35,10 +35,8 @@ export const logger = {
    */
   error: (message: string, error?: any) => {
     if (import.meta.env.DEV) {
-      console.error(message, error);
+      console.error(`[RQ] ${message}`, error);
     } else {
-      // In production, sanitize the error object
-      // Only log the message if available, otherwise just the initial message
       const errorMessage =
         error instanceof Error
           ? error.message
@@ -49,9 +47,9 @@ export const logger = {
               : undefined;
 
       if (errorMessage) {
-        console.error(`${message}: ${errorMessage}`);
+        console.error(`[RQ] ${message}: ${errorMessage}`);
       } else {
-        console.error(message);
+        console.error(`[RQ] ${message}`);
       }
     }
   },
