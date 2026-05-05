@@ -381,7 +381,8 @@ const handleExport = () => {
                       accept=".json"
                       onChange={handleFileChange}
                       className="hidden"
-
+                      aria-hidden="true"
+                      tabIndex={-1}
                     />
                   </div>
                 ) : (
