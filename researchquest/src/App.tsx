@@ -14,6 +14,7 @@ import { Toaster } from "sonner";
 import type { User } from "@supabase/supabase-js";
 import { usePapers } from "./hooks/usePapers";
 import { useIdeas } from "./hooks/useIdeas";
+import { useTopics } from "./hooks/useTopics";
 import { useDataSync } from "./hooks/useDataSync";
 import { isStrongPassword } from "./utils/security";
 import { Dashboard } from "./components/dashboard/Dashboard";
@@ -347,6 +348,7 @@ function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | undefined>(undefined);
+  const [pendingPath, setPendingPath] = useState<string | null>(null);
   // ⚡ Optimization: Use useShallow with an object selector to prevent the App component
   // from unnecessarily re-rendering on unrelated state changes in the global appStore.
   const {
@@ -357,6 +359,12 @@ function App() {
     selectedIdea,
     setSelectedIdea,
     setSelectedPaper,
+    notes,
+    notesLoading,
+    topics,
+    topicsLoading,
+    tasks,
+    tasksLoading,
   } = useAppStore(
     useShallow((state) => ({
       setUser: state.setUser,
@@ -366,6 +374,12 @@ function App() {
       selectedIdea: state.selectedIdea,
       setSelectedIdea: state.setSelectedIdea,
       setSelectedPaper: state.setSelectedPaper,
+      notes: state.notes,
+      notesLoading: state.notesLoading,
+      topics: state.topics,
+      topicsLoading: state.topicsLoading,
+      tasks: state.tasks,
+      tasksLoading: state.tasksLoading,
     })),
   );
   const hydrateGamification = useGamificationStore(
@@ -378,6 +392,8 @@ function App() {
   // Get hooks for CRUD operations (data comes from store now)
   const { papers, loading: papersLoading } = usePapers(userId);
   const { ideas, loading: ideasLoading } = useIdeas(userId);
+  // Fetch topics early at App level for deep-link hydration (has fetch-deduplication guard)
+  useTopics(userId);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && (window as any).__TEST_USER__) {
@@ -437,6 +453,33 @@ function App() {
     }
   }, [user, setUserProfile, hydrateGamification]);
 
+  // Save deep-link target path before redirecting unauthenticated user to auth screen
+  useEffect(() => {
+    if (!loading && !user) {
+      const path = window.location.pathname;
+      if (path !== "/" && path !== "") {
+        setPendingPath(path);
+      }
+    }
+  }, [loading, user]);
+
+  // After sign-in, navigate to the saved deep-link path
+  useEffect(() => {
+    if (user && pendingPath) {
+      window.history.pushState(null, "", pendingPath);
+      const pathParts = pendingPath.slice(1).split("/");
+      const view = pathParts[0] as typeof currentView;
+      if (
+        ["dashboard", "notes", "papers", "ideas", "tasks", "topics", "focus"].includes(view)
+      ) {
+        setCurrentView(view);
+      } else {
+        setCurrentView("dashboard");
+      }
+      setPendingPath(null);
+    }
+  }, [user, pendingPath, setCurrentView]);
+
   // URL-based routing - handle initial load and navigation
   useEffect(() => {
     // Handle route changes
@@ -493,6 +536,9 @@ function App() {
     // Wait for data to load
     if (view === "papers" && papersLoading) return;
     if (view === "ideas" && ideasLoading) return;
+    if (view === "notes" && notesLoading) return;
+    if (view === "topics" && topicsLoading) return;
+    if (view === "tasks" && tasksLoading) return;
 
     // Try to find and select the item based on URL
     if (view === "papers" && papers.length >= 0) {
@@ -509,8 +555,29 @@ function App() {
       } else if (!ideasLoading) {
         useAppStore.getState().setSelectedIdea(null);
       }
+    } else if (view === "notes") {
+      const note = notes.find((n) => n.id === itemId);
+      if (note) {
+        useAppStore.getState().setSelectedNote(note);
+      } else if (!notesLoading) {
+        useAppStore.getState().setSelectedNote(null);
+      }
+    } else if (view === "topics") {
+      const topic = topics[itemId];
+      if (topic) {
+        useAppStore.getState().setSelectedTopic(topic);
+      } else if (!topicsLoading) {
+        useAppStore.getState().setSelectedTopic(null);
+      }
+    } else if (view === "tasks") {
+      const task = tasks.find((t) => t.id === itemId);
+      if (task) {
+        useAppStore.getState().setSelectedTask(task);
+      } else if (!tasksLoading) {
+        useAppStore.getState().setSelectedTask(null);
+      }
     }
-  }, [currentView, ideas, ideasLoading, papers, papersLoading, userId]);
+  }, [currentView, ideas, ideasLoading, notes, notesLoading, papers, papersLoading, tasks, tasksLoading, topics, topicsLoading, userId]);
 
   if (loading) {
     return <AppLoadingSkeleton />;
