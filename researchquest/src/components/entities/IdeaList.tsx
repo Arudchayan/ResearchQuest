@@ -5,6 +5,7 @@ import { ListSkeleton } from "../ui/Skeleton";
 import { highlightMatch } from "../../utils/highlight";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { toast } from "sonner";
+import { UNDO_WINDOW_MS } from "../../lib/constants";
 
 interface IdeaCardProps {
   idea: Idea;
@@ -240,7 +241,7 @@ export function IdeaList({
 
       const toastId = toast.success("Idea deleted", {
         description: "Undo within 6 seconds to restore it.",
-        duration: 6000,
+        duration: UNDO_WINDOW_MS,
         action: {
           label: "Undo",
           onClick: async () => {

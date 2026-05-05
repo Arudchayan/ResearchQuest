@@ -10,6 +10,8 @@ import type { TopicWithCounts } from "../../types/database";
 import { toast } from "sonner";
 import { convertTopicsToCSV, convertTopicsToJSON, convertTopicsToMarkdown, downloadFile } from "../../utils/export";
 import { logger } from "../../utils/logger";
+import { InlineError } from "../ui/ErrorFallback";
+import { UNDO_WINDOW_MS } from "../../lib/constants";
 
 type SortOption =
   | "name_asc"
@@ -21,15 +23,17 @@ type SortOption =
   | "count_desc";
 
 export function TopicsView() {
-  const { user, selectedTopic, setSelectedTopic } = useAppStore(
+  const { user, selectedTopic, setSelectedTopic, dataSyncErrors } = useAppStore(
     useShallow((state) => ({
       user: state.user,
       selectedTopic: state.selectedTopic,
       setSelectedTopic: state.setSelectedTopic,
+      dataSyncErrors: state.dataSyncErrors,
     }))
   );
 
   const { topics, loading, createTopic, updateTopic, deleteTopic } = useTopics(user?.id);
+  const topicsSyncError = dataSyncErrors?.topics ?? null;
   const [isCreating, setIsCreating] = useState(false);
   const [newTopicName, setNewTopicName] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -150,7 +154,7 @@ export function TopicsView() {
 
       const toastId = toast.success("Topic deleted", {
         description: "Undo within 6 seconds to restore it.",
-        duration: 6000,
+        duration: UNDO_WINDOW_MS,
         action: {
           label: "Undo",
           onClick: () => {
@@ -190,7 +194,7 @@ export function TopicsView() {
         // Execute real DB deletion
         void deleteTopic(topicId);
         toast.dismiss(toastId);
-      }, 6000);
+      }, UNDO_WINDOW_MS);
 
       pendingDeletionsRef.current.set(topicId, timeoutId);
 
@@ -373,6 +377,7 @@ export function TopicsView() {
         </div>
 
         <div className="flex-1 overflow-y-auto p-4">
+          {topicsSyncError && <InlineError message={topicsSyncError.message} />}
           <TopicList
             topics={filteredTopics}
             loading={loading}

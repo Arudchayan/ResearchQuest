@@ -28,6 +28,7 @@ import {
   convertNotesToMarkdown,
   downloadFile,
 } from "../../utils/export";
+import { UNDO_WINDOW_MS } from "../../lib/constants";
 
 type SortOption =
   | "updated_desc"
@@ -188,7 +189,7 @@ export function NotesView() {
 
         const toastId = toast.success("Note deleted", {
           description: "Undo within 6 seconds to restore it.",
-          duration: 6000,
+          duration: UNDO_WINDOW_MS,
           action: {
             label: "Undo",
             onClick: async () => {
@@ -209,7 +210,7 @@ export function NotesView() {
           lastDeletedRef.current = null;
           toast.dismiss(toastId);
           undoTimeoutRef.current = null;
-        }, 6000);
+        }, UNDO_WINDOW_MS);
       }
     },
     [deleteNote, restoreNote, setSelectedNote],

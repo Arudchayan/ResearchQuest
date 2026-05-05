@@ -219,7 +219,7 @@ const handleExport = () => {
         setImportFile(null);
         setParsedData(null);
         if (fileInputRef.current) fileInputRef.current.value = "";
-        toast.success("Import successful");
+        toast.success(`Imported ${result.imported} items successfully`);
         onClose();
       }
     } catch (err) {
@@ -381,6 +381,7 @@ const handleExport = () => {
                       accept=".json"
                       onChange={handleFileChange}
                       className="hidden"
+
                     />
                   </div>
                 ) : (

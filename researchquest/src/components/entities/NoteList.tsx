@@ -7,6 +7,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
 import { toast } from "sonner";
 import { highlightMatch } from "../../utils/highlight";
 import { deriveTitleFromMarkdown } from "../../utils/text";
+import { UNDO_WINDOW_MS } from "../../lib/constants";
 
 interface NoteCardProps {
   note: Note;
@@ -239,7 +240,7 @@ export function NoteList({
 
       const toastId = toast.success("Note deleted", {
         description: "Undo within 6 seconds to restore it.",
-        duration: 6000,
+        duration: UNDO_WINDOW_MS,
         action: {
           label: "Undo",
           onClick: async () => {

@@ -4,6 +4,7 @@ import type { Paper, ReadingStatus } from "../../types/database";
 import { ListSkeleton } from "../ui/Skeleton";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { toast } from "sonner";
+import { UNDO_WINDOW_MS } from "../../lib/constants";
 
 interface PaperCardProps {
   paper: Paper;
@@ -211,7 +212,7 @@ export function PaperList({
 
       const toastId = toast.success("Paper deleted", {
         description: "Undo within 6 seconds to restore it.",
-        duration: 6000,
+        duration: UNDO_WINDOW_MS,
         action: {
           label: "Undo",
           onClick: async () => {
