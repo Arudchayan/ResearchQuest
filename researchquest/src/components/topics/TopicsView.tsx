@@ -49,7 +49,7 @@ export function TopicsView() {
 
   const filteredTopics = useMemo(() => {
     // Optimization: Skip filtering if query is empty, no hidden topics, and sort order matches default
-    if (!searchQuery && hiddenTopicIds.size === 0 && sortOption === "name_asc") {
+    if (!searchQuery && hiddenTopicIds.size === 0 && sortOption === "updated_desc") {
       return topics || [];
     }
 
