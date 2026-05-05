@@ -8,3 +8,7 @@
 ## 2024-05-01 - Standardize Primary CTA Accessibility
 **Learning:** Primary call-to-action buttons in dynamic interfaces (like Add/Search panels) frequently miss standard focus visibility and hover states, and dynamic status changes (like spinners during loading) are invisible to screen readers without explicit ARIA live regions.
 **Action:** When implementing or updating primary CTA buttons, always include `focus-visible` utilities (e.g., `focus-visible:outline-primary-500`) alongside hover/disabled styling. If the button content changes dynamically (such as showing "Adding Paper..." or a spinner), ensure `aria-live="polite"` and `aria-atomic="true"` are present to announce the state change correctly.
+
+## 2026-05-03 - Empty State Search Consistency
+**Learning:** List views with search functionality need a distinct "No matches found" empty state to provide clear feedback when filters yield no results, differing from the generic "Create your first item" empty state.
+**Action:** When implementing or updating search in list components, always check for existing empty states and add a condition (e.g., `if (searchQuery)`) to render a specific "No matches found" message with `role="status"` and `aria-live="polite"` for accessibility.
