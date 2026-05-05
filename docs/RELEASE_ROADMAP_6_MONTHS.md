@@ -334,7 +334,7 @@ Goal: keep advanced features honest and useful.
 | ID | Priority | Status | Task | Depends On | Acceptance Criteria |
 | --- | --- | --- | --- | --- | --- |
 | RQ-M5-01 | P1 | Done | Decide Deep Research release path: real cited backend, relabel as simulated, or remove | RQ-M1-04 | No simulated output is presented as real research |
-| RQ-M5-02 | P1 | Not Started | Implement the chosen Deep Research path | RQ-M5-01 | Feature either returns source-backed output or is clearly out of release scope |
+| RQ-M5-02 | P1 | Done | Implement the chosen Deep Research path | RQ-M5-01 | Feature either returns source-backed output or is clearly out of release scope |
 | RQ-M5-03 | P2 | Done | Strengthen citation and bibliography workflows | RQ-M2-02 | Citation behavior is clear, tested, and useful for academic workflows |
 | RQ-M5-04 | P2 | Done | Improve related items, backlinks, and topic graph behavior | RQ-M2-05, RQ-M3 routing tasks | Related panels use current data and do not disappear as critical workflow state |
 | RQ-M5-05 | P2 | Done | Add meaningful first-run empty states and onboarding | RQ-M4 UX tasks | New users understand what to do without reading docs |
