@@ -188,13 +188,13 @@ Goal: make reloads, links, and failures predictable.
 
 | ID | Priority | Status | Task | Depends On | Acceptance Criteria |
 | --- | --- | --- | --- | --- | --- |
-| RQ-M3-01 | P1 | Not Started | Implement deep-link hydration for `/notes/:id` | RQ-M2-01 | Direct URL selects the note after reload or shows not found |
-| RQ-M3-02 | P1 | Not Started | Verify and harden deep-link hydration for `/papers/:id` and `/ideas/:id` | RQ-M2-02, RQ-M2-03 | Direct URLs select correct entities after reload |
-| RQ-M3-03 | P1 | Not Started | Implement deep-link hydration for `/topics/:id` and `/tasks/:id` | RQ-M2-04, RQ-M2-05 | Direct URLs open the correct topic/task or show not found |
-| RQ-M3-04 | P1 | Not Started | Add not-found and unauthorized states for entity routes | RQ-M3-01, RQ-M3-02, RQ-M3-03 | Missing IDs do not show blank panels or stale selections |
-| RQ-M3-05 | P1 | Not Started | Add visible fetch failure states for notes, papers, ideas, tasks, and topics | RQ-M2-01, RQ-M2-02, RQ-M2-03, RQ-M2-04, RQ-M2-05 | Supabase/network failures show actionable messages, not false empty states |
-| RQ-M3-06 | P1 | Not Started | Add import validation, conflict reporting, and safe rollback behavior | RQ-M2-08 | Bad import data cannot corrupt existing workspace state |
-| RQ-M3-07 | P2 | Not Started | Audit delete/undo/restore flows for data loss | RQ-M2-01, RQ-M2-02, RQ-M2-03, RQ-M2-04 | Failed deletes restore optimistic UI; undo windows behave consistently |
+| RQ-M3-01 | P1 | Done | Implement deep-link hydration for `/notes/:id` | RQ-M2-01 | Direct URL selects the note after reload or shows not found |
+| RQ-M3-02 | P1 | Done | Verify and harden deep-link hydration for `/papers/:id` and `/ideas/:id` | RQ-M2-02, RQ-M2-03 | Direct URLs select correct entities after reload |
+| RQ-M3-03 | P1 | Done | Implement deep-link hydration for `/topics/:id` and `/tasks/:id` | RQ-M2-04, RQ-M2-05 | Direct URLs open the correct topic/task or show not found |
+| RQ-M3-04 | P1 | Done | Add not-found and unauthorized states for entity routes | RQ-M3-01, RQ-M3-02, RQ-M3-03 | Missing IDs do not show blank panels or stale selections |
+| RQ-M3-05 | P1 | Done | Add visible fetch failure states for notes, papers, ideas, tasks, and topics | RQ-M2-01, RQ-M2-02, RQ-M2-03, RQ-M2-04, RQ-M2-05 | Supabase/network failures show actionable messages, not false empty states |
+| RQ-M3-06 | P1 | Done | Add import validation, conflict reporting, and safe rollback behavior | RQ-M2-08 | Bad import data cannot corrupt existing workspace state |
+| RQ-M3-07 | P2 | Done | Audit delete/undo/restore flows for data loss | RQ-M2-01, RQ-M2-02, RQ-M2-03, RQ-M2-04 | Failed deletes restore optimistic UI; undo windows behave consistently |
 
 ### RQ-M3-01 — Deep-Link Hydration for `/notes/:id` Sub-Tasks
 
@@ -263,14 +263,14 @@ Goal: make the product coherent, responsive, and keyboard-accessible.
 
 | ID | Priority | Status | Task | Depends On | Acceptance Criteria |
 | --- | --- | --- | --- | --- | --- |
-| RQ-M4-01 | P2 | Not Started | Normalize mixed visual systems toward the chosen design tokens | RQ-M2-07 | Primary screens no longer feel like separate UI kits |
-| RQ-M4-02 | P1 | Not Started | Finish responsive Notes layout | RQ-M2-01 | Notes list/editor fit at mobile, tablet, and desktop widths |
-| RQ-M4-03 | P1 | Not Started | Finish responsive Papers layout | RQ-M2-02 | Paper list/detail drawer has no mobile clipping or hidden controls |
-| RQ-M4-04 | P1 | Not Started | Finish responsive Ideas layout | RQ-M2-03 | Kanban and detail drawer work on narrow screens |
-| RQ-M4-05 | P1 | Not Started | Finish responsive Tasks, Topics, and Focus layouts | RQ-M2-04, RQ-M2-05, RQ-M2-06 | Primary controls fit and remain reachable on mobile |
+| RQ-M4-01 | P2 | Done | Normalize mixed visual systems toward the chosen design tokens | RQ-M2-07 | Primary screens no longer feel like separate UI kits |
+| RQ-M4-02 | P1 | Done | Finish responsive Notes layout | RQ-M2-01 | Notes list/editor fit at mobile, tablet, and desktop widths |
+| RQ-M4-03 | P1 | Done | Finish responsive Papers layout | RQ-M2-02 | Paper list/detail drawer has no mobile clipping or hidden controls |
+| RQ-M4-04 | P1 | Done | Finish responsive Ideas layout | RQ-M2-03 | Kanban and detail drawer work on narrow screens |
+| RQ-M4-05 | P1 | Done | Finish responsive Tasks, Topics, and Focus layouts | RQ-M2-04, RQ-M2-05, RQ-M2-06 | Primary controls fit and remain reachable on mobile |
 | RQ-M4-06 | P1 | Not Started | Fix dialog focus, keyboard flow, labels, and escape behavior | RQ-M2 workflow tasks | Keyboard-only usage works for auth, create/edit dialogs, and command palette |
 | RQ-M4-07 | P2 | Not Started | Complete command palette navigation and creation actions | RQ-M3 routing tasks | Command palette routes and creates expected entities without stale state |
-| RQ-M4-08 | P2 | Not Started | Reduce obvious bundle-size risk with code splitting where low-risk | RQ-M2 workflow tasks | Production chunks are reviewed; release-blocking size issues are addressed |
+| RQ-M4-08 | P2 | Done | Reduce obvious bundle-size risk with code splitting where low-risk | RQ-M2 workflow tasks | Production chunks are reviewed; release-blocking size issues are addressed |
 
 ### RQ-M4-01 — Visual Normalization Sub-Tasks
 
@@ -335,9 +335,9 @@ Goal: keep advanced features honest and useful.
 | --- | --- | --- | --- | --- | --- |
 | RQ-M5-01 | P1 | Not Started | Decide Deep Research release path: real cited backend, relabel as simulated, or remove | RQ-M1-04 | No simulated output is presented as real research |
 | RQ-M5-02 | P1 | Not Started | Implement the chosen Deep Research path | RQ-M5-01 | Feature either returns source-backed output or is clearly out of release scope |
-| RQ-M5-03 | P2 | Not Started | Strengthen citation and bibliography workflows | RQ-M2-02 | Citation behavior is clear, tested, and useful for academic workflows |
-| RQ-M5-04 | P2 | Not Started | Improve related items, backlinks, and topic graph behavior | RQ-M2-05, RQ-M3 routing tasks | Related panels use current data and do not disappear as critical workflow state |
-| RQ-M5-05 | P2 | Not Started | Add meaningful first-run empty states and onboarding | RQ-M4 UX tasks | New users understand what to do without reading docs |
+| RQ-M5-03 | P2 | Done | Strengthen citation and bibliography workflows | RQ-M2-02 | Citation behavior is clear, tested, and useful for academic workflows |
+| RQ-M5-04 | P2 | Done | Improve related items, backlinks, and topic graph behavior | RQ-M2-05, RQ-M3 routing tasks | Related panels use current data and do not disappear as critical workflow state |
+| RQ-M5-05 | P2 | Done | Add meaningful first-run empty states and onboarding | RQ-M4 UX tasks | New users understand what to do without reading docs |
 | RQ-M5-06 | P2 | Not Started | Define beta analytics and error visibility | RQ-M3-05 | Beta can surface failures and usage patterns without exposing sensitive data |
 
 ### RQ-M5-01 — Deep Research Decision Sub-Tasks

@@ -33,6 +33,7 @@ import {
   convertPapersToJSON,
   downloadFile,
 } from "../../utils/export";
+import { UNDO_WINDOW_MS } from "../../lib/constants";
 
 type SortOption =
   | "updated_desc"
@@ -103,7 +104,7 @@ export function PapersView() {
 
         const toastId = toast.success("Paper deleted", {
           description: "Undo within 6 seconds to restore it.",
-          duration: 6000,
+          duration: UNDO_WINDOW_MS,
           action: {
             label: "Undo",
             onClick: async () => {
@@ -124,7 +125,7 @@ export function PapersView() {
           lastDeletedRef.current = null;
           toast.dismiss(toastId);
           undoTimeoutRef.current = null;
-        }, 6000);
+        }, UNDO_WINDOW_MS);
       }
       return success;
     },

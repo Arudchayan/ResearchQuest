@@ -30,6 +30,9 @@ import {
 } from "../../utils/export";
 import { logger } from "../../utils/logger";
 import { toast } from "sonner";
+import { useAppStore } from "../../store/appStore";
+import { InlineError } from "../ui/ErrorFallback";
+import { UNDO_WINDOW_MS } from "../../lib/constants";
 
 type TaskFilter = "all" | "pending" | "completed" | "overdue";
 type TaskPriority = "high" | "medium" | "low";
@@ -80,6 +83,7 @@ export function TaskManager() {
   const [userId, setUserId] = useState<string | undefined>(undefined);
   const { tasks, loading, createTask, updateTask, completeTask, deleteTask, restoreTask } =
     useTasks(userId);
+  const tasksSyncError = useAppStore(state => state.dataSyncErrors?.tasks ?? null);
 
   const [filter, setFilter] = useState<TaskFilter>("all");
   const [categoryFilter, setCategoryFilter] = useState<"all" | TaskCategory>(
@@ -317,7 +321,7 @@ export function TaskManager() {
 
         const toastId = toast.success("Task deleted", {
           description: "Undo within 6 seconds to restore it.",
-          duration: 6000,
+          duration: UNDO_WINDOW_MS,
           action: {
             label: "Undo",
             onClick: async () => {
@@ -338,7 +342,7 @@ export function TaskManager() {
           lastDeletedRef.current = null;
           toast.dismiss(toastId);
           undoTimeoutRef.current = null;
-        }, 6000);
+        }, UNDO_WINDOW_MS);
       }
     },
     [deleteTask, restoreTask, tasks]
@@ -605,6 +609,7 @@ export function TaskManager() {
       </div>
 
       {/* Task List */}
+      {tasksSyncError && <InlineError message={tasksSyncError.message} />}
       <div className="flex-1 overflow-y-auto p-4 sm:p-6">
         {sortedTasks.length === 0 ? (
           <div className="text-center py-16" role="status" aria-live="polite">
