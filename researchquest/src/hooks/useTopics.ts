@@ -133,7 +133,7 @@ function getDueDate(daysAhead: number): string {
 }
 
 export function useTopics(userId: string | undefined) {
-  const { topicsRecord, setTopics, upsertTopic, removeTopic, setSelectedTopic } =
+  const { topicsRecord, setTopics, upsertTopic, removeTopic, setSelectedTopic, setTopicsLoading, setDataSyncError } =
     useAppStore(
       useShallow((state) => ({
         topicsRecord: state.topics,
@@ -141,6 +141,8 @@ export function useTopics(userId: string | undefined) {
         upsertTopic: state.upsertTopic,
         removeTopic: state.removeTopic,
         setSelectedTopic: state.setSelectedTopic,
+        setTopicsLoading: state.setTopicsLoading,
+        setDataSyncError: state.setDataSyncError,
       })),
     );
 
@@ -177,6 +179,7 @@ export function useTopics(userId: string | undefined) {
       if (!userId) {
         setTopics([]);
         setLoading(false);
+        setTopicsLoading(false);
         return;
       }
 
@@ -190,11 +193,13 @@ export function useTopics(userId: string | undefined) {
           (currentTopics.length > 0 && currentTopics[0]?.user_id === userId)
         ) {
           setLoading(false);
+          setTopicsLoading(false);
           return;
         }
       }
 
       setLoading(true);
+      setTopicsLoading(true);
       const selectColumns = supportsCountsRef.current ? TOPIC_SELECT : "*";
       let { data, error: fetchError } = await supabase
         .from("topics")
@@ -218,6 +223,7 @@ export function useTopics(userId: string | undefined) {
           fetchError.message || "Unknown error",
         );
         setError(fetchError.message);
+        setDataSyncError("topics", fetchError.message);
       } else if (isTopicRowArray(data)) {
         const rows: TopicRow[] = data;
         const mapped = rows.map((row) => mapTopicRow(row));
@@ -231,8 +237,9 @@ export function useTopics(userId: string | undefined) {
       }
 
       setLoading(false);
+      setTopicsLoading(false);
     },
-    [isRelationshipError, setTopics, userId],
+    [isRelationshipError, setTopics, setTopicsLoading, setDataSyncError, userId],
   );
 
   const fetchTopicById = useCallback(

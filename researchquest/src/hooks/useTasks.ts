@@ -15,6 +15,7 @@ export function useTasks(userId: string | undefined) {
   const [error, setError] = useState<string | null>(null);
   const setGlobalTasks = useAppStore((state) => state.setTasks);
   const setGlobalTasksLoading = useAppStore((state) => state.setTasksLoading);
+  const setDataSyncError = useAppStore((state) => state.setDataSyncError);
 
   const commitTasks = useCallback(
     (nextTasks: Task[]) => {
@@ -79,17 +80,19 @@ export function useTasks(userId: string | undefined) {
 
       if (fetchError) {
         setError("Failed to fetch tasks");
+        setDataSyncError("tasks", "Failed to fetch tasks");
       } else {
         commitTasks(sortTasksByDueDate(data || []));
       }
     } catch (fetchError) {
       logger.error("Failed to fetch tasks", fetchError);
       setError("Failed to fetch tasks");
+      setDataSyncError("tasks", "Failed to fetch tasks");
     } finally {
       setLoading(false);
       setGlobalTasksLoading(false);
     }
-  }, [userId, sortTasksByDueDate, commitTasks, setGlobalTasksLoading]);
+  }, [userId, sortTasksByDueDate, commitTasks, setGlobalTasksLoading, setDataSyncError]);
 
   useEffect(() => {
     if (!userId) {
