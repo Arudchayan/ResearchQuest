@@ -73,3 +73,7 @@
 ## 2024-05-18 - Deduplicate Aggregate Computations
 **Learning:** Computing the same aggregate statistics (e.g., counting pending and completed tasks) in multiple separate `useMemo` blocks within the same component unnecessarily repeats O(N) loops.
 **Action:** Always compute related aggregate statistics in a single O(N) pass inside a single `useMemo` block, and reuse the resulting variables throughout the component to eliminate duplicate work.
+
+## 2024-05-05 - Fix useMemo fast-path matching for sortOption
+**Learning:** When implementing early return fast paths in `useMemo` filter blocks, the condition must exactly match the default initial state (e.g., `sortOption === "updated_desc"`). If it checks for an incorrect value (like `"name_asc"` when the default is `"updated_desc"`), the optimization is bypassed on initial render, leading to unnecessary operations like O(N log N) sorting.
+**Action:** When adding or verifying `useMemo` fast paths that check state variables, trace the state variable back to its `useState` initialization to ensure the fast path correctly captures the default state.
