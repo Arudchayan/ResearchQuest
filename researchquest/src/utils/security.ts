@@ -55,6 +55,13 @@ export function isStrongPassword(password: string): {
     };
   }
 
+  if (password.length > 72) {
+    return {
+      valid: false,
+      message: "Password must be no more than 72 characters long.",
+    };
+  }
+
   // Check for complexity
   const hasUpperCase = /[A-Z]/.test(password);
   const hasLowerCase = /[a-z]/.test(password);
