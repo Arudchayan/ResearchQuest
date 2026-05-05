@@ -133,21 +133,6 @@ export function Dashboard() {
       .slice(0, 3);
   }, [tasks]);
 
-  // ⚡ PERFORMANCE OPTIMIZATION: Compute multiple aggregates in a single O(N) pass
-  // instead of chaining multiple .filter().length calls during render
-  const taskStats = useMemo(() => {
-    let pending = 0;
-    let completed = 0;
-    for (const task of tasks) {
-      if (task.completed) {
-        completed++;
-      } else {
-        pending++;
-      }
-    }
-    return { pending, completed };
-  }, [tasks]);
-
   const handleCreateNote = () => {
     setCurrentView("notes");
   };
