@@ -21,7 +21,7 @@ import { TopicSelector } from "../topics/TopicSelector";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { useNotes } from "../../hooks/useNotes";
 import { useAppStore } from "../../store/appStore";
-import { performDeepResearch } from "../../utils/deepResearch";
+import { performDeepResearch, type DeepResearchData } from "../../utils/deepResearch";
 import { logger } from "../../utils/logger";
 import {
   convertIdeasToMarkdown,
@@ -166,22 +166,37 @@ export function IdeaDetailView({
   const handleDeepResearch = async () => {
     setIsDeepResearching(true);
     try {
-      const result = await performDeepResearch(idea.title);
-      
-      const researchText = `\n\n### Deep Research Insights\n${result.summary}\n\n**Suggested Keywords:** ${result.suggestedKeywords?.join(', ')}\n\n**Reasoning Steps:**\n${result.reasoningSteps?.map((step: string, i: number) => `${i + 1}. ${step}`).join('\n')}`;
-      
+      const result: DeepResearchData = await performDeepResearch(idea.title);
+
+      const papersSection = result.papers && result.papers.length > 0
+        ? `\n\n**Top Papers Found:**\n` +
+          result.papers
+            .map((p) => {
+              const authors = p.authors.slice(0, 2).join(", ");
+              const meta = [p.year, p.citationCount != null ? `${p.citationCount} citations` : null]
+                .filter(Boolean)
+                .join(" · ");
+              return `- "${p.title}"${authors ? ` — ${authors}` : ""}${meta ? ` (${meta})` : ""}`;
+            })
+            .join("\n")
+        : "";
+
+      const researchText =
+        `\n\n### Deep Research Insights\n${result.summary}\n\n**Suggested Keywords:** ${result.suggestedKeywords?.join(", ")}\n\n**Reasoning Steps:**\n${result.reasoningSteps?.map((step, i) => `${i + 1}. ${step}`).join("\n")}` +
+        papersSection;
+
       const newDescription = (idea.description || "") + researchText;
       const success = await onUpdate(idea.id, { description: newDescription }, idea.stage);
-      
+
       if (success) {
         toast.success("Deep research insights added to description");
       } else {
         toast.error("Failed to save research insights");
       }
-
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Deep research failed";
       logger.error("Deep research failed", err);
-      toast.error(err.message || "Deep research failed");
+      toast.error(message);
     } finally {
       setIsDeepResearching(false);
     }
