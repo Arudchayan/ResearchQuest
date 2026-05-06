@@ -105,6 +105,7 @@ describe("MarkdownEditor Print", () => {
       effectiveTheme: "light",
       topics: [],
       setTopics: vi.fn(),
+      setTopicsLoading: vi.fn(),
       upsertTopic: vi.fn(),
       removeTopic: vi.fn(),
       setSelectedTopic: vi.fn(),
