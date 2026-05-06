@@ -256,6 +256,13 @@ Deno.serve(async (req) => {
         corsHeaders,
       );
     }
+    if (query.length > 2000) {
+      return jsonResponse(
+        { error: { code: "INVALID_REQUEST", message: "Query exceeds maximum allowed length" } },
+        400,
+        corsHeaders,
+      );
+    }
 
     const trimmedQuery = query.trim();
     const reasoningSteps: string[] = [];
