@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { toast } from "sonner";
 import DOMPurify from "dompurify";
+import { NOTE_BODY_MAX_LENGTH } from "../../../hooks/useNotes";
 
 export function useEditorActions(
   content: string,
@@ -113,6 +114,11 @@ export function useEditorActions(
 
   const saveNote = useCallback(async () => {
     if (!selectedNote || !userId) return;
+
+    if (content.length > NOTE_BODY_MAX_LENGTH) {
+      toast.error(`Note content exceeds ${NOTE_BODY_MAX_LENGTH.toLocaleString()} characters`);
+      return;
+    }
 
     setSaving(true);
     try {
