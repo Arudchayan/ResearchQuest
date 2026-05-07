@@ -557,9 +557,6 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   }, [notes]);
 
   const filteredNotes = useMemo(() => {
-    // Optimization: Don't filter if not viewing notes
-    if (currentView !== "notes") return [];
-
     if (!normalizedQuery) return notes;
 
     return searchableNotes
@@ -569,7 +566,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
         sn.tagsText.includes(normalizedQuery)
       )
       .map((sn) => sn.note);
-  }, [searchableNotes, normalizedQuery, currentView, notes]);
+  }, [searchableNotes, normalizedQuery, notes]);
 
   const searchablePapers = useMemo(() => {
     return papers.map((paper) => ({
@@ -580,9 +577,6 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   }, [papers]);
 
   const filteredPapers = useMemo(() => {
-    // Optimization: Don't filter if not viewing papers
-    if (currentView !== "papers") return [];
-
     if (!normalizedQuery) return papers;
 
     return searchablePapers
@@ -591,7 +585,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
         sp.authorsText.includes(normalizedQuery)
       )
       .map((sp) => sp.paper);
-  }, [searchablePapers, normalizedQuery, currentView, papers]);
+  }, [searchablePapers, normalizedQuery, papers]);
 
   const searchableIdeas = useMemo(() => {
     return ideas.map((idea) => ({
@@ -602,9 +596,6 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   }, [ideas]);
 
   const filteredIdeas = useMemo(() => {
-    // Optimization: Don't filter if not viewing ideas
-    if (currentView !== "ideas") return [];
-
     if (!normalizedQuery) return ideas;
 
     return searchableIdeas
@@ -613,7 +604,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
         si.descriptionText.includes(normalizedQuery)
       )
       .map((si) => si.idea);
-  }, [searchableIdeas, normalizedQuery, currentView, ideas]);
+  }, [searchableIdeas, normalizedQuery, ideas]);
 
   const nextDeadline = upcomingDeadlines[0];
 

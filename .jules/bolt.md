@@ -77,3 +77,6 @@
 ## 2024-05-05 - Fix useMemo fast-path matching for sortOption
 **Learning:** When implementing early return fast paths in `useMemo` filter blocks, the condition must exactly match the default initial state (e.g., `sortOption === "updated_desc"`). If it checks for an incorrect value (like `"name_asc"` when the default is `"updated_desc"`), the optimization is bypassed on initial render, leading to unnecessary operations like O(N log N) sorting.
 **Action:** When adding or verifying `useMemo` fast paths that check state variables, trace the state variable back to its `useState` initialization to ensure the fast path correctly captures the default state.
+## 2026-05-07 - Fix useMemo dependency invalidation on tab switches
+**Learning:** Adding active UI state (like `currentView`) to `useMemo` dependencies or early returns for data transformations (like searchable text arrays) is an anti-pattern. It causes synchronous recalculation of the whole array when switching tabs, hurting performance. Memoization should depend strictly on the underlying data.
+**Action:** Remove active UI view state dependencies from `useMemo` hooks and keep memoized lists cached across tab switches.
