@@ -7,8 +7,8 @@ import { toast } from "sonner";
 import type { Note } from "../types/database";
 import { useAppStore } from "../store/appStore";
 
-const NOTE_TITLE_MAX_LENGTH = 255;
-const NOTE_BODY_MAX_LENGTH = 100000;
+export const NOTE_TITLE_MAX_LENGTH = 255;
+export const NOTE_BODY_MAX_LENGTH = 100000;
 
 export function useNotes(userId: string | undefined) {
   // Use global state instead of local state
