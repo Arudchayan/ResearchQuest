@@ -82,18 +82,18 @@ export function KeywordSearchTab({
           </button>
         </div>
         <div className="grid gap-3 sm:grid-cols-3">
-           <select value={resultLimit} onChange={(e) => setResultLimit(e.target.value)} className="bg-bg-base border rounded px-2 py-1">
+           <select value={resultLimit} onChange={(e) => setResultLimit(e.target.value)} aria-label="Result limit" className="bg-bg-base border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
              <option value="10">10 Results</option>
              <option value="25">25 Results</option>
              <option value="50">50 Results</option>
            </select>
-           <select value={sortField} onChange={(e) => setSortField(e.target.value)} className="bg-bg-base border rounded px-2 py-1">
+           <select value={sortField} onChange={(e) => setSortField(e.target.value)} aria-label="Sort field" className="bg-bg-base border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
              <option value="score">Relevance</option>
              <option value="published">Date</option>
            </select>
-           <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} className="bg-bg-base border rounded px-2 py-1">
-             <option value="desc">Desc</option>
-             <option value="asc">Asc</option>
+           <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} aria-label="Sort order" className="bg-bg-base border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+             <option value="desc">Descending</option>
+             <option value="asc">Ascending</option>
            </select>
         </div>
       </div>
@@ -105,7 +105,8 @@ export function KeywordSearchTab({
               <button
                 key={result.doi || idx}
                 onClick={() => setSelectedResult(result)}
-                className={`w-full text-left p-4 border rounded-xl transition-all ${selectedResult?.doi === result.doi ? "border-primary-500 ring-1 ring-primary-500" : "border-border-subtle"}`}
+                aria-pressed={selectedResult?.doi === result.doi}
+                className={`w-full text-left p-4 border rounded-xl transition-all hover:bg-bg-elevated/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 ${selectedResult?.doi === result.doi ? "border-primary-500 ring-1 ring-primary-500 bg-bg-elevated/50" : "border-border-subtle"}`}
               >
                 <h4 className="font-semibold text-text-primary line-clamp-2">{result.title}</h4>
                 <p className="text-sm text-text-secondary truncate">{result.authors.join(", ")}</p>
