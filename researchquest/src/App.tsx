@@ -15,6 +15,7 @@ import type { User } from "@supabase/supabase-js";
 import { usePapers } from "./hooks/usePapers";
 import { useIdeas } from "./hooks/useIdeas";
 import { useTopics } from "./hooks/useTopics";
+import { useNotes } from "./hooks/useNotes";
 import { useDataSync } from "./hooks/useDataSync";
 import { isStrongPassword } from "./utils/security";
 import { Dashboard } from "./components/dashboard/Dashboard";
@@ -394,6 +395,7 @@ function App() {
   const { ideas, loading: ideasLoading } = useIdeas(userId);
   // Fetch topics early at App level for deep-link hydration (has fetch-deduplication guard)
   useTopics(userId);
+  useNotes(userId);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && (window as any).__TEST_USER__) {

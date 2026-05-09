@@ -1,5 +1,4 @@
 import { AlertCircle, Home, ArrowLeft } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 
 interface NotFoundProps {
   title?: string;
@@ -12,8 +11,6 @@ export function NotFound({
   message = "The item you're looking for doesn't exist or has been deleted.",
   showBackButton = true,
 }: NotFoundProps) {
-  const navigate = useNavigate();
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-bg-base p-6">
       <div className="max-w-md w-full text-center">
@@ -28,7 +25,7 @@ export function NotFound({
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           {showBackButton && (
             <button
-              onClick={() => navigate(-1)}
+              onClick={() => window.history.back()}
               className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-bg-elevated text-text-primary rounded-lg hover:bg-bg-surface transition-colors border border-border-subtle"
             >
               <ArrowLeft className="w-4 h-4" aria-hidden="true" />
@@ -37,7 +34,7 @@ export function NotFound({
           )}
 
           <button
-            onClick={() => navigate("/")}
+            onClick={() => window.location.replace("/")}
             className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
           >
             <Home className="w-4 h-4" aria-hidden="true" />
@@ -60,8 +57,6 @@ export function ItemNotFound({
   onReturn,
   description,
 }: ItemNotFoundProps) {
-  const navigate = useNavigate();
-
   return (
     <div className="flex items-center justify-center h-full min-h-[400px] p-6">
       <div className="text-center max-w-md">
@@ -86,7 +81,7 @@ export function ItemNotFound({
             }
             // Go back to the list view smoothly
             const view = window.location.pathname.split("/")[1];
-            navigate(`/${view}`, { replace: true });
+            window.location.replace(`/${view}`);
           }}
           className="inline-flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors text-small"
         >
