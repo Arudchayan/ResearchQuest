@@ -41,6 +41,12 @@ export function AppShell({ children }: AppShellProps) {
         e.preventDefault();
         toggleZenMode();
       }
+
+      // Toggle Context Panel (Right Sidebar): Ctrl+. (or Cmd+.)
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key === ".") {
+        e.preventDefault();
+        useAppStore.getState().setIsRightSidebarOpen(!useAppStore.getState().isRightSidebarOpen);
+      }
     };
 
     window.addEventListener("keydown", handleKeyDown);

@@ -241,7 +241,7 @@ export function Sidebar() {
                 </button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Toggle Context Panel</p>
+                <p>Toggle Context Panel (Ctrl/Cmd+.)</p>
               </TooltipContent>
             </Tooltip>
 
