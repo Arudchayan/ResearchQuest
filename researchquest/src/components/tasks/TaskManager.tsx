@@ -81,9 +81,18 @@ function isOverdue(dueDate: string | undefined): boolean {
 
 export function TaskManager() {
   const [userId, setUserId] = useState<string | undefined>(undefined);
-  const { tasks, loading, createTask, updateTask, completeTask, deleteTask, restoreTask } =
-    useTasks(userId);
-  const tasksSyncError = useAppStore(state => state.dataSyncErrors?.tasks ?? null);
+  const {
+    tasks,
+    loading,
+    createTask,
+    updateTask,
+    completeTask,
+    deleteTask,
+    restoreTask,
+  } = useTasks(userId);
+  const tasksSyncError = useAppStore(
+    (state) => state.dataSyncErrors?.tasks ?? null,
+  );
 
   const [filter, setFilter] = useState<TaskFilter>("all");
   const [categoryFilter, setCategoryFilter] = useState<"all" | TaskCategory>(
@@ -159,7 +168,12 @@ export function TaskManager() {
     const normalizedQuery = searchQuery.trim().toLowerCase();
 
     let filtered;
-    if (!normalizedQuery && filter === "all") {
+    if (
+      !normalizedQuery &&
+      filter === "all" &&
+      categoryFilter === "all" &&
+      projectFilter === "all"
+    ) {
       filtered = [...(tasks || [])];
     } else {
       filtered = searchableTasks
@@ -168,9 +182,25 @@ export function TaskManager() {
             filter === "all" ||
             (filter === "pending" && !task.completed) ||
             (filter === "completed" && task.completed) ||
-            (filter === "overdue" && !task.completed && isOverdue(task.due_date));
+            (filter === "overdue" &&
+              !task.completed &&
+              isOverdue(task.due_date));
 
           if (!matchesFilter) {
+            return false;
+          }
+
+          if (
+            categoryFilter !== "all" &&
+            (task.category || "") !== categoryFilter
+          ) {
+            return false;
+          }
+
+          if (
+            projectFilter !== "all" &&
+            (task.project_id || "") !== projectFilter
+          ) {
             return false;
           }
 
@@ -181,13 +211,6 @@ export function TaskManager() {
           return searchText.includes(normalizedQuery);
         })
         .map(({ task }) => task);
-    }
-
-    if (categoryFilter !== "all") {
-      filtered = filtered.filter((t) => (t.category || "") === categoryFilter);
-    }
-    if (projectFilter !== "all") {
-      filtered = filtered.filter((t) => (t.project_id || "") === projectFilter);
     }
 
     if (sortOption === "priority") {
@@ -345,7 +368,7 @@ export function TaskManager() {
         }, UNDO_WINDOW_MS);
       }
     },
-    [deleteTask, restoreTask, tasks]
+    [deleteTask, restoreTask, tasks],
   );
 
   const handleCancelEdit = () => {
@@ -389,7 +412,7 @@ export function TaskManager() {
 
       downloadFile(content, filename, type);
       toast.success(
-        `Exported ${sortedTasks.length} tasks as ${format.toUpperCase()}`
+        `Exported ${sortedTasks.length} tasks as ${format.toUpperCase()}`,
       );
     } catch (err) {
       logger.error("Export failed", err);
@@ -543,8 +566,13 @@ export function TaskManager() {
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
             <div className="relative w-full sm:w-64">
-              <label htmlFor="task-search-input" className="sr-only">Search tasks</label>
-              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-tertiary" aria-hidden="true" />
+              <label htmlFor="task-search-input" className="sr-only">
+                Search tasks
+              </label>
+              <SearchIcon
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-tertiary"
+                aria-hidden="true"
+              />
               <input
                 id="task-search-input"
                 ref={searchInputRef}
@@ -613,7 +641,10 @@ export function TaskManager() {
       <div className="flex-1 overflow-y-auto p-4 sm:p-6">
         {sortedTasks.length === 0 ? (
           <div className="text-center py-16" role="status" aria-live="polite">
-            <CheckCircle2 className="w-16 h-16 mx-auto mb-4 text-text-tertiary opacity-50" aria-hidden="true" />
+            <CheckCircle2
+              className="w-16 h-16 mx-auto mb-4 text-text-tertiary opacity-50"
+              aria-hidden="true"
+            />
             <p className="text-body text-text-secondary mb-2">
               No tasks match your filters
             </p>
@@ -654,10 +685,19 @@ export function TaskManager() {
         }}
         onSubmit={(e) => {
           e.preventDefault();
-          if (editingTask) { handleUpdateTask(); } else { handleAddTask(); }
+          if (editingTask) {
+            handleUpdateTask();
+          } else {
+            handleAddTask();
+          }
         }}
         title={editingTask ? "Edit Task" : "New Task"}
-        icon={<CheckCircle2 className="w-6 h-6 text-primary-600 dark:text-primary-400" aria-hidden="true" />}
+        icon={
+          <CheckCircle2
+            className="w-6 h-6 text-primary-600 dark:text-primary-400"
+            aria-hidden="true"
+          />
+        }
         submitText={editingTask ? "Update" : "Create"}
         isSubmitDisabled={!formTitle.trim()}
       >
@@ -830,9 +870,15 @@ function TaskCard({
           }
         >
           {task.completed ? (
-            <CheckCircle2 className="w-5 h-5 text-green-500 animate-in fade-in zoom-in duration-300" aria-hidden="true" />
+            <CheckCircle2
+              className="w-5 h-5 text-green-500 animate-in fade-in zoom-in duration-300"
+              aria-hidden="true"
+            />
           ) : (
-            <Circle className="w-5 h-5 text-text-tertiary hover:text-primary-500" aria-hidden="true" />
+            <Circle
+              className="w-5 h-5 text-text-tertiary hover:text-primary-500"
+              aria-hidden="true"
+            />
           )}
         </button>
 
