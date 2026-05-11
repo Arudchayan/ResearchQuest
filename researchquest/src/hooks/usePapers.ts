@@ -366,6 +366,124 @@ export function usePapers(userId: string | undefined) {
     [userId, setPapers],
   );
 
+
+  const createPapers = useCallback(
+    async (papersData: PaperDraft[]): Promise<Paper[]> => {
+      if (!userId) {
+        setError("User not authenticated");
+        toast.error("You must be logged in to add papers");
+        return [];
+      }
+
+      if (!papersData || papersData.length === 0) return [];
+
+      const validPayloads: PaperInsertPayload[] = [];
+      let skippedCount = 0;
+
+      for (const paperData of papersData) {
+        if (!paperData.title || !paperData.title.trim()) {
+          skippedCount++;
+          continue;
+        }
+
+        if (paperData.title.length > PAPER_TITLE_MAX_LENGTH) {
+          skippedCount++;
+          continue;
+        }
+
+        if (
+          paperData.abstract &&
+          paperData.abstract.length > PAPER_ABSTRACT_MAX_LENGTH
+        ) {
+          skippedCount++;
+          continue;
+        }
+
+        const cleanData: PaperInsertPayload = {
+          user_id: userId,
+          title: paperData.title.trim(),
+          authors: Array.isArray(paperData.authors) ? paperData.authors : [],
+          status: paperData.status || "To Read",
+        };
+
+        if (paperData.doi && paperData.doi.trim())
+          cleanData.doi = paperData.doi.trim();
+        if (paperData.source_url && paperData.source_url.trim()) {
+          const url = paperData.source_url.trim();
+          if (isValidUrl(url)) {
+            cleanData.source_url = url;
+          }
+        }
+        if (paperData.abstract && paperData.abstract.trim())
+          cleanData.abstract = paperData.abstract.trim();
+
+        if (
+          paperData.publication_date &&
+          paperData.publication_date.trim() &&
+          paperData.publication_date !== "null"
+        ) {
+          const pubDate = paperData.publication_date.trim();
+          if (/^\d{4}$/.test(pubDate)) {
+            cleanData.publication_date = `${pubDate}-01-01`;
+          } else {
+            cleanData.publication_date = pubDate;
+          }
+        }
+
+        if (
+          paperData.topic_ids &&
+          Array.isArray(paperData.topic_ids) &&
+          paperData.topic_ids.length > 0
+        ) {
+          cleanData.topic_ids = paperData.topic_ids;
+        }
+
+        validPayloads.push(cleanData);
+      }
+
+      if (validPayloads.length === 0) {
+        setError("No valid papers to add");
+        toast.error("No valid papers to add");
+        return [];
+      }
+
+      const { data, error: createError } = await supabase
+        .from("papers")
+        .insert(validPayloads)
+        .select();
+
+      if (createError) {
+        const errorMessage =
+          createError.message ||
+          (createError.code
+            ? `Error ${createError.code}`
+            : "Unknown error occurred");
+
+        setError(`Failed to create papers: ${errorMessage}`);
+        toast.error(`Failed to add papers: ${errorMessage}`, { duration: 5000 });
+        return [];
+      }
+
+      if (skippedCount > 0) {
+        toast.success(`Added ${data.length} papers (${skippedCount} skipped)`);
+      }
+
+      // Optimistic update
+      setPapers(sortByUpdatedAt([...data, ...useAppStore.getState().papers]));
+
+      // XP and Tasks (doing it per item for simplicity, though could be batched)
+      for (const p of data) {
+        awardXP(userId, XP_REWARDS.CREATE_PAPER, "create_paper").catch((e) =>
+          logger.error("Failed to award XP", e),
+        );
+        void createReadingTaskForPaper(userId, p);
+      }
+
+      return data;
+    },
+    [userId, setPapers],
+  );
+
   const updatePaper = useCallback(
     async (paperId: string, updates: Partial<Paper>): Promise<boolean> => {
       if (!userId) {
@@ -565,6 +683,7 @@ export function usePapers(userId: string | undefined) {
     searchPaperByDOI,
     searchPapersByQuery,
     createPaper,
+    createPapers,
     updatePaper,
     deletePaper,
     restorePaper,

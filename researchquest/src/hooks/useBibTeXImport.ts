@@ -5,7 +5,10 @@ import { logger } from "../utils/logger";
 import { buildPaperPayloadFromBibTeX } from "../utils/paperUtils";
 import type { Paper, PaperDraft } from "../types/database";
 
-export function useBibTeXImport(onAdd: (data: PaperDraft) => Promise<Paper | null>) {
+export function useBibTeXImport(
+  onAdd: (data: PaperDraft) => Promise<Paper | null>,
+  onAddBatch?: (papersData: PaperDraft[]) => Promise<Paper[]>
+) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [parsedEntries, setParsedEntries] = useState<BibTeXEntry[]>([]);
@@ -53,16 +56,29 @@ export function useBibTeXImport(onAdd: (data: PaperDraft) => Promise<Paper | nul
     let successCount = 0;
     let failedCount = 0;
 
-    for (let i = 0; i < entriesToImport.length; i++) {
-      const entry = entriesToImport[i];
+    if (onAddBatch) {
       try {
-        await onAdd(buildPaperPayloadFromBibTeX(entry));
-        successCount++;
+        const payloads = entriesToImport.map(buildPaperPayloadFromBibTeX);
+        const added = await onAddBatch(payloads);
+        successCount = added.length;
+        failedCount = entriesToImport.length - successCount;
+        setImportProgress({ current: entriesToImport.length, total: entriesToImport.length });
       } catch (err) {
-        logger.error(`Failed to import paper ${entry.title}`, err);
-        failedCount++;
+        logger.error("Failed to batch import papers", err);
+        failedCount = entriesToImport.length;
       }
-      setImportProgress({ current: i + 1, total: entriesToImport.length });
+    } else {
+      for (let i = 0; i < entriesToImport.length; i++) {
+        const entry = entriesToImport[i];
+        try {
+          await onAdd(buildPaperPayloadFromBibTeX(entry));
+          successCount++;
+        } catch (err) {
+          logger.error(`Failed to import paper ${entry.title}`, err);
+          failedCount++;
+        }
+        setImportProgress({ current: i + 1, total: entriesToImport.length });
+      }
     }
 
     setImportStats({ success: successCount, failed: failedCount });
@@ -72,7 +88,7 @@ export function useBibTeXImport(onAdd: (data: PaperDraft) => Promise<Paper | nul
     setSelectedEntryIds(new Set());
 
     return successCount;
-  }, [onAdd, parsedEntries, selectedEntryIds]);
+  }, [onAdd, onAddBatch, parsedEntries, selectedEntryIds]);
 
   return {
     loading,
