@@ -189,11 +189,19 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
         </div>
       )}
 
-      <div className="flex gap-2 mb-6 border-b border-border-subtle overflow-x-auto">
+      <div
+        className="flex gap-2 mb-6 border-b border-border-subtle overflow-x-auto"
+        role="tablist"
+        aria-label="Add paper methods"
+      >
         {(["doi", "search", "import", "manual"] as const).map((tab) => (
           <button
             key={tab}
             type="button"
+            role="tab"
+            aria-selected={activeTab === tab}
+            aria-controls={`tabpanel-${tab}`}
+            id={`tab-${tab}`}
             onClick={() => {
               setSearchError("");
               setImportError("");
@@ -219,65 +227,73 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
           </div>
         )}
         {activeTab === "doi" && (
-          <DOISearchTab
-            doiInput={doiInput}
-            setDoiInput={setDoiInput}
-            onSearch={handleDOISearchAction}
-            onAdd={handleAddDoiResult}
-            loading={searchLoading}
-            doiResult={doiResult}
-            isValidUrl={isValidUrl}
-          />
+          <div role="tabpanel" id="tabpanel-doi" aria-labelledby="tab-doi">
+            <DOISearchTab
+              doiInput={doiInput}
+              setDoiInput={setDoiInput}
+              onSearch={handleDOISearchAction}
+              onAdd={handleAddDoiResult}
+              loading={searchLoading}
+              doiResult={doiResult}
+              isValidUrl={isValidUrl}
+            />
+          </div>
         )}
         {activeTab === "search" && (
-          <KeywordSearchTab
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            onSearch={handleQuerySearchAction}
-            onAdd={handleAddSelectedResult}
-            loading={searchLoading}
-            searchResults={searchResults}
-            selectedResult={selectedResult}
-            setSelectedResult={setSelectedResult}
-            resultLimit={resultLimit}
-            setResultLimit={setResultLimit}
-            sortField={sortField}
-            setSortField={setSortField}
-            sortOrder={sortOrder}
-            setSortOrder={setSortOrder}
-            isValidUrl={isValidUrl}
-          />
+          <div role="tabpanel" id="tabpanel-search" aria-labelledby="tab-search">
+            <KeywordSearchTab
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              onSearch={handleQuerySearchAction}
+              onAdd={handleAddSelectedResult}
+              loading={searchLoading}
+              searchResults={searchResults}
+              selectedResult={selectedResult}
+              setSelectedResult={setSelectedResult}
+              resultLimit={resultLimit}
+              setResultLimit={setResultLimit}
+              sortField={sortField}
+              setSortField={setSortField}
+              sortOrder={sortOrder}
+              setSortOrder={setSortOrder}
+              isValidUrl={isValidUrl}
+            />
+          </div>
         )}
         {activeTab === "import" && (
-          <BibTeXImportTab
-            onFileSelect={handleFileChange}
-            onImport={handleImportAction}
-            loading={importLoading}
-            error={importError}
-            parsedEntries={parsedEntries}
-            selectedEntryIds={selectedEntryIds}
-            toggleEntrySelection={(id: string) => {
-              const next = new Set(selectedEntryIds);
-              if (next.has(id)) {
-                next.delete(id);
-              } else {
-                next.add(id);
-              }
-              setSelectedEntryIds(next);
-            }}
-            importProgress={importProgress}
-          />
+          <div role="tabpanel" id="tabpanel-import" aria-labelledby="tab-import">
+            <BibTeXImportTab
+              onFileSelect={handleFileChange}
+              onImport={handleImportAction}
+              loading={importLoading}
+              error={importError}
+              parsedEntries={parsedEntries}
+              selectedEntryIds={selectedEntryIds}
+              toggleEntrySelection={(id: string) => {
+                const next = new Set(selectedEntryIds);
+                if (next.has(id)) {
+                  next.delete(id);
+                } else {
+                  next.add(id);
+                }
+                setSelectedEntryIds(next);
+              }}
+              importProgress={importProgress}
+            />
+          </div>
         )}
         {activeTab === "manual" && (
-          <ManualEntryTab
-            manualTitle={manualTitle} setManualTitle={setManualTitle}
-            manualAuthors={manualAuthors} setManualAuthors={setManualAuthors}
-            manualDoi={manualDoi} setManualDoi={setManualDoi}
-            manualUrl={manualUrl} setManualUrl={setManualUrl}
-            onAdd={handleManualAdd}
-            loading={manualLoading}
-            error={manualError}
-          />
+          <div role="tabpanel" id="tabpanel-manual" aria-labelledby="tab-manual">
+            <ManualEntryTab
+              manualTitle={manualTitle} setManualTitle={setManualTitle}
+              manualAuthors={manualAuthors} setManualAuthors={setManualAuthors}
+              manualDoi={manualDoi} setManualDoi={setManualDoi}
+              manualUrl={manualUrl} setManualUrl={setManualUrl}
+              onAdd={handleManualAdd}
+              loading={manualLoading}
+              error={manualError}
+            />
+          </div>
         )}
       </div>
     </div>
