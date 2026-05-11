@@ -9,6 +9,7 @@ import {
   CheckSquare,
   BookOpen,
   Lightbulb,
+  Hash,
 } from "lucide-react";
 import {
   ActivityLogIcon,
@@ -31,15 +32,18 @@ export function Dashboard() {
     papers,
     ideas,
     tasks,
+    topics,
     focusSessionSecondsToday,
     notesLoading,
     papersLoading,
     ideasLoading,
     tasksLoading,
+    topicsLoading,
     setCurrentView,
     setSelectedNote,
     setSelectedPaper,
     setSelectedIdea,
+    setSelectedTopic,
   } = useAppStore(
     useShallow((state) => ({
       user: state.user,
@@ -47,15 +51,18 @@ export function Dashboard() {
       papers: state.papers,
       ideas: state.ideas,
       tasks: state.tasks,
+      topics: state.topics,
       focusSessionSecondsToday: state.focusSessionSecondsToday,
       notesLoading: state.notesLoading,
       papersLoading: state.papersLoading,
       ideasLoading: state.ideasLoading,
       tasksLoading: state.tasksLoading,
+      topicsLoading: state.topicsLoading,
       setCurrentView: state.setCurrentView,
       setSelectedNote: state.setSelectedNote,
       setSelectedPaper: state.setSelectedPaper,
       setSelectedIdea: state.setSelectedIdea,
+      setSelectedTopic: state.setSelectedTopic,
     })),
   );
 
@@ -139,6 +146,19 @@ export function Dashboard() {
       .slice(0, 3);
   }, [ideas]);
 
+  const activeTopics = useMemo(() => {
+    return Object.values(topics)
+      .sort((a, b) => {
+        // Optimization: Use direct string comparison for ISO dates instead of localeCompare
+        return b.updated_at > a.updated_at
+          ? 1
+          : b.updated_at < a.updated_at
+            ? -1
+            : 0;
+      })
+      .slice(0, 3);
+  }, [topics]);
+
   const upcomingTasks = useMemo(() => {
     return tasks
       .filter((t) => !t.completed)
@@ -197,6 +217,7 @@ export function Dashboard() {
         <span>Papers {papers.length}</span>
         <span>Ideas {ideas.length}</span>
         <span>Tasks {tasks.length}</span>
+        <span>Topics {Object.keys(topics).length}</span>
       </div>
 
       {stats && stats.progress !== undefined && (
@@ -387,6 +408,63 @@ export function Dashboard() {
                         {idea.stage}
                       </span>
                     </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </section>
+
+          {/* Active Topics */}
+          <section>
+            <div className="flex items-center justify-between mb-4 border-b border-border-subtle pb-2">
+              <h2 className="font-serif text-lg font-bold text-text-primary flex items-center gap-2">
+                <Hash className="w-5 h-5 text-text-tertiary" />
+                Active Topics
+              </h2>
+              <button
+                onClick={() => navigateTo("topics")}
+                className="text-small text-text-secondary hover:text-text-primary font-medium flex items-center gap-1 uppercase tracking-wider transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 rounded-sm"
+              >
+                View Directory{" "}
+                <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {topicsLoading ? (
+                <ListSkeleton count={3} itemType="note" />
+              ) : activeTopics.length === 0 ? (
+                <div className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary">
+                  <p className="mb-3">No active topics.</p>
+                  <button
+                    onClick={() => navigateTo("topics")}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-bg-surface border border-border-moderate rounded-sm text-small font-sans not-italic font-medium text-text-primary hover:border-border-strong transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+                  >
+                    <Plus className="w-4 h-4" aria-hidden="true" /> Add Topic
+                  </button>
+                </div>
+              ) : (
+                activeTopics.map((topic) => (
+                  <button
+                    key={topic.id}
+                    onClick={() => {
+                      setSelectedTopic(topic);
+                      navigateTo("topics");
+                      window.history.pushState(null, "", `/topics/${topic.id}`);
+                    }}
+                    className="w-full text-left flex items-center justify-between p-3 bg-bg-surface border border-border-moderate rounded-sm hover:border-border-strong cursor-pointer transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="p-2 bg-bg-base border border-border-moderate text-text-primary rounded-sm shrink-0">
+                        <Hash className="w-4 h-4" />
+                      </div>
+                      <span className="text-small font-medium text-text-primary truncate">
+                        {topic.name}
+                      </span>
+                    </div>
+                    <span className="text-caption font-serif italic text-text-tertiary shrink-0">
+                      {topic.note_count + topic.paper_count + topic.idea_count} items
+                    </span>
                   </button>
                 ))
               )}
