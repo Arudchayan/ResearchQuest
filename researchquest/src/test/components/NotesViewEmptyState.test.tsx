@@ -71,7 +71,7 @@ describe("NotesView Empty State", () => {
     const searchInput = screen.getByPlaceholderText("Search notes...");
     await user.type(searchInput, "something");
 
-    expect(screen.getByText("No matching notes")).toBeInTheDocument();
+    expect(screen.getByText("No matches found")).toBeInTheDocument();
     expect(
       screen.getByText("Try adjusting your search terms"),
     ).toBeInTheDocument();

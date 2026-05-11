@@ -615,7 +615,7 @@ export function TaskManager() {
           <div className="text-center py-16" role="status" aria-live="polite">
             <CheckCircle2 className="w-16 h-16 mx-auto mb-4 text-text-tertiary opacity-50" aria-hidden="true" />
             <p className="text-body text-text-secondary mb-2">
-              No tasks match your filters
+              {searchQuery ? "No matches found" : "No tasks match your filters"}
             </p>
             <p className="text-small text-text-tertiary mb-4">
               Create a new task or adjust filters to see more items.
