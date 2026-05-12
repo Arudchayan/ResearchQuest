@@ -68,6 +68,7 @@ export function PapersView() {
   );
   const {
     createPaper,
+    createPapers,
     updatePaper,
     deletePaper,
     restorePaper,
@@ -490,6 +491,11 @@ export function PapersView() {
                   const paper = await createPaper(data);
                   if (paper) setIsAddDialogOpen(false);
                   return paper;
+                }}
+                onAddBatch={async (data) => {
+                  const papers = await createPapers(data);
+                  if (papers.length > 0) setIsAddDialogOpen(false);
+                  return papers;
                 }}
                 searchByDOI={searchPaperByDOI}
                 searchByQuery={searchPapersByQuery}
