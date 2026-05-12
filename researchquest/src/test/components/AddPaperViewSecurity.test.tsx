@@ -65,7 +65,7 @@ describe("AddPaperView Security", () => {
       />,
     );
 
-    const manualTab = screen.getByRole("button", { name: TAB_NAMES.manual });
+    const manualTab = screen.getByRole("tab", { name: TAB_NAMES.manual });
     await userEvent.click(manualTab);
 
     const titleInput = screen.getByPlaceholderText(/enter paper title/i);
@@ -93,7 +93,7 @@ describe("AddPaperView Security", () => {
       />,
     );
 
-    const importTab = screen.getByRole("button", { name: TAB_NAMES.import });
+    const importTab = screen.getByRole("tab", { name: TAB_NAMES.import });
     await userEvent.click(importTab);
 
     const fileInput = screen.getByLabelText(/upload bibtex file/i);
