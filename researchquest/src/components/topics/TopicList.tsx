@@ -1,4 +1,5 @@
 import { ConfirmDialog, useConfirmDialog } from "../ui/ConfirmDialog";
+import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
 import { Loader2, Trash2, Notebook, BookOpen, Lightbulb, Hash } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
 import type { TopicWithCounts } from "../../types/database";
@@ -111,26 +112,32 @@ export function TopicList({
                 )}
               </div>
               <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button
-                  type="button"
-                  onClick={async (event) => {
-                    event.stopPropagation();
-                    const shouldDelete = await confirmDialog({
-                      title: "Delete Topic",
-                      message: `Delete "${topic.name}"? This will remove its links.`,
-                      confirmText: "Delete",
-                      variant: "danger",
-                    });
-                    if (shouldDelete) {
-                      void onDeleteTopic(topic.id);
-                    }
-                  }}
-                  aria-label={`Delete ${topic.name}`}
-                  className="p-1 rounded-md bg-bg-elevated hover:bg-destructive/10 text-text-tertiary hover:text-destructive transition-colors"
-                  title="Delete topic"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={async (event) => {
+                        event.stopPropagation();
+                        const shouldDelete = await confirmDialog({
+                          title: "Delete Topic",
+                          message: `Delete "${topic.name}"? This will remove its links.`,
+                          confirmText: "Delete",
+                          variant: "danger",
+                        });
+                        if (shouldDelete) {
+                          void onDeleteTopic(topic.id);
+                        }
+                      }}
+                      aria-label={`Delete ${topic.name}`}
+                      className="p-1 rounded-md bg-bg-elevated hover:bg-destructive/10 text-text-tertiary hover:text-destructive transition-colors focus:opacity-100"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Delete topic</p>
+                  </TooltipContent>
+                </Tooltip>
               </div>
             </div>
             <div className="mt-3 grid grid-cols-3 gap-2 text-caption text-text-secondary">

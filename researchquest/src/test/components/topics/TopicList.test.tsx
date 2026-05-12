@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { TopicList } from "../../../components/topics/TopicList";
+import { TooltipProvider } from "../../../components/ui/tooltip";
 import type { TopicWithCounts } from "../../../types/database";
 import { useAppStore } from "../../../store/appStore";
 
@@ -39,12 +40,14 @@ describe("TopicList", () => {
     const handleSelect = vi.fn();
 
     render(
-      <TopicList
-        topics={baseTopics}
-        loading={false}
-        onSelectTopic={handleSelect}
-        onDeleteTopic={vi.fn().mockResolvedValue(true)}
-      />,
+      <TooltipProvider delayDuration={0}>
+        <TopicList
+          topics={baseTopics}
+          loading={false}
+          onSelectTopic={handleSelect}
+          onDeleteTopic={vi.fn().mockResolvedValue(true)}
+        />
+      </TooltipProvider>,
     );
 
     expect(screen.getByText("Research Methods")).toBeInTheDocument();
@@ -66,12 +69,14 @@ describe("TopicList", () => {
     const handleSelect = vi.fn();
 
     render(
-      <TopicList
-        topics={baseTopics}
-        loading={false}
-        onSelectTopic={handleSelect}
-        onDeleteTopic={vi.fn().mockResolvedValue(true)}
-      />,
+      <TooltipProvider delayDuration={0}>
+        <TopicList
+          topics={baseTopics}
+          loading={false}
+          onSelectTopic={handleSelect}
+          onDeleteTopic={vi.fn().mockResolvedValue(true)}
+        />
+      </TooltipProvider>,
     );
 
     const researchCard = screen.getByRole("button", {
@@ -88,15 +93,17 @@ describe("TopicList", () => {
     const handleDelete = vi.fn().mockResolvedValue(true);
 
     render(
-      <TopicList
-        topics={baseTopics}
-        loading={false}
-        onSelectTopic={handleSelect}
-        onDeleteTopic={handleDelete}
-      />,
+      <TooltipProvider delayDuration={0}>
+        <TopicList
+          topics={baseTopics}
+          loading={false}
+          onSelectTopic={handleSelect}
+          onDeleteTopic={handleDelete}
+        />
+      </TooltipProvider>,
     );
 
-    const deleteButton = screen.getAllByTitle("Delete topic")[0];
+    const deleteButton = screen.getAllByRole("button", { name: /^Delete/i })[0];
     fireEvent.click(deleteButton);
 
     // Wait for ConfirmDialog to appear and click confirm
