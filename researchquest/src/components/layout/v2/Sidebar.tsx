@@ -42,6 +42,7 @@ export function Sidebar() {
     isRightSidebarOpen,
     setIsRightSidebarOpen,
     setZenMode,
+    setIsMobileSidebarOpen,
   } = useAppStore(
     useShallow((state) => ({
       currentView: state.currentView,
@@ -52,6 +53,7 @@ export function Sidebar() {
       isRightSidebarOpen: state.isRightSidebarOpen,
       setIsRightSidebarOpen: state.setIsRightSidebarOpen,
       setZenMode: state.setZenMode,
+      setIsMobileSidebarOpen: state.setIsMobileSidebarOpen,
     })),
   );
   const [showXpGuide, setShowXpGuide] = useState(false);
@@ -139,6 +141,7 @@ export function Sidebar() {
               }
               e.preventDefault();
               setCurrentView(item.id);
+              setIsMobileSidebarOpen(false);
               // Update URL without reload
               window.history.pushState(
                 null,
