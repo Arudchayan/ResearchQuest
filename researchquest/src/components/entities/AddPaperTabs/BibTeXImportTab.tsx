@@ -115,7 +115,7 @@ export function BibTeXImportTab({
             type="button"
             onClick={onImport}
             disabled={loading || selectedEntryIds.size === 0}
-            className="w-full py-2 bg-primary-500 text-white rounded-lg flex justify-center items-center gap-2"
+            className="w-full py-2 bg-primary-500 text-white rounded-lg flex justify-center items-center gap-2 hover:bg-primary-600 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 disabled:opacity-70 disabled:cursor-not-allowed"
           >
             {loading ? <Loader className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
             Import Selected ({selectedEntryIds.size})
