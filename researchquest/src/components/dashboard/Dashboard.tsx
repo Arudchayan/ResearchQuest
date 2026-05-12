@@ -175,7 +175,7 @@ export function Dashboard() {
     setCurrentView("notes");
   };
 
-  const navigateTo = (view: "notes" | "papers" | "focus" | "tasks" | "ideas") => {
+  const navigateTo = (view: "notes" | "papers" | "focus" | "tasks" | "ideas" | "topics") => {
     setCurrentView(view);
     window.history.pushState(null, "", `/${view}`);
   };
