@@ -14,6 +14,7 @@ import { BibTeXImportTab } from "./AddPaperTabs/BibTeXImportTab";
 
 interface AddPaperViewProps {
   onAdd: (paperData: PaperDraft) => Promise<Paper | null>;
+  onAddBatch?: (papersData: PaperDraft[]) => Promise<Paper[]>;
   searchByDOI: (doi: string) => Promise<CrossrefPaper | null>;
   searchByQuery: (query: string, options?: PaperSearchOptions) => Promise<CrossrefPaper[]>;
 }
@@ -25,7 +26,7 @@ const TAB_LABELS: Record<"doi" | "search" | "import" | "manual", string> = {
   manual: "Manual Entry",
 };
 
-export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperViewProps) {
+export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: AddPaperViewProps) {
   const [activeTab, setActiveTab] = useState<"doi" | "search" | "manual" | "import">("doi");
   const [successMessage, setSuccessMessage] = useState("");
   const setSelectedPaper = useAppStore((state) => state.setSelectedPaper);
@@ -54,7 +55,7 @@ export function AddPaperView({ onAdd, searchByDOI, searchByQuery }: AddPaperView
     importProgress,
     handleFileChange,
     handleImport,
-  } = useBibTeXImport(onAdd);
+  } = useBibTeXImport(onAdd, onAddBatch);
 
   // DOI State
   const [doiInput, setDoiInput] = useState("");
