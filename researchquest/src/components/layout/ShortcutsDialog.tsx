@@ -40,6 +40,7 @@ const SHORTCUTS: ShortcutSection[] = [
       { keys: [META_KEY, "K"], description: "Open Command Palette" },
       { keys: ["?"], description: "Show Keyboard Shortcuts" },
       { keys: ["/"], description: "Open Command Palette (Search)" },
+      { keys: [META_KEY, "."], description: "Toggle Context Panel" },
     ],
   },
   {
