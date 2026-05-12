@@ -429,7 +429,7 @@ export function NotesView() {
                 <FileText className="w-6 h-6 text-slate-400" />
               </div>
               <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-1">
-                {searchQuery ? "No matching notes" : "No notes yet"}
+                {searchQuery ? "No matches found" : "No notes yet"}
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 max-w-[200px]">
                 {searchQuery

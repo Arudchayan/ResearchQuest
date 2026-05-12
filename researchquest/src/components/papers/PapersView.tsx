@@ -410,7 +410,7 @@ export function PapersView() {
                 <BookOpen className="w-8 h-8 text-slate-400" />
               </div>
               <h3 className="text-lg font-medium text-slate-900 dark:text-white">
-                No papers found
+                {searchQuery ? "No matches found" : "No papers found"}
               </h3>
               <p className="text-slate-500 dark:text-slate-400 max-w-sm mx-auto mt-2">
                 {searchQuery

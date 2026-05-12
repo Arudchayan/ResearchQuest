@@ -466,7 +466,7 @@ export function IdeasBoard() {
                         {stageIdeas.length === 0 && (
                           <div className="p-8 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-lg text-slate-400" role="status" aria-live="polite">
                             <Lightbulb className="w-8 h-8 mx-auto mb-2 opacity-50" aria-hidden="true" />
-                            <p className="text-sm">No ideas yet</p>
+                            <p className="text-sm">{searchQuery ? "No matches found" : "No ideas yet"}</p>
                           </div>
                         )}
                       </>
