@@ -92,4 +92,29 @@ describe("AppShell Zen Mode", () => {
 
     expect(useAppStore.getState().isZenMode).toBe(false);
   });
+
+  it("toggles Context Panel with keyboard shortcut (Ctrl+.)", () => {
+    renderAppShell();
+
+    // Context panel is OPEN by default in this test setup
+    expect(useAppStore.getState().isRightSidebarOpen).toBe(true);
+
+    // Press Ctrl+.
+    fireEvent.keyDown(window, {
+      key: ".",
+      code: "Period",
+      ctrlKey: true,
+    });
+
+    expect(useAppStore.getState().isRightSidebarOpen).toBe(false);
+
+    // Press again to toggle on
+    fireEvent.keyDown(window, {
+      key: ".",
+      code: "Period",
+      ctrlKey: true,
+    });
+
+    expect(useAppStore.getState().isRightSidebarOpen).toBe(true);
+  });
 });
