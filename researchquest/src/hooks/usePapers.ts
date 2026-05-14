@@ -366,7 +366,6 @@ export function usePapers(userId: string | undefined) {
     [userId, setPapers],
   );
 
-
   const createPapers = useCallback(
     async (papersData: PaperDraft[]): Promise<Paper[]> => {
       if (!userId) {
@@ -375,9 +374,7 @@ export function usePapers(userId: string | undefined) {
         return [];
       }
 
-      if (!papersData || papersData.length === 0) return [];
-
-      const validPayloads: PaperInsertPayload[] = [];
+      const validPapers: PaperInsertPayload[] = [];
       let skippedCount = 0;
 
       for (const paperData of papersData) {
@@ -438,48 +435,49 @@ export function usePapers(userId: string | undefined) {
           cleanData.topic_ids = paperData.topic_ids;
         }
 
-        validPayloads.push(cleanData);
+        validPapers.push(cleanData);
       }
 
-      if (validPayloads.length === 0) {
-        setError("No valid papers to add");
-        toast.error("No valid papers to add");
+      if (validPapers.length === 0) {
         return [];
       }
 
+      // Batch insert using Supabase
       const { data, error: createError } = await supabase
         .from("papers")
-        .insert(validPayloads)
+        .insert(validPapers)
         .select();
 
       if (createError) {
+        logger.error("Failed to insert papers batch", createError);
         const errorMessage =
           createError.message ||
           (createError.code
             ? `Error ${createError.code}`
-            : "Unknown error occurred");
-
-        setError(`Failed to create papers: ${errorMessage}`);
-        toast.error(`Failed to add papers: ${errorMessage}`, { duration: 5000 });
+            : "Unknown database error");
+        setError(`Failed to batch create papers: ${errorMessage}`);
+        toast.error(`Failed to batch create papers: ${errorMessage}`);
         return [];
       }
 
       if (skippedCount > 0) {
-        toast.success(`Added ${data.length} papers (${skippedCount} skipped)`);
+        toast.warning(`Added ${data.length} papers, skipped ${skippedCount} invalid entries`);
+      } else {
+        toast.success(`Successfully added ${data.length} papers`);
       }
 
       // Optimistic update
       setPapers(sortByUpdatedAt([...data, ...useAppStore.getState().papers]));
 
-      // XP and Tasks (doing it per item for simplicity, though could be batched)
-      for (const p of data) {
-        awardXP(userId, XP_REWARDS.CREATE_PAPER, "create_paper").catch((e) =>
+      // Award XP
+      for (let i = 0; i < data.length; i++) {
+         awardXP(userId, XP_REWARDS.CREATE_PAPER, "create_paper").catch((e) =>
           logger.error("Failed to award XP", e),
         );
-        void createReadingTaskForPaper(userId, p);
+         void createReadingTaskForPaper(userId, data[i]);
       }
 
-      return data;
+      return data as Paper[];
     },
     [userId, setPapers],
   );
