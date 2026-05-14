@@ -26,7 +26,7 @@ vi.mock("../../utils/gamification", () => ({
 vi.mock("@uiw/react-codemirror", () => ({
   default: ({ value, onChange, ...props }: any) => {
     // Remove complex props that cause warnings on textarea
-    const { basicSetup, onCreateEditor, ...validProps } = props;
+    const { basicSetup, onCreateEditor, extensions, theme, ...validProps } = props;
     return (
       <textarea
         data-testid="codemirror-mock"
