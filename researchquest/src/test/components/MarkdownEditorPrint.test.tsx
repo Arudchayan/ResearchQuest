@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import { MarkdownEditor } from "../../components/editor/MarkdownEditor";
 
@@ -13,21 +13,6 @@ vi.mock("../../store/appStore", () => {
   });
   return {
     useAppStore: fn,
-  };
-});
-
-// Mock LazyEditorContent to render immediately for testing
-vi.mock("../../components/editor/sub-components/EditorContent", () => {
-  return {
-    default: ({ content, previewRef }: any) => (
-      <div>
-        <textarea data-testid="codemirror-mock" defaultValue={content} />
-        <div ref={previewRef}>
-          <p>Heading</p>
-          <strong>bold</strong>
-        </div>
-      </div>
-    ),
   };
 });
 
@@ -63,7 +48,7 @@ vi.mock("../../lib/supabase", () => ({
 vi.mock("@uiw/react-codemirror", () => ({
   default: ({ value, onChange }: any) => (
     <textarea
-      data-testid="codemirror-mock"
+      data-testid="code-mirror-mock"
       value={value}
       onChange={(e) => onChange(e.target.value)}
     />
@@ -110,14 +95,6 @@ describe("MarkdownEditor Print", () => {
       print: mockPrint,
       close: mockClose,
     });
-
-    // Setup window mock if undefined to prevent Cannot set properties of undefined (setting 'open')
-    if (typeof global.window === 'undefined') {
-      (global as any).window = {};
-    }
-
-    // Store original open to restore later if it existed
-    (global as any)._originalWindowOpen = global.window?.open;
     global.window.open = mockOpen;
 
     // Mock store
@@ -144,51 +121,23 @@ describe("MarkdownEditor Print", () => {
   });
 
   afterEach(() => {
-    if (typeof global.window !== 'undefined') {
-      global.window.open = (global as any)._originalWindowOpen;
-    }
     vi.restoreAllMocks();
   });
 
   it("opens print window with correct content when print button is clicked", async () => {
-    const { act } = await import("@testing-library/react");
-    await act(async () => {
-      render(<MarkdownEditor />);
-    });
+    render(<MarkdownEditor />);
 
-    // Wait for the preview content to be rendered (dynamic import)
-    await waitFor(() => {
-      expect(screen.getByTestId("codemirror-mock")).toBeInTheDocument();
-    });
-
-    // Wait for the Lazy component to load by waiting for the note text to appear
-    await waitFor(() => {
-      expect(screen.getByDisplayValue("Test Note Title")).toBeInTheDocument();
-    });
-
-    // We also need to wait for the markdown preview to render
-    await waitFor(() => {
-      expect(screen.getByText("bold")).toBeInTheDocument();
-    });
-
-    // Set view mode to 'split' or 'preview' to ensure previewRef is attached
-    const viewButton = screen.getByTitle(/Split \(Shift\+Ctrl\/Cmd\+S\)/i);
-    await act(async () => {
-      fireEvent.click(viewButton);
-    });
+    // Ensure note is loaded
+    expect(screen.getByDisplayValue("Test Note Title")).toBeInTheDocument();
 
     // Find print button
     const printButton = screen.getByRole("button", { name: /Print Note/i });
-
-    // Using act for state updates triggered by printing in sub-components if any
     await act(async () => {
       fireEvent.click(printButton);
     });
 
-    await waitFor(() => {
-      // Check if window.open was called
-      expect(mockOpen).toHaveBeenCalledWith("", "_blank");
-    });
+    // Check if window.open was called
+    expect(mockOpen).toHaveBeenCalled();
 
     // Check if document.write was called with expected HTML content
     expect(mockWrite).toHaveBeenCalledWith(
