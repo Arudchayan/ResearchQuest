@@ -1,9 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, act, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { MarkdownEditor } from "../../components/editor/MarkdownEditor";
 import { useAppStore } from "../../store/appStore";
 import { supabase } from "../../lib/supabase";
-import { NOTE_BODY_MAX_LENGTH } from "../../hooks/useNotes";
 
 // Mock Supabase
 vi.mock("../../lib/supabase", () => ({
@@ -23,20 +22,19 @@ vi.mock("../../utils/gamification", () => ({
   XP_REWARDS: { UPDATE_NOTE: 5 },
 }));
 
-// Mock LazyEditorContent to render immediately for testing
-vi.mock("../../components/editor/sub-components/EditorContent", () => {
-  return {
-    default: ({ content, setContent }: any) => (
-      <div>
-        <textarea
-          data-testid="codemirror-mock"
-          defaultValue={content}
-          onChange={(e) => setContent(e.target.value)}
-        />
-      </div>
-    ),
-  };
-});
+// Mock CodeMirror to allow us to simulate changes
+vi.mock("@uiw/react-codemirror", () => ({
+  default: ({ value, onChange, ...props }: any) => {
+    return (
+      <textarea
+        data-testid="codemirror-mock"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        {...Object.keys(props).reduce((acc, key) => { if (key !== "basicSetup" && key !== "extensions") acc[key] = props[key]; return acc; }, {})}
+      />
+    );
+  },
+}));
 
 // Mock CodeMirror language
 vi.mock("@codemirror/lang-markdown", () => ({
@@ -121,24 +119,16 @@ describe("MarkdownEditor Security", () => {
   });
 
   it("fix: enforces input length validation and does NOT send large payload to Supabase", async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.useFakeTimers();
     render(<MarkdownEditor />);
-
-    // Fast-forward initial renders
-    await act(async () => {
-      vi.runAllTimers();
-    });
-
-    // Wait for the Lazy component to load by waiting for the mock textarea to appear
-    await waitFor(() => {
-      expect(screen.getByTestId("codemirror-mock")).toBeInTheDocument();
-    }, { timeout: 2000 });
 
     // Create a large string exceeding the limit
     const largeContent = "a".repeat(NOTE_BODY_MAX_LENGTH + 100);
 
     // Simulate CodeMirror change
     const textarea = screen.getByTestId("codemirror-mock");
+
+    const { fireEvent, act } = await import("@testing-library/react");
 
     await act(async () => {
       fireEvent.change(textarea, { target: { value: largeContent } });
@@ -150,9 +140,7 @@ describe("MarkdownEditor Security", () => {
     });
 
     // Assert that update was NOT called with the large content
-    expect(mockUpdate).not.toHaveBeenCalledWith(expect.objectContaining({
-      markdown_body: largeContent,
-    }));
+    expect(mockUpdate).not.toHaveBeenCalled();
 
     vi.useRealTimers();
   });
