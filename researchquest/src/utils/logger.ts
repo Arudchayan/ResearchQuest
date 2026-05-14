@@ -34,23 +34,20 @@ export const logger = {
    * In development, it logs the full error object.
    */
   error: (message: string, error?: any) => {
-    if (import.meta.env.DEV && process.env.NODE_ENV !== 'test') {
-      console.error(`[RQ] ${message}`, error);
-    } else {
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : typeof error === "string"
-            ? error
-            : typeof error === "object" && error !== null && "message" in error
-              ? String(error.message)
-              : undefined;
+    // ALWAYS sanitize the error to prevent any leakage even in testing modes
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : typeof error === "string"
+          ? error
+          : typeof error === "object" && error !== null && "message" in error
+            ? String(error.message)
+            : undefined;
 
-      if (errorMessage) {
-        console.error(`[RQ] ${message}: ${errorMessage}`);
-      } else {
-        console.error(`[RQ] ${message}`);
-      }
+    if (errorMessage) {
+      console.error(`[RQ] ${message}: ${errorMessage}`);
+    } else {
+      console.error(`[RQ] ${message}`);
     }
   },
 };

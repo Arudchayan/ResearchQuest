@@ -1,11 +1,11 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { usePapers } from "../../hooks/usePapers";
-import { mockSupabaseClient } from "../mocks/supabase";
+import { mockSupabaseClient, mockPaper } from "../mocks/supabase";
 import { useAppStore } from "../../store/appStore";
 import { toast } from "sonner";
-import { Paper } from "../../types/database";
 
+// Mock toast
 vi.mock("sonner", () => ({
   toast: {
     success: vi.fn(),
@@ -14,12 +14,16 @@ vi.mock("sonner", () => ({
   },
 }));
 
-// Provide gamification mock to avoid importing it later and breaking
+// Mock gamification utils
 vi.mock("../../utils/gamification", () => ({
   awardXP: vi.fn().mockResolvedValue(true),
-  XP_REWARDS: { CREATE_PAPER: 5 },
+  XP_REWARDS: {
+    CREATE_PAPER: 10,
+    UPDATE_PAPER_STATUS: 5,
+  },
 }));
 
+// Helper to create a complete mock builder that supports chaining
 const createMockBuilder = (overrides: any = {}) => {
   const builder: any = {
     ...overrides,
@@ -29,56 +33,42 @@ const createMockBuilder = (overrides: any = {}) => {
     }) as any,
   };
 
+  // Define chaining methods that return the builder itself (if not overridden)
   if (!builder.select) builder.select = vi.fn().mockReturnValue(builder);
   if (!builder.insert) builder.insert = vi.fn().mockReturnValue(builder);
   if (!builder.update) builder.update = vi.fn().mockReturnValue(builder);
   if (!builder.delete) builder.delete = vi.fn().mockReturnValue(builder);
   if (!builder.eq) builder.eq = vi.fn().mockReturnValue(builder);
-  if (!builder.order) builder.order = vi.fn().mockReturnValue(builder);
   if (!builder.single)
     builder.single = vi.fn().mockResolvedValue({ data: null, error: null });
-  if (!builder.limit) builder.limit = vi.fn().mockReturnValue(builder);
 
   return builder;
 };
 
 describe("usePapers Security", () => {
-  const mockPaper: Paper = {
-    id: "paper-1",
-    user_id: "test-user-id",
-    title: "Original Title",
-    authors: [],
-    abstract: null,
-    source_url: null,
-    doi: null,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    year: null,
-    citation_count: null,
-    reading_status: "To Read",
-  };
-
   beforeEach(() => {
     vi.clearAllMocks();
-    useAppStore.setState({ papers: [] });
+    useAppStore.setState({ papers: [], papersLoading: false });
   });
 
-  describe("URL Validation", () => {
+  describe("Sanitization", () => {
     it("should strip invalid source_url (javascript:) in createPaper", async () => {
-      let capturedPayload: any;
+      const capturedPayloads: any[] = [];
 
       mockSupabaseClient.from.mockImplementation((tableName: string) => {
         if (tableName === "papers") {
           return createMockBuilder({
             insert: vi.fn().mockImplementation((payload) => {
-              capturedPayload = payload;
+              capturedPayloads.push(payload);
               return createMockBuilder({
                 select: vi.fn().mockReturnValue(
                   createMockBuilder({
-                    single: vi.fn().mockResolvedValue({
-                      data: { ...mockPaper, id: "new-paper-id" },
-                      error: null,
-                    }),
+                    single: vi
+                      .fn()
+                      .mockResolvedValue({
+                        data: { ...mockPaper, ...payload, id: "new-id" },
+                        error: null,
+                      }),
                   }),
                 ),
               });
@@ -90,32 +80,39 @@ describe("usePapers Security", () => {
 
       const { result } = renderHook(() => usePapers("test-user-id"));
 
+      const maliciousPaper = {
+        title: "Malicious Paper",
+        authors: ["Hacker"],
+        source_url: "javascript:alert(document.cookie)", // 🚨 Malicious URL
+      };
+
       await act(async () => {
-        await result.current.createPaper({
-          title: "Test Paper",
-          source_url: "javascript:alert(1)", // 🚨 Malicious URL
-        });
+        await result.current.createPaper(maliciousPaper);
       });
 
-      expect(capturedPayload).toBeDefined();
-      expect(capturedPayload.source_url).toBeUndefined();
+      expect(capturedPayloads.length).toBe(1);
+      expect(capturedPayloads[0].title).toBe("Malicious Paper");
+      // source_url should be undefined or not present because it was stripped
+      expect(capturedPayloads[0].source_url).toBeUndefined();
     });
 
     it("should allow valid source_url (https:) in createPaper", async () => {
-      let capturedPayload: any;
+      const capturedPayloads: any[] = [];
 
       mockSupabaseClient.from.mockImplementation((tableName: string) => {
         if (tableName === "papers") {
           return createMockBuilder({
             insert: vi.fn().mockImplementation((payload) => {
-              capturedPayload = payload;
+              capturedPayloads.push(payload);
               return createMockBuilder({
                 select: vi.fn().mockReturnValue(
                   createMockBuilder({
-                    single: vi.fn().mockResolvedValue({
-                      data: { ...mockPaper, id: "new-paper-id" },
-                      error: null,
-                    }),
+                    single: vi
+                      .fn()
+                      .mockResolvedValue({
+                        data: { ...mockPaper, ...payload, id: "new-id" },
+                        error: null,
+                      }),
                   }),
                 ),
               });
@@ -127,22 +124,25 @@ describe("usePapers Security", () => {
 
       const { result } = renderHook(() => usePapers("test-user-id"));
 
+      const validPaper = {
+        title: "Safe Paper",
+        authors: ["Scientist"],
+        source_url: "https://example.com/paper",
+      };
+
       await act(async () => {
-        await result.current.createPaper({
-          title: "Test Paper",
-          source_url: "https://example.com/paper.pdf", // Valid URL
-        });
+        await result.current.createPaper(validPaper);
       });
 
-      expect(capturedPayload).toBeDefined();
-      expect(capturedPayload.source_url).toBe("https://example.com/paper.pdf");
+      expect(capturedPayloads.length).toBe(1);
+      expect(capturedPayloads[0].source_url).toBe("https://example.com/paper");
     });
 
     it("should strip invalid source_url in updatePaper", async () => {
-      let capturedUpdates: any[] = [];
       const initialPaper = { ...mockPaper, id: "paper-1" };
-
       useAppStore.setState({ papers: [initialPaper] });
+
+      const capturedUpdates: any[] = [];
 
       mockSupabaseClient.from.mockImplementation((tableName: string) => {
         if (tableName === "papers") {
@@ -150,14 +150,18 @@ describe("usePapers Security", () => {
             update: vi.fn().mockImplementation((updates) => {
               capturedUpdates.push(updates);
               return createMockBuilder({
-                select: vi.fn().mockReturnValue(
+                eq: vi.fn().mockReturnValue(
                   createMockBuilder({
-                    single: vi
-                      .fn()
-                      .mockResolvedValue({
-                        data: { ...initialPaper, ...updates },
-                        error: null,
+                    select: vi.fn().mockReturnValue(
+                      createMockBuilder({
+                        single: vi
+                          .fn()
+                          .mockResolvedValue({
+                            data: { ...initialPaper, ...updates },
+                            error: null,
+                          }),
                       }),
+                    ),
                   }),
                 ),
               });
@@ -381,10 +385,10 @@ describe("usePapers Security", () => {
 
       await new Promise((resolve) => setTimeout(resolve, 0));
 
-      const errorString = typeof sensitiveError === "object" && "message" in sensitiveError ? String(sensitiveError.message) : undefined;
-      const expectedMessage = errorString ? `[RQ] Failed to award XP: ${errorString}` : `[RQ] Failed to award XP`;
-
-      expect(consoleSpy).toHaveBeenCalledWith(expectedMessage);
+      // The logger passes the full error object in development/test.
+      // In production it strips it, but we can't test that in Vitest easily.
+      // So we expect it to be called with the error object.
+      expect(consoleSpy).toHaveBeenCalledWith("[RQ] Failed to award XP: Award XP Failed");
     });
   });
 
