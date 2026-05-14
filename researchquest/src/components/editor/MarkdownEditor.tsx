@@ -1,6 +1,5 @@
-import { useEffect, useCallback, useMemo, useRef, useState } from "react";
-import { EditorView, keymap } from "@codemirror/view";
-import { markdown } from "@codemirror/lang-markdown";
+import { useEffect, useCallback, useRef, useState, lazy, Suspense } from "react";
+import type { EditorView } from "@codemirror/view";
 import { CitationPicker } from "./CitationPicker";
 import { TopicSelector } from "../topics/TopicSelector";
 
@@ -13,9 +12,22 @@ import { useLinkDialog } from "./hooks/useLinkDialog";
 // Sub-components
 import { EditorHeader } from "./sub-components/EditorHeader";
 import { EditorToolbar } from "./sub-components/EditorToolbar";
-import { EditorContent } from "./sub-components/EditorContent";
 import { EditorFooter } from "./sub-components/EditorFooter";
 import { LinkDialog } from "./sub-components/LinkDialog";
+
+const LazyEditorContent = lazy(() => import("./sub-components/EditorContent"));
+
+function EditorSkeleton() {
+  return (
+    <div className="flex-1 flex flex-col overflow-hidden bg-bg-surface animate-pulse p-4 space-y-3">
+      <div className="h-4 bg-bg-muted rounded w-3/4" />
+      <div className="h-4 bg-bg-muted rounded w-1/2" />
+      <div className="h-4 bg-bg-muted rounded w-5/6" />
+      <div className="h-4 bg-bg-muted rounded w-2/3" />
+      <div className="h-4 bg-bg-muted rounded w-3/4" />
+    </div>
+  );
+}
 
 export function MarkdownEditor() {
   const editorViewRef = useRef<EditorView | null>(null);
@@ -53,25 +65,6 @@ export function MarkdownEditor() {
     return () => clearTimeout(timer);
   }, [content, title, selectedNote, userId, saveNote]);
 
-  // Keyboard shortcuts
-  const formattingExtensions = useMemo(() => [
-    keymap.of([
-      { key: "Mod-b", run: () => { applyFormatting("bold"); return true; } },
-      { key: "Mod-i", run: () => { applyFormatting("italic"); return true; } },
-      { key: "Mod-Shift-c", run: () => { applyFormatting("code"); return true; } },
-      { key: "Mod-Shift-l", run: () => { applyFormatting("list"); return true; } },
-      { key: "Mod-Shift-h", run: () => { applyFormatting("heading"); return true; } },
-      { key: "Mod-k", run: () => { openLinkDialog(); return true; } },
-      { key: "Mod-Shift-r", run: () => { setCitationPickerOpen(true); return true; } },
-      { key: "Mod-Shift-e", run: () => { setViewMode("edit"); return true; } },
-      { key: "Mod-Shift-s", run: () => { setViewMode("split"); return true; } },
-      { key: "Mod-Shift-p", run: () => { setViewMode("preview"); return true; } },
-      { key: "Mod-Shift-f", run: () => { toggleZenMode(); return true; } },
-    ]),
-  ], [applyFormatting, openLinkDialog, toggleZenMode, setViewMode]);
-
-  const extensions = useMemo(() => [markdown(), EditorView.lineWrapping, ...formattingExtensions], [formattingExtensions]);
-
   const handleGlobalKeyDown = useCallback((event: KeyboardEvent) => {
     if (!(event.metaKey || event.ctrlKey) || !event.shiftKey || linkDialogOpen) return;
     const target = event.target as HTMLElement | null;
@@ -102,7 +95,7 @@ export function MarkdownEditor() {
   return (
     <div className="h-screen-dynamic flex flex-col bg-bg-base">
       <EditorHeader title={title} setTitle={setTitle} saving={saving} />
-      
+
       <EditorToolbar
         applyFormatting={applyFormatting}
         handleCopyMarkdown={handleCopyMarkdown}
@@ -121,16 +114,22 @@ export function MarkdownEditor() {
         <TopicSelector entityId={selectedNote.id} entityType="note" />
       </div>
 
-      <EditorContent
-        content={content}
-        setContent={setContent}
-        debouncedContent={debouncedContent}
-        viewMode={viewMode}
-        effectiveTheme={effectiveTheme}
-        extensions={extensions}
-        editorViewRef={editorViewRef}
-        previewRef={previewRef}
-      />
+      <Suspense fallback={<EditorSkeleton />}>
+        <LazyEditorContent
+          content={content}
+          setContent={setContent}
+          debouncedContent={debouncedContent}
+          viewMode={viewMode}
+          effectiveTheme={effectiveTheme}
+          editorViewRef={editorViewRef}
+          previewRef={previewRef}
+          applyFormatting={applyFormatting}
+          openLinkDialog={openLinkDialog}
+          setCitationPickerOpen={setCitationPickerOpen}
+          setViewMode={setViewMode}
+          toggleZenMode={toggleZenMode}
+        />
+      </Suspense>
 
       <EditorFooter wordCount={wordCount} readingTime={readingTime} />
 

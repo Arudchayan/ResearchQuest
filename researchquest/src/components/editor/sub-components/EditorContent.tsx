@@ -1,10 +1,12 @@
+import { useMemo, useState, useEffect } from "react";
 import CodeMirror from "@uiw/react-codemirror";
+import { EditorView, keymap } from "@codemirror/view";
+import type { Extension } from "@codemirror/state";
 import { githubLight, githubDark } from "@uiw/codemirror-theme-github";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
 import rehypeHighlight from "rehype-highlight";
-import type { EditorView } from "@codemirror/view";
 import type { ViewMode } from "../hooks/useMarkdownEditor";
 
 interface EditorContentProps {
@@ -13,24 +15,61 @@ interface EditorContentProps {
   debouncedContent: string;
   viewMode: ViewMode;
   effectiveTheme: string;
-  extensions: any[];
   editorViewRef: React.MutableRefObject<EditorView | null>;
   previewRef: React.RefObject<HTMLDivElement>;
+  applyFormatting: (format: "bold" | "italic" | "code" | "list" | "heading") => void;
+  openLinkDialog: () => void;
+  setCitationPickerOpen: (open: boolean) => void;
+  setViewMode: (mode: ViewMode) => void;
+  toggleZenMode: () => void;
 }
 
 const REMARK_PLUGINS = [remarkGfm];
 const REHYPE_PLUGINS = [rehypeSanitize, rehypeHighlight];
 
-export function EditorContent({
+export default function EditorContent({
   content,
   setContent,
   debouncedContent,
   viewMode,
   effectiveTheme,
-  extensions,
   editorViewRef,
   previewRef,
+  applyFormatting,
+  openLinkDialog,
+  setCitationPickerOpen,
+  setViewMode,
+  toggleZenMode,
 }: EditorContentProps) {
+  const [markdownExt, setMarkdownExt] = useState<Extension | null>(null);
+
+  useEffect(() => {
+    void import("@codemirror/lang-markdown").then(({ markdown }) => {
+      setMarkdownExt(markdown());
+    });
+  }, []);
+
+  const extensions = useMemo(
+    () => [
+      ...(markdownExt ? [markdownExt] : []),
+      EditorView.lineWrapping,
+      keymap.of([
+        { key: "Mod-b", run: () => { applyFormatting("bold"); return true; } },
+        { key: "Mod-i", run: () => { applyFormatting("italic"); return true; } },
+        { key: "Mod-Shift-c", run: () => { applyFormatting("code"); return true; } },
+        { key: "Mod-Shift-l", run: () => { applyFormatting("list"); return true; } },
+        { key: "Mod-Shift-h", run: () => { applyFormatting("heading"); return true; } },
+        { key: "Mod-k", run: () => { openLinkDialog(); return true; } },
+        { key: "Mod-Shift-r", run: () => { setCitationPickerOpen(true); return true; } },
+        { key: "Mod-Shift-e", run: () => { setViewMode("edit"); return true; } },
+        { key: "Mod-Shift-s", run: () => { setViewMode("split"); return true; } },
+        { key: "Mod-Shift-p", run: () => { setViewMode("preview"); return true; } },
+        { key: "Mod-Shift-f", run: () => { toggleZenMode(); return true; } },
+      ]),
+    ],
+    [applyFormatting, openLinkDialog, setCitationPickerOpen, setViewMode, toggleZenMode, markdownExt],
+  );
+
   return (
     <div className={`flex-1 flex overflow-hidden ${viewMode === "split" ? "flex-col lg:flex-row" : "flex-col"}`}>
       <div className={`${viewMode === "split" ? "lg:w-3/5" : "w-full"} ${viewMode === "preview" ? "hidden" : "block"} h-full bg-bg-surface`}>
