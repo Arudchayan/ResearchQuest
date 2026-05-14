@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, waitFor, act, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AddPaperView } from "../../components/entities/AddPaperView";
 import type { CrossrefPaper } from "../../types/database";
@@ -441,11 +441,12 @@ describe("AddPaperView Component", () => {
       expect(addButton).toBeEnabled();
 
       // Because we changed to <form onSubmit={...}> with `required` input fields,
-      // JSDOM does not natively trigger onSubmit if required fields are missing.
-      // We manually simulate a form submission event instead of clicking the button to test JS validation.
+      // JSDOM natively blocks form submission if required fields are missing.
+      // We manually simulate a form submission event to test JS validation.
       const form = addButton.closest("form");
       expect(form).toBeInTheDocument();
 
+      const { fireEvent } = await import("@testing-library/react");
       fireEvent.submit(form!);
 
       await waitFor(() => {
