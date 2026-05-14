@@ -25,12 +25,14 @@ vi.mock("../../utils/gamification", () => ({
 // Mock CodeMirror to allow us to simulate changes
 vi.mock("@uiw/react-codemirror", () => ({
   default: ({ value, onChange, ...props }: any) => {
+    // Remove complex props that cause warnings on textarea
+    const { basicSetup, onCreateEditor, ...validProps } = props;
     return (
       <textarea
         data-testid="codemirror-mock"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        {...props}
+        {...validProps}
       />
     );
   },
