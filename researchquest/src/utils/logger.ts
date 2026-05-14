@@ -34,7 +34,7 @@ export const logger = {
    * In development, it logs the full error object.
    */
   error: (message: string, error?: any) => {
-    if (import.meta.env.DEV) {
+    if (import.meta.env.DEV && process.env.NODE_ENV !== 'test') {
       console.error(`[RQ] ${message}`, error);
     } else {
       const errorMessage =
