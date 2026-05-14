@@ -362,13 +362,18 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   const filteredNotes = useMemo(() => {
     if (!normalizedQuery) return notes;
 
-    return searchableNotes
-      .filter((sn) =>
+    const results = [];
+    for (let i = 0; i < searchableNotes.length; i++) {
+      const sn = searchableNotes[i];
+      if (
         sn.titleText.includes(normalizedQuery) ||
         sn.bodyText.includes(normalizedQuery) ||
         sn.tagsText.includes(normalizedQuery)
-      )
-      .map((sn) => sn.note);
+      ) {
+        results.push(sn.note);
+      }
+    }
+    return results;
   }, [searchableNotes, normalizedQuery, notes]);
 
   const searchablePapers = useMemo(() => {
@@ -382,12 +387,17 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   const filteredPapers = useMemo(() => {
     if (!normalizedQuery) return papers;
 
-    return searchablePapers
-      .filter((sp) =>
+    const results = [];
+    for (let i = 0; i < searchablePapers.length; i++) {
+      const sp = searchablePapers[i];
+      if (
         sp.titleText.includes(normalizedQuery) ||
         sp.authorsText.includes(normalizedQuery)
-      )
-      .map((sp) => sp.paper);
+      ) {
+        results.push(sp.paper);
+      }
+    }
+    return results;
   }, [searchablePapers, normalizedQuery, papers]);
 
   const searchableIdeas = useMemo(() => {
@@ -401,12 +411,17 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   const filteredIdeas = useMemo(() => {
     if (!normalizedQuery) return ideas;
 
-    return searchableIdeas
-      .filter((si) =>
+    const results = [];
+    for (let i = 0; i < searchableIdeas.length; i++) {
+      const si = searchableIdeas[i];
+      if (
         si.titleText.includes(normalizedQuery) ||
         si.descriptionText.includes(normalizedQuery)
-      )
-      .map((si) => si.idea);
+      ) {
+        results.push(si.idea);
+      }
+    }
+    return results;
   }, [searchableIdeas, normalizedQuery, ideas]);
 
   const nextDeadline = upcomingDeadlines[0];
