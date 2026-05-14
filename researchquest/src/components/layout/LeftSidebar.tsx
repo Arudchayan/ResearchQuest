@@ -1,4 +1,3 @@
-import { logger } from "../../utils/logger";
 import {
   FileText,
   Lightbulb,
@@ -14,9 +13,7 @@ import {
 } from "@radix-ui/react-icons";
 import { useAppStore } from "../../store/appStore";
 import { useShallow } from "zustand/react/shallow";
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import type { RealtimeChannel } from "@supabase/supabase-js";
-import { supabase } from "../../lib/supabase";
+import { useState, useCallback, useMemo, useRef } from "react";
 import { useNotes } from "../../hooks/useNotes";
 import { usePapers } from "../../hooks/usePapers";
 import { useIdeas } from "../../hooks/useIdeas";
@@ -36,21 +33,8 @@ import { deriveTitleFromMarkdown } from "../../utils/text";
 import { toast } from "sonner";
 import { FocusStudioWidget } from "./FocusStudioWidget";
 import { AddIdeaDialog } from "../ideas/AddIdeaDialog";
-
-const TABS = [
-  { id: "notes" as const, label: "Notes", icon: FileText },
-  { id: "papers" as const, label: "Papers", icon: BookOpen },
-  { id: "ideas" as const, label: "Ideas", icon: Lightbulb },
-  { id: "tasks" as const, label: "Tasks", icon: CheckSquare },
-  { id: "topics" as const, label: "Topics", icon: Hash },
-  { id: "focus" as const, label: "Focus", icon: Target },
-];
-
-interface DeadlinePreview {
-  id: string;
-  title: string;
-  due_date: string;
-}
+import { useSidebarData } from "./useSidebarData";
+import { SidebarNavTabs } from "./SidebarNavTabs";
 
 interface LeftSidebarProps {
   onNavigate?: () => void;
@@ -95,13 +79,9 @@ function parseQuickIdeaInput(
 }
 
 export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
-  // ⚡ PERFORMANCE OPTIMIZATION:
-  // Using useShallow to prevent unnecessary re-renders of the entire LeftSidebar
-  // when unrelated properties in the global appStore change.
   const {
     currentView,
     setCurrentView,
-    setUserProfile,
     setSelectedNote,
     setSelectedPaper,
     setSelectedIdea,
@@ -112,7 +92,6 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
     useShallow((state) => ({
       currentView: state.currentView,
       setCurrentView: state.setCurrentView,
-      setUserProfile: state.setUser,
       setSelectedNote: state.setSelectedNote,
       setSelectedPaper: state.setSelectedPaper,
       setSelectedIdea: state.setSelectedIdea,
@@ -123,9 +102,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   );
   const activeBoost = useGamificationStore((state) => state.activeBoost);
   const boostCountdown = useGamificationStore((state) => state.boostCountdown);
-  const hydrateFromProfile = useGamificationStore(
-    (state) => state.hydrateFromProfile,
-  );
+  const { userId, todayXP, upcomingDeadlines } = useSidebarData();
   const [searchQueries, setSearchQueries] = useState<SidebarSearchState>({
     notes: "",
     papers: "",
@@ -133,13 +110,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
     tasks: "",
     focus: "",
   });
-  const [userId, setUserId] = useState<string | undefined>(undefined);
-  const [todayXP, setTodayXP] = useState(0);
-  const [upcomingDeadlines, setUpcomingDeadlines] = useState<DeadlinePreview[]>(
-    [],
-  );
   const [isAddIdeaDialogOpen, setIsAddIdeaDialogOpen] = useState(false);
-  const realtimeChannelsRef = useRef<RealtimeChannel[]>([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // URL-based navigation handler
@@ -194,174 +165,6 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   }, [currentView, ideasLoading, notesLoading, papersLoading]);
 
   const showSidebarSearch = currentView !== "tasks" && currentView !== "focus" && currentView !== "topics";
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const clearRealtimeChannels = () => {
-      realtimeChannelsRef.current.forEach((channel) => {
-        try {
-          channel.unsubscribe();
-        } catch (unsubscribeError) {
-          logger.error(
-            "Failed to unsubscribe from Supabase channel",
-            unsubscribeError instanceof Error ? unsubscribeError.message : "Unknown error",
-          );
-        }
-      });
-      realtimeChannelsRef.current = [];
-    };
-
-    const fetchTodayXp = async (userId: string) => {
-      const today = new Date().toISOString().split("T")[0];
-      const { data, error } = await supabase
-        .from("daily_logs")
-        .select("xp_earned")
-        .eq("user_id", userId)
-        .eq("date", today)
-        .maybeSingle();
-
-      if (!isMounted) {
-        return;
-      }
-
-      if (error) {
-        logger.error("Failed to fetch today's XP:", error);
-        return;
-      }
-
-      if (data) {
-        setTodayXP(data.xp_earned);
-      } else {
-        setTodayXP(0);
-      }
-    };
-
-    const fetchUpcomingDeadlines = async (userId: string) => {
-      const now = new Date();
-      const horizon = new Date();
-      horizon.setDate(now.getDate() + 7);
-
-      const { data, error } = await supabase
-        .from("tasks")
-        .select("id, title, due_date, status")
-        .eq("user_id", userId)
-        .neq("status", "completed")
-        .neq("status", "done")
-        .not("due_date", "is", null)
-        .gte("due_date", now.toISOString())
-        .lte("due_date", horizon.toISOString())
-        .order("due_date", { ascending: true })
-        .limit(5);
-
-      if (!isMounted) {
-        return;
-      }
-
-      if (error) {
-        logger.error("Failed to load upcoming deadlines:", error);
-        return;
-      }
-
-      const tasks =
-        (data as
-          | { id: string; title: string; due_date: string | null }[]
-          | null) ?? [];
-      setUpcomingDeadlines(
-        tasks
-          .filter((item) => Boolean(item.due_date))
-          .map((item) => ({
-            id: item.id,
-            title: item.title,
-            due_date: item.due_date as string,
-          })),
-      );
-    };
-
-    const init = async () => {
-      const { data, error } = await supabase.auth.getUser();
-
-      if (!isMounted) {
-        return;
-      }
-
-      if (error) {
-        logger.error("Failed to get user:", error);
-        return;
-      }
-
-      const user = data.user;
-      setUserId(user?.id);
-
-      if (!user?.id) {
-        setTodayXP(0);
-        setUpcomingDeadlines([]);
-        return;
-      }
-
-      clearRealtimeChannels();
-      await fetchTodayXp(user.id);
-      await fetchUpcomingDeadlines(user.id);
-
-      const profileChannel = supabase
-        .channel("profile_changes")
-        .on(
-          "postgres_changes",
-          {
-            event: "UPDATE",
-            schema: "public",
-            table: "user_profiles",
-            filter: `id=eq.${user.id}`,
-          },
-          (payload) => {
-            setUserProfile(payload.new as any);
-            hydrateFromProfile(payload.new as any);
-          },
-        )
-        .subscribe();
-
-      const logsChannel = supabase
-        .channel("daily_logs_changes")
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "daily_logs",
-            filter: `user_id=eq.${user.id}`,
-          },
-          () => {
-            void fetchTodayXp(user.id);
-          },
-        )
-        .subscribe();
-
-      const tasksChannel = supabase
-        .channel("deadline_updates")
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "tasks",
-            filter: `user_id=eq.${user.id}`,
-          },
-          () => {
-            void fetchUpcomingDeadlines(user.id);
-          },
-        )
-        .subscribe();
-
-      realtimeChannelsRef.current = [profileChannel, logsChannel, tasksChannel];
-    };
-
-    void init();
-
-    return () => {
-      isMounted = false;
-      clearRealtimeChannels();
-    };
-  }, [setUserProfile, hydrateFromProfile]);
 
   const handleAddClick = useCallback(async () => {
     if (currentView === "notes") {
@@ -762,75 +565,13 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
       <div className="flex-1 flex flex-col h-full overflow-y-auto">
         <div className="p-4 space-y-4">
           {/* Navigation Tabs */}
-          <nav className="space-y-1">
-            {TABS.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = currentView === tab.id;
-              let badgeText: string | null = null;
-              let badgeStyle = "";
-              const badgeAlignment = isActive ? "ml-2" : "ml-auto";
-
-              if (tab.id === "tasks" && nextDeadlineBadge) {
-                badgeText = nextDeadlineBadge;
-                badgeStyle =
-                  "bg-warning-bg text-warning border border-warning/30";
-              } else if (tab.id === "notes" && activeBoost && boostCountdown) {
-                badgeText = boostCountdown;
-                badgeStyle =
-                  "bg-primary-100 text-primary-700 dark:bg-primary-900/40 dark:text-primary-200";
-              }
-
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => handleTabClick(tab.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-md transition-all duration-200 relative focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 ${
-                    isActive
-                      ? "bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-100 font-semibold shadow-sm"
-                      : "text-text-secondary hover:bg-bg-elevated hover:text-text-primary"
-                  }`}
-                  aria-current={isActive ? "page" : undefined}
-                >
-                  <div
-                    className={`absolute left-2 top-1 bottom-1 w-1.5 bg-primary-500 rounded-full transition-all duration-200 ${
-                      isActive
-                        ? "opacity-100 scale-y-100"
-                        : "opacity-0 scale-y-0"
-                    }`}
-                    aria-hidden="true"
-                  />
-                  <Icon
-                    className={`w-5 h-5 ${
-                      isActive
-                        ? "text-primary-600 dark:text-primary-200"
-                        : "text-text-secondary"
-                    }`}
-                    aria-hidden="true"
-                  />
-                  <span
-                    className={`text-small ${isActive ? "font-semibold" : "font-medium"}`}
-                  >
-                    {tab.label}
-                  </span>
-                  {isActive && (
-                    <span
-                      className="ml-auto text-caption font-semibold text-primary-500 dark:text-primary-200"
-                      aria-hidden="true"
-                    >
-                      Active
-                    </span>
-                  )}
-                  {badgeText && (
-                    <span
-                      className={`${badgeAlignment} text-caption px-2 py-0.5 rounded-full font-semibold ${badgeStyle}`}
-                    >
-                      {badgeText}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </nav>
+          <SidebarNavTabs
+            currentView={currentView}
+            handleTabClick={handleTabClick}
+            nextDeadlineBadge={nextDeadlineBadge}
+            activeBoost={activeBoost}
+            boostCountdown={boostCountdown}
+          />
 
           {/* Search Bar */}
           {showSidebarSearch && (
