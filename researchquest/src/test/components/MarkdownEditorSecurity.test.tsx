@@ -30,7 +30,7 @@ vi.mock("@uiw/react-codemirror", () => ({
         data-testid="codemirror-mock"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        {...Object.keys(props).reduce((acc, key) => { if (key !== "basicSetup" && key !== "extensions") acc[key] = props[key]; return acc; }, {})}
+
       />
     );
   },
