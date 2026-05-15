@@ -80,3 +80,6 @@
 ## 2026-05-07 - Fix useMemo dependency invalidation on tab switches
 **Learning:** Adding active UI state (like `currentView`) to `useMemo` dependencies or early returns for data transformations (like searchable text arrays) is an anti-pattern. It causes synchronous recalculation of the whole array when switching tabs, hurting performance. Memoization should depend strictly on the underlying data.
 **Action:** Remove active UI view state dependencies from `useMemo` hooks and keep memoized lists cached across tab switches.
+## 2024-05-15 - Optimize array aggregations inside useMemo
+**Learning:** Using `.reduce()` combined with subsequent `.filter().length` calls inside `useMemo` hooks (such as in `LeftSidebar.tsx` and `IdeasOverview.tsx`) creates unnecessary callback overhead, intermediate allocations, and redundant iterations over large data sets.
+**Action:** Replace `.reduce()` and `.filter()` chains with direct single-pass imperative `for` loops inside `useMemo`. Derive subsequent UI statistics (like `activeCount`) directly from the lengths of the pre-computed buckets in O(1) time.

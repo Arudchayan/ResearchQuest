@@ -57,28 +57,30 @@ export function IdeasOverview({
   const [error, setError] = useState("");
 
   const stageBuckets = useMemo(() => {
-    return STAGES.reduce<Record<IdeaStage, Idea[]>>(
-      (acc, currentStage) => {
-        acc[currentStage] = ideas
-          .filter((idea) => idea.stage === currentStage)
-          .sort((a, b) =>
-            // Optimization: Use direct string comparison for ISO dates
-            b.updated_at > a.updated_at ? 1 : b.updated_at < a.updated_at ? -1 : 0
-          );
-        return acc;
-      },
-      {
-        Seed: [],
-        Developing: [],
-        Supported: [],
-        Mature: [],
-      },
-    );
+    const buckets: Record<IdeaStage, Idea[]> = {
+      Seed: [],
+      Developing: [],
+      Supported: [],
+      Mature: [],
+    };
+
+    // Single pass to distribute ideas into buckets
+    for (let i = 0; i < ideas.length; i++) {
+      const idea = ideas[i];
+      buckets[idea.stage].push(idea);
+    }
+
+    // Sort each bucket once
+    for (const stage of STAGES) {
+      buckets[stage].sort((a, b) =>
+        b.updated_at > a.updated_at ? 1 : b.updated_at < a.updated_at ? -1 : 0
+      );
+    }
+
+    return buckets;
   }, [ideas]);
 
-  const activeCount = ideas.filter(
-    (idea) => idea.stage === "Seed" || idea.stage === "Developing",
-  ).length;
+  const activeCount = stageBuckets.Seed.length + stageBuckets.Developing.length;
 
   const ideaHighlights = useMemo(() => {
     if (ideas.length === 0) {

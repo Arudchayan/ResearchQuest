@@ -435,32 +435,30 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   );
 
   const readingStatusCounts = useMemo(() => {
-    return papers.reduce(
-      (acc, paper) => {
-        acc[paper.status] = (acc[paper.status] ?? 0) + 1;
-        return acc;
-      },
-      {
-        "To Read": 0,
-        Reading: 0,
-        Read: 0,
-      } as Record<ReadingStatus, number>,
-    );
+    const counts = {
+      "To Read": 0,
+      Reading: 0,
+      Read: 0,
+    } as Record<ReadingStatus, number>;
+    for (let i = 0; i < papers.length; i++) {
+      const status = papers[i].status;
+      counts[status] = (counts[status] ?? 0) + 1;
+    }
+    return counts;
   }, [papers]);
 
   const ideaStageCounts = useMemo(() => {
-    return ideas.reduce(
-      (acc, idea) => {
-        acc[idea.stage] = (acc[idea.stage] ?? 0) + 1;
-        return acc;
-      },
-      {
-        Seed: 0,
-        Developing: 0,
-        Supported: 0,
-        Mature: 0,
-      } as Record<IdeaStage, number>,
-    );
+    const counts = {
+      Seed: 0,
+      Developing: 0,
+      Supported: 0,
+      Mature: 0,
+    } as Record<IdeaStage, number>;
+    for (let i = 0; i < ideas.length; i++) {
+      const stage = ideas[i].stage;
+      counts[stage] = (counts[stage] ?? 0) + 1;
+    }
+    return counts;
   }, [ideas]);
 
   const focusPrompts = useMemo(() => {
