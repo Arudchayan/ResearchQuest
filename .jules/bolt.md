@@ -80,13 +80,6 @@
 ## 2026-05-07 - Fix useMemo dependency invalidation on tab switches
 **Learning:** Adding active UI state (like `currentView`) to `useMemo` dependencies or early returns for data transformations (like searchable text arrays) is an anti-pattern. It causes synchronous recalculation of the whole array when switching tabs, hurting performance. Memoization should depend strictly on the underlying data.
 **Action:** Remove active UI view state dependencies from `useMemo` hooks and keep memoized lists cached across tab switches.
-<<<<<<< HEAD
-
-## 2026-05-08 - Optimize Idea Stage Bucketing
-**Learning:** Chaining `.filter().sort()` for each stage in an array created an $O(S \times N)$ operation that iterated and created intermediate arrays repeatedly.
-**Action:** Replace multiple filters inside a reduce with a single $O(N)$ pass (`for` loop) that groups items into buckets, and then sort the individual buckets afterwards, significantly reducing memory allocation and iteration time.
-=======
-## 2026-05-17 - Optimize array bucketing with single-pass loops
-**Learning:** Using `Array.prototype.reduce` alongside inner `Array.prototype.filter` calls inside `useMemo` for bucketing data (like categorizing ideas by stage) creates O(M*N) time complexity and redundant array allocations. Additionally, deriving subsequent counts via `.filter().length` on the original array repeats O(N) iterations unnecessarily.
-**Action:** Replace `reduce` and `filter` with a single-pass `for` loop to distribute items into buckets. Then, derive subsequent aggregations (like `activeCount`) directly in O(1) time by summing the lengths of the pre-computed buckets.
->>>>>>> 610850f (perf(ideas): optimize stage bucketing with single-pass loop)
+## 2024-05-19 - Avoid Chained Array Methods in Hooks
+**Learning:** Chaining array methods like `.filter().length` or `.reduce()` with internal filters inside `useMemo` hooks creates unnecessary iterations and intermediate allocations, significantly degrading performance on large lists.
+**Action:** Use a single `for` loop (or manual iteration) to bucket elements and compute aggregate statistics (like lengths or active counts) in O(N) time instead of O(K*N) time whenever feasible.
