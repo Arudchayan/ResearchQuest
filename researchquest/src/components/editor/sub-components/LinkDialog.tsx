@@ -54,9 +54,11 @@ export function LinkDialog({
               value={linkUrl}
               onChange={(e) => setLinkUrl(e.target.value)}
               required
+              aria-invalid={!!error}
+              aria-describedby={error ? "link-url-error" : undefined}
               className="w-full px-3 py-2 rounded-md border border-border-subtle bg-bg-base text-small"
             />
-            {error && <p className="text-caption text-destructive mt-1">{error}</p>}
+            {error && <p id="link-url-error" role="alert" className="text-caption text-destructive mt-1">{error}</p>}
           </div>
 
           <div className="flex justify-end gap-2">
