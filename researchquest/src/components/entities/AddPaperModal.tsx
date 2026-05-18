@@ -283,7 +283,7 @@ export function AddPaperModal({
                 </div>
               </div>
               {error && (
-                <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-small rounded-md">
+                <div role="alert" className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-small rounded-md">
                   {error}
                 </div>
               )}
@@ -386,7 +386,7 @@ export function AddPaperModal({
               )}
 
               {error && (
-                <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-small rounded-md">
+                <div role="alert" className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-small rounded-md">
                   {error}
                 </div>
               )}
@@ -406,11 +406,12 @@ export function AddPaperModal({
                   htmlFor="modal-manual-title"
                   className="block text-small font-medium text-text-primary mb-2"
                 >
-                  Title *
+                  Title <span aria-hidden="true">*</span>
                 </label>
                 <input
                   id="modal-manual-title"
                   type="text"
+                  required
                   value={manualTitle}
                   onChange={(e) => setManualTitle(e.target.value)}
                   className="w-full px-4 py-2 bg-bg-base border border-border-subtle rounded-md text-body focus:outline-none focus:ring-2 focus:ring-primary-500"
@@ -469,7 +470,7 @@ export function AddPaperModal({
               </div>
 
               {error && (
-                <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-small rounded-md">
+                <div role="alert" className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-small rounded-md">
                   {error}
                 </div>
               )}
