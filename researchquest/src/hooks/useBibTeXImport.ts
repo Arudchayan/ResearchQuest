@@ -68,16 +68,21 @@ export function useBibTeXImport(
         failedCount = entriesToImport.length;
       }
     } else {
-      for (let i = 0; i < entriesToImport.length; i++) {
-        const entry = entriesToImport[i];
-        try {
-          await onAdd(buildPaperPayloadFromBibTeX(entry));
-          successCount++;
-        } catch (err) {
-          logger.error(`Failed to import paper ${entry.title}`, err);
-          failedCount++;
-        }
-        setImportProgress({ current: i + 1, total: entriesToImport.length });
+      const batchSize = 10;
+      for (let i = 0; i < entriesToImport.length; i += batchSize) {
+        const batch = entriesToImport.slice(i, i + batchSize);
+        await Promise.allSettled(
+          batch.map(async (entry) => {
+            try {
+              await onAdd(buildPaperPayloadFromBibTeX(entry));
+              successCount++;
+            } catch (err) {
+              logger.error(`Failed to import paper ${entry.title}`, err);
+              failedCount++;
+            }
+          })
+        );
+        setImportProgress({ current: Math.min(i + batchSize, entriesToImport.length), total: entriesToImport.length });
       }
     }
 
