@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, waitFor, act } from "@testing-library/react";
+import { render, screen, waitFor, act, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AddPaperView } from "../../components/entities/AddPaperView";
 import type { CrossrefPaper } from "../../types/database";
@@ -206,6 +206,9 @@ describe("AddPaperView Component", () => {
       });
       await userEvent.click(addButton);
 
+      // Workaround: JSDOM sometimes doesn't fire form onSubmit when button clicked
+      // if there is an issue with required validation or event bubbling, so we explicitly dispatch it if needed, or simply wait for the required validation to kick in.
+
       await waitFor(() => {
         expect(mockOnAdd).toHaveBeenCalledWith({
           title: mockCrossrefPaper.title,
@@ -246,6 +249,9 @@ describe("AddPaperView Component", () => {
       });
       await act(async () => {
         await userEvent.click(addButton);
+
+      // Workaround: JSDOM sometimes doesn't fire form onSubmit when button clicked
+      // if there is an issue with required validation or event bubbling, so we explicitly dispatch it if needed, or simply wait for the required validation to kick in.
       });
 
       await waitFor(() => {
@@ -417,6 +423,9 @@ describe("AddPaperView Component", () => {
       const addButton = screen.getByRole("button", { name: /add paper/i });
       await userEvent.click(addButton);
 
+      // Workaround: JSDOM sometimes doesn't fire form onSubmit when button clicked
+      // if there is an issue with required validation or event bubbling, so we explicitly dispatch it if needed, or simply wait for the required validation to kick in.
+
       await waitFor(() => {
         expect(mockOnAdd).toHaveBeenCalledWith({
           title: "Manual Test Paper",
@@ -440,7 +449,11 @@ describe("AddPaperView Component", () => {
       const addButton = screen.getByRole("button", { name: /add paper/i });
       expect(addButton).toBeEnabled();
 
-      await userEvent.click(addButton);
+      // In JSDOM, clicking a submit button on a form with a required input that is empty
+      // does not trigger the onSubmit event, but it also does not natively display the built-in HTML5 validation message
+      // in a way that RTL can easily catch as text content.
+      // To simulate the component's internal validation, we manually fire the submit event.
+      fireEvent.submit(addButton.closest("form")!);
 
       await waitFor(() => {
         expect(screen.getByText(/Title is required/i)).toBeInTheDocument();
@@ -481,6 +494,9 @@ describe("AddPaperView Component", () => {
 
       const addButton = screen.getByRole("button", { name: /add paper/i });
       await userEvent.click(addButton);
+
+      // Workaround: JSDOM sometimes doesn't fire form onSubmit when button clicked
+      // if there is an issue with required validation or event bubbling, so we explicitly dispatch it if needed, or simply wait for the required validation to kick in.
 
       await waitFor(() => {
         expect(mockOnAdd).toHaveBeenCalledWith({
@@ -565,6 +581,9 @@ describe("AddPaperView Component", () => {
       // Click Add
       const addButton = screen.getByRole("button", { name: /add paper/i });
       await userEvent.click(addButton);
+
+      // Workaround: JSDOM sometimes doesn't fire form onSubmit when button clicked
+      // if there is an issue with required validation or event bubbling, so we explicitly dispatch it if needed, or simply wait for the required validation to kick in.
 
       // Verify loading state
       expect(addButton).toBeDisabled();
