@@ -16,6 +16,21 @@ vi.mock("../../store/appStore", () => {
   };
 });
 
+// Mock LazyEditorContent to render immediately for testing
+vi.mock("../../components/editor/sub-components/EditorContent", () => {
+  return {
+    default: ({ content, previewRef }: any) => (
+      <div>
+        <textarea data-testid="codemirror-mock" defaultValue={content} />
+        <div ref={previewRef}>
+          <p>Heading</p>
+          <strong>bold</strong>
+        </div>
+      </div>
+    ),
+  };
+});
+
 vi.mock("zustand/react/shallow", () => ({
   useShallow: (fn: any) => fn,
 }));
@@ -127,8 +142,15 @@ describe("MarkdownEditor Print", () => {
   it("opens print window with correct content when print button is clicked", async () => {
     render(<MarkdownEditor />);
 
-    // Ensure note is loaded
-    expect(screen.getByDisplayValue("Test Note Title")).toBeInTheDocument();
+    // Wait for the Lazy component to load by waiting for the note text to appear
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("Test Note Title")).toBeInTheDocument();
+    });
+
+    // We also need to wait for the markdown preview to render
+    await waitFor(() => {
+      expect(screen.getByText("bold")).toBeInTheDocument();
+    });
 
     // Find print button
     const printButton = screen.getByRole("button", { name: /Print Note/i });
