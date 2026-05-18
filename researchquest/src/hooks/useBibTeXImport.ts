@@ -7,7 +7,7 @@ import type { Paper, PaperDraft } from "../types/database";
 
 export function useBibTeXImport(
   onAdd: (data: PaperDraft) => Promise<Paper | null>,
-  onAddBatch?: (papersData: PaperDraft[]) => Promise<Paper[]>
+  onAddBatch?: (data: PaperDraft[]) => Promise<Paper[]>
 ) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -58,15 +58,15 @@ export function useBibTeXImport(
 
     if (onAddBatch) {
       try {
-        const payloads = entriesToImport.map(buildPaperPayloadFromBibTeX);
-        const added = await onAddBatch(payloads);
-        successCount = added.length;
+        const payload = entriesToImport.map(entry => buildPaperPayloadFromBibTeX(entry));
+        const addedPapers = await onAddBatch(payload);
+        successCount = addedPapers.length;
         failedCount = entriesToImport.length - successCount;
-        setImportProgress({ current: entriesToImport.length, total: entriesToImport.length });
       } catch (err) {
-        logger.error("Failed to batch import papers", err);
+        logger.error(`Failed to batch import papers`, err);
         failedCount = entriesToImport.length;
       }
+      setImportProgress({ current: entriesToImport.length, total: entriesToImport.length });
     } else {
       for (let i = 0; i < entriesToImport.length; i++) {
         const entry = entriesToImport[i];
