@@ -394,7 +394,8 @@ export function AddPaperModal({
           )}
 
           {activeTab === "manual" && (
-            <div
+            <form
+              onSubmit={(e) => { e.preventDefault(); void handleManualAdd(); }}
               className="space-y-4"
               role="tabpanel"
               id="modal-panel-manual"
@@ -474,13 +475,13 @@ export function AddPaperModal({
               )}
 
               <button
-                onClick={handleManualAdd}
+                type="submit"
                 className="w-full px-4 py-3 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors font-medium flex items-center justify-center gap-2"
               >
                 <Plus className="w-5 h-5" />
                 Add Paper
               </button>
-            </div>
+            </form>
           )}
         </div>
       </div>

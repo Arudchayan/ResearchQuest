@@ -37,7 +37,13 @@ export function ManualEntryTab({
   }, [error]);
 
   return (
-    <div className="space-y-6" role="tabpanel" id="view-panel-manual">
+    <form
+      onSubmit={(e) => { e.preventDefault(); void onAdd(); }}
+      className="space-y-6"
+      role="tabpanel"
+      id="view-panel-manual"
+      noValidate
+    >
       <div className="space-y-4">
         <div>
           <label htmlFor="manual-title" className="block text-sm font-medium mb-1">
@@ -93,8 +99,7 @@ export function ManualEntryTab({
           </div>
         )}
         <button
-          type="button"
-          onClick={onAdd}
+          type="submit"
           disabled={loading}
           className="w-full py-4 bg-primary-500 text-white rounded-lg font-semibold flex justify-center items-center gap-2 hover:bg-primary-600 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 disabled:opacity-70 disabled:cursor-not-allowed"
           aria-live="polite"
@@ -113,6 +118,6 @@ export function ManualEntryTab({
           )}
         </button>
       </div>
-    </div>
+    </form>
   );
 }
