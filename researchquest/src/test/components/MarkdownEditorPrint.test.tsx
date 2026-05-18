@@ -110,6 +110,14 @@ describe("MarkdownEditor Print", () => {
       print: mockPrint,
       close: mockClose,
     });
+
+    // Setup window mock if undefined to prevent Cannot set properties of undefined (setting 'open')
+    if (typeof global.window === 'undefined') {
+      (global as any).window = {};
+    }
+
+    // Store original open to restore later if it existed
+    (global as any)._originalWindowOpen = global.window?.open;
     global.window.open = mockOpen;
 
     // Mock store
@@ -136,6 +144,9 @@ describe("MarkdownEditor Print", () => {
   });
 
   afterEach(() => {
+    if (typeof global.window !== 'undefined') {
+      global.window.open = (global as any)._originalWindowOpen;
+    }
     vi.restoreAllMocks();
   });
 
