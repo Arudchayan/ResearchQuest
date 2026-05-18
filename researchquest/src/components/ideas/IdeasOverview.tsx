@@ -64,22 +64,18 @@ export function IdeasOverview({
       Mature: [],
     };
 
-    const len = ideas.length;
-    for (let i = 0; i < len; i++) {
+    // Single pass to distribute ideas into buckets
+    for (let i = 0; i < ideas.length; i++) {
       const idea = ideas[i];
-      if (buckets[idea.stage]) {
-        buckets[idea.stage].push(idea);
-      }
+      buckets[idea.stage].push(idea);
     }
 
-    const sortFn = (a: Idea, b: Idea) =>
-      // Optimization: Use direct string comparison for ISO dates
-      b.updated_at > a.updated_at ? 1 : b.updated_at < a.updated_at ? -1 : 0;
-
-    buckets.Seed.sort(sortFn);
-    buckets.Developing.sort(sortFn);
-    buckets.Supported.sort(sortFn);
-    buckets.Mature.sort(sortFn);
+    // Sort each bucket once
+    for (const stage of STAGES) {
+      buckets[stage].sort((a, b) =>
+        b.updated_at > a.updated_at ? 1 : b.updated_at < a.updated_at ? -1 : 0
+      );
+    }
 
     return buckets;
   }, [ideas]);

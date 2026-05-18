@@ -435,26 +435,28 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   );
 
   const readingStatusCounts = useMemo(() => {
-    const counts: Record<ReadingStatus, number> = {
+    const counts = {
       "To Read": 0,
       Reading: 0,
       Read: 0,
-    };
+    } as Record<ReadingStatus, number>;
     for (let i = 0; i < papers.length; i++) {
-      counts[papers[i].status]++;
+      const status = papers[i].status;
+      counts[status] = (counts[status] ?? 0) + 1;
     }
     return counts;
   }, [papers]);
 
   const ideaStageCounts = useMemo(() => {
-    const counts: Record<IdeaStage, number> = {
+    const counts = {
       Seed: 0,
       Developing: 0,
       Supported: 0,
       Mature: 0,
-    };
+    } as Record<IdeaStage, number>;
     for (let i = 0; i < ideas.length; i++) {
-      counts[ideas[i].stage]++;
+      const stage = ideas[i].stage;
+      counts[stage] = (counts[stage] ?? 0) + 1;
     }
     return counts;
   }, [ideas]);
