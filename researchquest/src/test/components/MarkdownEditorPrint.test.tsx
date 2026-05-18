@@ -48,7 +48,7 @@ vi.mock("../../lib/supabase", () => ({
 vi.mock("@uiw/react-codemirror", () => ({
   default: ({ value, onChange }: any) => (
     <textarea
-      data-testid="code-mirror-mock"
+      data-testid="codemirror-mock"
       value={value}
       onChange={(e) => onChange(e.target.value)}
     />
@@ -71,7 +71,6 @@ describe("MarkdownEditor Print", () => {
   const mockPrint = vi.fn();
   const mockWrite = vi.fn();
   const mockClose = vi.fn();
-  const mockOpen = vi.fn();
 
   const mockNote = {
     id: "note-1",
@@ -87,7 +86,7 @@ describe("MarkdownEditor Print", () => {
     vi.clearAllMocks();
 
     // Mock window.open
-    mockOpen.mockReturnValue({
+    global.window.open = vi.fn().mockReturnValue({
       document: {
         write: mockWrite,
         close: vi.fn(),
@@ -95,7 +94,6 @@ describe("MarkdownEditor Print", () => {
       print: mockPrint,
       close: mockClose,
     });
-    global.window.open = mockOpen;
 
     // Mock store
     const { useAppStore } = await import("../../store/appStore");
@@ -130,12 +128,15 @@ describe("MarkdownEditor Print", () => {
     // Ensure note is loaded
     expect(screen.getByDisplayValue("Test Note Title")).toBeInTheDocument();
 
+    // Wait for the lazy component to render
+    await screen.findByTestId("codemirror-mock");
+
     // Find print button
     const printButton = screen.getByRole("button", { name: /Print Note/i });
     fireEvent.click(printButton);
 
     // Check if window.open was called
-    expect(mockOpen).toHaveBeenCalledWith("", "_blank");
+    expect(global.window.open).toHaveBeenCalledWith("", "_blank");
 
     // Check if document.write was called with expected HTML content
     expect(mockWrite).toHaveBeenCalledWith(

@@ -30,7 +30,6 @@ vi.mock("@uiw/react-codemirror", () => ({
         data-testid="codemirror-mock"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        {...props}
       />
     );
   },
@@ -119,14 +118,15 @@ describe("MarkdownEditor Security", () => {
   });
 
   it("fix: enforces input length validation and does NOT send large payload to Supabase", async () => {
-    vi.useFakeTimers();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     render(<MarkdownEditor />);
 
     // Create a large string exceeding the limit
     const largeContent = "a".repeat(NOTE_BODY_MAX_LENGTH + 100);
 
     // Simulate CodeMirror change
-    const textarea = screen.getByTestId("codemirror-mock");
+    await screen.findByDisplayValue("Test Note");
+    const textarea = await screen.findByTestId("codemirror-mock");
 
     const { fireEvent, act } = await import("@testing-library/react");
 
