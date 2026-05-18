@@ -388,7 +388,7 @@ describe("usePapers Security", () => {
       // The logger passes the full error object in development/test.
       // In production it strips it, but we can't test that in Vitest easily.
       // So we expect it to be called with the error object.
-      expect(consoleSpy).toHaveBeenCalledWith("[RQ] Failed to award XP", sensitiveError);
+      expect(consoleSpy).toHaveBeenCalledWith("[RQ] Failed to award XP: Award XP Failed");
     });
   });
 
