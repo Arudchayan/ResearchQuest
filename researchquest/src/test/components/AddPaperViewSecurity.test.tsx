@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { AddPaperView } from "../../components/entities/AddPaperView";
 import type { CrossrefPaper } from "../../types/database";
 import { useAppStore } from "../../store/appStore";
+import { TooltipProvider } from "../../components/ui/tooltip";
 
 const TAB_NAMES = {
   import: /import bibtex/i,
@@ -58,11 +59,13 @@ describe("AddPaperView Security", () => {
 
   it("should prevent adding a paper with a javascript: URL in manual entry", async () => {
     render(
-      <AddPaperView
-        onAdd={mockOnAdd}
-        searchByDOI={mockSearchByDOI}
-        searchByQuery={mockSearchByQuery}
-      />,
+      <TooltipProvider delayDuration={0}>
+        <AddPaperView
+          onAdd={mockOnAdd}
+          searchByDOI={mockSearchByDOI}
+          searchByQuery={mockSearchByQuery}
+        />
+      </TooltipProvider>,
     );
 
     const manualTab = screen.getByRole("tab", { name: TAB_NAMES.manual });
@@ -86,11 +89,13 @@ describe("AddPaperView Security", () => {
 
   it("should prevent uploading a file larger than 5MB", async () => {
     render(
-      <AddPaperView
-        onAdd={mockOnAdd}
-        searchByDOI={mockSearchByDOI}
-        searchByQuery={mockSearchByQuery}
-      />,
+      <TooltipProvider delayDuration={0}>
+        <AddPaperView
+          onAdd={mockOnAdd}
+          searchByDOI={mockSearchByDOI}
+          searchByQuery={mockSearchByQuery}
+        />
+      </TooltipProvider>,
     );
 
     const importTab = screen.getByRole("tab", { name: TAB_NAMES.import });
