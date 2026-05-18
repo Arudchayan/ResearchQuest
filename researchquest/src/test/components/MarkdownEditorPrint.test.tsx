@@ -63,7 +63,7 @@ vi.mock("../../lib/supabase", () => ({
 vi.mock("@uiw/react-codemirror", () => ({
   default: ({ value, onChange }: any) => (
     <textarea
-      data-testid="code-mirror-mock"
+      data-testid="codemirror-mock"
       value={value}
       onChange={(e) => onChange(e.target.value)}
     />
@@ -151,7 +151,15 @@ describe("MarkdownEditor Print", () => {
   });
 
   it("opens print window with correct content when print button is clicked", async () => {
-    render(<MarkdownEditor />);
+    const { act } = await import("@testing-library/react");
+    await act(async () => {
+      render(<MarkdownEditor />);
+    });
+
+    // Wait for the preview content to be rendered (dynamic import)
+    await waitFor(() => {
+      expect(screen.getByTestId("codemirror-mock")).toBeInTheDocument();
+    });
 
     // Wait for the Lazy component to load by waiting for the note text to appear
     await waitFor(() => {
@@ -163,12 +171,24 @@ describe("MarkdownEditor Print", () => {
       expect(screen.getByText("bold")).toBeInTheDocument();
     });
 
+    // Set view mode to 'split' or 'preview' to ensure previewRef is attached
+    const viewButton = screen.getByTitle(/Split \(Shift\+Ctrl\/Cmd\+S\)/i);
+    await act(async () => {
+      fireEvent.click(viewButton);
+    });
+
     // Find print button
     const printButton = screen.getByRole("button", { name: /Print Note/i });
-    fireEvent.click(printButton);
 
-    // Check if window.open was called
-    expect(mockOpen).toHaveBeenCalledWith("", "_blank");
+    // Using act for state updates triggered by printing in sub-components if any
+    await act(async () => {
+      fireEvent.click(printButton);
+    });
+
+    await waitFor(() => {
+      // Check if window.open was called
+      expect(mockOpen).toHaveBeenCalledWith("", "_blank");
+    });
 
     // Check if document.write was called with expected HTML content
     expect(mockWrite).toHaveBeenCalledWith(
