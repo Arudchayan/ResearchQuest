@@ -1,6 +1,7 @@
 import { useRef, useCallback } from "react";
 import { Loader, Search, X, BookOpen, Plus, ExternalLink } from "lucide-react";
 import type { CrossrefPaper } from "../../../types/database";
+import { Tooltip, TooltipTrigger, TooltipContent } from "../../ui/tooltip";
 
 interface KeywordSearchTabProps {
   searchQuery: string;
@@ -62,14 +63,20 @@ export function KeywordSearchTab({
               className="w-full px-4 py-3 bg-bg-base border border-border-subtle rounded-lg focus:ring-2 focus:ring-primary-500"
             />
             {searchQuery && (
-              <button
-                onClick={() => { setSearchQuery(""); searchInputRef.current?.focus(); }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-text-tertiary"
-                aria-label="Clear search"
-                title="Clear search"
-              >
-                <X className="w-4 h-4" aria-hidden="true" />
-              </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => { setSearchQuery(""); searchInputRef.current?.focus(); }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-text-tertiary"
+                    aria-label="Clear search"
+                  >
+                    <X className="w-4 h-4" aria-hidden="true" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Clear search</p>
+                </TooltipContent>
+              </Tooltip>
             )}
           </div>
           <button

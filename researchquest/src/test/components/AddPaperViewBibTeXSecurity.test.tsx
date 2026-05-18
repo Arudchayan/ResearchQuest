@@ -3,6 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AddPaperView } from "../../components/entities/AddPaperView";
 import { useAppStore } from "../../store/appStore";
+import { TooltipProvider } from "../../components/ui/tooltip";
 
 describe("AddPaperView BibTeX Security", () => {
   const mockOnAdd = vi.fn();
@@ -67,11 +68,13 @@ describe("AddPaperView BibTeX Security", () => {
     });
 
     render(
-      <AddPaperView
-        onAdd={mockOnAdd}
-        searchByDOI={mockSearchByDOI}
-        searchByQuery={mockSearchByQuery}
-      />,
+      <TooltipProvider delayDuration={0}>
+        <AddPaperView
+          onAdd={mockOnAdd}
+          searchByDOI={mockSearchByDOI}
+          searchByQuery={mockSearchByQuery}
+        />
+      </TooltipProvider>,
     );
 
     const importTab = screen.getByText("Import BibTeX");
