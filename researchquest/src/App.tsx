@@ -197,7 +197,7 @@ export function AuthScreen() {
           </p>
         </div>
 
-        <form onSubmit={handleAuth} className="space-y-4">
+        <form onSubmit={handleAuth} className="space-y-4" noValidate>
           {showTestLogin && (
             <div className="space-y-3">
               <button
