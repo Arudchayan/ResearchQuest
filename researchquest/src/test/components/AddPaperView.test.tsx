@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { AddPaperView } from "../../components/entities/AddPaperView";
 import type { CrossrefPaper } from "../../types/database";
 import { useAppStore } from "../../store/appStore";
+import { TooltipProvider } from "../../components/ui/tooltip";
 
 const TAB_NAMES = {
   doi: /doi search/i,
@@ -66,11 +67,11 @@ describe("AddPaperView Component", () => {
   describe("Tab Navigation", () => {
     it("should render all tabs", () => {
       render(
-        <AddPaperView
+        <TooltipProvider delayDuration={0}><AddPaperView
           onAdd={mockOnAdd}
           searchByDOI={mockSearchByDOI}
           searchByQuery={mockSearchByQuery}
-        />,
+        /></TooltipProvider>,
       );
 
       expect(screen.getByRole("button", { name: TAB_NAMES.doi })).toBeInTheDocument();
@@ -81,11 +82,11 @@ describe("AddPaperView Component", () => {
 
     it("should switch between tabs", async () => {
       render(
-        <AddPaperView
+        <TooltipProvider delayDuration={0}><AddPaperView
           onAdd={mockOnAdd}
           searchByDOI={mockSearchByDOI}
           searchByQuery={mockSearchByQuery}
-        />,
+        /></TooltipProvider>,
       );
 
       const keywordTab = screen.getByRole("button", { name: TAB_NAMES.search });
@@ -107,11 +108,11 @@ describe("AddPaperView Component", () => {
       mockSearchByDOI.mockResolvedValue(null);
 
       render(
-        <AddPaperView
+        <TooltipProvider delayDuration={0}><AddPaperView
           onAdd={mockOnAdd}
           searchByDOI={mockSearchByDOI}
           searchByQuery={mockSearchByQuery}
-        />,
+        /></TooltipProvider>,
       );
 
       // Trigger an error in DOI tab
@@ -140,11 +141,11 @@ describe("AddPaperView Component", () => {
       mockSearchByDOI.mockResolvedValue(mockCrossrefPaper);
 
       render(
-        <AddPaperView
+        <TooltipProvider delayDuration={0}><AddPaperView
           onAdd={mockOnAdd}
           searchByDOI={mockSearchByDOI}
           searchByQuery={mockSearchByQuery}
-        />,
+        /></TooltipProvider>,
       );
 
       const doiInput = screen.getByPlaceholderText(/e.g., 10.1038/i);
@@ -163,11 +164,11 @@ describe("AddPaperView Component", () => {
       mockSearchByDOI.mockResolvedValue(mockCrossrefPaper);
 
       render(
-        <AddPaperView
+        <TooltipProvider delayDuration={0}><AddPaperView
           onAdd={mockOnAdd}
           searchByDOI={mockSearchByDOI}
           searchByQuery={mockSearchByQuery}
-        />,
+        /></TooltipProvider>,
       );
 
       const doiInput = screen.getByPlaceholderText(/e.g., 10.1038/i);
@@ -182,11 +183,11 @@ describe("AddPaperView Component", () => {
       mockSearchByDOI.mockResolvedValue(mockCrossrefPaper);
 
       render(
-        <AddPaperView
+        <TooltipProvider delayDuration={0}><AddPaperView
           onAdd={mockOnAdd}
           searchByDOI={mockSearchByDOI}
           searchByQuery={mockSearchByQuery}
-        />,
+        /></TooltipProvider>,
       );
 
       const doiInput = screen.getByPlaceholderText(/e.g., 10.1038/i);
@@ -222,11 +223,11 @@ describe("AddPaperView Component", () => {
       mockSearchByDOI.mockResolvedValue(mockCrossrefPaper);
 
       render(
-        <AddPaperView
+        <TooltipProvider delayDuration={0}><AddPaperView
           onAdd={mockOnAdd}
           searchByDOI={mockSearchByDOI}
           searchByQuery={mockSearchByQuery}
-        />,
+        /></TooltipProvider>,
       );
 
       const doiInput = screen.getByPlaceholderText(/e.g., 10.1038/i);
@@ -259,11 +260,11 @@ describe("AddPaperView Component", () => {
       mockSearchByDOI.mockResolvedValue(null);
 
       render(
-        <AddPaperView
+        <TooltipProvider delayDuration={0}><AddPaperView
           onAdd={mockOnAdd}
           searchByDOI={mockSearchByDOI}
           searchByQuery={mockSearchByQuery}
-        />,
+        /></TooltipProvider>,
       );
 
       const doiInput = screen.getByPlaceholderText(/e.g., 10.1038/i);
@@ -284,11 +285,11 @@ describe("AddPaperView Component", () => {
       mockSearchByQuery.mockResolvedValue(mockResults);
 
       render(
-        <AddPaperView
+        <TooltipProvider delayDuration={0}><AddPaperView
           onAdd={mockOnAdd}
           searchByDOI={mockSearchByDOI}
           searchByQuery={mockSearchByQuery}
-        />,
+        /></TooltipProvider>,
       );
 
       const keywordTab = screen.getByRole("button", { name: TAB_NAMES.search });
@@ -326,11 +327,11 @@ describe("AddPaperView Component", () => {
       mockSearchByQuery.mockResolvedValue(mockResults);
 
       render(
-        <AddPaperView
+        <TooltipProvider delayDuration={0}><AddPaperView
           onAdd={mockOnAdd}
           searchByDOI={mockSearchByDOI}
           searchByQuery={mockSearchByQuery}
-        />,
+        /></TooltipProvider>,
       );
 
       const keywordTab = screen.getByRole("button", { name: TAB_NAMES.search });
@@ -371,11 +372,11 @@ describe("AddPaperView Component", () => {
       mockSearchByQuery.mockResolvedValue([]);
 
       render(
-        <AddPaperView
+        <TooltipProvider delayDuration={0}><AddPaperView
           onAdd={mockOnAdd}
           searchByDOI={mockSearchByDOI}
           searchByQuery={mockSearchByQuery}
-        />,
+        /></TooltipProvider>,
       );
 
       const keywordTab = screen.getByRole("button", { name: TAB_NAMES.search });
@@ -398,11 +399,11 @@ describe("AddPaperView Component", () => {
   describe("Manual Entry", () => {
     it("should add paper via manual entry", async () => {
       render(
-        <AddPaperView
+        <TooltipProvider delayDuration={0}><AddPaperView
           onAdd={mockOnAdd}
           searchByDOI={mockSearchByDOI}
           searchByQuery={mockSearchByQuery}
-        />,
+        /></TooltipProvider>,
       );
 
       const manualTab = screen.getByRole("button", { name: TAB_NAMES.manual });
@@ -427,11 +428,11 @@ describe("AddPaperView Component", () => {
 
     it("should require title for manual entry", async () => {
       render(
-        <AddPaperView
+        <TooltipProvider delayDuration={0}><AddPaperView
           onAdd={mockOnAdd}
           searchByDOI={mockSearchByDOI}
           searchByQuery={mockSearchByQuery}
-        />,
+        /></TooltipProvider>,
       );
 
       const manualTab = screen.getByRole("button", { name: TAB_NAMES.manual });
@@ -460,11 +461,11 @@ describe("AddPaperView Component", () => {
 
     it("should handle optional fields in manual entry", async () => {
       render(
-        <AddPaperView
+        <TooltipProvider delayDuration={0}><AddPaperView
           onAdd={mockOnAdd}
           searchByDOI={mockSearchByDOI}
           searchByQuery={mockSearchByQuery}
-        />,
+        /></TooltipProvider>,
       );
 
       const manualTab = screen.getByRole("button", { name: TAB_NAMES.manual });
@@ -502,11 +503,11 @@ describe("AddPaperView Component", () => {
       mockSearchByDOI.mockReturnValue(searchPromise);
 
       render(
-        <AddPaperView
+        <TooltipProvider delayDuration={0}><AddPaperView
           onAdd={mockOnAdd}
           searchByDOI={mockSearchByDOI}
           searchByQuery={mockSearchByQuery}
-        />,
+        /></TooltipProvider>,
       );
 
       const doiInput = screen.getByPlaceholderText(/e.g., 10.1038/i);
@@ -527,11 +528,11 @@ describe("AddPaperView Component", () => {
 
     it("should disable search button when input is empty", () => {
       render(
-        <AddPaperView
+        <TooltipProvider delayDuration={0}><AddPaperView
           onAdd={mockOnAdd}
           searchByDOI={mockSearchByDOI}
           searchByQuery={mockSearchByQuery}
-        />,
+        /></TooltipProvider>,
       );
 
       const searchButton = screen.getByRole("button", { name: /^search$/i });
@@ -547,11 +548,11 @@ describe("AddPaperView Component", () => {
       mockOnAdd.mockReturnValue(addPromise);
 
       render(
-        <AddPaperView
+        <TooltipProvider delayDuration={0}><AddPaperView
           onAdd={mockOnAdd}
           searchByDOI={mockSearchByDOI}
           searchByQuery={mockSearchByQuery}
-        />,
+        /></TooltipProvider>,
       );
 
       // Switch to Manual Entry
@@ -590,11 +591,11 @@ describe("AddPaperView Component", () => {
       mockSearchByDOI.mockResolvedValue(mockCrossrefPaper);
 
       render(
-        <AddPaperView
+        <TooltipProvider delayDuration={0}><AddPaperView
           onAdd={mockOnAdd}
           searchByDOI={mockSearchByDOI}
           searchByQuery={mockSearchByQuery}
-        />,
+        /></TooltipProvider>,
       );
 
       const doiInput = screen.getByPlaceholderText(/e.g., 10.1038/i);
@@ -614,11 +615,11 @@ describe("AddPaperView Component", () => {
       mockSearchByDOI.mockResolvedValue(mockCrossrefPaper);
 
       render(
-        <AddPaperView
+        <TooltipProvider delayDuration={0}><AddPaperView
           onAdd={mockOnAdd}
           searchByDOI={mockSearchByDOI}
           searchByQuery={mockSearchByQuery}
-        />,
+        /></TooltipProvider>,
       );
 
       const doiInput = screen.getByPlaceholderText(/e.g., 10.1038/i);
@@ -640,11 +641,11 @@ describe("AddPaperView Component", () => {
       mockSearchByDOI.mockResolvedValue(manyAuthorsPaper);
 
       render(
-        <AddPaperView
+        <TooltipProvider delayDuration={0}><AddPaperView
           onAdd={mockOnAdd}
           searchByDOI={mockSearchByDOI}
           searchByQuery={mockSearchByQuery}
-        />,
+        /></TooltipProvider>,
       );
 
       const doiInput = screen.getByPlaceholderText(/e.g., 10.1038/i);
@@ -662,11 +663,11 @@ describe("AddPaperView Component", () => {
   describe("Import BibTeX", () => {
     it("should switch to Import tab", async () => {
       render(
-        <AddPaperView
+        <TooltipProvider delayDuration={0}><AddPaperView
           onAdd={mockOnAdd}
           searchByDOI={mockSearchByDOI}
           searchByQuery={mockSearchByQuery}
-        />,
+        /></TooltipProvider>,
       );
 
       const importTab = screen.getByRole("button", { name: TAB_NAMES.import });
@@ -677,11 +678,11 @@ describe("AddPaperView Component", () => {
 
     it("should handle file upload and parsing", async () => {
       render(
-        <AddPaperView
+        <TooltipProvider delayDuration={0}><AddPaperView
           onAdd={mockOnAdd}
           searchByDOI={mockSearchByDOI}
           searchByQuery={mockSearchByQuery}
-        />,
+        /></TooltipProvider>,
       );
 
       await userEvent.click(screen.getByRole("button", { name: TAB_NAMES.import }));
@@ -711,11 +712,11 @@ describe("AddPaperView Component", () => {
 
     it("should import selected papers", async () => {
       render(
-        <AddPaperView
+        <TooltipProvider delayDuration={0}><AddPaperView
           onAdd={mockOnAdd}
           searchByDOI={mockSearchByDOI}
           searchByQuery={mockSearchByQuery}
-        />,
+        /></TooltipProvider>,
       );
 
       await userEvent.click(screen.getByRole("button", { name: TAB_NAMES.import }));

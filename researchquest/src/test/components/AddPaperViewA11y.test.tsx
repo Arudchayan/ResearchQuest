@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { AddPaperView } from '../../components/entities/AddPaperView'
 import type { CrossrefPaper } from '../../types/database'
 import { useAppStore } from '../../store/appStore'
+import { TooltipProvider } from '../../components/ui/tooltip'
 
 describe('AddPaperView Accessibility', () => {
   const mockOnAdd = vi.fn()
@@ -18,11 +19,13 @@ describe('AddPaperView Accessibility', () => {
   it('should have role="alert" for DOI search errors', async () => {
     mockSearchByDOI.mockResolvedValue(null)
     render(
-      <AddPaperView
-        onAdd={mockOnAdd}
-        searchByDOI={mockSearchByDOI}
-        searchByQuery={mockSearchByQuery}
-      />
+      <TooltipProvider delayDuration={0}>
+        <AddPaperView
+          onAdd={mockOnAdd}
+          searchByDOI={mockSearchByDOI}
+          searchByQuery={mockSearchByQuery}
+        />
+      </TooltipProvider>
     )
 
     const doiInput = screen.getByPlaceholderText(/e.g., 10.1038/i)
@@ -51,11 +54,13 @@ describe('AddPaperView Accessibility', () => {
     mockOnAdd.mockResolvedValue({ id: 'new-id', title: 'Success Paper' })
 
     render(
-      <AddPaperView
-        onAdd={mockOnAdd}
-        searchByDOI={mockSearchByDOI}
-        searchByQuery={mockSearchByQuery}
-      />
+      <TooltipProvider delayDuration={0}>
+        <AddPaperView
+          onAdd={mockOnAdd}
+          searchByDOI={mockSearchByDOI}
+          searchByQuery={mockSearchByQuery}
+        />
+      </TooltipProvider>
     )
 
     const doiInput = screen.getByPlaceholderText(/e.g., 10.1038/i)
@@ -80,11 +85,13 @@ describe('AddPaperView Accessibility', () => {
 
   it('should use aria-hidden asterisk for required manual entry title', async () => {
     render(
-      <AddPaperView
-        onAdd={mockOnAdd}
-        searchByDOI={mockSearchByDOI}
-        searchByQuery={mockSearchByQuery}
-      />
+      <TooltipProvider delayDuration={0}>
+        <AddPaperView
+          onAdd={mockOnAdd}
+          searchByDOI={mockSearchByDOI}
+          searchByQuery={mockSearchByQuery}
+        />
+      </TooltipProvider>
     )
 
     const manualTab = screen.getByText('Manual Entry')

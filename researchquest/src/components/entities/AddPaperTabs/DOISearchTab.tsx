@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { Loader, Search, X } from "lucide-react";
 import type { CrossrefPaper } from "../../../types/database";
+import { Tooltip, TooltipTrigger, TooltipContent } from "../../ui/tooltip";
 
 function formatAuthorsLine(authors: string[]) {
   if (authors.length === 0) return "";
@@ -52,14 +53,20 @@ export function DOISearchTab({
               className="w-full px-4 py-3 bg-bg-base border border-border-subtle rounded-lg focus:ring-2 focus:ring-primary-500"
             />
             {doiInput && (
-              <button
-                onClick={() => { setDoiInput(""); doiInputRef.current?.focus(); }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-text-tertiary"
-                aria-label="Clear search"
-                title="Clear search"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => { setDoiInput(""); doiInputRef.current?.focus(); }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-text-tertiary"
+                    aria-label="Clear search"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Clear search</p>
+                </TooltipContent>
+              </Tooltip>
             )}
           </div>
           <button
