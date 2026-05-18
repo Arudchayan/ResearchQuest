@@ -38,14 +38,7 @@ export function ManualEntryTab({
 
   return (
     <div className="space-y-6" role="tabpanel" id="view-panel-manual">
-      <form
-        className="space-y-4"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void onAdd();
-        }}
-        noValidate
-      >
+      <form noValidate onSubmit={(e) => { e.preventDefault(); void onAdd(); }} className="space-y-4">
         <div>
           <label htmlFor="manual-title" className="block text-sm font-medium mb-1">
             Title <span aria-hidden="true">*</span>
