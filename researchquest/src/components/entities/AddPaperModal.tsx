@@ -258,18 +258,25 @@ export function AddPaperModal({
                 >
                   Enter DOI
                 </label>
-                <div className="flex gap-2">
+                <form
+                  className="flex gap-2"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (doiInput.trim()) {
+                      void handleDOISearch();
+                    }
+                  }}
+                >
                   <input
                     id="modal-doi-input"
                     type="text"
                     value={doiInput}
                     onChange={(e) => setDoiInput(e.target.value)}
-                    onKeyPress={(e) => e.key === "Enter" && handleDOISearch()}
                     placeholder="10.1038/nature12373"
                     className="flex-1 px-4 py-2 bg-bg-base border border-border-subtle rounded-md text-body focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                   <button
-                    onClick={handleDOISearch}
+                    type="submit"
                     disabled={loading || !doiInput.trim()}
                     className="px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   >
@@ -280,7 +287,7 @@ export function AddPaperModal({
                     )}
                     Search
                   </button>
-                </div>
+                </form>
               </div>
               {error && (
                 <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-small rounded-md">
@@ -334,18 +341,25 @@ export function AddPaperModal({
                 >
                   Search Query
                 </label>
-                <div className="flex gap-2">
+                <form
+                  className="flex gap-2"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (searchQuery.trim()) {
+                      void handleQuerySearch();
+                    }
+                  }}
+                >
                   <input
                     id="modal-search-query"
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyPress={(e) => e.key === "Enter" && handleQuerySearch()}
                     placeholder="CRISPR gene editing"
                     className="flex-1 px-4 py-2 bg-bg-base border border-border-subtle rounded-md text-body focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                   <button
-                    onClick={handleQuerySearch}
+                    type="submit"
                     disabled={loading || !searchQuery.trim()}
                     className="px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   >
@@ -356,7 +370,7 @@ export function AddPaperModal({
                     )}
                     Search
                   </button>
-                </div>
+                </form>
               </div>
 
               {searchResults.length > 0 && (
