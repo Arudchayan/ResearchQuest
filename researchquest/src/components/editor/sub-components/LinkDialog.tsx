@@ -33,7 +33,7 @@ export function LinkDialog({
           <p className="text-caption text-text-secondary mt-1">Wrap selection with a link label.</p>
         </div>
 
-        <form onSubmit={onSubmit} className="p-6 space-y-4">
+        <form onSubmit={onSubmit} className="p-6 space-y-4" noValidate>
           <div>
             <label htmlFor="link-text" className="block text-caption font-medium text-text-secondary mb-1">Link text</label>
             <input
