@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { AddPaperView } from "../../components/entities/AddPaperView";
 import type { CrossrefPaper } from "../../types/database";
 import { useAppStore } from "../../store/appStore";
+import { TooltipProvider } from "../../components/ui/tooltip";
 
 describe("AddPaperView Clear Button", () => {
   const mockOnAdd = vi.fn();
@@ -49,11 +50,13 @@ describe("AddPaperView Clear Button", () => {
 
   it("should show and work clear button in DOI search", async () => {
     render(
-      <AddPaperView
-        onAdd={mockOnAdd}
-        searchByDOI={mockSearchByDOI}
-        searchByQuery={mockSearchByQuery}
-      />,
+      <TooltipProvider delayDuration={0}>
+        <AddPaperView
+          onAdd={mockOnAdd}
+          searchByDOI={mockSearchByDOI}
+          searchByQuery={mockSearchByQuery}
+        />
+      </TooltipProvider>,
     );
 
     const doiInput = screen.getByPlaceholderText(/e.g., 10.1038/i);
@@ -78,11 +81,13 @@ describe("AddPaperView Clear Button", () => {
 
   it("should show and work clear button in Keyword search", async () => {
     render(
-      <AddPaperView
-        onAdd={mockOnAdd}
-        searchByDOI={mockSearchByDOI}
-        searchByQuery={mockSearchByQuery}
-      />,
+      <TooltipProvider delayDuration={0}>
+        <AddPaperView
+          onAdd={mockOnAdd}
+          searchByDOI={mockSearchByDOI}
+          searchByQuery={mockSearchByQuery}
+        />
+      </TooltipProvider>,
     );
 
     const keywordTab = screen.getByText("Keyword Search");
