@@ -46,13 +46,18 @@ vi.mock("../../lib/supabase", () => ({
 
 // Mock CodeMirror to avoid rendering issues in JSDOM
 vi.mock("@uiw/react-codemirror", () => ({
-  default: ({ value, onChange }: any) => (
-    <textarea
-      data-testid="code-mirror-mock"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-    />
-  ),
+  default: ({ value, onChange, ...props }: any) => {
+    // Remove complex props that cause warnings on textarea
+    const { basicSetup, onCreateEditor, extensions, theme, ...validProps } = props;
+    return (
+      <textarea
+        data-testid="codemirror-mock"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        {...validProps}
+      />
+    );
+  },
 }));
 
 // Mock Gamification
