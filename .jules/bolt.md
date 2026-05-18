@@ -80,3 +80,7 @@
 ## 2026-05-07 - Fix useMemo dependency invalidation on tab switches
 **Learning:** Adding active UI state (like `currentView`) to `useMemo` dependencies or early returns for data transformations (like searchable text arrays) is an anti-pattern. It causes synchronous recalculation of the whole array when switching tabs, hurting performance. Memoization should depend strictly on the underlying data.
 **Action:** Remove active UI view state dependencies from `useMemo` hooks and keep memoized lists cached across tab switches.
+
+## 2026-05-08 - Optimize Idea Stage Bucketing
+**Learning:** Chaining `.filter().sort()` for each stage in an array created an $O(S \times N)$ operation that iterated and created intermediate arrays repeatedly.
+**Action:** Replace multiple filters inside a reduce with a single $O(N)$ pass (`for` loop) that groups items into buckets, and then sort the individual buckets afterwards, significantly reducing memory allocation and iteration time.
