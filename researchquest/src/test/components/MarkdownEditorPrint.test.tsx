@@ -138,7 +138,7 @@ describe("MarkdownEditor Print", () => {
 
     // The EditorContent is lazy-loaded, so we must wait for it to be rendered
     // to ensure previewRef is attached.
-    const mockCodeMirror = await screen.findByTestId("code-mirror-mock");
+    const mockCodeMirror = await screen.findByTestId("codemirror-mock");
     expect(mockCodeMirror).toBeInTheDocument();
 
     // Find print button
