@@ -373,7 +373,11 @@ export function Dashboard() {
               {ideasLoading ? (
                 <ListSkeleton count={3} itemType="idea" />
               ) : activeIdeas.length === 0 ? (
-                <div className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary">
+                <div
+                  className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary"
+                  role="status"
+                  aria-live="polite"
+                >
                   <p className="mb-3">No active ideas.</p>
                   <button
                     onClick={() => navigateTo("ideas")}
@@ -434,7 +438,11 @@ export function Dashboard() {
               {topicsLoading ? (
                 <ListSkeleton count={3} itemType="note" />
               ) : activeTopics.length === 0 ? (
-                <div className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary">
+                <div
+                  className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary"
+                  role="status"
+                  aria-live="polite"
+                >
                   <p className="mb-3">No active topics.</p>
                   <button
                     onClick={() => navigateTo("topics")}
@@ -494,7 +502,11 @@ export function Dashboard() {
               {papersLoading ? (
                 <ListSkeleton count={3} itemType="paper" />
               ) : readingList.length === 0 ? (
-                <div className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary">
+                <div
+                  className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary"
+                  role="status"
+                  aria-live="polite"
+                >
                   <p className="mb-3">Your reading list is empty.</p>
                   <button
                     onClick={() => navigateTo("papers")}
