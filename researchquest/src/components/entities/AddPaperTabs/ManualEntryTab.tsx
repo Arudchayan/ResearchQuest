@@ -53,6 +53,8 @@ export function ManualEntryTab({
             ref={manualTitleInputRef}
             type="text"
             required
+            aria-invalid={error === "Title is required"}
+            aria-describedby={error === "Title is required" ? "manual-error" : undefined}
             value={manualTitle}
             onChange={(e) => setManualTitle(e.target.value)}
             className="w-full p-3 bg-bg-base border rounded-lg"
@@ -93,7 +95,7 @@ export function ManualEntryTab({
           />
         </div>
         {error && (
-          <div role="alert" className="text-red-500 text-sm">
+          <div id="manual-error" role="alert" className="text-red-500 text-sm">
             {error}
           </div>
         )}
