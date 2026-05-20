@@ -48,6 +48,18 @@ describe("Security Utils", () => {
       );
     });
 
+    it("should reject obfuscated javascript protocols using spaces or newlines", () => {
+      expect(isValidUrl(" \n javascript:alert(1)")).toBe(false);
+      expect(isValidUrl("\tjavascript:alert(1)")).toBe(false);
+      expect(isValidUrl(" \n\t javascript:alert(1)")).toBe(false);
+      expect(isValidUrl("java\nscript:alert(1)")).toBe(false);
+
+      // Note: HTML entities in href like &#x74; are decoded by the browser's HTML parser
+      // before being passed as a URL. Since isValidUrl validates the URL *value*,
+      // not the HTML string, it correctly treats "javascrip&#x74;:alert(1)" as a relative URL.
+      // So we don't test HTML entity decoding here.
+    });
+
     it("should reject vbscript protocol", () => {
       expect(isValidUrl('vbscript:msgbox("test")')).toBe(false);
     });
