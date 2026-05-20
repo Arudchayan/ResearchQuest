@@ -69,6 +69,8 @@ export function BibTeXImportTab({
             type="file"
             accept=".bib"
             onChange={handleFileInputChange}
+            aria-invalid={!!error}
+            aria-describedby={error ? "bibtex-error" : undefined}
             className="absolute inset-0 opacity-0 cursor-pointer"
           />
           <div className="flex flex-col items-center gap-2 text-text-secondary pointer-events-none">
@@ -82,6 +84,7 @@ export function BibTeXImportTab({
 
       {error && (
         <div
+          id="bibtex-error"
           role="alert"
           className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg flex items-center gap-2"
         >
