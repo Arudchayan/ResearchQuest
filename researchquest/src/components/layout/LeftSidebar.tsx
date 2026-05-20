@@ -343,9 +343,20 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
 
   // Filter entities by search query (memoized for performance)
   const activeSearchQuery = searchQueries[currentView];
-  const normalizedQuery = useMemo(
-    () => activeSearchQuery.trim().toLowerCase(),
-    [activeSearchQuery],
+
+  const normalizedNotesQuery = useMemo(
+    () => searchQueries.notes.trim().toLowerCase(),
+    [searchQueries.notes],
+  );
+
+  const normalizedPapersQuery = useMemo(
+    () => searchQueries.papers.trim().toLowerCase(),
+    [searchQueries.papers],
+  );
+
+  const normalizedIdeasQuery = useMemo(
+    () => searchQueries.ideas.trim().toLowerCase(),
+    [searchQueries.ideas],
   );
 
   // ⚡ PERFORMANCE OPTIMIZATION: Pre-compute derived text fields (like markdown title extraction and toLowerCase)
@@ -360,21 +371,21 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   }, [notes]);
 
   const filteredNotes = useMemo(() => {
-    if (!normalizedQuery) return notes;
+    if (!normalizedNotesQuery) return notes;
 
     const results = [];
     for (let i = 0; i < searchableNotes.length; i++) {
       const sn = searchableNotes[i];
       if (
-        sn.titleText.includes(normalizedQuery) ||
-        sn.bodyText.includes(normalizedQuery) ||
-        sn.tagsText.includes(normalizedQuery)
+        sn.titleText.includes(normalizedNotesQuery) ||
+        sn.bodyText.includes(normalizedNotesQuery) ||
+        sn.tagsText.includes(normalizedNotesQuery)
       ) {
         results.push(sn.note);
       }
     }
     return results;
-  }, [searchableNotes, normalizedQuery, notes]);
+  }, [searchableNotes, normalizedNotesQuery, notes]);
 
   const searchablePapers = useMemo(() => {
     return papers.map((paper) => ({
@@ -385,20 +396,20 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   }, [papers]);
 
   const filteredPapers = useMemo(() => {
-    if (!normalizedQuery) return papers;
+    if (!normalizedPapersQuery) return papers;
 
     const results = [];
     for (let i = 0; i < searchablePapers.length; i++) {
       const sp = searchablePapers[i];
       if (
-        sp.titleText.includes(normalizedQuery) ||
-        sp.authorsText.includes(normalizedQuery)
+        sp.titleText.includes(normalizedPapersQuery) ||
+        sp.authorsText.includes(normalizedPapersQuery)
       ) {
         results.push(sp.paper);
       }
     }
     return results;
-  }, [searchablePapers, normalizedQuery, papers]);
+  }, [searchablePapers, normalizedPapersQuery, papers]);
 
   const searchableIdeas = useMemo(() => {
     return ideas.map((idea) => ({
@@ -409,20 +420,20 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   }, [ideas]);
 
   const filteredIdeas = useMemo(() => {
-    if (!normalizedQuery) return ideas;
+    if (!normalizedIdeasQuery) return ideas;
 
     const results = [];
     for (let i = 0; i < searchableIdeas.length; i++) {
       const si = searchableIdeas[i];
       if (
-        si.titleText.includes(normalizedQuery) ||
-        si.descriptionText.includes(normalizedQuery)
+        si.titleText.includes(normalizedIdeasQuery) ||
+        si.descriptionText.includes(normalizedIdeasQuery)
       ) {
         results.push(si.idea);
       }
     }
     return results;
-  }, [searchableIdeas, normalizedQuery, ideas]);
+  }, [searchableIdeas, normalizedIdeasQuery, ideas]);
 
   const nextDeadline = upcomingDeadlines[0];
 
