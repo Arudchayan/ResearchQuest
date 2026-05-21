@@ -412,14 +412,14 @@ export function PapersView() {
           ) : filteredPapers.length === 0 ? (
             <div className="text-center py-20" role="status" aria-live="polite">
               <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                <BookOpen className="w-8 h-8 text-slate-400" />
+                <BookOpen className="w-8 h-8 text-slate-400 opacity-50" />
               </div>
               <h3 className="text-lg font-medium text-slate-900 dark:text-white">
-                No papers found
+                {searchQuery ? "No matches found" : "No papers found"}
               </h3>
               <p className="text-slate-500 dark:text-slate-400 max-w-sm mx-auto mt-2">
                 {searchQuery
-                  ? "Try adjusting your search terms."
+                  ? "Try a different keyword or clear your search."
                   : "Start building your library by adding your first research paper."}
               </p>
               {!searchQuery && (

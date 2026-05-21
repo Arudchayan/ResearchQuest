@@ -73,7 +73,7 @@ describe("NotesView Empty State", () => {
 
     expect(screen.getByText("No matches found")).toBeInTheDocument();
     expect(
-      screen.getByText("Try adjusting your search terms"),
+      screen.getByText("Try a different keyword or clear your search."),
     ).toBeInTheDocument();
 
     // The "Create Note" button (with text) should NOT be present in empty state
