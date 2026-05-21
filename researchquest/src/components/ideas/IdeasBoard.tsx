@@ -523,7 +523,7 @@ export function IdeasBoard() {
             <Dialog.Title className="text-xl font-bold mb-4 text-slate-900 dark:text-white">
               Capture New Idea
             </Dialog.Title>
-            <div className="space-y-4">
+            <form onSubmit={(e) => { e.preventDefault(); void handleCreate(); }} className="space-y-4">
               <div>
                 <label
                   htmlFor="create-idea-title"
@@ -568,20 +568,21 @@ export function IdeasBoard() {
               </div>
               <div className="flex justify-end gap-3 pt-2">
                 <button
+                  type="button"
                   onClick={() => setIsCreateDialogOpen(false)}
                   className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg font-medium"
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={handleCreate}
+                  type="submit"
                   disabled={!newIdeaTitle.trim()}
                   className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50"
                 >
                   Create Idea
                 </button>
               </div>
-            </div>
+            </form>
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
