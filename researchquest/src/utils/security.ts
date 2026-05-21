@@ -16,26 +16,23 @@ export function isValidUrl(url: string): boolean {
   const trimmed = sanitized.trim();
   if (!trimmed) return false;
 
-  // Normalize backslashes to forward slashes to catch obfuscated protocol-relative paths
-  // or bypasses like "/\javascript:alert(1)"
-  const normalized = trimmed.replace(/\\/g, "/");
+  // Explicitly reject protocol-relative URLs (e.g. "//google.com")
+  // and obfuscated variants (e.g. "/\example.com")
+  if (/^[\\/]{2}/.test(trimmed)) {
+    return false;
+  }
 
-  // Explicitly reject protocol-relative URLs to prevent open redirect vulnerabilities
-  if (normalized.startsWith("//")) return false;
-
-  // Allow relative URLs (often safe in context of app navigation, but be careful)
-  // For external links, we usually want http/https.
-  // If it starts with /, it's relative.
-  if (normalized.startsWith("/")) {
+  // Allow explicit root-relative URLs
+  if (trimmed.startsWith("/")) {
     return true;
   }
 
   try {
+    // Parse as an absolute URL without a base
     const parsed = new URL(trimmed);
     return ["http:", "https:", "mailto:"].includes(parsed.protocol);
   } catch (e) {
-    // If URL parsing fails, it might be a relative URL or invalid.
-    // If we want to enforce full URLs for external links:
+    // If URL parsing fails (e.g., plain strings, invalid protocols), reject it
     return false;
   }
 }
