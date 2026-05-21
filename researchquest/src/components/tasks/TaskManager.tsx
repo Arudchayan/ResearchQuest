@@ -602,7 +602,7 @@ export function TaskManager() {
               {searchQuery ? "No matches found" : "No tasks match your filters"}
             </p>
             <p className="text-small text-text-tertiary mb-4">
-              Create a new task or adjust filters to see more items.
+              {searchQuery ? "Try a different keyword or clear your search." : "Create a new task or adjust filters to see more items."}
             </p>
             <button
               onClick={() => setShowAddModal(true)}
