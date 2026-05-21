@@ -198,7 +198,7 @@ export function IdeaList({
     }));
   }, [ideas]);
 
-  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const normalizedQuery = searchQuery?.trim().toLowerCase() || "";
 
   const filteredIdeas = useMemo(() => {
     // Optimization: Return original array if no filters are active
@@ -206,19 +206,25 @@ export function IdeaList({
       return ideas || [];
     }
 
-    return searchableIdeas
-      .filter((si) => {
-        const matchesStage =
-          stageFilter === "all" || si.idea.stage === stageFilter;
-        if (!matchesStage) {
-          return false;
-        }
-        if (!normalizedQuery) {
-          return true;
-        }
-        return si.searchText.includes(normalizedQuery);
-      })
-      .map((si) => si.idea);
+    const result = [];
+    const safeSearchableIdeas = searchableIdeas || [];
+    for (let i = 0; i < safeSearchableIdeas.length; i++) {
+      const si = safeSearchableIdeas[i];
+      const matchesStage =
+        stageFilter === "all" || si.idea.stage === stageFilter;
+
+      if (!matchesStage) {
+        continue;
+      }
+
+      if (normalizedQuery && !si.searchText.includes(normalizedQuery)) {
+        continue;
+      }
+
+      result.push(si.idea);
+    }
+
+    return result;
   }, [ideas, stageFilter, normalizedQuery, searchableIdeas]);
 
   const handleDeleteRequest = useCallback((candidate: Idea) => {

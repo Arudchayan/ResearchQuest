@@ -116,7 +116,7 @@ export function TaskManager() {
     // to prevent the array from being recreated on every single render.
     // If filteredTasks was defined outside and passed as a dependency,
     // this useMemo would invalidate on every unrelated state change (like typing in an input).
-    const normalizedQuery = searchQuery.trim().toLowerCase();
+    const normalizedQuery = searchQuery?.trim().toLowerCase() || "";
 
     let filtered;
     if (
@@ -127,41 +127,43 @@ export function TaskManager() {
     ) {
       filtered = [...(tasks || [])];
     } else {
-      filtered = searchableTasks
-        .filter(({ task, searchText }) => {
-          const matchesFilter =
-            filter === "all" ||
-            (filter === "pending" && !task.completed) ||
-            (filter === "completed" && task.completed) ||
-            (filter === "overdue" &&
-              !task.completed &&
-              isOverdue(task.due_date));
+      filtered = [];
+      const safeSearchableTasks = searchableTasks || [];
+      for (let i = 0; i < safeSearchableTasks.length; i++) {
+        const { task, searchText } = safeSearchableTasks[i];
 
-          if (!matchesFilter) {
-            return false;
-          }
+        const matchesFilter =
+          filter === "all" ||
+          (filter === "pending" && !task.completed) ||
+          (filter === "completed" && task.completed) ||
+          (filter === "overdue" &&
+            !task.completed &&
+            isOverdue(task.due_date));
 
-          if (
-            categoryFilter !== "all" &&
-            (task.category || "") !== categoryFilter
-          ) {
-            return false;
-          }
+        if (!matchesFilter) {
+          continue;
+        }
 
-          if (
-            projectFilter !== "all" &&
-            (task.project_id || "") !== projectFilter
-          ) {
-            return false;
-          }
+        if (
+          categoryFilter !== "all" &&
+          (task.category || "") !== categoryFilter
+        ) {
+          continue;
+        }
 
-          if (!normalizedQuery) {
-            return true;
-          }
+        if (
+          projectFilter !== "all" &&
+          (task.project_id || "") !== projectFilter
+        ) {
+          continue;
+        }
 
-          return searchText.includes(normalizedQuery);
-        })
-        .map(({ task }) => task);
+        if (normalizedQuery && !searchText.includes(normalizedQuery)) {
+          continue;
+        }
+
+        filtered.push(task);
+      }
     }
 
     if (sortOption === "priority") {

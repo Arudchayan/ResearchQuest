@@ -102,15 +102,20 @@ export function IdeasBoard() {
       return ideas || [];
     }
 
-    let result = ideas || [];
+    let result;
     if (searchQuery) {
-      const normalizedQuery = searchQuery.toLowerCase();
-      result = searchableIdeas
-        .filter((si) => si.searchText.includes(normalizedQuery))
-        .map((si) => si.idea);
+      result = [];
+      const normalizedQuery = searchQuery?.toLowerCase() || "";
+      const safeSearchableIdeas = searchableIdeas || [];
+      for (let i = 0; i < safeSearchableIdeas.length; i++) {
+        const si = safeSearchableIdeas[i];
+        if (si.searchText.includes(normalizedQuery)) {
+          result.push(si.idea);
+        }
+      }
     } else {
       // Create a shallow copy if we need to sort but not filter
-      result = [...result];
+      result = [...(ideas || [])];
     }
 
     return result.sort((a, b) => {

@@ -109,22 +109,22 @@ export function NotesView() {
     // ⚡ PERFORMANCE OPTIMIZATION: Filter the pre-computed searchableNotes array directly
     // instead of allocating an intermediate Set and doing cross-reference lookups.
     // This maintains an O(N) fast path during the high-frequency keystroke filtering loop.
-    let results = searchableNotes || [];
+    const results = [];
+    const normalizedQuery = searchQuery?.toLowerCase() || "";
+    const safeSearchableNotes = searchableNotes || [];
 
-    if (selectedTag) {
-      results = results.filter(
-        (sn) => sn.note.tags && sn.note.tags.includes(selectedTag),
-      );
+    for (let i = 0; i < safeSearchableNotes.length; i++) {
+      const sn = safeSearchableNotes[i];
+      if (selectedTag && (!sn.note.tags || !sn.note.tags.includes(selectedTag))) {
+        continue;
+      }
+      if (normalizedQuery && !sn.searchText.includes(normalizedQuery)) {
+        continue;
+      }
+      results.push(sn.note);
     }
 
-    if (searchQuery) {
-      const normalizedQuery = searchQuery.toLowerCase();
-      results = results.filter((sn) => sn.searchText.includes(normalizedQuery));
-    }
-
-    const resultNotes = results.map((sn) => sn.note);
-
-    return resultNotes.sort((a, b) => {
+    return results.sort((a, b) => {
       switch (sortOption) {
         case "updated_desc":
           return b.updated_at > a.updated_at ? 1 : b.updated_at < a.updated_at ? -1 : 0;
