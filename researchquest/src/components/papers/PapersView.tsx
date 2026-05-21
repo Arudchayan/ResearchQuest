@@ -157,17 +157,22 @@ export function PapersView() {
       return papers || [];
     }
 
-    let filtered = papers || [];
+    let filtered;
 
     if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = searchablePapers
-        .filter((sp) => sp.searchText.includes(query))
-        .map((sp) => sp.paper);
+      filtered = [];
+      const query = searchQuery?.toLowerCase() || "";
+      const safeSearchablePapers = searchablePapers || [];
+      for (let i = 0; i < safeSearchablePapers.length; i++) {
+        const sp = searchablePapers[i];
+        if (sp.searchText.includes(query)) {
+          filtered.push(sp.paper);
+        }
+      }
     } else {
       // Create a shallow copy if we need to sort but not filter
       // (to avoid mutating the store)
-      filtered = [...filtered];
+      filtered = [...(papers || [])];
     }
 
     return filtered.sort((a, b) => {
