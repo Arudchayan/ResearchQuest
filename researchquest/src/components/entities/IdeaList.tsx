@@ -1,5 +1,5 @@
 import { useMemo, useState, memo, useCallback, useRef, useEffect } from "react";
-import { Clock, Lightbulb, Trash2, TrendingUp, Search, Copy } from "lucide-react";
+import { Clock, Lightbulb, Trash2, TrendingUp, Search, Copy, X } from "lucide-react";
 import type { Idea, IdeaStage } from "../../types/database";
 import { ListSkeleton } from "../ui/Skeleton";
 import { highlightMatch } from "../../utils/highlight";
@@ -186,6 +186,7 @@ export function IdeaList({
   selectedIdeaId,
   loading = false,
 }: IdeaListProps) {
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [stageFilter, setStageFilter] = useState<IdeaStage | "all">("all");
   const [ideaToDelete, setIdeaToDelete] = useState<Idea | null>(null);
@@ -308,12 +309,27 @@ export function IdeaList({
             <Search className="w-4 h-4 text-text-tertiary absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               id="idea-list-search"
+              ref={searchInputRef}
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Filter ideas by keyword..."
-              className="w-full pl-10 pr-3 py-2 border border-border-subtle rounded-md bg-bg-base text-small focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="w-full pl-10 pr-8 py-2 border border-border-subtle rounded-md bg-bg-base text-small focus:outline-none focus:ring-2 focus:ring-primary-500"
               aria-label="Filter ideas"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery("");
+                  searchInputRef.current?.focus();
+                }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-tertiary hover:text-text-primary hover:bg-bg-elevated rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
+                aria-label="Clear search"
+                title="Clear search"
+              >
+                <X className="w-3 h-3" aria-hidden="true" />
+              </button>
+            )}
           </div>
           <div className="flex flex-wrap gap-2">
             {STAGE_FILTER_OPTIONS.map(({ value, label }) => (
