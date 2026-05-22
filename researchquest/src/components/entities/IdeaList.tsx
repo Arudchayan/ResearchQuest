@@ -173,6 +173,7 @@ export function IdeaList({
   selectedIdeaId,
   loading = false,
 }: IdeaListProps) {
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [stageFilter, setStageFilter] = useState<IdeaStage | "all">("all");
   const [ideaToDelete, setIdeaToDelete] = useState<Idea | null>(null);
@@ -289,6 +290,7 @@ export function IdeaList({
             <Search className="w-4 h-4 text-text-tertiary absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               id="idea-list-search"
+              ref={searchInputRef}
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Filter ideas by keyword..."
@@ -298,7 +300,10 @@ export function IdeaList({
             {searchQuery && (
               <button
                 type="button"
-                onClick={() => setSearchQuery("")}
+                onClick={() => {
+                  setSearchQuery("");
+                  searchInputRef.current?.focus();
+                }}
                 className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-tertiary hover:text-text-primary hover:bg-bg-elevated rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
                 aria-label="Clear search"
                 title="Clear search"
