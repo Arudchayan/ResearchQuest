@@ -4,6 +4,7 @@ import type { Idea, IdeaStage } from "../../types/database";
 import { ListSkeleton } from "../ui/Skeleton";
 import { highlightMatch } from "../../utils/highlight";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
+import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
 import { toast } from "sonner";
 import { UNDO_WINDOW_MS } from "../../lib/constants";
 
@@ -85,23 +86,35 @@ const IdeaCardComponent = ({
         </div>
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
           {onDuplicate && (
-            <button
-              onClick={handleDuplicate}
-              className="p-1.5 text-text-tertiary hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
-              title="Duplicate idea"
-              aria-label="Duplicate idea"
-            >
-              <Copy className="w-4 h-4" />
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={handleDuplicate}
+                  className="p-1.5 text-text-tertiary hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  aria-label="Duplicate idea"
+                >
+                  <Copy className="w-4 h-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Duplicate idea</p>
+              </TooltipContent>
+            </Tooltip>
           )}
-          <button
-            onClick={handleDelete}
-            className="p-1.5 text-text-tertiary hover:text-warning hover:bg-warning-bg rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-warning"
-            title="Delete idea"
-            aria-label="Delete idea"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={handleDelete}
+                className="p-1.5 text-text-tertiary hover:text-warning hover:bg-warning-bg rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-warning"
+                aria-label="Delete idea"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Delete idea</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
       </div>
 

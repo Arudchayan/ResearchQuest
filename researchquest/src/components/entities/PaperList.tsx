@@ -3,6 +3,7 @@ import { Clock, BookOpen, Trash2, ExternalLink, Copy } from "lucide-react";
 import type { Paper, ReadingStatus } from "../../types/database";
 import { ListSkeleton } from "../ui/Skeleton";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
+import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
 import { toast } from "sonner";
 import { UNDO_WINDOW_MS } from "../../lib/constants";
 
@@ -93,23 +94,35 @@ const PaperCardComponent = ({
         </div>
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
           {onDuplicate && (
-            <button
-              onClick={handleDuplicate}
-              className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-              title="Duplicate paper"
-              aria-label="Duplicate paper"
-            >
-              <Copy className="w-4 h-4" />
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={handleDuplicate}
+                  className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  aria-label="Duplicate paper"
+                >
+                  <Copy className="w-4 h-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Duplicate paper</p>
+              </TooltipContent>
+            </Tooltip>
           )}
-          <button
-            onClick={handleDelete}
-            className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
-            title="Delete paper"
-            aria-label="Delete paper"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={handleDelete}
+                className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
+                aria-label="Delete paper"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Delete paper</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
       </div>
 
