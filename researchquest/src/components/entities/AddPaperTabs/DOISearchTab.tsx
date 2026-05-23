@@ -30,13 +30,16 @@ export function DOISearchTab({
 }: DOISearchTabProps) {
   const doiInputRef = useRef<HTMLInputElement>(null);
 
-  const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === "Enter") onSearch(doiInput);
-  }, [onSearch, doiInput]);
-
   return (
     <div className="space-y-6" role="tabpanel" id="view-panel-doi">
-      <div>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (doiInput.trim()) {
+            void onSearch(doiInput);
+          }
+        }}
+      >
         <label htmlFor="view-doi-input" className="block text-sm font-medium text-text-primary mb-3">
           Enter DOI (Digital Object Identifier)
         </label>
@@ -48,7 +51,6 @@ export function DOISearchTab({
               type="text"
               value={doiInput}
               onChange={(e) => setDoiInput(e.target.value)}
-              onKeyPress={handleKeyPress}
               placeholder="e.g., 10.1038/nature12373"
               className="w-full px-4 py-3 bg-bg-base border border-border-subtle rounded-lg focus:ring-2 focus:ring-primary-500"
             />
@@ -56,6 +58,7 @@ export function DOISearchTab({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
+                    type="button"
                     onClick={() => { setDoiInput(""); doiInputRef.current?.focus(); }}
                     className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-text-tertiary"
                     aria-label="Clear search"
@@ -70,7 +73,7 @@ export function DOISearchTab({
             )}
           </div>
           <button
-            onClick={() => onSearch(doiInput)}
+            type="submit"
             disabled={loading || !doiInput.trim()}
             className="px-6 py-3 bg-primary-500 text-white rounded-lg flex items-center gap-2 hover:bg-primary-600 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 disabled:opacity-70 disabled:cursor-not-allowed"
           >
@@ -78,7 +81,7 @@ export function DOISearchTab({
             Search
           </button>
         </div>
-      </div>
+      </form>
 
       {doiResult && (
         <div className="space-y-4">
