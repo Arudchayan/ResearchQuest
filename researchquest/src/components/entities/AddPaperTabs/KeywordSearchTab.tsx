@@ -40,13 +40,17 @@ export function KeywordSearchTab({
 }: KeywordSearchTabProps) {
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === "Enter") onSearch(searchQuery);
-  }, [onSearch, searchQuery]);
-
   return (
     <div className="space-y-6" role="tabpanel" id="view-panel-search">
-      <div className="space-y-4">
+      <form
+        className="space-y-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (searchQuery.trim()) {
+            void onSearch(searchQuery);
+          }
+        }}
+      >
         <label htmlFor="view-search-input" className="block text-sm font-medium text-text-primary mb-3">
           Search by Keywords or Title
         </label>
@@ -58,7 +62,6 @@ export function KeywordSearchTab({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyPress={handleKeyPress}
               placeholder="e.g., CRISPR gene editing"
               className="w-full px-4 py-3 bg-bg-base border border-border-subtle rounded-lg focus:ring-2 focus:ring-primary-500"
             />
@@ -66,6 +69,7 @@ export function KeywordSearchTab({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
+                    type="button"
                     onClick={() => { setSearchQuery(""); searchInputRef.current?.focus(); }}
                     className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-text-tertiary"
                     aria-label="Clear search"
@@ -80,7 +84,7 @@ export function KeywordSearchTab({
             )}
           </div>
           <button
-            onClick={() => onSearch(searchQuery)}
+            type="submit"
             disabled={loading || !searchQuery.trim()}
             className="px-6 py-3 bg-primary-500 text-white rounded-lg flex items-center gap-2 hover:bg-primary-600 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 disabled:opacity-70 disabled:cursor-not-allowed"
           >
@@ -103,7 +107,7 @@ export function KeywordSearchTab({
              <option value="asc">Ascending</option>
            </select>
         </div>
-      </div>
+      </form>
 
       {searchResults.length > 0 && (
         <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
