@@ -26,6 +26,25 @@ const STAGE_FILTER_OPTIONS: { value: IdeaStage | "all"; label: string }[] = [
   { value: "Mature", label: "Mature" },
 ];
 
+const IDEA_DATE_FORMATTER = new Intl.DateTimeFormat();
+
+function getStageColor(stage: IdeaStage) {
+  switch (stage) {
+    case "Seed":
+      return "bg-warning-bg text-warning border-warning";
+    case "Developing":
+      return "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-400";
+    case "Supported":
+      return "bg-purple-bg text-purple border-purple";
+    case "Mature":
+      return "bg-success-bg text-success border-success";
+  }
+}
+
+function getConnectionCount(idea: Idea) {
+  return (idea.linked_note_ids?.length ?? 0) + (idea.linked_paper_ids?.length ?? 0);
+}
+
 const IdeaCardComponent = ({
   idea,
   onSelect,
@@ -35,6 +54,9 @@ const IdeaCardComponent = ({
   isSelected,
   searchQuery = "",
 }: IdeaCardProps) => {
+  const connectionCount = getConnectionCount(idea);
+  const updatedAtLabel = IDEA_DATE_FORMATTER.format(new Date(idea.updated_at));
+
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
     onDelete(idea);
@@ -49,19 +71,6 @@ const IdeaCardComponent = ({
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       onSelect(idea);
-    }
-  };
-
-  const getStageColor = (stage: IdeaStage) => {
-    switch (stage) {
-      case "Seed":
-        return "bg-warning-bg text-warning border-warning";
-      case "Developing":
-        return "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-400";
-      case "Supported":
-        return "bg-purple-bg text-purple border-purple";
-      case "Mature":
-        return "bg-success-bg text-success border-success";
     }
   };
 
@@ -141,22 +150,16 @@ const IdeaCardComponent = ({
           <option value="Mature">Mature</option>
         </select>
 
-        {(idea.linked_note_ids?.length || 0) +
-          (idea.linked_paper_ids?.length || 0) >
-          0 && (
+        {connectionCount > 0 && (
           <div className="flex items-center gap-1 text-caption text-text-tertiary">
             <TrendingUp className="w-3 h-3" />
-            <span>
-              {(idea.linked_note_ids?.length || 0) +
-                (idea.linked_paper_ids?.length || 0)}{" "}
-              connections
-            </span>
+            <span>{connectionCount} connections</span>
           </div>
         )}
 
         <div className="flex items-center gap-1 ml-auto text-caption text-text-tertiary">
           <Clock className="w-3 h-3" />
-          <span>{new Date(idea.updated_at).toLocaleDateString()}</span>
+          <span>{updatedAtLabel}</span>
         </div>
       </div>
     </div>
@@ -202,40 +205,33 @@ export function IdeaList({
     };
   }, []);
 
-  // ⚡ PERFORMANCE OPTIMIZATION: Pre-compute derived text fields for faster searching
-  const searchableIdeas = useMemo(() => {
-    return (ideas || []).map((idea) => ({
-      idea,
-      searchText: [idea.title || "", idea.description || ""]
-        .join(" ")
-        .toLowerCase(),
-    }));
-  }, [ideas]);
+  const searchableIdeas = useMemo(
+    () =>
+      ideas.map((idea) => ({
+        idea,
+        searchText: `${idea.title || ""} ${idea.description || ""}`.toLowerCase(),
+      })),
+    [ideas],
+  );
 
-  const normalizedQuery = searchQuery?.trim().toLowerCase() || "";
+  const normalizedQuery = searchQuery.trim().toLowerCase();
 
   const filteredIdeas = useMemo(() => {
-    // Optimization: Return original array if no filters are active
     if (stageFilter === "all" && !normalizedQuery) {
-      return ideas || [];
+      return ideas;
     }
 
-    const result = [];
-    const safeSearchableIdeas = searchableIdeas || [];
-    for (let i = 0; i < safeSearchableIdeas.length; i++) {
-      const si = safeSearchableIdeas[i];
-      const matchesStage =
-        stageFilter === "all" || si.idea.stage === stageFilter;
-
-      if (!matchesStage) {
+    const result: Idea[] = [];
+    for (const { idea, searchText } of searchableIdeas) {
+      if (stageFilter !== "all" && idea.stage !== stageFilter) {
         continue;
       }
 
-      if (normalizedQuery && !si.searchText.includes(normalizedQuery)) {
+      if (normalizedQuery && !searchText.includes(normalizedQuery)) {
         continue;
       }
 
-      result.push(si.idea);
+      result.push(idea);
     }
 
     return result;
