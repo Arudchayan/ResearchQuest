@@ -69,13 +69,6 @@ export function NotesView() {
   const parentRef = useRef<HTMLDivElement>(null);
   const { confirm, isOpen, config } = useConfirmDialog();
 
-  const rowVirtualizer = useVirtualizer({
-    count: filteredNotes.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 160,
-    overscan: 5,
-  });
-
   const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastDeletedRef = useRef<Note | null>(null);
 
@@ -160,6 +153,13 @@ export function NotesView() {
       }
     });
   }, [notes, searchQuery, selectedTag, sortOption]);
+
+  const rowVirtualizer = useVirtualizer({
+    count: filteredNotes.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 160,
+    overscan: 5,
+  });
 
   const handleCreateNote = async () => {
     setIsCreating(true);

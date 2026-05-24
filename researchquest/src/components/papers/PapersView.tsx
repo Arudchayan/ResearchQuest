@@ -101,15 +101,6 @@ export function PapersView() {
     return () => window.removeEventListener("resize", updateColumns);
   }, []);
 
-  const rowCount = Math.ceil(filteredPapers.length / columnCount);
-
-  const rowVirtualizer = useVirtualizer({
-    count: rowCount,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 220, // Estimated height of a PaperCard row
-    overscan: 2,
-  });
-
   useEffect(() => {
     return () => {
       if (undoTimeoutRef.current) {
@@ -250,6 +241,15 @@ export function PapersView() {
       }
     });
   }, [papers, searchQuery, sortOption]);
+
+  const rowCount = Math.ceil(filteredPapers.length / columnCount);
+
+  const rowVirtualizer = useVirtualizer({
+    count: rowCount,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 220, // Estimated height of a PaperCard row
+    overscan: 2,
+  });
 
   const handleExport = (format: "markdown" | "bibtex" | "csv" | "json") => {
     if (filteredPapers.length === 0) {

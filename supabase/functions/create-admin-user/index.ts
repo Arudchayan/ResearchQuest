@@ -98,10 +98,6 @@ Deno.serve(async (req) => {
         });
       }
   
-      // Generate user ID
-      const userId = crypto.randomUUID();
-      const now = new Date().toISOString();
-      
       // Use Supabase Admin API to create user
       const adminResponse = await fetchWithTimeout(`${supabaseUrl}/auth/v1/admin/users`, {
         method: 'POST',
