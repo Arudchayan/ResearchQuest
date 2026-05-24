@@ -171,11 +171,12 @@ export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
       )}
 
       <div className="pt-3 border-t border-border-subtle">
-        <label className="block text-caption text-text-secondary mb-1">
+        <label htmlFor="new-topic-input" className="block text-caption text-text-secondary mb-1">
           Create and link new topic
         </label>
         <div className="flex gap-2">
           <input
+            id="new-topic-input"
             value={newTopicName}
             onChange={(event) => setNewTopicName(event.target.value)}
             placeholder="e.g. Literature Review"
