@@ -11,6 +11,7 @@ import {
   Table,
   FileJson,
   ArrowUpDown,
+  ArrowLeft,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
@@ -488,13 +489,22 @@ export function IdeasBoard() {
       {selectedIdea && (
         <div className="absolute inset-0 w-full border-l-0 lg:border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col h-full shadow-2xl z-20 lg:relative lg:inset-auto lg:w-[450px]">
           <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-            <h2 className="font-semibold text-slate-900 dark:text-white">
-              Idea Details
-            </h2>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setSelectedIdea(null)}
+                className="lg:hidden p-2 -ml-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+                aria-label="Back to board"
+              >
+                <ArrowLeft className="w-5 h-5 text-slate-500" />
+              </button>
+              <h2 className="font-semibold text-slate-900 dark:text-white">
+                Idea Details
+              </h2>
+            </div>
             <button
               onClick={() => setSelectedIdea(null)}
               aria-label="Close details"
-              className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full"
+              className="hidden lg:flex p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full"
             >
               <X className="w-5 h-5" />
             </button>

@@ -102,21 +102,8 @@ Deno.serve(async (req) => {
       const userId = crypto.randomUUID();
       const now = new Date().toISOString();
       
-      // Create user record (directly insert into auth.users table)
-      const insertUserQuery = `
-        INSERT INTO auth.users (
-          id, email, encrypted_password, email_confirmed_at, 
-          created_at, updated_at, role, aud, 
-          confirmation_token, email_confirm_token_sent_at
-        ) VALUES (
-          $1, $2, crypt($3, gen_salt('bf')), $4,
-          $5, $6, $7, 'authenticated',
-          '', $8
-        ) RETURNING id, email, created_at
-      `;
-      
-      // Use fetch to call Supabase REST API
-      const response = await fetchWithTimeout(`${supabaseUrl}/rest/v1/rpc/exec_sql`, {
+      // Use Supabase Admin API to create user
+      const adminResponse = await fetchWithTimeout(`${supabaseUrl}/auth/v1/admin/users`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${serviceRoleKey}`,
@@ -124,65 +111,36 @@ Deno.serve(async (req) => {
           'apikey': serviceRoleKey,
         },
         body: JSON.stringify({
-          query: insertUserQuery,
-          params: [userId, email, password, now, now, now, role, now]
+          email: email,
+          password: password,
+          email_confirm: true,
+          user_metadata: { role: role }
         })
       });
-  
-      if (!response.ok) {
-        // If direct insert fails, try using Admin API to create user
-        const adminResponse = await fetchWithTimeout(`${supabaseUrl}/auth/v1/admin/users`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${serviceRoleKey}`,
-            'Content-Type': 'application/json',
-            'apikey': serviceRoleKey,
-          },
-          body: JSON.stringify({
-            email: email,
-            password: password,
-            email_confirm: true,
-            user_metadata: { role: role }
-          })
-        });
-  
-        if (!adminResponse.ok) {
-          console.error(`Admin API error status ${adminResponse.status}`);
-          return new Response(JSON.stringify({
-            error: { 
-              code: 'USER_CREATION_FAILED', 
-              message: 'Failed to create admin user. Please check server logs.'
-            }
-          }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 500,
-          });
-        }
-  
-        const userData = await adminResponse.json();
+
+      if (!adminResponse.ok) {
+        const errorData = await adminResponse.json().catch(() => ({}));
+        console.error(`Admin API error status ${adminResponse.status}`, errorData);
         return new Response(JSON.stringify({
-          success: true,
-          message: 'Admin user created successfully via Admin API',
-          user: {
-            id: userData.id,
-            email: userData.email,
-            created_at: userData.created_at,
-            method: 'admin_api'
+          error: { 
+            code: 'USER_CREATION_FAILED', 
+            message: errorData.error?.message || 'Failed to create user. Please check server logs.'
           }
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: adminResponse.status === 400 ? 400 : 500,
         });
       }
-  
-      const userData = await response.json();
+
+      const userData = await adminResponse.json();
       return new Response(JSON.stringify({
         success: true,
-        message: 'Admin user created successfully via direct SQL',
+        message: 'Admin user created successfully',
         user: {
-          id: userId,
-          email: email,
-          created_at: now,
-          method: 'direct_sql'
+          id: userData.id,
+          email: userData.email,
+          created_at: userData.created_at,
+          method: 'admin_api'
         }
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
