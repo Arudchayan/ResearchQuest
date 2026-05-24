@@ -6,6 +6,7 @@ import {
   BookOpen,
   X,
   ArrowUpDown,
+  ArrowLeft,
   Users,
   Download,
   FileText,
@@ -19,6 +20,7 @@ import { usePapers } from "../../hooks/usePapers";
 import { AddPaperView } from "../entities/AddPaperView";
 import { PaperDetailView } from "../entities/PaperDetailView";
 import { PaperCard } from "./PaperCard";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { InlineError } from "../ui/ErrorFallback";
 import { PaperCardSkeleton } from "../ui/Skeleton";
 import { cn } from "../../lib/utils";
@@ -83,6 +85,21 @@ export function PapersView() {
 
   const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastDeletedRef = useRef<Paper | null>(null);
+  const parentRef = useRef<HTMLDivElement>(null);
+
+  const [columnCount, setColumnCount] = useState(1);
+
+  useEffect(() => {
+    const updateColumns = () => {
+      if (window.innerWidth >= 1280) setColumnCount(3);
+      else if (window.innerWidth >= 768) setColumnCount(2);
+      else setColumnCount(1);
+    };
+
+    updateColumns();
+    window.addEventListener("resize", updateColumns);
+    return () => window.removeEventListener("resize", updateColumns);
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -224,6 +241,15 @@ export function PapersView() {
       }
     });
   }, [papers, searchQuery, sortOption]);
+
+  const rowCount = Math.ceil(filteredPapers.length / columnCount);
+
+  const rowVirtualizer = useVirtualizer({
+    count: rowCount,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 220, // Estimated height of a PaperCard row
+    overscan: 2,
+  });
 
   const handleExport = (format: "markdown" | "bibtex" | "csv" | "json") => {
     if (filteredPapers.length === 0) {
@@ -392,7 +418,7 @@ export function PapersView() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-auto p-4 sm:p-6">
+        <div ref={parentRef} className="flex-1 overflow-auto p-4 sm:p-6">
           <OnboardingGuide />
           {papersSyncError ? (
             <InlineError
@@ -432,15 +458,52 @@ export function PapersView() {
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {filteredPapers.map((paper) => (
-                <PaperCard
-                  key={paper.id}
-                  paper={paper}
-                  highlightQuery={searchQuery}
-                  onSelect={handleSelectPaper}
-                />
-              ))}
+            <div
+              style={{
+                height: `${rowVirtualizer.getTotalSize()}px`,
+                width: "100%",
+                position: "relative",
+              }}
+            >
+              {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                const startIndex = virtualRow.index * columnCount;
+                const rowPapers = filteredPapers.slice(
+                  startIndex,
+                  startIndex + columnCount,
+                );
+
+                return (
+                  <div
+                    key={virtualRow.index}
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      height: `${virtualRow.size}px`,
+                      transform: `translateY(${virtualRow.start}px)`,
+                      display: "grid",
+                      gridTemplateColumns:
+                        columnCount === 3
+                          ? "repeat(3, minmax(0, 1fr))"
+                          : columnCount === 2
+                            ? "repeat(2, minmax(0, 1fr))"
+                            : "repeat(1, minmax(0, 1fr))",
+                      gap: "1.5rem", // matches gap-6
+                    }}
+                  >
+                    {rowPapers.map((paper) => (
+                      <div key={paper.id}>
+                        <PaperCard
+                          paper={paper}
+                          highlightQuery={searchQuery}
+                          onSelect={handleSelectPaper}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -450,13 +513,22 @@ export function PapersView() {
       {selectedPaper && (
         <div className="absolute inset-0 w-full border-l-0 lg:border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col h-full shadow-2xl z-20 lg:relative lg:inset-auto lg:w-[500px]">
           <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50 backdrop-blur-sm">
-            <h2 className="font-semibold text-slate-900 dark:text-white">
-              Paper Details
-            </h2>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setSelectedPaper(null)}
+                className="lg:hidden p-2 -ml-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"
+                aria-label="Back to papers"
+              >
+                <ArrowLeft className="w-5 h-5 text-slate-500" />
+              </button>
+              <h2 className="font-semibold text-slate-900 dark:text-white">
+                Paper Details
+              </h2>
+            </div>
             <button
               onClick={() => setSelectedPaper(null)}
               aria-label="Close details"
-              className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="hidden lg:flex p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <X className="w-5 h-5 text-slate-500" />
             </button>

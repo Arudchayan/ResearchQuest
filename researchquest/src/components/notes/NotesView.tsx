@@ -17,6 +17,7 @@ import { useShallow } from "zustand/react/shallow";
 import { useNotes } from "../../hooks/useNotes";
 import { MarkdownEditor } from "../editor/MarkdownEditor";
 import { NoteCard } from "./NoteCard";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { ConfirmDialog, useConfirmDialog } from "../ui/ConfirmDialog";
 import { InlineError } from "../ui/ErrorFallback";
 import { ListSkeleton } from "../ui/Skeleton";
@@ -65,6 +66,7 @@ export function NotesView() {
   const [sortOption, setSortOption] = useState<SortOption>("updated_desc");
   const [isCreating, setIsCreating] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const parentRef = useRef<HTMLDivElement>(null);
   const { confirm, isOpen, config } = useConfirmDialog();
 
   const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -151,6 +153,13 @@ export function NotesView() {
       }
     });
   }, [notes, searchQuery, selectedTag, sortOption]);
+
+  const rowVirtualizer = useVirtualizer({
+    count: filteredNotes.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 160,
+    overscan: 5,
+  });
 
   const handleCreateNote = async () => {
     setIsCreating(true);
@@ -410,7 +419,7 @@ export function NotesView() {
           )}
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div ref={parentRef} className="flex-1 overflow-y-auto">
           {notesSyncError ? (
             <div className="p-4">
               <InlineError message={notesSyncError.message} />
@@ -448,17 +457,38 @@ export function NotesView() {
               )}
             </div>
           ) : (
-            <div className="divide-y divide-slate-100 dark:divide-slate-800">
-              {filteredNotes.map((note) => (
-                <NoteCard
-                  key={note.id}
-                  note={note}
-                  isSelected={selectedNote?.id === note.id}
-                  highlightQuery={searchQuery}
-                  onSelect={handleSelectNote}
-                  onDelete={handleDeleteNote}
-                />
-              ))}
+            <div
+              style={{
+                height: `${rowVirtualizer.getTotalSize()}px`,
+                width: "100%",
+                position: "relative",
+              }}
+            >
+              {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                const note = filteredNotes[virtualRow.index];
+                return (
+                  <div
+                    key={virtualRow.index}
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      height: `${virtualRow.size}px`,
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
+                    className="border-b border-slate-100 dark:border-slate-800 last:border-b-0"
+                  >
+                    <NoteCard
+                      note={note}
+                      isSelected={selectedNote?.id === note.id}
+                      highlightQuery={searchQuery}
+                      onSelect={handleSelectNote}
+                      onDelete={handleDeleteNote}
+                    />
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

@@ -33,6 +33,15 @@ interface AISynthesisResult {
 
 const APP_USER_AGENT = "ResearchQuest/1.0 (mailto:research@researchquest.app)";
 
+function getRequiredEnv(name: string): string {
+  const value = Deno.env.get(name);
+  if (!value) {
+    console.error(`[FATAL] Required environment variable "${name}" is not set.`);
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
+
 function jsonResponse(body: unknown, status: number, corsHeaders: HeadersInit) {
   return new Response(JSON.stringify(body), {
     status,
@@ -129,7 +138,12 @@ async function synthesiseWithOpenAI(
     );
     if (!response.ok) return null;
     const data = await response.json();
-    return parseAIJson(data?.choices?.[0]?.message?.content ?? "");
+    const content = data?.choices?.[0]?.message?.content;
+    if (!content) {
+      console.error("[ERROR] OpenRouter response missing content:", JSON.stringify(data));
+      return null;
+    }
+    return parseAIJson(content);
   } catch {
     return null;
   }
@@ -164,7 +178,12 @@ async function synthesiseWithAnthropic(
     );
     if (!response.ok) return null;
     const data = await response.json();
-    return parseAIJson(data?.content?.[0]?.text ?? "");
+    const content = data?.content?.[0]?.text;
+    if (!content) {
+      console.error("[ERROR] Claude response missing content:", JSON.stringify(data));
+      return null;
+    }
+    return parseAIJson(content);
   } catch {
     return null;
   }
@@ -234,8 +253,8 @@ Deno.serve(async (req) => {
     }
 
     const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      getRequiredEnv("SUPABASE_URL"),
+      getRequiredEnv("SUPABASE_ANON_KEY"),
       { global: { headers: { Authorization: authHeader } } },
     );
 

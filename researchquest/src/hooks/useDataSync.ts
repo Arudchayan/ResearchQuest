@@ -21,10 +21,10 @@ function getFetchErrorMessage(error: unknown, fallback: string) {
   return fallback;
 }
 
-export function useDataSync(userId: string | undefined) {
-  // ⚡ Optimization: Always use useShallow with an object selector when extracting multiple 
-  // properties from a Zustand store inside custom hooks to maintain referential equality 
-  // and prevent unnecessary re-evaluations.
+export function useDataSync(userId: string | undefined, currentView: string) {
+  // Use a ref to track what we've already fetched in this session to prevent redundant calls
+  const fetchedRef = useRef<Set<string>>(new Set());
+
   const {
     setNotes,
     setPapers,
@@ -57,9 +57,6 @@ export function useDataSync(userId: string | undefined) {
     })),
   );
 
-  // Use refs to avoid dependency cycles in useEffect, but we want to update the store
-  // We don't need refs for setters as they are stable from zustand
-
   useEffect(() => {
     if (!userId) {
       setNotes([]);
@@ -70,11 +67,36 @@ export function useDataSync(userId: string | undefined) {
       setIdeasLoading(false);
       setFocusSessionSecondsToday(0);
       clearDataSyncErrors();
+      fetchedRef.current.clear();
       return;
     }
 
+    // Reset cache if user changes
+    if (userId && !fetchedRef.current.has(`user_${userId}`)) {
+       fetchedRef.current.clear();
+       fetchedRef.current.add(`user_${userId}`);
+    }
+
+    const shouldFetch = (domain: string) => {
+      if (fetchedRef.current.has(domain)) return false;
+      
+      // Always fetch for dashboard
+      if (currentView === 'dashboard') return true;
+      
+      // Otherwise only fetch for the active view
+      if (domain === 'notes' && currentView === 'notes') return true;
+      if (domain === 'papers' && currentView === 'papers') return true;
+      if (domain === 'ideas' && currentView === 'ideas') return true;
+      if (domain === 'focus' && currentView === 'focus') return true;
+      
+      return false;
+    };
+
     // --- NOTES ---
     const fetchNotes = async () => {
+      if (!shouldFetch('notes')) return;
+      fetchedRef.current.add('notes');
+      
       setNotesLoading(true);
       try {
         const { data, error } = await supabase
@@ -107,6 +129,9 @@ export function useDataSync(userId: string | undefined) {
 
     // --- PAPERS ---
     const fetchPapers = async () => {
+      if (!shouldFetch('papers')) return;
+      fetchedRef.current.add('papers');
+
       setPapersLoading(true);
       try {
         const { data, error } = await supabase
@@ -149,6 +174,9 @@ export function useDataSync(userId: string | undefined) {
 
     // --- IDEAS ---
     const fetchIdeas = async () => {
+      if (!shouldFetch('ideas')) return;
+      fetchedRef.current.add('ideas');
+
       setIdeasLoading(true);
       try {
         const { data, error } = await supabase
@@ -167,7 +195,7 @@ export function useDataSync(userId: string | undefined) {
 
         clearDataSyncError("ideas");
         if (data) {
-          const sorted = data; // ideas sort might be handled differently in UI? No, usually updated_at
+          const sorted = data; 
           setIdeas(sorted);
 
           const current = useAppStore.getState().selectedIdea;
@@ -189,6 +217,9 @@ export function useDataSync(userId: string | undefined) {
     };
 
     const fetchFocusSessionsToday = async () => {
+      if (!shouldFetch('focus')) return;
+      fetchedRef.current.add('focus');
+
       const startOfDay = new Date();
       startOfDay.setHours(0, 0, 0, 0);
       const { data, error } = await supabase
@@ -208,7 +239,7 @@ export function useDataSync(userId: string | undefined) {
       setFocusSessionSecondsToday(total);
     };
 
-    // Initial fetch
+    // Initial fetch (only what is needed for current view)
     void fetchNotes();
     void fetchPapers();
     void fetchIdeas();
@@ -386,5 +417,6 @@ export function useDataSync(userId: string | undefined) {
     setSelectedPaper,
     setSelectedIdea,
     setFocusSessionSecondsToday,
+    currentView,
   ]);
 }
