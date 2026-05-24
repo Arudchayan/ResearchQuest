@@ -15,3 +15,7 @@
 
 # Agent journals live only at repo root `.jules/` (merged from former `researchquest/.jules/`).
 researchquest/.jules/
+
+# Generated audit reports from portfolio expert cron jobs
+researchquest/UI_UX_AUDIT.md
+*.audit-report.md

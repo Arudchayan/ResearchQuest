@@ -8,6 +8,15 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const APP_USER_AGENT = "ResearchQuest/1.0 (mailto:research@researchquest.app)";
 const DEFAULT_TIMEOUT_MS = 8000;
 
+function getRequiredEnv(name: string): string {
+  const value = Deno.env.get(name);
+  if (!value) {
+    console.error(`[FATAL] Required environment variable "${name}" is not set.`);
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
+
 async function fetchWithTimeout(
   url: string,
   options: RequestInit = {},
@@ -74,8 +83,8 @@ Deno.serve(async (req) => {
     }
 
     const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      getRequiredEnv("SUPABASE_URL"),
+      getRequiredEnv("SUPABASE_ANON_KEY"),
       { global: { headers: { Authorization: authHeader } } },
     );
 
