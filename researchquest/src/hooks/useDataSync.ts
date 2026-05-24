@@ -417,5 +417,6 @@ export function useDataSync(userId: string | undefined, currentView: string) {
     setSelectedPaper,
     setSelectedIdea,
     setFocusSessionSecondsToday,
+    currentView,
   ]);
 }
