@@ -316,6 +316,7 @@ export function TopicsView() {
                 value={newTopicName}
                 onChange={(e) => setNewTopicName(e.target.value)}
                 placeholder="Topic name..."
+                aria-label="Topic name"
                 className="flex-1 px-3 py-1.5 text-sm bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 autoFocus
               />
