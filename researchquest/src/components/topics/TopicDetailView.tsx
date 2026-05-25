@@ -265,6 +265,8 @@ export function TopicDetailView({
                 value={name}
                 onChange={(event) => setName(event.target.value)}
                 maxLength={50}
+                placeholder="Topic name..."
+                aria-label="Topic name"
                 className="w-full px-3 py-2 text-xl font-semibold bg-bg-base border border-border-subtle rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             ) : (
@@ -280,6 +282,7 @@ export function TopicDetailView({
                 maxLength={500}
                 className="w-full px-3 py-2 text-small bg-bg-base border border-border-subtle rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 placeholder="Describe what belongs in this topic..."
+                aria-label="Topic description"
               />
             ) : (
               <p className="text-body text-text-secondary whitespace-pre-wrap">
