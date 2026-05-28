@@ -264,6 +264,14 @@ function App() {
     return () => window.removeEventListener("popstate", handleRouteChange);
   }, [setCurrentView]);
 
+  // Focus main content on navigation change for keyboard users
+  useEffect(() => {
+    const el = document.getElementById("main-content");
+    if (el) {
+      el.focus();
+    }
+  }, [currentView]);
+
   // Handle selecting items from URL (when data is loaded)
   useEffect(() => {
     if (!userId) return;
