@@ -564,11 +564,17 @@ export function Dashboard() {
                 <ListSkeleton count={3} itemType="task" />
               ) : upcomingTasks.length === 0 ? (
                 <div
-                  className="p-4 text-center text-small font-serif italic text-text-tertiary"
+                  className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary"
                   role="status"
                   aria-live="polite"
                 >
-                  No upcoming tasks. You're all caught up.
+                  <p className="mb-3">No upcoming tasks. You're all caught up.</p>
+                  <button
+                    onClick={() => navigateTo("tasks")}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-bg-surface border border-border-moderate rounded-sm text-small font-sans not-italic font-medium text-text-primary hover:border-border-strong transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+                  >
+                    <Plus className="w-4 h-4" aria-hidden="true" /> Add Task
+                  </button>
                 </div>
               ) : (
                 upcomingTasks.map((task) => (
