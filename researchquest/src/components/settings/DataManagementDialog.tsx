@@ -3,6 +3,7 @@ import { useState, useRef } from "react";
 import type { ExportData } from "../../utils/export";
 import { exportData } from "../../utils/export";
 import { importData } from "../../utils/import";
+import { resetTopicsCache } from "../../hooks/useTopics";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Tabs from "@radix-ui/react-tabs";
 import {
@@ -216,6 +217,7 @@ const handleExport = () => {
       const result = await importData(file, user.id);
 
       if (result.success) {
+        resetTopicsCache();
         setImportFile(null);
         setParsedData(null);
         if (fileInputRef.current) fileInputRef.current.value = "";

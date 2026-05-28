@@ -45,6 +45,12 @@ const ENTITY_COLUMN: Record<TopicEntityType, string> = {
 const globalLinkCache = new Map<string, string[]>();
 const tableSupportCache = new Map<string, Promise<boolean>>();
 const fetchedUsers = new Set<string>();
+let importRefreshVersion = 0;
+
+export function resetTopicsCache() {
+  fetchedUsers.clear();
+  importRefreshVersion++;
+}
 
 function tableSupportsUserId(table: string): Promise<boolean> {
   let promise = tableSupportCache.get(table);
@@ -387,9 +393,14 @@ export function useTopics(userId: string | undefined) {
     };
   }, [userId]);
 
+  // Refs to track if we need a force-refresh after cache reset
+  const prevImportVersion = useRef(importRefreshVersion);
+
   useEffect(() => {
-    void fetchTopics();
-  }, [fetchTopics]);
+    const isForce = importRefreshVersion !== prevImportVersion.current;
+    prevImportVersion.current = importRefreshVersion;
+    void fetchTopics(isForce);
+  }, [fetchTopics, importRefreshVersion]);
 
   useEffect(() => {
     void fetchQuests();
