@@ -145,10 +145,11 @@ export function AuthScreen() {
           )}
 
           <div>
-            <label className="block text-small font-medium text-text-primary mb-1.5 uppercase tracking-wide">
+            <label htmlFor="auth-email" className="block text-small font-medium text-text-primary mb-1.5 uppercase tracking-wide">
               Email
             </label>
             <input
+              id="auth-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -160,11 +161,12 @@ export function AuthScreen() {
           </div>
 
           <div>
-            <label className="block text-small font-medium text-text-primary mb-1.5 uppercase tracking-wide">
+            <label htmlFor="auth-password" className="block text-small font-medium text-text-primary mb-1.5 uppercase tracking-wide">
               Password
             </label>
             <div className="relative">
               <input
+                id="auth-password"
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -198,6 +200,7 @@ export function AuthScreen() {
 
           {message && (
             <div
+              role="alert"
               className={`p-3 rounded-sm text-small font-medium border ${
                 message.includes("error") || message.includes("Error")
                   ? "bg-warning-bg text-warning border-warning"
