@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 
 interface LinkDialogProps {
   isOpen: boolean;
@@ -23,13 +23,63 @@ export function LinkDialog({
   error,
   inputRef,
 }: LinkDialogProps) {
+  const lastFocusedRef = useRef<Element | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      lastFocusedRef.current = document.activeElement;
+      // Focus the URL input when dialog opens
+      const timer = setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+        }
+      }, 0);
+      return () => clearTimeout(timer);
+    } else {
+      // Restore focus when dialog closes
+      if (lastFocusedRef.current instanceof HTMLElement) {
+        lastFocusedRef.current.focus();
+      }
+    }
+  }, [isOpen, inputRef]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape") {
+      onClose();
+      return;
+    }
+    // Focus trap: keep Tab cycling within the dialog
+    if (e.key === "Tab" && dialogRef.current) {
+      const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last?.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first?.focus();
+      }
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" role="dialog">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="link-dialog-title"
+      onKeyDown={handleKeyDown}
+      ref={dialogRef}
+    >
       <div className="w-full max-w-md rounded-lg bg-bg-surface border border-border-subtle shadow-xl">
         <div className="p-6 border-b border-border-subtle">
-          <h2 className="text-lg font-semibold text-text-primary">Insert link</h2>
+          <h2 id="link-dialog-title" className="text-lg font-semibold text-text-primary">Insert link</h2>
           <p className="text-caption text-text-secondary mt-1">Wrap selection with a link label.</p>
         </div>
 
