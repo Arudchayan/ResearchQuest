@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { useAppStore } from "../../store/appStore";
 import { useBacklinks } from "../../hooks/useBacklinks";
 import { useRelatedItems } from "../../hooks/useRelatedItems";
@@ -401,7 +401,9 @@ export function EntityGraph() {
     );
   }
 
-  const renderNodeMap = new Map(nodes.map(n => [n.id, n]));
+  // ⚡ PERFORMANCE OPTIMIZATION: Memoize the node map to prevent O(N) reallocation on every render frame
+  // The graph re-renders rapidly during physics simulations. Creating this map repeatedly causes high memory churn.
+  const renderNodeMap = useMemo(() => new Map(nodes.map(n => [n.id, n])), [nodes]);
 
   return (
     <div className="relative w-full overflow-hidden bg-bg-base/50 rounded-lg border border-border-subtle" style={{ height: GRAPH_HEIGHT }}>
