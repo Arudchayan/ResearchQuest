@@ -139,6 +139,20 @@ export function IdeasBoard() {
     });
   }, [ideas, searchQuery, sortOption]);
 
+  const ideasByStage = useMemo(() => {
+    const buckets: Record<string, Idea[]> = {};
+    for (let i = 0; i < STAGES.length; i++) {
+      buckets[STAGES[i].id] = [];
+    }
+    for (let i = 0; i < filteredIdeas.length; i++) {
+      const idea = filteredIdeas[i];
+      if (buckets[idea.stage]) {
+        buckets[idea.stage].push(idea);
+      }
+    }
+    return buckets;
+  }, [filteredIdeas]);
+
   useEffect(() => {
     return () => {
       if (undoTimeoutRef.current) {
@@ -386,7 +400,7 @@ export function IdeasBoard() {
           )}
           <div className="grid grid-cols-1 gap-4 lg:flex lg:gap-6 lg:h-full lg:min-w-max">
             {STAGES.map((stage) => {
-              const stageIdeas = filteredIdeas.filter((i) => i.stage === stage.id);
+              const stageIdeas = ideasByStage[stage.id] || [];
 
               return (
                 <div
