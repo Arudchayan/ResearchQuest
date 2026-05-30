@@ -22,6 +22,7 @@ import { isValidUrl } from "../../utils/security";
 import { TopicSelector } from "../topics/TopicSelector";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { CitationDialog } from "../papers/CitationDialog";
+import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
 import { useNotes } from "../../hooks/useNotes";
 import { useAppStore } from "../../store/appStore";
 import {
@@ -227,35 +228,47 @@ export function PaperDetailView({
               <div className="flex items-center gap-2">
                 {isEditing ? (
                   <>
-                    <button
-                      onClick={handleSave}
-                      className="p-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors"
-                      title="Save changes"
-                      aria-label="Save changes"
-                    >
-                      <Save className="w-5 h-5" aria-hidden="true" />
-                    </button>
-                    <button
-                      onClick={handleCancel}
-                      className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
-                      title="Cancel"
-                      aria-label="Cancel"
-                    >
-                      <X className="w-5 h-5" aria-hidden="true" />
-                    </button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={handleSave}
+                          className="p-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors"
+                          aria-label="Save changes"
+                        >
+                          <Save className="w-5 h-5" aria-hidden="true" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>Save changes</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={handleCancel}
+                          className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
+                          aria-label="Cancel"
+                        >
+                          <X className="w-5 h-5" aria-hidden="true" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>Cancel</TooltipContent>
+                    </Tooltip>
                   </>
                 ) : (
                   <div className="flex items-center gap-2">
                     <DropdownMenu.Root>
-                      <DropdownMenu.Trigger asChild>
-                        <button
-                          className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
-                          title="Export paper"
-                          aria-label="Export paper"
-                        >
-                          <Download className="w-5 h-5" aria-hidden="true" />
-                        </button>
-                      </DropdownMenu.Trigger>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <DropdownMenu.Trigger asChild>
+                            <button
+                              className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
+                              aria-label="Export paper"
+                            >
+                              <Download className="w-5 h-5" aria-hidden="true" />
+                            </button>
+                          </DropdownMenu.Trigger>
+                        </TooltipTrigger>
+                        <TooltipContent>Export paper</TooltipContent>
+                      </Tooltip>
                       <DropdownMenu.Portal>
                         <DropdownMenu.Content
                           className="min-w-[160px] bg-bg-surface border border-border-subtle rounded-md shadow-md p-1 z-50 animate-in fade-in zoom-in-95"
@@ -292,39 +305,55 @@ export function PaperDetailView({
                         </DropdownMenu.Content>
                       </DropdownMenu.Portal>
                     </DropdownMenu.Root>
-                    <button
-                      onClick={() => setIsEditing(true)}
-                      className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
-                      title="Edit paper"
-                      aria-label="Edit paper"
-                    >
-                      <Edit2 className="w-5 h-5" aria-hidden="true" />
-                    </button>
-                    <button
-                      onClick={handleCreateNote}
-                      className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
-                      title="Create linked note"
-                      aria-label="Create linked note"
-                    >
-                      <FileText className="w-5 h-5" aria-hidden="true" />
-                    </button>
-                    <button
-                      onClick={() => setShowCitation(true)}
-                      className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
-                      title="Cite paper"
-                      aria-label="Cite paper"
-                    >
-                      <Quote className="w-5 h-5" aria-hidden="true" />
-                    </button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => setIsEditing(true)}
+                          className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
+                          aria-label="Edit paper"
+                        >
+                          <Edit2 className="w-5 h-5" aria-hidden="true" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>Edit paper</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={handleCreateNote}
+                          className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
+                          aria-label="Create linked note"
+                        >
+                          <FileText className="w-5 h-5" aria-hidden="true" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>Create linked note</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => setShowCitation(true)}
+                          className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
+                          aria-label="Cite paper"
+                        >
+                          <Quote className="w-5 h-5" aria-hidden="true" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>Cite paper</TooltipContent>
+                    </Tooltip>
                     {onDelete && (
-                      <button
-                        onClick={handleDeleteClick}
-                        className="p-2 bg-bg-elevated text-red-600 dark:text-red-400 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                        title="Delete paper"
-                        aria-label="Delete paper"
-                      >
-                        <Trash className="w-5 h-5" aria-hidden="true" />
-                      </button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={handleDeleteClick}
+                            className="p-2 bg-bg-elevated text-red-600 dark:text-red-400 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                            aria-label="Delete paper"
+                          >
+                            <Trash className="w-5 h-5" aria-hidden="true" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>Delete paper</TooltipContent>
+                      </Tooltip>
                     )}
                   </div>
                 )}
@@ -372,16 +401,21 @@ export function PaperDetailView({
                 </select>
               ) : (
                 <div className="flex items-center gap-2 flex-wrap">
-                  <button
-                    onClick={() => setIsEditing(true)}
-                    className={`inline-flex items-center px-4 py-2 rounded-md border text-sm font-medium transition-all ${getStatusColor(paper.status)} hover:ring-2 hover:ring-primary-500`}
-                    title="Click to change status"
-                  >
-                    {paper.status === "To Read" && "📚"}
-                    {paper.status === "Reading" && "📖"}
-                    {paper.status === "Read" && "✅"}
-                    <span className="ml-2">{paper.status}</span>
-                  </button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => setIsEditing(true)}
+                        className={`inline-flex items-center px-4 py-2 rounded-md border text-sm font-medium transition-all ${getStatusColor(paper.status)} hover:ring-2 hover:ring-primary-500`}
+                        aria-label="Change status"
+                      >
+                        {paper.status === "To Read" && "📚"}
+                        {paper.status === "Reading" && "📖"}
+                        {paper.status === "Read" && "✅"}
+                        <span className="ml-2">{paper.status}</span>
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>Click to change status</TooltipContent>
+                  </Tooltip>
                   <button
                     onClick={async () => {
                       // Cycle through statuses
