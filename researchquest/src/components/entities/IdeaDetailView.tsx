@@ -19,6 +19,7 @@ import type { Idea, IdeaStage } from "../../types/database";
 import { toast } from "sonner";
 import { TopicSelector } from "../topics/TopicSelector";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
+import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
 import { useNotes } from "../../hooks/useNotes";
 import { useAppStore } from "../../store/appStore";
 import { performDeepResearch, type DeepResearchData } from "../../utils/deepResearch";
@@ -287,36 +288,48 @@ export function IdeaDetailView({
               <div className="flex items-center gap-2 md:self-start">
                 {isEditing ? (
                   <>
-                    <button
-                      onClick={handleSave}
-                      disabled={saving}
-                      className="p-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                      title="Save changes"
-                      aria-label="Save changes"
-                    >
-                      <Save className="w-5 h-5" aria-hidden="true" />
-                    </button>
-                    <button
-                      onClick={handleCancel}
-                      className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
-                      title="Cancel"
-                      aria-label="Cancel"
-                    >
-                      <X className="w-5 h-5" aria-hidden="true" />
-                    </button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={handleSave}
+                          disabled={saving}
+                          className="p-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                          aria-label="Save changes"
+                        >
+                          <Save className="w-5 h-5" aria-hidden="true" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>Save changes</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={handleCancel}
+                          className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
+                          aria-label="Cancel"
+                        >
+                          <X className="w-5 h-5" aria-hidden="true" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>Cancel</TooltipContent>
+                    </Tooltip>
                   </>
                 ) : (
                   <div className="flex items-center gap-2 md:self-start">
                     <DropdownMenu.Root>
-                      <DropdownMenu.Trigger asChild>
-                        <button
-                          className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
-                          title="Export idea"
-                          aria-label="Export idea"
-                        >
-                          <Download className="w-5 h-5" aria-hidden="true" />
-                        </button>
-                      </DropdownMenu.Trigger>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <DropdownMenu.Trigger asChild>
+                            <button
+                              className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
+                              aria-label="Export idea"
+                            >
+                              <Download className="w-5 h-5" aria-hidden="true" />
+                            </button>
+                          </DropdownMenu.Trigger>
+                        </TooltipTrigger>
+                        <TooltipContent>Export idea</TooltipContent>
+                      </Tooltip>
                       <DropdownMenu.Portal>
                         <DropdownMenu.Content
                           className="min-w-[160px] bg-bg-surface border border-border-subtle rounded-md shadow-md p-1 z-50 animate-in fade-in zoom-in-95"
@@ -346,40 +359,56 @@ export function IdeaDetailView({
                         </DropdownMenu.Content>
                       </DropdownMenu.Portal>
                     </DropdownMenu.Root>
-                    <button
-                      onClick={handleDeepResearch}
-                      disabled={isDeepResearching}
-                      className="p-2 bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 rounded-md hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors disabled:opacity-50"
-                      title="Deep Research AI Reasoning"
-                      aria-label="Deep Research AI Reasoning"
-                    >
-                      {isDeepResearching ? <Loader className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" aria-hidden="true" />}
-                    </button>
-                    <button
-                      onClick={() => setIsEditing(true)}
-                      className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
-                      title="Edit idea"
-                      aria-label="Edit idea"
-                    >
-                      <Edit2 className="w-5 h-5" aria-hidden="true" />
-                    </button>
-                    <button
-                      onClick={handleCreateNote}
-                      className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
-                      title="Create linked note"
-                      aria-label="Create linked note"
-                    >
-                      <FileText className="w-5 h-5" aria-hidden="true" />
-                    </button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={handleDeepResearch}
+                          disabled={isDeepResearching}
+                          className="p-2 bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 rounded-md hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors disabled:opacity-50"
+                          aria-label="Deep Research AI Reasoning"
+                        >
+                          {isDeepResearching ? <Loader className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" aria-hidden="true" />}
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>Deep Research AI Reasoning</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => setIsEditing(true)}
+                          className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
+                          aria-label="Edit idea"
+                        >
+                          <Edit2 className="w-5 h-5" aria-hidden="true" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>Edit idea</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={handleCreateNote}
+                          className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
+                          aria-label="Create linked note"
+                        >
+                          <FileText className="w-5 h-5" aria-hidden="true" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>Create linked note</TooltipContent>
+                    </Tooltip>
                     {onDelete && (
-                      <button
-                        onClick={handleDeleteClick}
-                        className="p-2 bg-bg-elevated text-red-600 dark:text-red-400 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                        title="Delete idea"
-                        aria-label="Delete idea"
-                      >
-                        <Trash className="w-5 h-5" aria-hidden="true" />
-                      </button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={handleDeleteClick}
+                            className="p-2 bg-bg-elevated text-red-600 dark:text-red-400 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                            aria-label="Delete idea"
+                          >
+                            <Trash className="w-5 h-5" aria-hidden="true" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>Delete idea</TooltipContent>
+                      </Tooltip>
                     )}
                   </div>
                 )}
