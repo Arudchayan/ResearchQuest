@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { PaperDetailView } from "../../components/entities/PaperDetailView";
 import type { Paper } from "../../types/database";
+import { TooltipProvider } from "../../components/ui/tooltip";
 
 // Mock dependencies
 vi.mock("../../components/topics/TopicSelector", () => ({
@@ -71,15 +72,17 @@ describe("PaperDetailView Actions", () => {
 
   it("should render the Create Linked Note button", () => {
     render(
-      <PaperDetailView
-        paper={mockPaper}
-        onUpdate={mockOnUpdate}
-        onDelete={mockOnDelete}
-      />,
+      <TooltipProvider delayDuration={0}>
+        <PaperDetailView
+          paper={mockPaper}
+          onUpdate={mockOnUpdate}
+          onDelete={mockOnDelete}
+        />
+      </TooltipProvider>
     );
 
-    // Look for the button by title
-    const createButton = screen.getByTitle("Create linked note");
+    // Look for the button by aria-label since we replaced title
+    const createButton = screen.getByRole("button", { name: "Create linked note" });
     expect(createButton).toBeInTheDocument();
   });
 
@@ -88,14 +91,16 @@ describe("PaperDetailView Actions", () => {
     mockCreateNote.mockResolvedValue(newNote);
 
     render(
-      <PaperDetailView
-        paper={mockPaper}
-        onUpdate={mockOnUpdate}
-        onDelete={mockOnDelete}
-      />,
+      <TooltipProvider delayDuration={0}>
+        <PaperDetailView
+          paper={mockPaper}
+          onUpdate={mockOnUpdate}
+          onDelete={mockOnDelete}
+        />
+      </TooltipProvider>
     );
 
-    const createButton = screen.getByTitle("Create linked note");
+    const createButton = screen.getByRole("button", { name: "Create linked note" });
     fireEvent.click(createButton);
 
     expect(mockCreateNote).toHaveBeenCalledWith({
