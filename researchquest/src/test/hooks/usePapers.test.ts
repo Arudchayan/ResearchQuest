@@ -79,9 +79,8 @@ describe("usePapers Hook", () => {
 
       // Render the sync hook which populates the store
       const { result: syncResult } = renderHook(() =>
-        useDataSync("test-user-id"),
+        useDataSync("test-user-id", "dashboard"),
       );
-      // And the consumption hook
       const { result } = renderHook(() => usePapers("test-user-id"));
 
       // Initially loading should be true (set by sync hook)
@@ -320,7 +319,7 @@ describe("usePapers Hook", () => {
         }),
       );
 
-      renderHook(() => useDataSync("test-user-id"));
+      renderHook(() => useDataSync("test-user-id", "dashboard"));
 
       await waitFor(() => {
         expect(mockSupabaseClient.channel).toHaveBeenCalledWith(

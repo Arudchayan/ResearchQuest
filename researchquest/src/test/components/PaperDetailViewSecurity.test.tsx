@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { PaperDetailView } from "../../components/entities/PaperDetailView";
+import { TooltipProvider } from "../../components/ui/tooltip";
 import type { Paper } from "../../types/database";
 
 // Mock dependencies
@@ -27,7 +28,7 @@ describe("PaperDetailView Security", () => {
   const mockOnUpdate = vi.fn();
 
   it("should not render the View Source link if the URL is unsafe", () => {
-    render(<PaperDetailView paper={mockPaper} onUpdate={mockOnUpdate} />);
+    render(<TooltipProvider delayDuration={0}><PaperDetailView paper={mockPaper} onUpdate={mockOnUpdate} /></TooltipProvider>);
     const sourceLink = screen.queryByText(/View Source/i);
     expect(sourceLink).not.toBeInTheDocument();
   });

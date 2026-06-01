@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { IdeaDetailView } from "../../components/entities/IdeaDetailView";
+import { TooltipProvider } from "../../components/ui/tooltip";
 import type { Idea } from "../../types/database";
 
 // Mock icons
@@ -49,14 +50,16 @@ describe("IdeaDetailView", () => {
     const onUpdate = vi.fn();
 
     render(
-      <IdeaDetailView
-        idea={mockIdea}
-        onUpdate={onUpdate}
-        onDelete={onDelete}
-      />,
+      <TooltipProvider delayDuration={0}>
+        <IdeaDetailView
+          idea={mockIdea}
+          onUpdate={onUpdate}
+          onDelete={onDelete}
+        />
+      </TooltipProvider>,
     );
 
-    expect(screen.getByTitle("Delete idea")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /delete idea/i })).toBeInTheDocument();
   });
 
   it("calls onDelete when delete button is clicked and confirmed", async () => {
@@ -64,14 +67,16 @@ describe("IdeaDetailView", () => {
     const onUpdate = vi.fn();
 
     render(
-      <IdeaDetailView
-        idea={mockIdea}
-        onUpdate={onUpdate}
-        onDelete={onDelete}
-      />,
+      <TooltipProvider delayDuration={0}>
+        <IdeaDetailView
+          idea={mockIdea}
+          onUpdate={onUpdate}
+          onDelete={onDelete}
+        />
+      </TooltipProvider>,
     );
 
-    const deleteButton = screen.getByTitle("Delete idea");
+    const deleteButton = screen.getByRole("button", { name: /delete idea/i });
     fireEvent.click(deleteButton);
 
     // Check dialog
@@ -91,14 +96,16 @@ describe("IdeaDetailView", () => {
     const onUpdate = vi.fn();
 
     render(
-      <IdeaDetailView
-        idea={mockIdea}
-        onUpdate={onUpdate}
-        onDelete={onDelete}
-      />,
+      <TooltipProvider delayDuration={0}>
+        <IdeaDetailView
+          idea={mockIdea}
+          onUpdate={onUpdate}
+          onDelete={onDelete}
+        />
+      </TooltipProvider>,
     );
 
-    const deleteButton = screen.getByTitle("Delete idea");
+    const deleteButton = screen.getByRole("button", { name: /delete idea/i });
     fireEvent.click(deleteButton);
 
     // Check dialog
@@ -116,7 +123,7 @@ describe("IdeaDetailView", () => {
 
   it("does not render delete button if onDelete is not provided", () => {
     const onUpdate = vi.fn();
-    render(<IdeaDetailView idea={mockIdea} onUpdate={onUpdate} />);
-    expect(screen.queryByTitle("Delete idea")).not.toBeInTheDocument();
+    render(<TooltipProvider delayDuration={0}><IdeaDetailView idea={mockIdea} onUpdate={onUpdate} /></TooltipProvider>);
+    expect(screen.queryByRole("button", { name: /delete idea/i })).not.toBeInTheDocument();
   });
 });

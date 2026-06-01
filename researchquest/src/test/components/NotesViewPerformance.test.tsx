@@ -4,6 +4,21 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NotesView } from "../../components/notes/NotesView";
 import { useAppStore } from "../../store/appStore";
 
+vi.mock("@tanstack/react-virtual", () => ({
+  useVirtualizer: ({ count, estimateSize }: { count: number; estimateSize: () => number }) => ({
+    getVirtualItems: () =>
+      Array.from({ length: count }, (_, i) => ({
+        index: i,
+        key: i,
+        size: estimateSize(),
+        start: i * estimateSize(),
+        lane: 0,
+      })),
+    getTotalSize: () => count * estimateSize(),
+    measure: () => {},
+  }),
+}));
+
 // Mock NoteCard to track renders
 const { MockNoteCard, noteCardRenderCounts } = vi.hoisted(() => {
   const noteCardRenderCounts: Record<string, number> = {};

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { PaperDetailView } from "../../components/entities/PaperDetailView";
+import { TooltipProvider } from "../../components/ui/tooltip";
 import type { Paper } from "../../types/database";
 
 // Mock icons
@@ -52,14 +53,16 @@ describe("PaperDetailView", () => {
     const onUpdate = vi.fn();
 
     render(
-      <PaperDetailView
-        paper={mockPaper}
-        onUpdate={onUpdate}
-        onDelete={onDelete}
-      />,
+      <TooltipProvider delayDuration={0}>
+        <PaperDetailView
+          paper={mockPaper}
+          onUpdate={onUpdate}
+          onDelete={onDelete}
+        />
+      </TooltipProvider>,
     );
 
-    expect(screen.getByTitle("Delete paper")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /delete paper/i })).toBeInTheDocument();
   });
 
   it("calls onDelete when delete button is clicked and confirmed", async () => {
@@ -67,14 +70,16 @@ describe("PaperDetailView", () => {
     const onUpdate = vi.fn();
 
     render(
-      <PaperDetailView
-        paper={mockPaper}
-        onUpdate={onUpdate}
-        onDelete={onDelete}
-      />,
+      <TooltipProvider delayDuration={0}>
+        <PaperDetailView
+          paper={mockPaper}
+          onUpdate={onUpdate}
+          onDelete={onDelete}
+        />
+      </TooltipProvider>,
     );
 
-    const deleteButton = screen.getByTitle("Delete paper");
+    const deleteButton = screen.getByRole("button", { name: /delete paper/i });
     fireEvent.click(deleteButton);
 
     // Check dialog
@@ -97,14 +102,16 @@ describe("PaperDetailView", () => {
     const onUpdate = vi.fn();
 
     render(
-      <PaperDetailView
-        paper={mockPaper}
-        onUpdate={onUpdate}
-        onDelete={onDelete}
-      />,
+      <TooltipProvider delayDuration={0}>
+        <PaperDetailView
+          paper={mockPaper}
+          onUpdate={onUpdate}
+          onDelete={onDelete}
+        />
+      </TooltipProvider>,
     );
 
-    const deleteButton = screen.getByTitle("Delete paper");
+    const deleteButton = screen.getByRole("button", { name: /delete paper/i });
     fireEvent.click(deleteButton);
 
     // Check dialog
@@ -123,7 +130,7 @@ describe("PaperDetailView", () => {
 
   it("does not render delete button if onDelete is not provided", () => {
     const onUpdate = vi.fn();
-    render(<PaperDetailView paper={mockPaper} onUpdate={onUpdate} />);
-    expect(screen.queryByTitle("Delete paper")).not.toBeInTheDocument();
+    render(<TooltipProvider delayDuration={0}><PaperDetailView paper={mockPaper} onUpdate={onUpdate} /></TooltipProvider>);
+    expect(screen.queryByRole("button", { name: /delete paper/i })).not.toBeInTheDocument();
   });
 });

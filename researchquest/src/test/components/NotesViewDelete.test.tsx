@@ -5,6 +5,21 @@ import { NotesView } from "../../components/notes/NotesView";
 import type { Note } from "../../types/database";
 import { toast } from "sonner";
 
+vi.mock("@tanstack/react-virtual", () => ({
+  useVirtualizer: ({ count, estimateSize }: { count: number; estimateSize: () => number }) => ({
+    getVirtualItems: () =>
+      Array.from({ length: count }, (_, i) => ({
+        index: i,
+        key: i,
+        size: estimateSize(),
+        start: i * estimateSize(),
+        lane: 0,
+      })),
+    getTotalSize: () => count * estimateSize(),
+    measure: () => {},
+  }),
+}));
+
 // Mock sonner
 vi.mock("sonner", () => ({
   toast: {
