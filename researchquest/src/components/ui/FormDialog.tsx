@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useId } from "react";
 import type { ReactNode, FormEvent } from "react";
 
 export interface FormDialogProps {
@@ -30,6 +30,8 @@ export function FormDialog({
   isSubmitDisabled = false,
 }: FormDialogProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  const descriptionId = useId();
 
   useEffect(() => {
     if (!isOpen) return;
@@ -97,8 +99,8 @@ export function FormDialog({
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="form-dialog-title"
-        aria-describedby={description ? "form-dialog-description" : undefined}
+        aria-labelledby={titleId}
+        aria-describedby={description ? descriptionId : undefined}
       >
         <form onSubmit={onSubmit}>
           {/* Header */}
@@ -111,14 +113,14 @@ export function FormDialog({
 
             <div className="flex-1 min-w-0 mt-1">
               <h3
-                id="form-dialog-title"
+                id={titleId}
                 className="text-lg font-semibold text-text-primary mb-1"
               >
                 {title}
               </h3>
               {description && (
                 <p
-                  id="form-dialog-description"
+                  id={descriptionId}
                   className="text-body text-text-secondary"
                 >
                   {description}
