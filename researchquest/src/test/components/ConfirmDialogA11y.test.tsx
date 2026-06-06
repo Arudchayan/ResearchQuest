@@ -89,8 +89,18 @@ describe("ConfirmDialog Accessibility", () => {
 
     const dialog = screen.getByRole("alertdialog");
     expect(dialog).toBeInTheDocument();
-    expect(dialog).toHaveAttribute("aria-labelledby", "dialog-title");
-    expect(dialog).toHaveAttribute("aria-describedby", "dialog-description");
+    const labelledBy = dialog.getAttribute("aria-labelledby");
+    const describedBy = dialog.getAttribute("aria-describedby");
+    expect(labelledBy).toBeTruthy();
+    expect(describedBy).toBeTruthy();
+
+    // Make sure the title element has the exact id from aria-labelledby
+    const titleElement = screen.getByText("Accessible Dialog");
+    expect(titleElement).toHaveAttribute("id", labelledBy);
+
+    // Make sure the description element has the exact id from aria-describedby
+    const descElement = screen.getByText("Description text");
+    expect(descElement).toHaveAttribute("id", describedBy);
   });
 
   it("should trap focus inside the dialog", async () => {

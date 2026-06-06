@@ -1,5 +1,5 @@
 import { AlertTriangle, X } from "lucide-react";
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useId } from "react";
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -27,6 +27,8 @@ export function ConfirmDialog({
   const confirmButtonRef = useRef<HTMLButtonElement>(null);
   const cancelButtonRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  const descriptionId = useId();
 
   useEffect(() => {
     if (isOpen) {
@@ -134,8 +136,8 @@ export function ConfirmDialog({
         className="w-full max-w-md bg-bg-surface rounded-lg shadow-lg border border-border-subtle animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
         role="alertdialog"
-        aria-labelledby="dialog-title"
-        aria-describedby="dialog-description"
+        aria-labelledby={titleId}
+        aria-describedby={descriptionId}
       >
         {/* Header */}
         <div className="flex items-start gap-4 p-6 pb-4">
@@ -147,13 +149,13 @@ export function ConfirmDialog({
 
           <div className="flex-1 min-w-0">
             <h3
-              id="dialog-title"
+              id={titleId}
               className="text-lg font-semibold text-text-primary mb-2"
             >
               {title}
             </h3>
             <p
-              id="dialog-description"
+              id={descriptionId}
               className="text-body text-text-secondary"
             >
               {message}
