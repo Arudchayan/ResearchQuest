@@ -21,6 +21,7 @@ import { useAppStore } from "../../store/appStore";
 import { useShallow } from "zustand/react/shallow";
 import { getLevelTitle } from "../../utils/gamification";
 import { ListSkeleton } from "../ui/Skeleton";
+import { getTopN } from "../../utils/collections";
 
 export function Dashboard() {
   // ⚡ PERFORMANCE OPTIMIZATION:
@@ -107,68 +108,50 @@ export function Dashboard() {
   }, [tasks]);
 
   const recentNotes = useMemo(() => {
-    return [...notes]
-      .sort((a, b) => {
-        // Optimization: Use direct string comparison for ISO dates instead of localeCompare
-        return b.updated_at > a.updated_at
-          ? 1
-          : b.updated_at < a.updated_at
-            ? -1
-            : 0;
-      })
-      .slice(0, 3);
+    return getTopN(
+      notes,
+      3,
+      (a, b) => (b.updated_at > a.updated_at ? 1 : b.updated_at < a.updated_at ? -1 : 0)
+    );
   }, [notes]);
 
   const readingList = useMemo(() => {
-    return papers
-      .filter((p) => p.status === "To Read")
-      .sort((a, b) => {
-        // Optimization: Use direct string comparison for ISO dates instead of localeCompare
-        return b.created_at > a.created_at
-          ? 1
-          : b.created_at < a.created_at
-            ? -1
-            : 0;
-      })
-      .slice(0, 3);
+    return getTopN(
+      papers,
+      3,
+      (a, b) => (b.created_at > a.created_at ? 1 : b.created_at < a.created_at ? -1 : 0),
+      (p) => p.status === "To Read"
+    );
   }, [papers]);
 
   const activeIdeas = useMemo(() => {
-    return [...ideas]
-      .sort((a, b) => {
-        // Optimization: Use direct string comparison for ISO dates instead of localeCompare
-        return b.updated_at > a.updated_at
-          ? 1
-          : b.updated_at < a.updated_at
-            ? -1
-            : 0;
-      })
-      .slice(0, 3);
+    return getTopN(
+      ideas,
+      3,
+      (a, b) => (b.updated_at > a.updated_at ? 1 : b.updated_at < a.updated_at ? -1 : 0)
+    );
   }, [ideas]);
 
   const activeTopics = useMemo(() => {
-    return Object.values(topics)
-      .sort((a, b) => {
-        // Optimization: Use direct string comparison for ISO dates instead of localeCompare
-        return b.updated_at > a.updated_at
-          ? 1
-          : b.updated_at < a.updated_at
-            ? -1
-            : 0;
-      })
-      .slice(0, 3);
+    return getTopN(
+      Object.values(topics),
+      3,
+      (a, b) => (b.updated_at > a.updated_at ? 1 : b.updated_at < a.updated_at ? -1 : 0)
+    );
   }, [topics]);
 
   const upcomingTasks = useMemo(() => {
-    return tasks
-      .filter((t) => !t.completed)
-      .sort((a, b) => {
+    return getTopN(
+      tasks,
+      3,
+      (a, b) => {
         if (!a.due_date) return 1;
         if (!b.due_date) return -1;
         // Optimization: Use direct string comparison for ISO dates instead of localeCompare
         return a.due_date > b.due_date ? 1 : a.due_date < b.due_date ? -1 : 0;
-      })
-      .slice(0, 3);
+      },
+      (t) => !t.completed
+    );
   }, [tasks]);
 
   const handleCreateNote = () => {
