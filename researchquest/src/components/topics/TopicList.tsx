@@ -46,33 +46,42 @@ export function TopicList({
   if (!topics.length) {
     if (highlightQuery) {
       return (
-        <div
-          className="text-center py-12 text-text-tertiary"
-          role="status"
-          aria-live="polite"
-        >
-          <Hash className="w-12 h-12 mx-auto mb-3 opacity-50" aria-hidden="true" />
-          <p className="text-small font-semibold text-text-secondary">
+        <>
+          <div role="status" aria-live="polite" className="sr-only">
             No matches found
-          </p>
-          <p className="text-caption mt-1">
-            Try a different keyword or clear your search.
-          </p>
-        </div>
+          </div>
+          <div
+            className="text-center py-12 text-text-tertiary"
+          >
+            <Hash className="w-12 h-12 mx-auto mb-3 opacity-50" aria-hidden="true" />
+            <p className="text-small font-semibold text-text-secondary">
+              No matches found
+            </p>
+            <p className="text-caption mt-1">
+              Try a different keyword or clear your search.
+            </p>
+          </div>
+        </>
       );
     }
 
     return (
-      <div className="text-center py-12 text-text-tertiary" role="status" aria-live="polite">
-        <Hash className="w-12 h-12 mx-auto mb-3 opacity-50" aria-hidden="true" />
-        <p className="text-small">No topics yet</p>
-        <p className="text-caption mt-1">Create a topic to start organizing your research</p>
-      </div>
+      <>
+        <div role="status" aria-live="polite" className="sr-only">
+          No topics yet
+        </div>
+        <div className="text-center py-12 text-text-tertiary">
+          <Hash className="w-12 h-12 mx-auto mb-3 opacity-50" aria-hidden="true" />
+          <p className="text-small">No topics yet</p>
+          <p className="text-caption mt-1">Create a topic to start organizing your research</p>
+        </div>
+      </>
     );
   }
 
   return (
     <>
+      <div role="status" aria-live="polite" className="sr-only"></div>
       <ConfirmDialog
         isOpen={isOpen}
         title={config.title || "Confirm Action"}
