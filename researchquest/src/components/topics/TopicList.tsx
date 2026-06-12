@@ -43,36 +43,39 @@ export function TopicList({
     );
   }
 
-  if (!topics.length) {
-    if (highlightQuery) {
-      return (
-        <div
-          className="text-center py-12 text-text-tertiary"
-          role="status"
-          aria-live="polite"
-        >
-          <Hash className="w-12 h-12 mx-auto mb-3 opacity-50" aria-hidden="true" />
-          <p className="text-small font-semibold text-text-secondary">
-            No matches found
-          </p>
-          <p className="text-caption mt-1">
-            Try a different keyword or clear your search.
-          </p>
-        </div>
-      );
-    }
-
-    return (
-      <div className="text-center py-12 text-text-tertiary" role="status" aria-live="polite">
-        <Hash className="w-12 h-12 mx-auto mb-3 opacity-50" aria-hidden="true" />
-        <p className="text-small">No topics yet</p>
-        <p className="text-caption mt-1">Create a topic to start organizing your research</p>
-      </div>
-    );
-  }
+  const emptyMessage = !topics.length
+    ? (highlightQuery ? "No matches found. Try a different keyword or clear your search." : "No topics yet. Create a topic to start organizing your research")
+    : "";
 
   return (
     <>
+      <div className="sr-only" role="status" aria-live="polite">
+        {emptyMessage}
+      </div>
+
+      {!topics.length ? (
+        highlightQuery ? (
+          <div
+            className="text-center py-12 text-text-tertiary"
+            aria-hidden="true"
+          >
+            <Hash className="w-12 h-12 mx-auto mb-3 opacity-50" />
+            <p className="text-small font-semibold text-text-secondary">
+              No matches found
+            </p>
+            <p className="text-caption mt-1">
+              Try a different keyword or clear your search.
+            </p>
+          </div>
+        ) : (
+          <div className="text-center py-12 text-text-tertiary" aria-hidden="true">
+            <Hash className="w-12 h-12 mx-auto mb-3 opacity-50" />
+            <p className="text-small">No topics yet</p>
+            <p className="text-caption mt-1">Create a topic to start organizing your research</p>
+          </div>
+        )
+      ) : (
+      <>
       <ConfirmDialog
         isOpen={isOpen}
         title={config.title || "Confirm Action"}
@@ -158,6 +161,8 @@ export function TopicList({
         );
       })}
     </div>
+      </>
+      )}
     </>
   );
 }

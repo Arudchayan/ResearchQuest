@@ -254,38 +254,40 @@ export function PaperList({
     return <ListSkeleton count={5} itemType="paper" />;
   }
 
-  if (papers.length === 0) {
-    if (searchQuery) {
-      return (
-        <div
-          className="text-center py-12 text-text-tertiary"
-          role="status"
-          aria-live="polite"
-        >
-          <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-50" aria-hidden="true" />
-          <p className="text-small font-semibold text-text-secondary">
-            No matches found
-          </p>
-          <p className="text-caption mt-1">
-            Try a different keyword or clear your search.
-          </p>
-        </div>
-      );
-    }
-
-    return (
-      <div className="text-center py-12 text-text-tertiary" role="status" aria-live="polite">
-        <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-50" aria-hidden="true" />
-        <p className="text-small">No papers yet</p>
-        <p className="text-caption mt-1">Add your first paper above</p>
-      </div>
-    );
-  }
+  const emptyMessage = papers.length === 0
+    ? (searchQuery ? "No matches found. Try a different keyword or clear your search." : "No papers yet. Add your first paper above.")
+    : "";
 
   return (
     <>
-      <div className="space-y-2">
-        {papers.map((paper) => (
+      <div className="sr-only" role="status" aria-live="polite">
+        {emptyMessage}
+      </div>
+
+      {papers.length === 0 ? (
+        searchQuery ? (
+          <div
+            className="text-center py-12 text-text-tertiary"
+            aria-hidden="true"
+          >
+            <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-50" />
+            <p className="text-small font-semibold text-text-secondary">
+              No matches found
+            </p>
+            <p className="text-caption mt-1">
+              Try a different keyword or clear your search.
+            </p>
+          </div>
+        ) : (
+          <div className="text-center py-12 text-text-tertiary" aria-hidden="true">
+            <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-50" />
+            <p className="text-small">No papers yet</p>
+            <p className="text-caption mt-1">Add your first paper above</p>
+          </div>
+        )
+      ) : (
+        <div className="space-y-2">
+          {papers.map((paper) => (
           <PaperCard
             key={paper.id}
             paper={paper}
@@ -296,7 +298,8 @@ export function PaperList({
             isSelected={paper.id === selectedPaperId}
           />
         ))}
-      </div>
+        </div>
+      )}
 
       <ConfirmDialog
         isOpen={Boolean(paperToDelete)}
