@@ -4,8 +4,7 @@
 
 @layer base {
   :root {
-    /* Luxe Scholar - Light Mode */
-    /* Deep rich blacks, off-whites, elegant contrast */
+    /* Light Mode */
     --primary-50: #F4F4F0;
     --primary-100: #E6E6DF;
     --primary-500: #1C1C1A;
@@ -44,8 +43,7 @@
   }
 
   .dark {
-    /* Luxe Scholar - Dark Mode */
-    /* Deep blacks, soft cream text */
+    /* Dark Mode */
     --primary-50: #1F1F1E;
     --primary-100: #2C2C2A;
     --primary-500: #EDEDE4;

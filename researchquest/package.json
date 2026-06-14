@@ -1,5 +1,5 @@
 {
-  "name": "react_repo",
+  "name": "researchquest",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -117,10 +117,5 @@
     "vite-plugin-source-identifier": "1.1.2",
     "vitest": "^4.0.8"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "deno",
-      "supabase"
-    ]
-  }
+  "version": "0.0.0"
 }

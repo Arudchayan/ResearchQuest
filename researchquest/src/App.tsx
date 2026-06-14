@@ -81,8 +81,9 @@ const ShortcutsDialog = lazy(() =>
 
 function RouteLoadingFallback() {
   return (
-    <div className="flex h-full min-h-[320px] items-center justify-center px-6 py-10 text-sm text-text-secondary">
-      Loading view…
+    <div className="flex h-full min-h-[320px] items-center justify-center px-6 py-10">
+      <div className="h-8 w-8 animate-pulse rounded-full bg-border-moderate" aria-hidden="true" />
+      <span className="sr-only">Loading…</span>
     </div>
   );
 }
@@ -92,8 +93,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | undefined>(undefined);
   const [pendingPath, setPendingPath] = useState<string | null>(null);
-  // ⚡ Optimization: Use useShallow with an object selector to prevent the App component
-  // from unnecessarily re-rendering on unrelated state changes in the global appStore.
+  // Use useShallow to prevent unnecessary re-renders
   const {
     setUser: setUserProfile,
     currentView,
