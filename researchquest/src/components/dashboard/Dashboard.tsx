@@ -20,6 +20,7 @@ import {
 import { useAppStore } from "../../store/appStore";
 import { useShallow } from "zustand/react/shallow";
 import { getLevelTitle } from "../../utils/gamification";
+import { getTopN } from "../../utils/collections";
 import { ListSkeleton } from "../ui/Skeleton";
 
 export function Dashboard() {
@@ -107,75 +108,77 @@ export function Dashboard() {
   }, [tasks]);
 
   const recentNotes = useMemo(() => {
-    return [...notes]
-      .sort((a, b) => {
-        // Optimization: Use direct string comparison for ISO dates instead of localeCompare
-        return b.updated_at > a.updated_at
-          ? 1
-          : b.updated_at < a.updated_at
-            ? -1
-            : 0;
-      })
-      .slice(0, 3);
+    return getTopN(notes, 3, (a, b) => {
+      // Optimization: Use direct string comparison for ISO dates instead of localeCompare
+      return b.updated_at > a.updated_at
+        ? 1
+        : b.updated_at < a.updated_at
+          ? -1
+          : 0;
+    });
   }, [notes]);
 
   const readingList = useMemo(() => {
-    return papers
-      .filter((p) => p.status === "To Read")
-      .sort((a, b) => {
-        // Optimization: Use direct string comparison for ISO dates instead of localeCompare
-        return b.created_at > a.created_at
-          ? 1
-          : b.created_at < a.created_at
-            ? -1
-            : 0;
-      })
-      .slice(0, 3);
+    const toRead = [];
+    for (let i = 0; i < papers.length; i++) {
+      if (papers[i].status === "To Read") {
+        toRead.push(papers[i]);
+      }
+    }
+    return getTopN(toRead, 3, (a, b) => {
+      // Optimization: Use direct string comparison for ISO dates instead of localeCompare
+      return b.created_at > a.created_at
+        ? 1
+        : b.created_at < a.created_at
+          ? -1
+          : 0;
+    });
   }, [papers]);
 
   const activeIdeas = useMemo(() => {
-    return [...ideas]
-      .sort((a, b) => {
-        // Optimization: Use direct string comparison for ISO dates instead of localeCompare
-        return b.updated_at > a.updated_at
-          ? 1
-          : b.updated_at < a.updated_at
-            ? -1
-            : 0;
-      })
-      .slice(0, 3);
+    return getTopN(ideas, 3, (a, b) => {
+      // Optimization: Use direct string comparison for ISO dates instead of localeCompare
+      return b.updated_at > a.updated_at
+        ? 1
+        : b.updated_at < a.updated_at
+          ? -1
+          : 0;
+    });
   }, [ideas]);
 
   const activeTopics = useMemo(() => {
-    return Object.values(topics)
-      .sort((a, b) => {
-        // Optimization: Use direct string comparison for ISO dates instead of localeCompare
-        return b.updated_at > a.updated_at
-          ? 1
-          : b.updated_at < a.updated_at
-            ? -1
-            : 0;
-      })
-      .slice(0, 3);
+    return getTopN(Object.values(topics), 3, (a, b) => {
+      // Optimization: Use direct string comparison for ISO dates instead of localeCompare
+      return b.updated_at > a.updated_at
+        ? 1
+        : b.updated_at < a.updated_at
+          ? -1
+          : 0;
+    });
   }, [topics]);
 
   const upcomingTasks = useMemo(() => {
-    return tasks
-      .filter((t) => !t.completed)
-      .sort((a, b) => {
-        if (!a.due_date) return 1;
-        if (!b.due_date) return -1;
-        // Optimization: Use direct string comparison for ISO dates instead of localeCompare
-        return a.due_date > b.due_date ? 1 : a.due_date < b.due_date ? -1 : 0;
-      })
-      .slice(0, 3);
+    const pending = [];
+    for (let i = 0; i < tasks.length; i++) {
+      if (!tasks[i].completed) {
+        pending.push(tasks[i]);
+      }
+    }
+    return getTopN(pending, 3, (a, b) => {
+      if (!a.due_date) return 1;
+      if (!b.due_date) return -1;
+      // Optimization: Use direct string comparison for ISO dates instead of localeCompare
+      return a.due_date > b.due_date ? 1 : a.due_date < b.due_date ? -1 : 0;
+    });
   }, [tasks]);
 
   const handleCreateNote = () => {
     setCurrentView("notes");
   };
 
-  const navigateTo = (view: "notes" | "papers" | "focus" | "tasks" | "ideas" | "topics") => {
+  const navigateTo = (
+    view: "notes" | "papers" | "focus" | "tasks" | "ideas" | "topics",
+  ) => {
     setCurrentView(view);
     window.history.pushState(null, "", `/${view}`);
   };
@@ -287,7 +290,8 @@ export function Dashboard() {
                 {focusMinutesToday} min
               </div>
               <div className="text-small text-text-secondary font-serif italic">
-                {pendingTaskCount} pending · {completedTaskCount} completed tasks
+                {pendingTaskCount} pending · {completedTaskCount} completed
+                tasks
               </div>
             </div>
           </div>
@@ -307,7 +311,8 @@ export function Dashboard() {
                 onClick={() => navigateTo("notes")}
                 className="text-small text-text-secondary hover:text-text-primary font-medium flex items-center gap-1 uppercase tracking-wider transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 rounded-sm"
               >
-                View all <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
+                View all{" "}
+                <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
               </button>
             </div>
 
@@ -365,7 +370,8 @@ export function Dashboard() {
                 onClick={() => navigateTo("ideas")}
                 className="text-small text-text-secondary hover:text-text-primary font-medium flex items-center gap-1 uppercase tracking-wider transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 rounded-sm"
               >
-                View Board <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
+                View Board{" "}
+                <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
               </button>
             </div>
 
@@ -471,7 +477,8 @@ export function Dashboard() {
                       </span>
                     </div>
                     <span className="text-caption font-serif italic text-text-tertiary shrink-0">
-                      {topic.note_count + topic.paper_count + topic.idea_count} items
+                      {topic.note_count + topic.paper_count + topic.idea_count}{" "}
+                      items
                     </span>
                   </button>
                 ))
