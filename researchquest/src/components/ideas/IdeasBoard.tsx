@@ -13,7 +13,7 @@ import {
   ArrowUpDown,
   ArrowLeft,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useAppStore } from "../../store/appStore";
 import { useShallow } from "zustand/react/shallow";
@@ -426,14 +426,10 @@ export function IdeasBoard() {
                       <ListSkeleton count={3} itemType="idea" />
                     ) : (
                       <>
-                        <AnimatePresence mode="popLayout">
                           {stageIdeas.map((idea) => (
-                            <motion.div
-                              layoutId={idea.id}
+                            <div
                               key={idea.id}
-                              initial={{ opacity: 0, y: 20 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, scale: 0.9 }}
+                              className="group bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md cursor-pointer transition-all hover:border-blue-400 dark:hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 animate-fade-slide-in"
                               onClick={() => setSelectedIdea(idea)}
                               onKeyDown={(e) => {
                                 if (e.key === "Enter" || e.key === " ") {
@@ -442,7 +438,6 @@ export function IdeasBoard() {
                                 }
                               }}
                               tabIndex={0}
-                              className="group bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md cursor-pointer transition-all hover:border-blue-400 dark:hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                             >
                               <div className="flex items-start justify-between mb-2">
                                 <h4 className="font-medium text-slate-900 dark:text-white line-clamp-2 leading-snug">
@@ -479,9 +474,8 @@ export function IdeasBoard() {
                                   </button>
                                 </div>
                               )}
-                            </motion.div>
+                            </div>
                           ))}
-                        </AnimatePresence>
 
                         {stageIdeas.length === 0 && (
                           <div className="p-8 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-lg text-slate-400" role="status" aria-live="polite">
