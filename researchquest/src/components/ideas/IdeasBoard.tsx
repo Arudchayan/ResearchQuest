@@ -53,7 +53,6 @@ const STAGES: { id: IdeaStage; label: string; color: string }[] = [
 ];
 
 export function IdeasBoard() {
-  // ⚡ PERFORMANCE OPTIMIZATION:
   // Using useShallow to prevent unnecessary re-renders of the entire IdeasBoard
   // when unrelated properties in the global appStore change.
   const {
@@ -87,7 +86,7 @@ export function IdeasBoard() {
   const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastDeletedRef = useRef<Idea | null>(null);
 
-  // ⚡ PERFORMANCE OPTIMIZATION: Pre-compute derived text fields for faster searching
+  // Performance: Pre-compute derived text fields for faster searching
   const searchableIdeas = useMemo(() => {
     return (ideas || []).map((idea) => ({
       idea,

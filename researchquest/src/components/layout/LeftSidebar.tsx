@@ -359,7 +359,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
     [searchQueries.ideas],
   );
 
-  // ⚡ PERFORMANCE OPTIMIZATION: Pre-compute derived text fields (like markdown title extraction and toLowerCase)
+  // Performance: Pre-compute derived text fields (like markdown title extraction and toLowerCase)
   // so that expensive string parsing is decoupled from the fast keystroke filtering loop.
   const searchableNotes = useMemo(() => {
     return notes.map((note) => ({

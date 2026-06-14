@@ -92,7 +92,7 @@ export function NotesView() {
     return Array.from(tags).sort();
   }, [notes]);
 
-  // ⚡ PERFORMANCE OPTIMIZATION: Pre-compute derived text fields for faster searching
+  // Performance: Pre-compute derived text fields for faster searching
   const searchableNotes = useMemo(() => {
     return (notes || []).map((note) => ({
       note,
@@ -108,7 +108,7 @@ export function NotesView() {
       return notes || [];
     }
 
-    // ⚡ PERFORMANCE OPTIMIZATION: Filter the pre-computed searchableNotes array directly
+    // Performance: Filter the pre-computed searchableNotes array directly
     // instead of allocating an intermediate Set and doing cross-reference lookups.
     // This maintains an O(N) fast path during the high-frequency keystroke filtering loop.
     const results = [];

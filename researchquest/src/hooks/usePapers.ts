@@ -81,7 +81,7 @@ async function createReadingTaskForPaper(
     });
 
     if (error) {
-      // 🛡️ Security: Log only the message, not the full error object
+      // Log only the message, not the full error object
       logger.error("Failed to create reading task", error);
     } else {
       toast.success("Reading task created", {
@@ -90,7 +90,7 @@ async function createReadingTaskForPaper(
       });
     }
   } catch (error: unknown) {
-    // 🛡️ Security: Log only the message, not the full error object
+    // Log only the message, not the full error object
     logger.error(
       "Error creating reading task",
       error,
@@ -338,7 +338,7 @@ export function usePapers(userId: string | undefined) {
         .single();
 
       if (createError) {
-        // 🛡️ Security: Only expose the error message or code, not internal details/hints
+        // Only expose the error message or code, not internal details/hints
         const errorMessage =
           createError.message ||
           (createError.code
