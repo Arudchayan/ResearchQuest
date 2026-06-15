@@ -22,6 +22,14 @@ vi.mock("lucide-react", () => ({
   Loader: () => <span>LoaderIcon</span>,
 }));
 
+// Mock Tooltip to avoid TooltipProvider requirement
+vi.mock("@radix-ui/react-tooltip", () => ({
+  Provider: ({ children }: any) => children,
+  Root: ({ children }: any) => children,
+  Trigger: ({ children }: any) => children,
+  Content: () => null,
+}));
+
 // Mock sub-components
 vi.mock("../../components/topics/TopicSelector", () => ({
   TopicSelector: () => <div>TopicSelector</div>,
@@ -56,7 +64,7 @@ describe("IdeaDetailView", () => {
       />,
     );
 
-    expect(screen.getByTitle("Delete idea")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /delete idea/i })).toBeInTheDocument();
   });
 
   it("calls onDelete when delete button is clicked and confirmed", async () => {
@@ -71,7 +79,7 @@ describe("IdeaDetailView", () => {
       />,
     );
 
-    const deleteButton = screen.getByTitle("Delete idea");
+    const deleteButton = screen.getByRole("button", { name: /delete idea/i });
     fireEvent.click(deleteButton);
 
     // Check dialog
@@ -98,7 +106,7 @@ describe("IdeaDetailView", () => {
       />,
     );
 
-    const deleteButton = screen.getByTitle("Delete idea");
+    const deleteButton = screen.getByRole("button", { name: /delete idea/i });
     fireEvent.click(deleteButton);
 
     // Check dialog
@@ -117,6 +125,6 @@ describe("IdeaDetailView", () => {
   it("does not render delete button if onDelete is not provided", () => {
     const onUpdate = vi.fn();
     render(<IdeaDetailView idea={mockIdea} onUpdate={onUpdate} />);
-    expect(screen.queryByTitle("Delete idea")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /delete idea/i })).not.toBeInTheDocument();
   });
 });

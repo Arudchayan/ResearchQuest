@@ -8,6 +8,14 @@ vi.mock("../../components/topics/TopicSelector", () => ({
   TopicSelector: () => <div data-testid="topic-selector">Topics</div>,
 }));
 
+// Mock Tooltip to avoid TooltipProvider requirement
+vi.mock("@radix-ui/react-tooltip", () => ({
+  Provider: ({ children }: any) => children,
+  Root: ({ children }: any) => children,
+  Trigger: ({ children }: any) => children,
+  Content: () => null,
+}));
+
 describe("PaperDetailView Security", () => {
   const mockPaper: Paper = {
     id: "1",
