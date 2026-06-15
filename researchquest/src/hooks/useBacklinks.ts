@@ -32,46 +32,44 @@ export function useBacklinks(
 
     // 1. Find notes that link to this entity
     // notes have linked_entity_ids array
-    const linkingNotes = notes.filter(
-      (note) =>
-        note.linked_entity_ids && note.linked_entity_ids.includes(entityId),
-    );
-
-    results.push(
-      ...linkingNotes.map((note) => ({
-        id: note.id,
-        title:
-          note.title?.trim() || deriveTitleFromMarkdown(note.markdown_body),
-        type: "note" as const,
-        updated_at: note.updated_at,
-      })),
-    );
+    for (let i = 0; i < notes.length; i++) {
+      const note = notes[i];
+      if (note.linked_entity_ids && note.linked_entity_ids.includes(entityId)) {
+        results.push({
+          id: note.id,
+          title:
+            note.title?.trim() || deriveTitleFromMarkdown(note.markdown_body),
+          type: "note" as const,
+          updated_at: note.updated_at,
+        });
+      }
+    }
 
     // 2. Find ideas that link to this entity
     // ideas have linked_note_ids and linked_paper_ids
-    let linkingIdeas: typeof ideas = [];
+    for (let i = 0; i < ideas.length; i++) {
+      const idea = ideas[i];
+      let isLinked = false;
 
-    if (entityType === "note") {
-      linkingIdeas = ideas.filter(
-        (idea) =>
-          idea.linked_note_ids && idea.linked_note_ids.includes(entityId),
-      );
-    } else if (entityType === "paper") {
-      linkingIdeas = ideas.filter(
-        (idea) =>
-          idea.linked_paper_ids && idea.linked_paper_ids.includes(entityId),
-      );
+      if (entityType === "note") {
+        if (idea.linked_note_ids && idea.linked_note_ids.includes(entityId)) {
+          isLinked = true;
+        }
+      } else if (entityType === "paper") {
+        if (idea.linked_paper_ids && idea.linked_paper_ids.includes(entityId)) {
+          isLinked = true;
+        }
+      }
+
+      if (isLinked) {
+        results.push({
+          id: idea.id,
+          title: idea.title,
+          type: "idea" as const,
+          updated_at: idea.updated_at,
+        });
+      }
     }
-    // ideas don't link to ideas in the current schema
-
-    results.push(
-      ...linkingIdeas.map((idea) => ({
-        id: idea.id,
-        title: idea.title,
-        type: "idea" as const,
-        updated_at: idea.updated_at,
-      })),
-    );
 
     // Sort by updated_at desc
     return results.sort((a, b) => {
