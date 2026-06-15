@@ -19,7 +19,6 @@ import { XPExplainer } from "./XPExplainer";
 import { logger } from "../../utils/logger";
 
 export function TopNav() {
-  // ⚡ PERFORMANCE OPTIMIZATION:
   // Using useShallow to prevent TopNav from re-rendering when unrelated
   // properties (like selectedNote or papers) in the global appStore change.
   const { theme, setTheme, user, effectiveTheme } = useAppStore(

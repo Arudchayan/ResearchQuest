@@ -17,7 +17,7 @@ export function useBacklinks(
 ) {
   const { enabled = true } = options;
 
-  // ⚡ PERFORMANCE OPTIMIZATION: Use global store cache instead of redundant Supabase queries
+  // Performance: Use global store cache instead of redundant Supabase queries
   // The app already loads all notes and ideas via useDataSync/useAppStore.
   // We can filter them in memory which is instant and reactive to realtime updates.
   const notes = useAppStore((state) => state.notes);

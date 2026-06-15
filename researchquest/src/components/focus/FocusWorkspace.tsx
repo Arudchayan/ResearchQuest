@@ -85,7 +85,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   const [isSoundEnabled, setIsSoundEnabled] = useState(true);
   const [isNotificationEnabled, setIsNotificationEnabled] = useState(true);
 
-  // ⚡ PERFORMANCE OPTIMIZATION: Use Array.find() instead of pre-computing Maps for single lookups
+  // Performance: Use Array.find() instead of pre-computing Maps for single lookups
   // This avoids O(N) memory allocation and iteration on every list update when we only need to find one item
   const selectedItem = useMemo(() => {
     if (!selectedTarget) return null;
@@ -249,8 +249,6 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
 
   const focusInsights = useMemo(() => {
     const insights: { title: string; detail: string }[] = [];
-
-    // ⚡ PERFORMANCE OPTIMIZATION:
     // Compute multiple aggregate statistics in single O(N) passes.
     // This avoids chaining multiple .filter().length calls that create unnecessary
     // intermediate arrays and trigger redundant iterations during render.

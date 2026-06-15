@@ -74,8 +74,6 @@ export function useRelatedItems(
 
       // Now find other entities that share these topics
       const linkMap = new Map<string, RelatedLink>();
-
-      // ⚡ PERFORMANCE OPTIMIZATION:
       // We fetch only the IDs. We do NOT hydrate with store data here.
       // This allows us to keep this effect independent of store updates.
       // Additionally, we use Promise.all to fetch related items concurrently.
@@ -180,8 +178,6 @@ export function useRelatedItems(
     if (relatedLinks.length === 0) return [];
 
     const results: RelatedItem[] = [];
-
-    // ⚡ PERFORMANCE OPTIMIZATION:
     // Pre-compute Map lookups (O(1)) instead of repeated array scans (O(N*M)) when hydrating links from the store.
     const notesMap = new Map(notes.map((n) => [n.id, n]));
     const papersMap = new Map(papers.map((p) => [p.id, p]));
@@ -230,7 +226,7 @@ export function useRelatedItems(
       if (b.sharedTopics !== a.sharedTopics) {
         return b.sharedTopics - a.sharedTopics;
       }
-      // ⚡ PERFORMANCE OPTIMIZATION: String comparison for ISO dates
+      // Performance: String comparison for ISO dates
       if (b.updated_at > a.updated_at) return 1;
       if (b.updated_at < a.updated_at) return -1;
       return 0;

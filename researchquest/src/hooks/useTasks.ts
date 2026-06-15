@@ -37,7 +37,6 @@ export function useTasks(userId: string | undefined) {
   );
 
   const sortTasksByDueDate = useCallback((taskList: Task[]) => {
-    // ⚡ PERFORMANCE OPTIMIZATION:
     // Implement Schwartzian transform to avoid O(N log N) Date parsing overhead during sort
     const mapped = taskList.map((task) => {
       const parsedDate = parseDateInput(task.due_date);

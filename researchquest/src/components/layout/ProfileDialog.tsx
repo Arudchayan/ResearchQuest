@@ -19,7 +19,6 @@ interface ProfileDialogProps {
 }
 
 export function ProfileDialog({ open, onClose }: ProfileDialogProps) {
-  // ⚡ PERFORMANCE OPTIMIZATION:
   // Using a direct selector for a single property instead of subscribing to the entire store.
   // This prevents ProfileDialog from unnecessarily re-rendering on other state changes.
   const user = useAppStore((state) => state.user);
