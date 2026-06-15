@@ -58,7 +58,7 @@ export function AddIdeaDialog({
           htmlFor="idea-title"
           className="block text-small font-medium text-text-primary mb-1.5"
         >
-          Title *
+          Title <span aria-hidden="true">*</span>
         </label>
         <input
           ref={firstInputRef}
