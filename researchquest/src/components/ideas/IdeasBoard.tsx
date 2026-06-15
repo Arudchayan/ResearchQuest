@@ -225,7 +225,12 @@ export function IdeasBoard() {
     const currentIndex = STAGES.findIndex((s) => s.id === currentStage);
     const nextStage = STAGES[currentIndex + 1];
     if (nextStage) {
-      await updateIdea(ideaId, { stage: nextStage.id });
+      const update = () => updateIdea(ideaId, { stage: nextStage.id });
+      if (document.startViewTransition) {
+        document.startViewTransition(update);
+      } else {
+        await update();
+      }
     }
   };
 
@@ -430,6 +435,7 @@ export function IdeasBoard() {
                             <div
                               key={idea.id}
                               className="group bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md cursor-pointer transition-all hover:border-blue-400 dark:hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 animate-fade-slide-in"
+                              style={{ viewTransitionName: `idea-${idea.id}` }}
                               onClick={() => setSelectedIdea(idea)}
                               onKeyDown={(e) => {
                                 if (e.key === "Enter" || e.key === " ") {

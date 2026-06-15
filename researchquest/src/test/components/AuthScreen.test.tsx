@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
-import { AuthScreen } from "../../App";
+import { AuthScreen } from "../../components/auth/AuthScreen";
 import { mockSupabaseClient } from "../mocks/supabase";
 
 describe("AuthScreen Security", () => {

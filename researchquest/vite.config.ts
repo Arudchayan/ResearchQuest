@@ -1,7 +1,7 @@
 import path from "path"
 import react from "@vitejs/plugin-react"
 import { defineConfig, loadEnv } from "vite"
-import sourceIdentifierPlugin from 'vite-plugin-source-identifier'
+import { visualizer } from 'rollup-plugin-visualizer'
 
 const repoRoot = path.resolve(__dirname, "..")
 
@@ -26,11 +26,13 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       react(), 
-      sourceIdentifierPlugin({
-        enabled: !isProd,
-        attributePrefix: 'data-matrix',
-        includeProps: true,
-      })
+      ...(process.env.ANALYZE ? [visualizer({
+        filename: 'dist/stats.json',
+        template: 'raw-data',
+        open: false,
+        gzipSize: true,
+        brotliSize: false,
+      })] : []),
     ],
     resolve: {
       alias: {
