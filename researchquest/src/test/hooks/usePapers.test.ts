@@ -79,7 +79,7 @@ describe("usePapers Hook", () => {
 
       // Render the sync hook which populates the store
       const { result: syncResult } = renderHook(() =>
-        useDataSync("test-user-id"),
+        useDataSync("test-user-id", "dashboard"),
       );
       // And the consumption hook
       const { result } = renderHook(() => usePapers("test-user-id"));

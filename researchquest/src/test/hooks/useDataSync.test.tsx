@@ -41,7 +41,7 @@ describe("useDataSync sync errors", () => {
       }),
     );
 
-    renderHook(() => useDataSync("user-1"));
+    renderHook(() => useDataSync("user-1", "dashboard"));
 
     await waitFor(() => {
       expect(useAppStore.getState().dataSyncErrors).toEqual({
@@ -77,7 +77,7 @@ describe("useDataSync sync errors", () => {
       }),
     );
 
-    renderHook(() => useDataSync("user-1"));
+    renderHook(() => useDataSync("user-1", "dashboard"));
 
     await waitFor(() => {
       expect(useAppStore.getState().dataSyncErrors).toEqual({
