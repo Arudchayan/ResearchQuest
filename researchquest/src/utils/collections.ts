@@ -13,7 +13,7 @@ export function dedupeById<T extends { id: string }>(items: T[]): T[] {
 }
 
 /**
- * ⚡ PERFORMANCE OPTIMIZATION:
+ * PERFORMANCE OPTIMIZATION:
  * Gets the top N items from an array in a single O(N) pass without sorting the entire array.
  * Useful for widgets that only need to display a small slice of a large collection.
  */

@@ -152,20 +152,7 @@
   aside {
     contain: layout style paint;
   }
-  
-  /* GPU acceleration for transforms */
-  .transform,
-  [class*="translate"],
-  [class*="scale"],
-  [class*="rotate"] {
-    will-change: transform;
-  }
-  
-  /* Remove will-change after animation */
-  .transform-none {
-    will-change: auto;
-  }
-  
+
   /* Content visibility for off-screen content */
   .off-screen {
     content-visibility: auto;
@@ -178,12 +165,6 @@
     -webkit-overflow-scrolling: touch;
   }
   
-  /* Layer promotion for animated elements */
-  .gpu-accelerated {
-    transform: translateZ(0);
-    backface-visibility: hidden;
-    perspective: 1000px;
-  }
 
   /* Entry animations for framer-motion replacement */
   @keyframes fade-slide-in {
