@@ -15,7 +15,7 @@ describe("AddIdeaDialog Security", () => {
       />,
     );
 
-    const titleInput = screen.getByLabelText(/Title \*/i);
+    const titleInput = screen.getByLabelText(/Title/i);
     expect(titleInput).toHaveAttribute("maxLength", "255");
 
     const descriptionInput = screen.getByLabelText(/Description/i);
