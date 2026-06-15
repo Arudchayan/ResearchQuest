@@ -359,7 +359,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
     [searchQueries.ideas],
   );
 
-  // ⚡ PERFORMANCE OPTIMIZATION: Pre-compute derived text fields (like markdown title extraction and toLowerCase)
+  // Performance: Pre-compute derived text fields (like markdown title extraction and toLowerCase)
   // so that expensive string parsing is decoupled from the fast keystroke filtering loop.
   const searchableNotes = useMemo(() => {
     return notes.map((note) => ({
@@ -696,15 +696,15 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
             )}
 
             {currentView === "tasks" && (
-              <div className="text-center py-12 text-text-tertiary">
-                <CheckSquare className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <div className="text-center py-12 text-text-tertiary" role="status" aria-live="polite">
+                <CheckSquare className="w-12 h-12 mx-auto mb-3 opacity-50" aria-hidden="true" />
                 <p className="text-small">Task manager is in the main panel</p>
               </div>
             )}
 
             {currentView === "topics" && (
-              <div className="text-center py-12 text-text-tertiary">
-                <Hash className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <div className="text-center py-12 text-text-tertiary" role="status" aria-live="polite">
+                <Hash className="w-12 h-12 mx-auto mb-3 opacity-50" aria-hidden="true" />
                 <p className="text-small">Topic manager is in the main panel</p>
               </div>
             )}

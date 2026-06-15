@@ -75,93 +75,77 @@ export function TopicList({
           </div>
         )
       ) : (
-      <>
-      <ConfirmDialog
-        isOpen={isOpen}
-        title={config.title || "Confirm Action"}
-        message={config.message || "Are you sure?"}
-        confirmText={config.confirmText}
-        cancelText={config.cancelText}
-        variant={config.variant}
-        onConfirm={config.onConfirm!}
-        onClose={config.onClose!}
-      />
-    <div className="space-y-2">
-      {topics.map((topic) => {
-        const isActive = selectedTopic?.id === topic.id;
-        return (
-          <div
-            key={topic.id}
-            role="button"
-            tabIndex={0}
-            aria-label={topic.name}
-            onClick={() => onSelectTopic(topic)}
-            onKeyDown={(event) => handleKeyDown(event, topic)}
-            className={`w-full text-left px-4 py-3 rounded-md border transition-colors group focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-              isActive
-                ? "border-primary-500 bg-primary-500/10 text-text-primary"
-                : "border-border-subtle bg-bg-surface hover:border-primary-500/60 hover:bg-primary-500/5"
-            }`}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="font-semibold text-small text-text-primary">
-                  {topic.name ? highlightMatch(topic.name, highlightQuery) : "Untitled"}
-                </p>
-                {topic.description && (
-                  <p className="text-caption text-text-secondary mt-1 line-clamp-2">
-                    {highlightMatch(topic.description, highlightQuery)}
-                  </p>
-                )}
-              </div>
-              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      onClick={async (event) => {
-                        event.stopPropagation();
-                        const shouldDelete = await confirmDialog({
-                          title: "Delete Topic",
-                          message: `Delete "${topic.name}"? This will remove its links.`,
-                          confirmText: "Delete",
-                          variant: "danger",
-                        });
-                        if (shouldDelete) {
-                          void onDeleteTopic(topic.id);
-                        }
-                      }}
-                      aria-label={`Delete ${topic.name}`}
-                      className="p-1 rounded-md bg-bg-elevated hover:bg-destructive/10 text-text-tertiary hover:text-destructive transition-colors focus:opacity-100"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Delete topic</p>
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-            </div>
-            <div className="mt-3 grid grid-cols-3 gap-2 text-caption text-text-secondary">
-              <span className="inline-flex items-center gap-1">
-                <Notebook className="w-3.5 h-3.5" />
-                {topic.note_count} notes
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <BookOpen className="w-3.5 h-3.5" />
-                {topic.paper_count} papers
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <Lightbulb className="w-3.5 h-3.5" />
-                {topic.idea_count} ideas
-              </span>
-            </div>
+        <>
+          <ConfirmDialog
+            isOpen={isOpen}
+            title={config.title || "Confirm Action"}
+            message={config.message || "Are you sure?"}
+            confirmText={config.confirmText}
+            cancelText={config.cancelText}
+            variant={config.variant}
+            onConfirm={config.onConfirm!}
+            onClose={config.onClose!}
+          />
+          <div className="space-y-2">
+            {topics.map((topic) => {
+              const isActive = selectedTopic?.id === topic.id;
+              return (
+                <div
+                  key={topic.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={topic.name}
+                  onClick={() => onSelectTopic(topic)}
+                  onKeyDown={(event) => handleKeyDown(event, topic)}
+                  className={`w-full text-left px-4 py-3 rounded-md border transition-colors group focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                    isActive
+                      ? "border-primary-500 bg-primary-500/10 text-text-primary"
+                      : "border-border-subtle bg-bg-surface hover:border-primary-500/60 hover:bg-primary-500/5"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold text-small text-text-primary">
+                        {topic.name ? highlightMatch(topic.name, highlightQuery) : "Untitled"}
+                      </p>
+                      {topic.description && (
+                        <p className="text-caption text-text-secondary mt-1 line-clamp-2">
+                          {highlightMatch(topic.description, highlightQuery)}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={async (event) => {
+                              event.stopPropagation();
+                              const confirmed = await confirmDialog({
+                                title: "Delete topic",
+                                message: `Are you sure you want to delete "${topic.name}"? This will remove the topic from all linked notes, papers, and ideas.`,
+                                confirmText: "Delete",
+                                variant: "danger",
+                              });
+                              if (confirmed) {
+                                await onDeleteTopic(topic.id);
+                              }
+                            }}
+                            className="p-1.5 rounded-md text-text-tertiary hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                            aria-label={`Delete ${topic.name}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>Delete topic</TooltipContent>
+                      </Tooltip>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        );
-      })}
-    </div>
-      </>
+        </>
       )}
     </>
   );

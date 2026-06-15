@@ -71,7 +71,7 @@ export function DataManagementDialog({
   open,
   onClose,
 }: DataManagementDialogProps) {
-  // ⚡ OPTIMIZATION: Use useShallow with an object selector to prevent DataManagementDialog from unnecessarily re-rendering on unrelated state changes in the global appStore.
+  // Performance: Use useShallow with an object selector to prevent DataManagementDialog from unnecessarily re-rendering on unrelated state changes in the global appStore.
   const { user, notes, papers, ideas, topics, tasks } = useAppStore(
     useShallow((state) => ({
       user: state.user,
@@ -165,7 +165,7 @@ const handleExport = () => {
 
   const processFile = async (file: File) => {
 
-    // 🛡️ Sentinel: Validate file size to prevent DoS
+    // Validate file size to prevent DoS
     const sizeValidation = validateFileSize(file);
     if (!sizeValidation.valid) {
       toast.error(sizeValidation.message || "File too large");

@@ -53,8 +53,6 @@ export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
 
     void fetchSelected();
   }, [entityId, entityType, getTopicIdsForEntity]);
-
-  // ⚡ PERFORMANCE OPTIMIZATION:
   // Pre-computing a lookup Map reduces the time complexity of finding a topic by ID
   // from O(N) to O(1). When used inside a loop (like rendering selected topics),
   // this prevents O(N*M) performance bottlenecks during hydration or rendering.
@@ -63,8 +61,6 @@ export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
     () => new Map(topics.map((t) => [t.id, t])),
     [topics],
   );
-
-  // ⚡ PERFORMANCE OPTIMIZATION:
   // Using a Set for selectedIds lookup reduces time complexity from O(N*M) to O(N+M).
   // Impact: Faster filtering of available topics when many topics are selected.
   const selectedIdsSet = useMemo(() => new Set(selectedIds), [selectedIds]);
@@ -109,6 +105,9 @@ export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
 
   return (
     <div className="bg-bg-surface border border-border-subtle rounded-lg p-4 space-y-3">
+      <div role="status" aria-live="polite" className="sr-only">
+        {selectedIds.length === 0 ? "No topics linked yet." : ""}
+      </div>
       <div className="flex items-center justify-between">
         <h3 className="text-small font-semibold text-text-primary">Topics</h3>
         {(loading || loadingLinks) && (
@@ -117,7 +116,7 @@ export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
       </div>
 
       {selectedIds.length === 0 ? (
-        <p className="text-caption text-text-tertiary" role="status" aria-live="polite">No topics linked yet.</p>
+        <p className="text-caption text-text-tertiary">No topics linked yet.</p>
       ) : (
         <div className="flex flex-wrap gap-2">
           {selectedIds.map((topicId) => {

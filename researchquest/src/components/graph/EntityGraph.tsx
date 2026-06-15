@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "../../store/appStore";
 import { useBacklinks } from "../../hooks/useBacklinks";
 import { useRelatedItems } from "../../hooks/useRelatedItems";
-import { motion, AnimatePresence } from "framer-motion";
 import { FileText, BookOpen, Lightbulb, User } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { logger } from "../../utils/logger";
@@ -86,6 +85,12 @@ export function EntityGraph() {
   const [edges, setEdges] = useState<Edge[]>([]);
   const requestRef = useRef<number>();
   const nodesRef = useRef<Node[]>([]);
+  const mountedRef = useRef(false);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   // Initialize nodes and edges
   useEffect(() => {
@@ -115,7 +120,6 @@ export function EntityGraph() {
 
     // Add backlink nodes
     backlinks.forEach((item, index) => {
-      // Avoid duplicates
       if (newNodes.some(n => n.id === item.id)) return;
       
       const angle = (index / backlinks.length) * Math.PI * 2;
@@ -182,7 +186,7 @@ export function EntityGraph() {
     let lastNodesRef: Node[] | null = null;
 
     const tick = () => {
-      if (!isRunning) return;
+      if (!isRunning || !mountedRef.current) return;
 
       const currentNodes = nodesRef.current;
 
@@ -191,9 +195,8 @@ export function EntityGraph() {
         lastNodesRef = currentNodes;
       }
 
-      const alpha = 0.1; // damping
+      const alpha = 0.1;
 
-      // Repulsion force between all nodes
       for (let i = 0; i < currentNodes.length; i++) {
         for (let j = i + 1; j < currentNodes.length; j++) {
           const dx = currentNodes[j].x - currentNodes[i].x;
@@ -209,7 +212,7 @@ export function EntityGraph() {
             const fx = dx * force;
             const fy = dy * force;
             
-            if (i !== 0) { // Keep center node fixed
+            if (i !== 0) {
               currentNodes[i].vx -= fx;
               currentNodes[i].vy -= fy;
             }
@@ -221,7 +224,6 @@ export function EntityGraph() {
         }
       }
 
-      // Attraction force for edges
       edges.forEach(edge => {
         const sourceNode = cachedNodeMap.get(edge.source);
         const targetNode = cachedNodeMap.get(edge.target);
@@ -250,7 +252,6 @@ export function EntityGraph() {
         }
       });
 
-      // Update positions
       let hasMovement = false;
       
       currentNodes.forEach(node => {
@@ -262,11 +263,9 @@ export function EntityGraph() {
           return;
         }
 
-        // Add some friction
         node.vx *= 0.8;
         node.vy *= 0.8;
 
-        // Bounding box force
         const margin = 20;
         if (node.x < margin) node.vx += 2;
         if (node.x > GRAPH_WIDTH - margin) node.vx -= 2;
@@ -283,7 +282,7 @@ export function EntityGraph() {
 
       setNodes([...currentNodes]);
 
-      if (hasMovement) {
+      if (hasMovement && mountedRef.current) {
         requestRef.current = requestAnimationFrame(tick);
       }
     };
@@ -406,73 +405,57 @@ export function EntityGraph() {
   return (
     <div className="relative w-full overflow-hidden bg-bg-base/50 rounded-lg border border-border-subtle" style={{ height: GRAPH_HEIGHT }}>
       <svg className="absolute inset-0 w-full h-full pointer-events-none">
-        <AnimatePresence>
-          {edges.map((edge) => {
-            const sourceNode = renderNodeMap.get(edge.source);
-            const targetNode = renderNodeMap.get(edge.target);
-            if (!sourceNode || !targetNode) return null;
+        {edges.map((edge) => {
+          const sourceNode = renderNodeMap.get(edge.source);
+          const targetNode = renderNodeMap.get(edge.target);
+          if (!sourceNode || !targetNode) return null;
 
-            return (
-              <motion.line
-                key={`${edge.source}-${edge.target}-${edge.type}`}
-                initial={{ opacity: 0, pathLength: 0 }}
-                animate={{ 
-                  opacity: 0.6, 
-                  pathLength: 1,
-                  x1: sourceNode.x,
-                  y1: sourceNode.y,
-                  x2: targetNode.x,
-                  y2: targetNode.y
-                }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.5 }}
-                className={edge.type === 'backlink' ? "stroke-indigo-400/50 dark:stroke-indigo-500/50" : "stroke-teal-400/50 dark:stroke-teal-500/50"}
-                strokeWidth={edge.type === 'backlink' ? 2 : 1.5}
-                strokeDasharray={edge.type === 'related' ? "4 4" : "none"}
-              />
-            );
-          })}
-        </AnimatePresence>
-      </svg>
-
-      <AnimatePresence>
-        {nodes.map((node) => {
-          const isCenter = node.relationship === "current";
           return (
-            <motion.button
-              key={node.id}
-              onClick={() => handleNavigateToItem(node.id, node.type)}
-              aria-label={isCenter ? `Current ${node.type}: ${node.title}` : `Navigate to ${node.type} ${node.title}`}
-              initial={{ opacity: 0, scale: 0 }}
-              animate={{ 
-                opacity: 1, 
-                scale: 1,
-                x: node.x - node.radius,
-                y: node.y - node.radius,
-              }}
-              exit={{ opacity: 0, scale: 0 }}
-              transition={{ 
-                type: "spring",
-                stiffness: 260,
-                damping: 20
-              }}
-              whileHover={{ scale: 1.1, zIndex: 10 }}
-              className={`absolute flex items-center justify-center rounded-full shadow-md border-2 cursor-pointer outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 group ${getNodeColorClass(node.relationship, node.type)}`}
-              style={{
-                width: node.radius * 2,
-                height: node.radius * 2,
-              }}
-            >
-              {getNodeIcon(node.type, isCenter)}
-              
-              <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-bg-surface text-text-primary text-xs px-2 py-1 rounded shadow border border-border-subtle opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50" aria-hidden="true">
-                {node.title}
-                <div className="text-[10px] text-text-tertiary capitalize mt-0.5">{node.type} • {node.relationship}</div>
-              </div>
-            </motion.button>
+            <line
+              key={`${edge.source}-${edge.target}-${edge.type}`}
+              x1={sourceNode.x}
+              y1={sourceNode.y}
+              x2={targetNode.x}
+              y2={targetNode.y}
+              className={
+                (edge.type === 'backlink'
+                  ? "stroke-indigo-400/50 dark:stroke-indigo-500/50"
+                  : "stroke-teal-400/50 dark:stroke-teal-500/50")
+                + " graph-edge"
+              }
+              strokeWidth={edge.type === 'backlink' ? 2 : 1.5}
+              strokeDasharray={edge.type === 'related' ? "4 4" : "none"}
+            />
           );
         })}
-      </AnimatePresence>
+      </svg>
+
+      {nodes.map((node) => {
+        const isCenter = node.relationship === "current";
+        return (
+          <button
+            key={node.id}
+            onClick={() => handleNavigateToItem(node.id, node.type)}
+            aria-label={isCenter ? `Current ${node.type}: ${node.title}` : `Navigate to ${node.type} ${node.title}`}
+            className={
+              `absolute flex items-center justify-center rounded-full shadow-md border-2 cursor-pointer outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 group graph-node ${getNodeColorClass(node.relationship, node.type)}`
+            }
+            style={{
+              width: node.radius * 2,
+              height: node.radius * 2,
+              left: node.x - node.radius,
+              top: node.y - node.radius,
+            }}
+          >
+            {getNodeIcon(node.type, isCenter)}
+            
+            <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-bg-surface text-text-primary text-xs px-2 py-1 rounded shadow border border-border-subtle opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50" aria-hidden="true">
+              {node.title}
+              <div className="text-[10px] text-text-tertiary capitalize mt-0.5">{node.type} &bull; {node.relationship}</div>
+            </div>
+          </button>
+        );
+      })}
     </div>
   );
 }

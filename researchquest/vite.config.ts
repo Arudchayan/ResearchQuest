@@ -52,7 +52,7 @@ export default defineConfig(({ mode }) => {
           manualChunks: {
             'react-vendor': ['react', 'react-dom'],
             'supabase': ['@supabase/supabase-js'],
-            'ui': ['lucide-react', 'framer-motion'],
+            'ui': ['lucide-react'],
             'cm-core': ['@codemirror/view', '@codemirror/state', '@uiw/react-codemirror', '@uiw/codemirror-theme-github'],
           },
         },

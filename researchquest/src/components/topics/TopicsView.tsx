@@ -41,7 +41,7 @@ export function TopicsView() {
   const [hiddenTopicIds, setHiddenTopicIds] = useState<Set<string>>(new Set());
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // ⚡ PERFORMANCE OPTIMIZATION: Pre-compute derived text fields for faster searching
+  // Performance: Pre-compute derived text fields for faster searching
   const searchableTopics = useMemo(() => {
     return (topics || []).map((topic) => ({
       topic,
