@@ -109,6 +109,9 @@ export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
 
   return (
     <div className="bg-bg-surface border border-border-subtle rounded-lg p-4 space-y-3">
+      <div role="status" aria-live="polite" className="sr-only">
+        {selectedIds.length === 0 ? "No topics linked yet." : ""}
+      </div>
       <div className="flex items-center justify-between">
         <h3 className="text-small font-semibold text-text-primary">Topics</h3>
         {(loading || loadingLinks) && (
@@ -117,7 +120,7 @@ export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
       </div>
 
       {selectedIds.length === 0 ? (
-        <p className="text-caption text-text-tertiary" role="status" aria-live="polite">No topics linked yet.</p>
+        <p className="text-caption text-text-tertiary">No topics linked yet.</p>
       ) : (
         <div className="flex flex-wrap gap-2">
           {selectedIds.map((topicId) => {
