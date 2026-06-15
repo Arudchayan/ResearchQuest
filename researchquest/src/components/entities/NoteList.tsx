@@ -192,33 +192,9 @@ export function NoteList({
     [notes, selectedNote],
   );
 
-  const emptyState = useMemo(() => {
-    if (notes.length > 0) {
-      return null;
-    }
-
-    if (searchQuery) {
-      return (
-        <div className="text-center py-12 text-text-tertiary" role="status" aria-live="polite">
-          <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" aria-hidden="true" />
-          <p className="text-small font-semibold text-text-secondary">
-            No matches found
-          </p>
-          <p className="text-caption mt-1">
-            Try a different keyword or clear your search.
-          </p>
-        </div>
-      );
-    }
-
-    return (
-      <div className="text-center py-12 text-text-tertiary" role="status" aria-live="polite">
-        <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" aria-hidden="true" />
-        <p className="text-small">No notes yet</p>
-        <p className="text-caption mt-1">Create your first note above</p>
-      </div>
-    );
-  }, [notes.length, searchQuery]);
+  const emptyMessage = notes.length === 0
+    ? (searchQuery ? "No matches found. Try a different keyword or clear your search." : "No notes yet. Create your first note above.")
+    : "";
 
   const handleDeleteRequest = useCallback((candidate: Note) => {
     setNoteToDelete(candidate);
@@ -269,14 +245,33 @@ export function NoteList({
     return <ListSkeleton count={5} itemType="note" />;
   }
 
-  if (emptyState) {
-    return emptyState;
-  }
-
   return (
     <>
-      <div className="space-y-2">
-        {mergedNotes.map((note) => (
+      <div className="sr-only" role="status" aria-live="polite">
+        {emptyMessage}
+      </div>
+
+      {notes.length === 0 ? (
+        searchQuery ? (
+          <div className="text-center py-12 text-text-tertiary" aria-hidden="true">
+            <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
+            <p className="text-small font-semibold text-text-secondary">
+              No matches found
+            </p>
+            <p className="text-caption mt-1">
+              Try a different keyword or clear your search.
+            </p>
+          </div>
+        ) : (
+          <div className="text-center py-12 text-text-tertiary" aria-hidden="true">
+            <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
+            <p className="text-small">No notes yet</p>
+            <p className="text-caption mt-1">Create your first note above</p>
+          </div>
+        )
+      ) : (
+        <div className="space-y-2">
+          {mergedNotes.map((note) => (
           <NoteCard
             key={note.id}
             note={note}
@@ -287,7 +282,8 @@ export function NoteList({
             searchQuery={searchQuery}
           />
         ))}
-      </div>
+        </div>
+      )}
 
       <ConfirmDialog
         isOpen={Boolean(noteToDelete)}

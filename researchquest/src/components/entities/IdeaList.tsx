@@ -286,18 +286,23 @@ export function IdeaList({
     return <ListSkeleton count={5} itemType="idea" />;
   }
 
-  if (ideas.length === 0) {
-    return (
-      <div className="text-center py-12 text-text-tertiary" role="status" aria-live="polite">
-        <Lightbulb className="w-12 h-12 mx-auto mb-3 opacity-50" aria-hidden="true" />
-        <p className="text-small">No ideas yet</p>
-        <p className="text-caption mt-1">Create your first idea above</p>
-      </div>
-    );
-  }
+  const emptyMessage = ideas.length === 0
+    ? "No ideas yet. Create your first idea above."
+    : (filteredIdeas.length === 0 ? "No matches found. Try a different keyword or clear your search." : "");
 
   return (
     <>
+      <div className="sr-only" role="status" aria-live="polite">
+        {emptyMessage}
+      </div>
+
+      {ideas.length === 0 ? (
+        <div className="text-center py-12 text-text-tertiary" aria-hidden="true">
+          <Lightbulb className="w-12 h-12 mx-auto mb-3 opacity-50" />
+          <p className="text-small">No ideas yet</p>
+          <p className="text-caption mt-1">Create your first idea above</p>
+        </div>
+      ) : (
       <div className="space-y-3">
         <div className="space-y-2">
           <div className="relative">
@@ -346,8 +351,8 @@ export function IdeaList({
         </div>
 
         {filteredIdeas.length === 0 ? (
-          <div className="text-center py-12 text-text-tertiary" role="status" aria-live="polite">
-            <Lightbulb className="w-12 h-12 mx-auto mb-3 opacity-50" aria-hidden="true" />
+          <div className="text-center py-12 text-text-tertiary" aria-hidden="true">
+            <Lightbulb className="w-12 h-12 mx-auto mb-3 opacity-50" />
             <p className="text-small font-semibold text-text-secondary">
               No matches found
             </p>
@@ -372,6 +377,7 @@ export function IdeaList({
           </div>
         )}
       </div>
+      )}
 
       <ConfirmDialog
         isOpen={Boolean(ideaToDelete)}

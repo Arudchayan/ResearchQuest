@@ -48,7 +48,6 @@ type SortOption =
   | "year_asc";
 
 export function PapersView() {
-  // ⚡ PERFORMANCE OPTIMIZATION:
   // Using useShallow to prevent unnecessary re-renders of the entire PapersView
   // when unrelated properties in the global appStore change.
   const {
@@ -157,7 +156,7 @@ export function PapersView() {
     [setSelectedPaper],
   );
 
-  // ⚡ PERFORMANCE OPTIMIZATION: Pre-compute derived text fields for faster searching
+  // Performance: Pre-compute derived text fields for faster searching
   const searchablePapers = useMemo(() => {
     return (papers || []).map((paper) => ({
       paper,

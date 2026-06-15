@@ -42,7 +42,7 @@ export function TopicDetailView({
   onUpdate,
   onDelete,
 }: TopicDetailViewProps) {
-  // ⚡ OPTIMIZATION: Use useShallow with an object selector to prevent TopicDetailView from unnecessarily re-rendering on unrelated state changes in the global appStore.
+  // Performance: Use useShallow with an object selector to prevent TopicDetailView from unnecessarily re-rendering on unrelated state changes in the global appStore.
   const { setCurrentView, setSelectedNote, setSelectedPaper, setSelectedIdea } =
     useAppStore(
       useShallow((state) => ({
@@ -102,7 +102,7 @@ export function TopicDetailView({
       return (data || []).map((row) => row[column as keyof typeof row] as T);
     };
 
-    // ⚡ OPTIMIZATION: Combine ID fetching and row querying into independent, chained promises.
+    // Performance: Combine ID fetching and row querying into independent, chained promises.
     // This removes the sequential bottleneck of waiting for all IDs across all entity types
     // to load before fetching *any* of the associated row data.
     const fetchAssociatedRows = async <T,>(

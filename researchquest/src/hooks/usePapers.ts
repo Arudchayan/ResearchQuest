@@ -43,6 +43,52 @@ function getFunctionPayload<T>(value: unknown): FunctionErrorPayload<T> | null {
   return isRecord(value) ? (value as FunctionErrorPayload<T>) : null;
 }
 
+function preparePaperPayload(
+  paperData: PaperDraft,
+  userId: string,
+): PaperInsertPayload {
+  const cleanData: PaperInsertPayload = {
+    user_id: userId,
+    title: paperData.title.trim(),
+    authors: Array.isArray(paperData.authors) ? paperData.authors : [],
+    status: paperData.status || "To Read",
+  };
+
+  if (paperData.doi && paperData.doi.trim())
+    cleanData.doi = paperData.doi.trim();
+  if (paperData.source_url && paperData.source_url.trim()) {
+    const url = paperData.source_url.trim();
+    if (isValidUrl(url)) {
+      cleanData.source_url = url;
+    }
+  }
+  if (paperData.abstract && paperData.abstract.trim())
+    cleanData.abstract = paperData.abstract.trim();
+
+  if (
+    paperData.publication_date &&
+    paperData.publication_date.trim() &&
+    paperData.publication_date !== "null"
+  ) {
+    const pubDate = paperData.publication_date.trim();
+    if (/^\d{4}$/.test(pubDate)) {
+      cleanData.publication_date = `${pubDate}-01-01`;
+    } else {
+      cleanData.publication_date = pubDate;
+    }
+  }
+
+  if (
+    paperData.topic_ids &&
+    Array.isArray(paperData.topic_ids) &&
+    paperData.topic_ids.length > 0
+  ) {
+    cleanData.topic_ids = paperData.topic_ids;
+  }
+
+  return cleanData;
+}
+
 // Helper function to create a reading task for a newly added paper
 async function createReadingTaskForPaper(
   userId: string,
@@ -81,7 +127,7 @@ async function createReadingTaskForPaper(
     });
 
     if (error) {
-      // 🛡️ Security: Log only the message, not the full error object
+      // Log only the message, not the full error object
       logger.error("Failed to create reading task", error);
     } else {
       toast.success("Reading task created", {
@@ -90,7 +136,7 @@ async function createReadingTaskForPaper(
       });
     }
   } catch (error: unknown) {
-    // 🛡️ Security: Log only the message, not the full error object
+    // Log only the message, not the full error object
     logger.error(
       "Error creating reading task",
       error,
@@ -292,44 +338,7 @@ export function usePapers(userId: string | undefined) {
         return null;
       }
 
-      const cleanData: PaperInsertPayload = {
-        user_id: userId,
-        title: paperData.title.trim(),
-        authors: Array.isArray(paperData.authors) ? paperData.authors : [],
-        status: paperData.status || "To Read",
-      };
-
-      if (paperData.doi && paperData.doi.trim())
-        cleanData.doi = paperData.doi.trim();
-      if (paperData.source_url && paperData.source_url.trim()) {
-        const url = paperData.source_url.trim();
-        if (isValidUrl(url)) {
-          cleanData.source_url = url;
-        }
-      }
-      if (paperData.abstract && paperData.abstract.trim())
-        cleanData.abstract = paperData.abstract.trim();
-
-      if (
-        paperData.publication_date &&
-        paperData.publication_date.trim() &&
-        paperData.publication_date !== "null"
-      ) {
-        const pubDate = paperData.publication_date.trim();
-        if (/^\d{4}$/.test(pubDate)) {
-          cleanData.publication_date = `${pubDate}-01-01`;
-        } else {
-          cleanData.publication_date = pubDate;
-        }
-      }
-
-      if (
-        paperData.topic_ids &&
-        Array.isArray(paperData.topic_ids) &&
-        paperData.topic_ids.length > 0
-      ) {
-        cleanData.topic_ids = paperData.topic_ids;
-      }
+      const cleanData = preparePaperPayload(paperData, userId);
 
       const { data, error: createError } = await supabase
         .from("papers")
@@ -338,7 +347,7 @@ export function usePapers(userId: string | undefined) {
         .single();
 
       if (createError) {
-        // 🛡️ Security: Only expose the error message or code, not internal details/hints
+        // Only expose the error message or code, not internal details/hints
         const errorMessage =
           createError.message ||
           (createError.code
@@ -396,44 +405,7 @@ export function usePapers(userId: string | undefined) {
           continue;
         }
 
-        const cleanData: PaperInsertPayload = {
-          user_id: userId,
-          title: paperData.title.trim(),
-          authors: Array.isArray(paperData.authors) ? paperData.authors : [],
-          status: paperData.status || "To Read",
-        };
-
-        if (paperData.doi && paperData.doi.trim())
-          cleanData.doi = paperData.doi.trim();
-        if (paperData.source_url && paperData.source_url.trim()) {
-          const url = paperData.source_url.trim();
-          if (isValidUrl(url)) {
-            cleanData.source_url = url;
-          }
-        }
-        if (paperData.abstract && paperData.abstract.trim())
-          cleanData.abstract = paperData.abstract.trim();
-
-        if (
-          paperData.publication_date &&
-          paperData.publication_date.trim() &&
-          paperData.publication_date !== "null"
-        ) {
-          const pubDate = paperData.publication_date.trim();
-          if (/^\d{4}$/.test(pubDate)) {
-            cleanData.publication_date = `${pubDate}-01-01`;
-          } else {
-            cleanData.publication_date = pubDate;
-          }
-        }
-
-        if (
-          paperData.topic_ids &&
-          Array.isArray(paperData.topic_ids) &&
-          paperData.topic_ids.length > 0
-        ) {
-          cleanData.topic_ids = paperData.topic_ids;
-        }
+        const cleanData = preparePaperPayload(paperData, userId);
 
         validPapers.push(cleanData);
       }

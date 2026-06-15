@@ -82,7 +82,7 @@ export function TaskManager() {
     });
   }, []);
 
-  // ⚡ PERFORMANCE OPTIMIZATION: Pre-compute searchable text fields
+  // Performance: Pre-compute searchable text fields
   // so that expensive string concatenation and toLowerCase operations are
   // decoupled from the fast keystroke filtering loop.
   const searchableTasks = useMemo(() => {
@@ -112,7 +112,7 @@ export function TaskManager() {
   }, [tasks]);
 
   const sortedTasks = useMemo(() => {
-    // ⚡ PERFORMANCE OPTIMIZATION: Filter tasks inside the useMemo hook
+    // Performance: Filter tasks inside the useMemo hook
     // to prevent the array from being recreated on every single render.
     // If filteredTasks was defined outside and passed as a dependency,
     // this useMemo would invalidate on every unrelated state change (like typing in an input).
@@ -176,7 +176,7 @@ export function TaskManager() {
         if (priorityDiff !== 0) {
           return priorityDiff;
         }
-        // ⚡ PERFORMANCE OPTIMIZATION: Use string comparison for ISO dates
+        // Performance: Use string comparison for ISO dates
         // instead of parsing Date objects inside the sort callback.
         const aDue = a.due_date || "9999-12-31";
         const bDue = b.due_date || "9999-12-31";
@@ -193,7 +193,7 @@ export function TaskManager() {
     }
 
     return filtered.sort((a, b) => {
-      // ⚡ PERFORMANCE OPTIMIZATION: Use string comparison for ISO dates
+      // Performance: Use string comparison for ISO dates
       // instead of parsing Date objects inside the sort callback.
       const aDue = a.due_date || "9999-12-31";
       const bDue = b.due_date || "9999-12-31";
@@ -214,7 +214,6 @@ export function TaskManager() {
   ]);
 
   // Calculate progress
-  // ⚡ PERFORMANCE OPTIMIZATION:
   // Compute aggregate statistics in a single O(N) pass inside useMemo.
   // This avoids chaining multiple .filter().length calls that create unnecessary
   // intermediate arrays and trigger redundant iterations during render.

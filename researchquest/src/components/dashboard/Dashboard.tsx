@@ -23,7 +23,6 @@ import { getLevelTitle } from "../../utils/gamification";
 import { ListSkeleton } from "../ui/Skeleton";
 
 export function Dashboard() {
-  // ⚡ PERFORMANCE OPTIMIZATION:
   // Using useShallow to prevent unnecessary re-renders of the entire Dashboard
   // when unrelated properties in the global appStore change.
   const {
@@ -88,8 +87,6 @@ export function Dashboard() {
   }, [user]);
 
   const focusMinutesToday = Math.floor(focusSessionSecondsToday / 60);
-
-  // ⚡ PERFORMANCE OPTIMIZATION:
   // Compute multiple aggregate statistics in a single O(N) pass inside useMemo.
   // This avoids chaining multiple .filter().length calls that create unnecessary
   // intermediate arrays and trigger redundant iterations during render.

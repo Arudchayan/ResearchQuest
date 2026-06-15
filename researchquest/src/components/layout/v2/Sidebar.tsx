@@ -205,7 +205,7 @@ export function Sidebar() {
             </div>
             <div className="text-xs">
               <span className="block font-medium text-text-primary truncate max-w-[80px]">
-                User
+                {user?.username || "User"}
               </span>
               <span className="flex items-center gap-1 text-text-secondary">
                 <Flame className="w-3 h-3 text-warning" aria-hidden="true" />{" "}
