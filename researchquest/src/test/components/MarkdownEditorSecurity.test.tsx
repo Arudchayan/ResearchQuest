@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, act } from "@testing-library/react";
 import { MarkdownEditor } from "../../components/editor/MarkdownEditor";
 import { useAppStore } from "../../store/appStore";
 import { supabase } from "../../lib/supabase";
@@ -57,6 +57,19 @@ vi.mock("react-markdown", () => ({
   default: ({ children }: any) => (
     <div data-testid="markdown-preview">{children}</div>
   ),
+}));
+
+// Mock the lazy-loaded EditorContent to avoid suspense issues in tests
+vi.mock("../../components/editor/sub-components/EditorContent", () => ({
+  default: ({ content, setContent }: any) => {
+    return (
+      <textarea
+        data-testid="codemirror-mock"
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+      />
+    );
+  },
 }));
 
 const NOTE_BODY_MAX_LENGTH = 100000;
@@ -121,15 +134,23 @@ describe("MarkdownEditor Security", () => {
   it("fix: enforces input length validation and does NOT send large payload to Supabase", async () => {
     render(<MarkdownEditor />);
 
+    // Use findByTestId which waits for suspense/lazy resolution
+    const textarea = await screen.findByTestId("codemirror-mock");
+
+    // Install fake timers to control debounce
+    vi.useFakeTimers();
+
+    // Let the initial auto-save debounce settle
+    await act(async () => {
+      vi.advanceTimersByTime(1100);
+    });
+    // Clear the initial save call so we can assert no LARGE payload was sent
+    mockUpdate.mockClear();
+
     // Create a large string exceeding the limit
     const largeContent = "a".repeat(NOTE_BODY_MAX_LENGTH + 100);
 
-    // Simulate CodeMirror change
-    const textarea = await screen.findByTestId("codemirror-mock");
-
-    const { fireEvent, act } = await import("@testing-library/react");
-
-    vi.useFakeTimers();
+    const { fireEvent } = await import("@testing-library/react");
 
     await act(async () => {
       fireEvent.change(textarea, { target: { value: largeContent } });
