@@ -6,8 +6,6 @@ import { visualizer } from 'rollup-plugin-visualizer'
 const repoRoot = path.resolve(__dirname, "..")
 
 export default defineConfig(({ mode }) => {
-  const isProd = mode === 'prod'
-  // Root `.env` (monorepo) + local `researchquest/.env*` — local wins.
   const merged = { ...loadEnv(mode, repoRoot, ""), ...loadEnv(mode, __dirname, "") }
   // Playwright smoke runs Vite with empty VITE_* vars but loadEnv would still read `.env` from disk.
   const forceNoSupabase = process.env.PLAYWRIGHT_TEST_NO_SUPABASE === "1"
