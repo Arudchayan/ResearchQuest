@@ -1,0 +1,55 @@
+# For details on Dependabot configuration, see:
+# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+
+version: 2
+
+updates:
+  # npm (pnpm) dependencies for the ResearchQuest frontend app
+  - package-ecosystem: "npm"
+    directory: "/researchquest"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Etc/UTC"
+    # Group non-major updates into a single PR to reduce noise
+    groups:
+      react-vendor:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
+      radix-ui:
+        patterns:
+          - "@radix-ui/*"
+      dev-dependencies:
+        patterns:
+          - "@types/*"
+          - "@vitejs/*"
+          - "eslint*"
+          - "typescript*"
+          - "vitest*"
+          - "@vitest/*"
+          - "@playwright/*"
+          - "@testing-library/*"
+          - "vite"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "npm"
+    # Allow up to 5 PRs at a time for patch updates
+    # (security updates are always auto-opened regardless of this limit)
+
+  # GitHub Actions — keep workflows and Actions runners up to date
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Etc/UTC"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"

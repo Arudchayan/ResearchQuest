@@ -1,5 +1,11 @@
 # ResearchQuest
 
+[![CI](https://img.shields.io/badge/CI-no_ci_yet-lightgrey?logo=githubactions&logoColor=white)](https://github.com/Arudchayan/ResearchQuest/actions)
+[![Test](https://img.shields.io/badge/Tests-no_ci_yet-lightgrey?logo=vitest&logoColor=white)]()
+[![Lint](https://img.shields.io/badge/Lint-no_ci_yet-lightgrey?logo=eslint&logoColor=white)]()
+[![Build](https://img.shields.io/badge/Build-no_ci_yet-lightgrey?logo=vite&logoColor=white)]()
+[![E2E](https://img.shields.io/badge/E2E-no_ci_yet-lightgrey?logo=playwright&logoColor=white)]()
+
 A research management dashboard for tracking papers, notes, ideas, topics, and reading tasks — all synced to Supabase.
 
 **Status:** Alpha — functional but evolving.

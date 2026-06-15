@@ -60,6 +60,27 @@ vi.mock("@uiw/react-codemirror", () => ({
   },
 }));
 
+// Mock the lazy-loaded EditorContent so it renders synchronously in JSDOM
+vi.mock("../../components/editor/sub-components/EditorContent", () => ({
+  default: ({ content, setContent, previewRef }: any) => (
+    <div>
+      <textarea
+        data-testid="codemirror-mock"
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+      />
+      {/* Include a preview area so handlePrint can read innerHTML */}
+      <div
+        ref={previewRef}
+        data-testid="preview-content"
+        dangerouslySetInnerHTML={{
+          __html: "<h1>Heading</h1><p>Some <strong>bold</strong> text.</p>",
+        }}
+      />
+    </div>
+  ),
+}));
+
 // Mock Gamification
 vi.mock("../../utils/gamification", () => ({
   awardXP: vi.fn(),
