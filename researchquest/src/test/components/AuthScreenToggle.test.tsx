@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
-import { AuthScreen } from "../../App";
+import { AuthScreen } from "../../components/auth/AuthScreen";
 
 // Mock Supabase to avoid errors during AuthScreen mount
 vi.mock("../../lib/supabase", () => ({
