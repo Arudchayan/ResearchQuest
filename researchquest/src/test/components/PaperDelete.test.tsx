@@ -28,6 +28,14 @@ vi.mock("lucide-react", () => ({
   FileText: () => <span>FileTextIcon</span>,
 }));
 
+// Mock Tooltip to avoid TooltipProvider requirement
+vi.mock("@radix-ui/react-tooltip", () => ({
+  Provider: ({ children }: any) => children,
+  Root: ({ children }: any) => children,
+  Trigger: ({ children }: any) => children,
+  Content: () => null,
+}));
+
 // Mock sub-components
 vi.mock("../../components/topics/TopicSelector", () => ({
   TopicSelector: () => <div>TopicSelector</div>,
@@ -59,7 +67,7 @@ describe("PaperDetailView", () => {
       />,
     );
 
-    expect(screen.getByTitle("Delete paper")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /delete paper/i })).toBeInTheDocument();
   });
 
   it("calls onDelete when delete button is clicked and confirmed", async () => {
@@ -74,7 +82,7 @@ describe("PaperDetailView", () => {
       />,
     );
 
-    const deleteButton = screen.getByTitle("Delete paper");
+    const deleteButton = screen.getByRole("button", { name: /delete paper/i });
     fireEvent.click(deleteButton);
 
     // Check dialog
@@ -104,7 +112,7 @@ describe("PaperDetailView", () => {
       />,
     );
 
-    const deleteButton = screen.getByTitle("Delete paper");
+    const deleteButton = screen.getByRole("button", { name: /delete paper/i });
     fireEvent.click(deleteButton);
 
     // Check dialog
@@ -124,6 +132,6 @@ describe("PaperDetailView", () => {
   it("does not render delete button if onDelete is not provided", () => {
     const onUpdate = vi.fn();
     render(<PaperDetailView paper={mockPaper} onUpdate={onUpdate} />);
-    expect(screen.queryByTitle("Delete paper")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /delete paper/i })).not.toBeInTheDocument();
   });
 });
