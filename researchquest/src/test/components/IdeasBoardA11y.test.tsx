@@ -126,7 +126,7 @@ describe("IdeasBoard Accessibility", () => {
     render(<IdeasBoard />);
 
     const detailPanel = screen.getByText("Idea Details").closest("div")
-      ?.parentElement;
+      ?.parentElement?.parentElement;
 
     expect(detailPanel).toHaveClass("w-full");
     expect(detailPanel).toHaveClass("lg:w-[450px]");

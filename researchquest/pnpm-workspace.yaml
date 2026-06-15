@@ -1,3 +1,5 @@
+packages:
+  - "**"
 pnpm:
   onlyBuiltDependencies:
     - deno
