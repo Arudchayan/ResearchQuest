@@ -373,7 +373,7 @@ export function IdeasOverview({
               </div>
               <div className="space-y-3">
                 {stageBuckets[stageName].length === 0 ? (
-                  <div className="text-caption text-text-tertiary bg-bg-base/60 border border-border-subtle/60 rounded-lg p-3">
+                  <div className="text-caption text-text-tertiary bg-bg-base/60 border border-border-subtle/60 rounded-lg p-3" role="status" aria-live="polite">
                     {stageName === "Seed" &&
                       "Use the capture form above to plant your first seed idea."}
                     {stageName === "Developing" &&
