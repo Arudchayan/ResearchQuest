@@ -188,17 +188,53 @@ export function CommandPalette() {
 
   // Memoize search items
   const searchItems = useMemo(() => {
-    return [
-      ...notes.map((n) => ({
+    const results: any[] = [];
+    const safeNotes = notes || [];
+    for (let i = 0; i < safeNotes.length; i++) {
+      results.push({
         type: "note",
-        item: n,
-        label: n.title || "Untitled Note",
-      })),
-      ...papers.map((p) => ({ type: "paper", item: p, label: p.title })),
-      ...ideas.map((i) => ({ type: "idea", item: i, label: i.title })),
-      ...tasks.map((t) => ({ type: "task", item: t, label: t.title })),
-      ...(topicsArray || []).map((t) => ({ type: "topic", item: t, label: t.name })),
-    ];
+        item: safeNotes[i],
+        label: safeNotes[i].title || "Untitled Note",
+      });
+    }
+
+    const safePapers = papers || [];
+    for (let i = 0; i < safePapers.length; i++) {
+      results.push({
+        type: "paper",
+        item: safePapers[i],
+        label: safePapers[i].title,
+      });
+    }
+
+    const safeIdeas = ideas || [];
+    for (let i = 0; i < safeIdeas.length; i++) {
+      results.push({
+        type: "idea",
+        item: safeIdeas[i],
+        label: safeIdeas[i].title,
+      });
+    }
+
+    const safeTasks = tasks || [];
+    for (let i = 0; i < safeTasks.length; i++) {
+      results.push({
+        type: "task",
+        item: safeTasks[i],
+        label: safeTasks[i].title,
+      });
+    }
+
+    const safeTopicsArray = topicsArray || [];
+    for (let i = 0; i < safeTopicsArray.length; i++) {
+      results.push({
+        type: "topic",
+        item: safeTopicsArray[i],
+        label: safeTopicsArray[i].name,
+      });
+    }
+
+    return results;
   }, [notes, papers, ideas, tasks, topicsArray]);
 
   return (
