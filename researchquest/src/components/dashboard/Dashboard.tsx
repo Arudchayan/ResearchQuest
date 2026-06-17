@@ -105,10 +105,8 @@ export function Dashboard() {
   }, [tasks]);
 
   const recentNotes = useMemo(() => {
-    return getTopN(
-      notes,
-      3,
-      (a, b) => (b.updated_at > a.updated_at ? 1 : b.updated_at < a.updated_at ? -1 : 0)
+    return getTopN(notes, 3, (a, b) =>
+      b.updated_at > a.updated_at ? 1 : b.updated_at < a.updated_at ? -1 : 0,
     );
   }, [notes]);
 
@@ -116,24 +114,21 @@ export function Dashboard() {
     return getTopN(
       papers,
       3,
-      (a, b) => (b.created_at > a.created_at ? 1 : b.created_at < a.created_at ? -1 : 0),
-      (p) => p.status === "To Read"
+      (a, b) =>
+        b.created_at > a.created_at ? 1 : b.created_at < a.created_at ? -1 : 0,
+      (p) => p.status === "To Read",
     );
   }, [papers]);
 
   const activeIdeas = useMemo(() => {
-    return getTopN(
-      ideas,
-      3,
-      (a, b) => (b.updated_at > a.updated_at ? 1 : b.updated_at < a.updated_at ? -1 : 0)
+    return getTopN(ideas, 3, (a, b) =>
+      b.updated_at > a.updated_at ? 1 : b.updated_at < a.updated_at ? -1 : 0,
     );
   }, [ideas]);
 
   const activeTopics = useMemo(() => {
-    return getTopN(
-      Object.values(topics),
-      3,
-      (a, b) => (b.updated_at > a.updated_at ? 1 : b.updated_at < a.updated_at ? -1 : 0)
+    return getTopN(Object.values(topics), 3, (a, b) =>
+      b.updated_at > a.updated_at ? 1 : b.updated_at < a.updated_at ? -1 : 0,
     );
   }, [topics]);
 
@@ -147,7 +142,7 @@ export function Dashboard() {
         // Optimization: Use direct string comparison for ISO dates instead of localeCompare
         return a.due_date > b.due_date ? 1 : a.due_date < b.due_date ? -1 : 0;
       },
-      (t) => !t.completed
+      (t) => !t.completed,
     );
   }, [tasks]);
 
@@ -155,7 +150,9 @@ export function Dashboard() {
     setCurrentView("notes");
   };
 
-  const navigateTo = (view: "notes" | "papers" | "focus" | "tasks" | "ideas" | "topics") => {
+  const navigateTo = (
+    view: "notes" | "papers" | "focus" | "tasks" | "ideas" | "topics",
+  ) => {
     setCurrentView(view);
     window.history.pushState(null, "", `/${view}`);
   };
@@ -267,7 +264,8 @@ export function Dashboard() {
                 {focusMinutesToday} min
               </div>
               <div className="text-small text-text-secondary font-serif italic">
-                {pendingTaskCount} pending · {completedTaskCount} completed tasks
+                {pendingTaskCount} pending · {completedTaskCount} completed
+                tasks
               </div>
             </div>
           </div>
@@ -287,19 +285,20 @@ export function Dashboard() {
                 onClick={() => navigateTo("notes")}
                 className="text-small text-text-secondary hover:text-text-primary font-medium flex items-center gap-1 uppercase tracking-wider transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 rounded-sm"
               >
-                View all <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
+                View all{" "}
+                <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
               </button>
+            </div>
+
+            <div className="sr-only" role="status" aria-live="polite">
+              {!notesLoading && recentNotes.length === 0 ? "No notes yet" : ""}
             </div>
 
             <div className="space-y-3">
               {notesLoading ? (
                 <ListSkeleton count={3} itemType="note" />
               ) : recentNotes.length === 0 ? (
-                <div
-                  className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary"
-                  role="status"
-                  aria-live="polite"
-                >
+                <div className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary">
                   <p className="mb-3">No notes yet</p>
                   <button
                     onClick={() => navigateTo("notes")}
@@ -345,19 +344,22 @@ export function Dashboard() {
                 onClick={() => navigateTo("ideas")}
                 className="text-small text-text-secondary hover:text-text-primary font-medium flex items-center gap-1 uppercase tracking-wider transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 rounded-sm"
               >
-                View Board <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
+                View Board{" "}
+                <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
               </button>
+            </div>
+
+            <div className="sr-only" role="status" aria-live="polite">
+              {!ideasLoading && activeIdeas.length === 0
+                ? "No active ideas"
+                : ""}
             </div>
 
             <div className="space-y-3">
               {ideasLoading ? (
                 <ListSkeleton count={3} itemType="idea" />
               ) : activeIdeas.length === 0 ? (
-                <div
-                  className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary"
-                  role="status"
-                  aria-live="polite"
-                >
+                <div className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary">
                   <p className="mb-3">No active ideas.</p>
                   <button
                     onClick={() => navigateTo("ideas")}
@@ -414,15 +416,17 @@ export function Dashboard() {
               </button>
             </div>
 
+            <div className="sr-only" role="status" aria-live="polite">
+              {!topicsLoading && activeTopics.length === 0
+                ? "No active topics"
+                : ""}
+            </div>
+
             <div className="space-y-3">
               {topicsLoading ? (
                 <ListSkeleton count={3} itemType="note" />
               ) : activeTopics.length === 0 ? (
-                <div
-                  className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary"
-                  role="status"
-                  aria-live="polite"
-                >
+                <div className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary">
                   <p className="mb-3">No active topics.</p>
                   <button
                     onClick={() => navigateTo("topics")}
@@ -451,7 +455,8 @@ export function Dashboard() {
                       </span>
                     </div>
                     <span className="text-caption font-serif italic text-text-tertiary shrink-0">
-                      {topic.note_count + topic.paper_count + topic.idea_count} items
+                      {topic.note_count + topic.paper_count + topic.idea_count}{" "}
+                      items
                     </span>
                   </button>
                 ))
@@ -478,15 +483,17 @@ export function Dashboard() {
               </button>
             </div>
 
+            <div className="sr-only" role="status" aria-live="polite">
+              {!papersLoading && readingList.length === 0
+                ? "Your reading list is empty"
+                : ""}
+            </div>
+
             <div className="space-y-3">
               {papersLoading ? (
                 <ListSkeleton count={3} itemType="paper" />
               ) : readingList.length === 0 ? (
-                <div
-                  className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary"
-                  role="status"
-                  aria-live="polite"
-                >
+                <div className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary">
                   <p className="mb-3">Your reading list is empty.</p>
                   <button
                     onClick={() => navigateTo("papers")}
@@ -539,15 +546,17 @@ export function Dashboard() {
               </button>
             </div>
 
+            <div className="sr-only" role="status" aria-live="polite">
+              {!tasksLoading && upcomingTasks.length === 0
+                ? "No upcoming tasks. You're all caught up."
+                : ""}
+            </div>
+
             <div className="space-y-3">
               {tasksLoading ? (
                 <ListSkeleton count={3} itemType="task" />
               ) : upcomingTasks.length === 0 ? (
-                <div
-                  className="p-4 text-center text-small font-serif italic text-text-tertiary"
-                  role="status"
-                  aria-live="polite"
-                >
+                <div className="p-4 text-center text-small font-serif italic text-text-tertiary">
                   No upcoming tasks. You're all caught up.
                 </div>
               ) : (
