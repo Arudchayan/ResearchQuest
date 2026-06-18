@@ -435,7 +435,11 @@ export function PapersView() {
               ))}
             </div>
           ) : filteredPapers.length === 0 ? (
-            <div className="text-center py-20" role="status" aria-live="polite">
+            <>
+            <div className="sr-only" role="status" aria-live="polite">
+              {searchQuery ? "No matches found. Try a different keyword or clear your search." : "No papers found. Start building your library by adding your first research paper."}
+            </div>
+            <div className="text-center py-20">
               <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
                 <BookOpen className="w-8 h-8 text-slate-400 opacity-50" />
               </div>
@@ -456,6 +460,7 @@ export function PapersView() {
                 </button>
               )}
             </div>
+            </>
           ) : (
             <div
               style={{

@@ -373,7 +373,8 @@ export function IdeasOverview({
               </div>
               <div className="space-y-3">
                 {stageBuckets[stageName].length === 0 ? (
-                  <div className="text-caption text-text-tertiary bg-bg-base/60 border border-border-subtle/60 rounded-lg p-3" role="status" aria-live="polite">
+                  <>
+                  <div className="sr-only" role="status" aria-live="polite">
                     {stageName === "Seed" &&
                       "Use the capture form above to plant your first seed idea."}
                     {stageName === "Developing" &&
@@ -383,6 +384,17 @@ export function IdeasOverview({
                     {stageName === "Mature" &&
                       "Graduated ideas rest here—add a summary or share the outcome."}
                   </div>
+                  <div className="text-caption text-text-tertiary bg-bg-base/60 border border-border-subtle/60 rounded-lg p-3">
+                    {stageName === "Seed" &&
+                      "Use the capture form above to plant your first seed idea."}
+                    {stageName === "Developing" &&
+                      "Move a seed here once you have next steps or supporting notes."}
+                    {stageName === "Supported" &&
+                      "Promote ideas with linked evidence to spotlight growing momentum."}
+                    {stageName === "Mature" &&
+                      "Graduated ideas rest here—add a summary or share the outcome."}
+                  </div>
+                  </>
                 ) : (
                   stageBuckets[stageName].slice(0, 4).map((idea) => (
                     <button
