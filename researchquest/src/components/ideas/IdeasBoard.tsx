@@ -483,11 +483,15 @@ export function IdeasBoard() {
                             </div>
                           ))}
 
+                        <div className="sr-only" role="status" aria-live="polite">
+                          {stageIdeas.length === 0 ? (
+                            searchQuery ? `No matches found in ${stage.label}` : `No ideas yet in ${stage.label}`
+                          ) : (
+                            ""
+                          )}
+                        </div>
+
                         {stageIdeas.length === 0 && (
-                          <>
-                          <div className="sr-only" role="status" aria-live="polite">
-                            {searchQuery ? "No matches found. Try a different keyword or clear your search." : "No ideas yet"}
-                          </div>
                           <div className="p-8 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-lg text-slate-400">
                             <Lightbulb className="w-8 h-8 mx-auto mb-2 opacity-50" aria-hidden="true" />
                             <p className="text-sm font-medium mb-1">{searchQuery ? "No matches found" : "No ideas yet"}</p>
@@ -497,7 +501,6 @@ export function IdeasBoard() {
                               </p>
                             )}
                           </div>
-                          </>
                         )}
                       </>
                     )}
