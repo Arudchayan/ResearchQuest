@@ -592,7 +592,11 @@ export function TaskManager() {
       {tasksSyncError && <InlineError message={tasksSyncError.message} />}
       <div className="flex-1 overflow-y-auto p-4 sm:p-6">
         {sortedTasks.length === 0 ? (
-          <div className="text-center py-16" role="status" aria-live="polite">
+          <>
+          <div className="sr-only" role="status" aria-live="polite">
+            {searchQuery ? "No matches found. Try a different keyword or clear your search." : "No tasks match your filters. Create a new task or adjust filters to see more items."}
+          </div>
+          <div className="text-center py-16">
             <CheckCircle2
               className="w-16 h-16 mx-auto mb-4 text-text-tertiary opacity-50"
               aria-hidden="true"
@@ -611,6 +615,7 @@ export function TaskManager() {
               New Task
             </button>
           </div>
+          </>
         ) : (
           <div className="space-y-3">
             {sortedTasks.map((task) => (
