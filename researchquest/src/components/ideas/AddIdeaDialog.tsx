@@ -65,6 +65,7 @@ export function AddIdeaDialog({
           id="idea-title"
           type="text"
           value={title}
+          required
           onChange={(e) => setTitle(e.target.value)}
           placeholder="E.g., Neural network pruning technique"
           className="w-full px-3 py-2 bg-bg-base border border-border-subtle rounded-md text-body focus:outline-none focus:ring-2 focus:ring-primary-500 transition-shadow"
