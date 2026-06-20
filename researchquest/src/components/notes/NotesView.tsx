@@ -419,6 +419,10 @@ export function NotesView() {
           )}
         </div>
 
+        <div className="sr-only" role="status" aria-live="polite">
+          {!notesLoading && !notesSyncError && filteredNotes.length === 0 ? (searchQuery ? "No matches found. Try a different keyword or clear your search." : "No notes yet. Create your first note to get started") : ""}
+        </div>
+
         <div ref={parentRef} className="flex-1 overflow-y-auto">
           {notesSyncError ? (
             <div className="p-4">

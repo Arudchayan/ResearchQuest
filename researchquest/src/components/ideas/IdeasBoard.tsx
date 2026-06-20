@@ -396,6 +396,10 @@ export function IdeasBoard() {
           </div>
         </div>
 
+        <div className="sr-only" role="status" aria-live="polite">
+          {!ideasLoading && !ideasSyncError && filteredIdeas.length === 0 ? (searchQuery ? "No matches found" : "No ideas yet") : ""}
+        </div>
+
         <div className="flex-1 overflow-auto p-4 sm:p-6 flex flex-col">
           <div className="mb-4">
             <OnboardingGuide />

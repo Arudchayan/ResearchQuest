@@ -417,6 +417,10 @@ export function PapersView() {
           </div>
         </div>
 
+        <div className="sr-only" role="status" aria-live="polite">
+          {!papersLoading && !papersSyncError && filteredPapers.length === 0 ? (searchQuery ? "No matches found. Try a different keyword or clear your search." : "No papers found. Start building your library by adding your first research paper.") : ""}
+        </div>
+
         <div ref={parentRef} className="flex-1 overflow-auto p-4 sm:p-6">
           <OnboardingGuide />
           {papersSyncError ? (
@@ -435,10 +439,6 @@ export function PapersView() {
               ))}
             </div>
           ) : filteredPapers.length === 0 ? (
-            <>
-            <div className="sr-only" role="status" aria-live="polite">
-              {searchQuery ? "No matches found. Try a different keyword or clear your search." : "No papers found. Start building your library by adding your first research paper."}
-            </div>
             <div className="text-center py-20">
               <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
                 <BookOpen className="w-8 h-8 text-slate-400 opacity-50" />
@@ -460,7 +460,6 @@ export function PapersView() {
                 </button>
               )}
             </div>
-            </>
           ) : (
             <div
               style={{
