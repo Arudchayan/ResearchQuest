@@ -239,7 +239,7 @@ export function PapersView() {
           return 0;
       }
     });
-  }, [papers, searchQuery, sortOption]);
+  }, [papers, searchQuery, sortOption, searchablePapers]);
 
   const rowCount = Math.ceil(filteredPapers.length / columnCount);
 

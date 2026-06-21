@@ -37,7 +37,7 @@ export function ProfileDialog({ open, onClose }: ProfileDialogProps) {
     }
   }, [open, user]);
 
-  const fetchAchievements = async () => {
+  const fetchAchievements = useCallback(async () => {
     if (!user) return;
     setLoading(true);
 

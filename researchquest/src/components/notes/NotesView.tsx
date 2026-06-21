@@ -152,7 +152,7 @@ export function NotesView() {
           return 0;
       }
     });
-  }, [notes, searchQuery, selectedTag, sortOption]);
+  }, [notes, searchQuery, selectedTag, sortOption, searchableNotes]);
 
   const rowVirtualizer = useVirtualizer({
     count: filteredNotes.length,

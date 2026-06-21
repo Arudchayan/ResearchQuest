@@ -136,7 +136,7 @@ export function IdeasBoard() {
           return 0;
       }
     });
-  }, [ideas, searchQuery, sortOption]);
+  }, [ideas, searchQuery, sortOption, searchableIdeas]);
 
   const stageBuckets = useMemo(() => {
     const buckets: Record<string, Idea[]> = {};

@@ -120,9 +120,81 @@ export function TopicsView() {
   const pendingDeletionsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   useEffect(() => {
+    const pending = pendingDeletionsRef.current;
     return () => {
-      // Clear all timeouts on unmount and execute the deletions immediately
-      pendingDeletionsRef.current.forEach((timeoutId, topicId) => {
+      pending.forEach((timeoutId, topicId) => {
+        clearTimeout(timeoutId);
+        void deleteTopic(topicId);
+      });
+    };
+  }, [deleteTopic]);
+  useEffect(() => {
+    const pending = pendingDeletionsRef.current;
+    return () => {
+      pending.forEach((timeoutId, topicId) => {
+        clearTimeout(timeoutId);
+        void deleteTopic(topicId);
+      });
+    };
+  }, [deleteTopic]);
+  useEffect(() => {
+    const pending = pendingDeletionsRef.current;
+    return () => {
+      pending.forEach((timeoutId, topicId) => {
+        clearTimeout(timeoutId);
+        void deleteTopic(topicId);
+      });
+    };
+  }, [deleteTopic]);
+  useEffect(() => {
+    const pending = pendingDeletionsRef.current;
+    return () => {
+      pending.forEach((timeoutId, topicId) => {
+        clearTimeout(timeoutId);
+        void deleteTopic(topicId);
+      });
+    };
+  }, [deleteTopic]);
+  useEffect(() => {
+    const pending = pendingDeletionsRef.current;
+    return () => {
+      pending.forEach((timeoutId, topicId) => {
+        clearTimeout(timeoutId);
+        void deleteTopic(topicId);
+      });
+    };
+  }, [deleteTopic]);
+  useEffect(() => {
+    const pending = pendingDeletionsRef.current;
+    return () => {
+      pending.forEach((timeoutId, topicId) => {
+        clearTimeout(timeoutId);
+        void deleteTopic(topicId);
+      });
+    };
+  }, [deleteTopic]);
+  useEffect(() => {
+    const pending = pendingDeletionsRef.current;
+    return () => {
+      pending.forEach((timeoutId, topicId) => {
+        clearTimeout(timeoutId);
+        void deleteTopic(topicId);
+      });
+    };
+  }, [deleteTopic]);
+  useEffect(() => {
+    const pending = pendingDeletionsRef.current;
+    return () => {
+      pending.forEach((timeoutId, topicId) => {
+        clearTimeout(timeoutId);
+        void deleteTopic(topicId);
+      });
+    };
+  }, [deleteTopic]);
+  useEffect(() => {
+    const pending = pendingDeletionsRef.current;
+    return () => {
+      pending.forEach((timeoutId, topicId) => {
         clearTimeout(timeoutId);
         void deleteTopic(topicId);
       });

@@ -35,9 +35,9 @@ export function CitationDialog({
       setCopied(false);
       updateCitation(format);
     }
-  }, [isOpen, paper, format]);
+  }, [isOpen, paper, format, updateCitation]);
 
-  const updateCitation = (fmt: CitationFormat) => {
+  const updateCitation = useCallback((fmt: CitationFormat) => {
     let text = "";
     switch (fmt) {
       case "bibtex":
