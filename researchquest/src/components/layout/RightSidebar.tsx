@@ -444,12 +444,15 @@ export function RightSidebar() {
                   </span>
                 )}
               </h3>
+              <div className="sr-only" role="status" aria-live="polite">
+                {!backlinksLoading && backlinks.length === 0 ? "No items link to this yet. Link from notes or ideas to create connections." : ""}
+              </div>
               {backlinksLoading ? (
                 <div className="text-caption text-text-tertiary">
                   Loading...
                 </div>
               ) : backlinks.length === 0 ? (
-                <div className="text-caption text-text-tertiary" role="status" aria-live="polite">
+                <div className="text-caption text-text-tertiary">
                   No items link to this yet. Link from notes or ideas to create
                   connections.
                 </div>
@@ -503,12 +506,15 @@ export function RightSidebar() {
                   </span>
                 )}
               </h3>
+              <div className="sr-only" role="status" aria-live="polite">
+                {!relatedLoading && relatedItems.length === 0 ? "No related items found. Add topics to discover connections." : ""}
+              </div>
               {relatedLoading ? (
                 <div className="text-caption text-text-tertiary">
                   Loading...
                 </div>
               ) : relatedItems.length === 0 ? (
-                <div className="text-caption text-text-tertiary" role="status" aria-live="polite">
+                <div className="text-caption text-text-tertiary">
                   No related items found. Add topics to discover connections.
                 </div>
               ) : (
