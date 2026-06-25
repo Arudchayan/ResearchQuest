@@ -433,10 +433,6 @@ export function NotesView() {
               <ListSkeleton count={6} itemType="note" />
             </div>
           ) : filteredNotes.length === 0 ? (
-            <>
-            <div className="sr-only" role="status" aria-live="polite">
-              {searchQuery ? "No matches found. Try a different keyword or clear your search." : "No notes yet. Create your first note to get started."}
-            </div>
             <div
               className="flex flex-col items-center justify-center h-64 p-6 text-center animate-in fade-in duration-300"
             >
@@ -462,7 +458,6 @@ export function NotesView() {
                 </button>
               )}
             </div>
-            </>
           ) : (
             <div
               style={{

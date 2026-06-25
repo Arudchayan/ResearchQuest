@@ -392,19 +392,20 @@ export function EntityGraph() {
     }
   };
 
-  if (!currentEntityId || nodes.length <= 1) {
-    return (
-      <div className="flex items-center justify-center h-40 text-sm text-text-tertiary bg-bg-base/50 rounded-lg border border-dashed border-border-subtle p-4 text-center" role="status" aria-live="polite">
-        No connections found yet. Add backlinks or shared topics to see the entity graph.
-      </div>
-    );
-  }
-
   const renderNodeMap = new Map(nodes.map(n => [n.id, n]));
 
   return (
-    <div className="relative w-full overflow-hidden bg-bg-base/50 rounded-lg border border-border-subtle" style={{ height: GRAPH_HEIGHT }}>
-      <svg className="absolute inset-0 w-full h-full pointer-events-none">
+    <>
+      <div className="sr-only" role="status" aria-live="polite">
+        {!currentEntityId || nodes.length <= 1 ? "No connections found yet. Add backlinks or shared topics to see the entity graph." : ""}
+      </div>
+      {(!currentEntityId || nodes.length <= 1) ? (
+        <div className="flex items-center justify-center h-40 text-sm text-text-tertiary bg-bg-base/50 rounded-lg border border-dashed border-border-subtle p-4 text-center">
+          No connections found yet. Add backlinks or shared topics to see the entity graph.
+        </div>
+      ) : (
+      <div className="relative w-full overflow-hidden bg-bg-base/50 rounded-lg border border-border-subtle" style={{ height: GRAPH_HEIGHT }}>
+        <svg className="absolute inset-0 w-full h-full pointer-events-none">
         {edges.map((edge) => {
           const sourceNode = renderNodeMap.get(edge.source);
           const targetNode = renderNodeMap.get(edge.target);
@@ -456,6 +457,8 @@ export function EntityGraph() {
           </button>
         );
       })}
-    </div>
+      </div>
+      )}
+    </>
   );
 }

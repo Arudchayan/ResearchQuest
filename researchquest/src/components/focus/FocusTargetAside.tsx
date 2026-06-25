@@ -121,6 +121,17 @@ export function FocusTargetAside({
                   />
                 )}
               </button>
+              <div className="sr-only" role="status" aria-live="polite">
+                {!isCollapsed && items.length === 0 ? (
+                  group.type === "note"
+                    ? "No notes yet. Create one to capture your thinking."
+                    : group.type === "paper"
+                    ? "No papers are marked for reading. Add one from the Papers tab."
+                    : group.type === "task"
+                    ? "No active tasks. Create a task to anchor your next focus sprint."
+                    : ""
+                ) : ""}
+              </div>
               {!isCollapsed && (
                 <div
                   id={`focus-group-${group.type}`}
@@ -162,7 +173,7 @@ export function FocusTargetAside({
                       })}
                     </ul>
                   ) : (
-                    <div className="px-5 py-6 text-sm text-text-tertiary" role="status" aria-live="polite">
+                    <div className="px-5 py-6 text-sm text-text-tertiary">
                       {group.type === "note" &&
                         "No notes yet. Create one to capture your thinking."}
                       {group.type === "paper" &&
