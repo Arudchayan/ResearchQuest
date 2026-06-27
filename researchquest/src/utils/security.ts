@@ -13,6 +13,10 @@ export function isValidUrl(url: string): boolean {
   // eslint-disable-next-line no-control-regex
   const sanitized = url.replace(/[\x00-\x1F\x7F-\x9F\u200B-\u200D\uFEFF]/g, "");
 
+  if (/^\s*(javascript|data|vbscript):/i.test(sanitized)) {
+    return false;
+  }
+
   const trimmed = sanitized.trim();
   if (!trimmed) return false;
 
