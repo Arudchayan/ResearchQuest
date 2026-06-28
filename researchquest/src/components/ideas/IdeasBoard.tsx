@@ -397,7 +397,7 @@ export function IdeasBoard() {
         </div>
 
         <div className="sr-only" role="status" aria-live="polite">
-          {!ideasLoading && !ideasSyncError && filteredIdeas.length === 0 ? (searchQuery ? "No matches found" : "No ideas yet") : ""}
+          {!ideasLoading && !ideasSyncError && filteredIdeas.length === 0 ? (searchQuery ? "No matches found. Try a different keyword or clear your search." : "No ideas yet") : ""}
         </div>
 
         <div className="flex-1 overflow-auto p-4 sm:p-6 flex flex-col">
@@ -489,7 +489,7 @@ export function IdeasBoard() {
 
                         <div className="sr-only" role="status" aria-live="polite">
                           {stageIdeas.length === 0 ? (
-                            searchQuery ? `No matches found in ${stage.label}` : `No ideas yet in ${stage.label}`
+                            searchQuery ? `No matches found in ${stage.label}. Try a different keyword or clear your search.` : `No ideas yet in ${stage.label}`
                           ) : (
                             ""
                           )}

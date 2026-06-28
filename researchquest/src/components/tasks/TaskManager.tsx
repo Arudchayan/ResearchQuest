@@ -591,7 +591,7 @@ export function TaskManager() {
       {/* Task List */}
       {tasksSyncError && <InlineError message={tasksSyncError.message} />}
       <div className="sr-only" role="status" aria-live="polite">
-        {!tasksSyncError && sortedTasks.length === 0 ? (searchQuery ? "No matches found" : "No tasks match your filters") : ""}
+        {!loading && !tasksSyncError && sortedTasks.length === 0 ? (searchQuery ? "No matches found. Try a different keyword or clear your search." : "No tasks match your filters") : ""}
       </div>
       <div className="flex-1 overflow-y-auto p-4 sm:p-6">
         {sortedTasks.length === 0 ? (
