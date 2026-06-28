@@ -83,7 +83,7 @@ export function EntityGraph() {
 
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
-  const requestRef = useRef<number>();
+  const requestRef = useRef<number>(undefined);
   const nodesRef = useRef<Node[]>([]);
   const mountedRef = useRef(false);
 
