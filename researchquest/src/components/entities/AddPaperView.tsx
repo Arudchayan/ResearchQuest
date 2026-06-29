@@ -71,6 +71,7 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
   const [manualAuthors, setManualAuthors] = useState("");
   const [manualDoi, setManualDoi] = useState("");
   const [manualUrl, setManualUrl] = useState("");
+  const [manualAbstract, setManualAbstract] = useState("");
   const [manualLoading, setManualLoading] = useState(false);
   const [manualError, setManualError] = useState("");
 
@@ -150,11 +151,12 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
         authors: manualAuthors.split(",").map(a => a.trim()).filter(Boolean),
         doi: manualDoi.trim() || undefined,
         source_url: trimmedUrl || undefined,
+        abstract: manualAbstract.trim() || undefined,
       };
       const created = await onAdd(paperData);
       if (created) {
         showSuccess("Paper added successfully! ✨", created);
-        setManualTitle(""); setManualAuthors(""); setManualDoi(""); setManualUrl("");
+        setManualTitle(""); setManualAuthors(""); setManualDoi(""); setManualUrl(""); setManualAbstract("");
       }
     } catch (err) {
       setManualError("Failed to add paper.");
@@ -290,6 +292,7 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
               manualAuthors={manualAuthors} setManualAuthors={setManualAuthors}
               manualDoi={manualDoi} setManualDoi={setManualDoi}
               manualUrl={manualUrl} setManualUrl={setManualUrl}
+              manualAbstract={manualAbstract} setManualAbstract={setManualAbstract}
               onAdd={handleManualAdd}
               loading={manualLoading}
               error={manualError}

@@ -10,6 +10,8 @@ interface ManualEntryTabProps {
   setManualDoi: (val: string) => void;
   manualUrl: string;
   setManualUrl: (val: string) => void;
+  manualAbstract: string;
+  setManualAbstract: (val: string) => void;
   onAdd: () => Promise<void>;
   loading: boolean;
   error: string;
@@ -24,6 +26,8 @@ export function ManualEntryTab({
   setManualDoi,
   manualUrl,
   setManualUrl,
+  manualAbstract,
+  setManualAbstract,
   onAdd,
   loading,
   error,
@@ -92,6 +96,16 @@ export function ManualEntryTab({
             onChange={(e) => setManualUrl(e.target.value)}
             className="w-full p-3 bg-bg-base border rounded-lg"
             placeholder="https://..."
+          />
+        </div>
+        <div>
+          <label htmlFor="manual-abstract" className="block text-sm font-medium mb-1">Abstract</label>
+          <textarea
+            id="manual-abstract"
+            value={manualAbstract}
+            onChange={(e) => setManualAbstract(e.target.value)}
+            className="w-full p-3 bg-bg-base border rounded-lg min-h-[100px] resize-y"
+            placeholder="Paper abstract or description..."
           />
         </div>
         {error && (
