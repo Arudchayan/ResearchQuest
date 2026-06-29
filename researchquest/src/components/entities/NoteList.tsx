@@ -192,9 +192,9 @@ export function NoteList({
     [notes, selectedNote],
   );
 
-  const emptyMessage = notes.length === 0
+  const emptyMessage = loading ? "" : (notes.length === 0
     ? (searchQuery ? "No matches found. Try a different keyword or clear your search." : "No notes yet. Create your first note above.")
-    : "";
+    : "");
 
   const handleDeleteRequest = useCallback((candidate: Note) => {
     setNoteToDelete(candidate);
@@ -241,9 +241,7 @@ export function NoteList({
     }
   }, [noteToDelete, onDeleteNote, onRestoreNote]);
 
-  if (loading) {
-    return <ListSkeleton count={5} itemType="note" />;
-  }
+
 
   return (
     <>
@@ -251,7 +249,9 @@ export function NoteList({
         {emptyMessage}
       </div>
 
-      {notes.length === 0 ? (
+      {loading ? (
+        <ListSkeleton count={5} itemType="note" />
+      ) : notes.length === 0 ? (
         searchQuery ? (
           <div className="text-center py-12 text-text-tertiary" aria-hidden="true">
             <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />

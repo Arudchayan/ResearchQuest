@@ -250,13 +250,11 @@ export function PaperList({
     }
   }, [paperToDelete, onDeletePaper, onRestorePaper]);
 
-  if (loading) {
-    return <ListSkeleton count={5} itemType="paper" />;
-  }
 
-  const emptyMessage = papers.length === 0
+
+  const emptyMessage = loading ? "" : (papers.length === 0
     ? (searchQuery ? "No matches found. Try a different keyword or clear your search." : "No papers yet. Add your first paper above.")
-    : "";
+    : "");
 
   return (
     <>
@@ -264,7 +262,9 @@ export function PaperList({
         {emptyMessage}
       </div>
 
-      {papers.length === 0 ? (
+      {loading ? (
+        <ListSkeleton count={5} itemType="paper" />
+      ) : papers.length === 0 ? (
         searchQuery ? (
           <div
             className="text-center py-12 text-text-tertiary"
