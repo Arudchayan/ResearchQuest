@@ -173,7 +173,13 @@ export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
         <label htmlFor="new-topic-input" className="block text-caption text-text-secondary mb-1">
           Create and link new topic
         </label>
-        <div className="flex gap-2">
+        <form
+          className="flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void handleCreate();
+          }}
+        >
           <input
             id="new-topic-input"
             value={newTopicName}
@@ -183,7 +189,7 @@ export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
             className="flex-1 px-3 py-2 rounded-md border border-border-subtle bg-bg-base text-small"
           />
           <button
-            onClick={() => void handleCreate()}
+            type="submit"
             disabled={creating || !newTopicName.trim()}
             className="inline-flex items-center gap-2 px-3 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors disabled:opacity-60"
           >
@@ -194,7 +200,7 @@ export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
             )}
             Add
           </button>
-        </div>
+        </form>
       </div>
     </div>
   );
