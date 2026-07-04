@@ -62,9 +62,14 @@ export function TopicsView() {
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
 
-      resultTopics = searchableTopics
-        .filter((st) => st.searchText.includes(query))
-        .map((st) => st.topic);
+      resultTopics = [];
+      const safeSearchableTopics = searchableTopics || [];
+      for (let i = 0; i < safeSearchableTopics.length; i++) {
+        const st = safeSearchableTopics[i];
+        if (st.searchText.includes(query)) {
+          resultTopics.push(st.topic);
+        }
+      }
     }
 
     const visibleTopics =
