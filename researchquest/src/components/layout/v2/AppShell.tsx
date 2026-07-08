@@ -139,7 +139,7 @@ export function AppShell({ children }: AppShellProps) {
           )}
         >
           <div className="w-80 h-full">
-            <RightSidebar />
+            {isRightSidebarOpen && <RightSidebar />}
           </div>
         </div>
       )}
