@@ -196,7 +196,8 @@ export function usePapers(userId: string | undefined) {
       .order("updated_at", { ascending: false });
 
     if (fetchError) {
-      setError(fetchError.message);
+      console.error("Failed to fetch papers:", fetchError);
+      setError("Failed to fetch papers");
     } else {
       // Data is already sorted by updated_at desc from the DB query above
       const rows = data || [];
@@ -224,31 +225,26 @@ export function usePapers(userId: string | undefined) {
         });
 
         if (response.error) {
-          const errorMessage = extractFunctionErrorMessage(
-            response.error,
-            "Failed to search for paper",
-          );
-          setError(errorMessage);
-          toast.error(errorMessage);
+          console.error("DOI search failed:", response.error);
+          setError("Failed to search for paper");
+          toast.error("Failed to search for paper");
           return null;
         }
 
         const payload = getFunctionPayload<CrossrefPaper | null>(response.data);
 
         if (payload?.error) {
-          const errorMessage =
-            payload.error.message || "Failed to search for paper";
-          setError(errorMessage);
-          toast.error(errorMessage);
+          console.error("DOI search payload error:", payload.error);
+          setError("Failed to search for paper");
+          toast.error("Failed to search for paper");
           return null;
         }
 
         return payload?.data ?? null;
       } catch (err: unknown) {
-        const errorMessage =
-          extractFunctionErrorMessage(err, "An error occurred while searching");
-        setError(errorMessage);
-        toast.error(errorMessage);
+        console.error("DOI search exception:", err);
+        setError("An error occurred while searching");
+        toast.error("An error occurred while searching");
         return null;
       }
     },
@@ -276,31 +272,26 @@ export function usePapers(userId: string | undefined) {
         });
 
         if (response.error) {
-          const errorMessage = extractFunctionErrorMessage(
-            response.error,
-            "Failed to search for papers",
-          );
-          setError(errorMessage);
-          toast.error(errorMessage);
+          console.error("Query search failed:", response.error);
+          setError("Failed to search for papers");
+          toast.error("Failed to search for papers");
           return [];
         }
 
         const payload = getFunctionPayload<CrossrefPaper[]>(response.data);
 
         if (payload?.error) {
-          const errorMessage =
-            payload.error.message || "Failed to search for papers";
-          setError(errorMessage);
-          toast.error(errorMessage);
+          console.error("Query search payload error:", payload.error);
+          setError("Failed to search for papers");
+          toast.error("Failed to search for papers");
           return [];
         }
 
         return payload?.data ?? [];
       } catch (err: unknown) {
-        const errorMessage =
-          extractFunctionErrorMessage(err, "An error occurred while searching");
-        setError(errorMessage);
-        toast.error(errorMessage);
+        console.error("Query search exception:", err);
+        setError("An error occurred while searching");
+        toast.error("An error occurred while searching");
         return [];
       }
     },
