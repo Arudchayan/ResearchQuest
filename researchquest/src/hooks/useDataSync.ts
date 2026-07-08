@@ -6,20 +6,8 @@ import { sortByUpdatedAt } from "../utils/sort";
 import type { Note, Paper, Idea } from "../types/database";
 import { dedupeById } from "../utils/collections";
 
-function getFetchErrorMessage(error: unknown, fallback: string) {
-  if (error && typeof error === "object" && "message" in error) {
-    const message = (error as { message?: unknown }).message;
-    if (typeof message === "string" && message.trim()) {
-      return message;
-    }
-  }
-
-  if (typeof error === "string" && error.trim()) {
-    return error;
-  }
-
-  return fallback;
-}
+/** Number of rows to fetch per paginated request. */
+const PAGE_LIMIT = 50;
 
 export function useDataSync(userId: string | undefined, currentView: string) {
   // Use a ref to track what we've already fetched in this session to prevent redundant calls
@@ -99,28 +87,46 @@ export function useDataSync(userId: string | undefined, currentView: string) {
       
       setNotesLoading(true);
       try {
-        const { data, error } = await supabase
-          .from("notes")
-          .select("*")
-          .eq("user_id", userId)
-          .order("updated_at", { ascending: false });
+        const allNotes: Note[] = [];
+        let offset = 0;
+        let hasMore = true;
 
-        if (error) {
-          setDataSyncError(
-            "notes",
-            getFetchErrorMessage(error, "Failed to load notes."),
-          );
-          return;
+        while (hasMore) {
+          const { data, error } = await supabase
+            .from("notes")
+            .select("id, title, markdown_body, tags, linked_entity_ids, created_at, updated_at")
+            .eq("user_id", userId)
+            .order("updated_at", { ascending: false })
+            .range(offset, offset + PAGE_LIMIT - 1);
+
+          if (error) {
+            console.error("Failed to load notes:", error);
+            setDataSyncError(
+              "notes",
+              "Failed to load notes.",
+            );
+            return;
+          }
+
+          if (data && data.length > 0) {
+            allNotes.push(...data);
+            if (data.length < PAGE_LIMIT) {
+              hasMore = false;
+            } else {
+              offset += PAGE_LIMIT;
+            }
+          } else {
+            hasMore = false;
+          }
         }
 
         clearDataSyncError("notes");
-        if (data) {
-          setNotes(sortByUpdatedAt(data));
-        }
+        setNotes(sortByUpdatedAt(allNotes));
       } catch (error) {
+        console.error("Failed to load notes:", error);
         setDataSyncError(
           "notes",
-          getFetchErrorMessage(error, "Failed to load notes."),
+          "Failed to load notes.",
         );
       } finally {
         setNotesLoading(false);
@@ -134,38 +140,56 @@ export function useDataSync(userId: string | undefined, currentView: string) {
 
       setPapersLoading(true);
       try {
-        const { data, error } = await supabase
-          .from("papers")
-          .select("*")
-          .eq("user_id", userId)
-          .order("updated_at", { ascending: false });
+        const allPapers: Paper[] = [];
+        let offset = 0;
+        let hasMore = true;
 
-        if (error) {
-          setDataSyncError(
-            "papers",
-            getFetchErrorMessage(error, "Failed to load papers."),
-          );
-          return;
+        while (hasMore) {
+          const { data, error } = await supabase
+            .from("papers")
+            .select("id, title, authors, doi, source_url, status, topic_ids, abstract, publication_date, created_at, updated_at")
+            .eq("user_id", userId)
+            .order("updated_at", { ascending: false })
+            .range(offset, offset + PAGE_LIMIT - 1);
+
+          if (error) {
+            console.error("Failed to load papers:", error);
+            setDataSyncError(
+              "papers",
+              "Failed to load papers.",
+            );
+            return;
+          }
+
+          if (data && data.length > 0) {
+            allPapers.push(...data);
+            if (data.length < PAGE_LIMIT) {
+              hasMore = false;
+            } else {
+              offset += PAGE_LIMIT;
+            }
+          } else {
+            hasMore = false;
+          }
         }
 
         clearDataSyncError("papers");
-        if (data) {
-          const sorted = sortByUpdatedAt(data);
-          setPapers(sorted);
+        const sorted = sortByUpdatedAt(allPapers);
+        setPapers(sorted);
 
-          // Sync selected paper if it exists in the fresh data
-          const current = useAppStore.getState().selectedPaper;
-          if (current) {
-            const fresh = sorted.find((paper) => paper.id === current.id);
-            if (fresh) {
-              setSelectedPaper(fresh);
-            }
+        // Sync selected paper if it exists in the fresh data
+        const current = useAppStore.getState().selectedPaper;
+        if (current) {
+          const fresh = sorted.find((paper) => paper.id === current.id);
+          if (fresh) {
+            setSelectedPaper(fresh);
           }
         }
       } catch (error) {
+        console.error("Failed to load papers:", error);
         setDataSyncError(
           "papers",
-          getFetchErrorMessage(error, "Failed to load papers."),
+          "Failed to load papers.",
         );
       } finally {
         setPapersLoading(false);
@@ -179,37 +203,56 @@ export function useDataSync(userId: string | undefined, currentView: string) {
 
       setIdeasLoading(true);
       try {
-        const { data, error } = await supabase
-          .from("ideas")
-          .select("*")
-          .eq("user_id", userId)
-          .order("updated_at", { ascending: false });
+        const allIdeas: Idea[] = [];
+        let offset = 0;
+        let hasMore = true;
 
-        if (error) {
-          setDataSyncError(
-            "ideas",
-            getFetchErrorMessage(error, "Failed to load ideas."),
-          );
-          return;
+        while (hasMore) {
+          const { data, error } = await supabase
+            .from("ideas")
+            .select("id, title, description, stage, linked_note_ids, linked_paper_ids, created_at, updated_at")
+            .eq("user_id", userId)
+            .order("updated_at", { ascending: false })
+            .range(offset, offset + PAGE_LIMIT - 1);
+
+          if (error) {
+            console.error("Failed to load ideas:", error);
+            setDataSyncError(
+              "ideas",
+              "Failed to load ideas.",
+            );
+            return;
+          }
+
+          if (data && data.length > 0) {
+            allIdeas.push(...data);
+            if (data.length < PAGE_LIMIT) {
+              hasMore = false;
+            } else {
+              offset += PAGE_LIMIT;
+            }
+          } else {
+            hasMore = false;
+          }
         }
 
         clearDataSyncError("ideas");
-        if (data) {
-          const sorted = data; 
-          setIdeas(sorted);
+        if (allIdeas.length > 0) {
+          setIdeas(sortByUpdatedAt(allIdeas));
+        }
 
-          const current = useAppStore.getState().selectedIdea;
-          if (current) {
-            const fresh = sorted.find((idea) => idea.id === current.id);
-            if (fresh) {
-              setSelectedIdea(fresh);
-            }
+        const current = useAppStore.getState().selectedIdea;
+        if (current) {
+          const fresh = allIdeas.find((idea) => idea.id === current.id);
+          if (fresh) {
+            setSelectedIdea(fresh);
           }
         }
       } catch (error) {
+        console.error("Failed to load ideas:", error);
         setDataSyncError(
           "ideas",
-          getFetchErrorMessage(error, "Failed to load ideas."),
+          "Failed to load ideas.",
         );
       } finally {
         setIdeasLoading(false);

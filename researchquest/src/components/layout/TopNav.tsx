@@ -57,7 +57,7 @@ export function TopNav() {
       toast.success("Signed out");
     } catch (error: any) {
       logger.error("Failed to sign out", error);
-      toast.error(error?.message ?? "Could not sign out. Please try again.");
+      toast.error("Could not sign out. Please try again.");
     } finally {
       setSigningOut(false);
     }
