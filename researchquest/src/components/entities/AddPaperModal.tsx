@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { X, Search, Plus, Loader } from "lucide-react";
 import type { CrossrefPaper } from "../../types/database";
 import { isValidUrl } from "../../utils/security";
@@ -35,7 +35,32 @@ export function AddPaperModal({
   const [manualDoi, setManualDoi] = useState("");
   const [manualUrl, setManualUrl] = useState("");
 
-  if (!isOpen) return null;
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      const trigger = document.activeElement as HTMLElement;
+
+      // Focus the first focusable element inside the modal
+      const focusableElements = dialogRef.current?.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      );
+      if (focusableElements && focusableElements.length > 0) {
+        (focusableElements[0] as HTMLElement).focus();
+      }
+
+      // Lock body scroll
+      document.body.style.overflow = "hidden";
+
+      return () => {
+        document.body.style.overflow = "unset";
+        // Restore focus to the trigger element
+        if (trigger && document.body.contains(trigger)) {
+          trigger.focus();
+        }
+      };
+    }
+  }, [isOpen]);
 
   const handleDOISearch = async () => {
     if (!doiInput.trim()) return;
@@ -158,33 +183,6 @@ export function AddPaperModal({
     }
   };
 
-  const dialogRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (isOpen) {
-      const trigger = document.activeElement as HTMLElement;
-
-      // Focus the first focusable element inside the modal
-      const focusableElements = dialogRef.current?.querySelectorAll(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-      );
-      if (focusableElements && focusableElements.length > 0) {
-        (focusableElements[0] as HTMLElement).focus();
-      }
-
-      // Lock body scroll
-      document.body.style.overflow = "hidden";
-
-      return () => {
-        document.body.style.overflow = "unset";
-        // Restore focus to the trigger element
-        if (trigger && document.body.contains(trigger)) {
-          trigger.focus();
-        }
-      };
-    }
-  }, [isOpen]);
-
   useEffect(() => {
     if (!isOpen) return;
 
@@ -222,7 +220,7 @@ export function AddPaperModal({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, handleClose]);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setDoiInput("");
     setSearchQuery("");
     setSearchResults([]);
@@ -233,7 +231,9 @@ export function AddPaperModal({
     setManualUrl("");
     setError("");
     onClose();
-  };
+  }, [onClose]);
+
+  if (!isOpen) return null;
 
   return (
     <div
