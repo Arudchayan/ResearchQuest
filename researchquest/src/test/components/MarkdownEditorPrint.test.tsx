@@ -48,7 +48,8 @@ vi.mock("../../lib/supabase", () => ({
 vi.mock("@uiw/react-codemirror", () => ({
   default: ({ value, onChange, ...props }: any) => {
     // Remove complex props that cause warnings on textarea
-    const { basicSetup, onCreateEditor, extensions, theme, ...validProps } = props;
+    const { basicSetup, onCreateEditor, extensions, theme, ...validProps } =
+      props;
     return (
       <textarea
         data-testid="codemirror-mock"
@@ -117,6 +118,11 @@ describe("MarkdownEditor Print", () => {
       document: {
         write: mockWrite,
         close: vi.fn(),
+        title: "",
+        getElementById: vi.fn().mockReturnValue({
+          textContent: "",
+          innerHTML: "",
+        }),
       },
       print: mockPrint,
       close: mockClose,
@@ -177,21 +183,11 @@ describe("MarkdownEditor Print", () => {
       expect(mockOpen).toHaveBeenCalledWith("", "_blank");
     });
 
-    // Check if document.write was called with expected HTML content
-    expect(mockWrite).toHaveBeenCalledWith(
-      expect.stringContaining("Test Note Title"),
-    );
-    expect(mockWrite).toHaveBeenCalledWith(expect.stringContaining("Heading")); // From rendered markdown
-    expect(mockWrite).toHaveBeenCalledWith(
-      expect.stringContaining("<strong>bold</strong>"),
-    ); // Rendered markdown HTML
-
-    // Wait for the print call (it's inside window.onload in the written HTML string, but JSDOM doesn't execute script tags in write())
-    // Actually, my implementation adds a script tag: window.onload = function() { window.print(); ... }
-    // JSDOM does NOT execute scripts inside document.write or dynamically added script tags by default unless configured.
-    // However, the test verifies that the HTML string *contains* the script that calls print.
-    expect(mockWrite).toHaveBeenCalledWith(
-      expect.stringContaining("window.print()"),
-    );
+    // Wait for the print window to be configured
+    await waitFor(() => {
+      // It sets the title via API instead of document.write now
+      const openedWindow = mockOpen.mock.results[0].value;
+      expect(openedWindow.document.title).toBe("Test Note Title");
+    });
   });
 });
