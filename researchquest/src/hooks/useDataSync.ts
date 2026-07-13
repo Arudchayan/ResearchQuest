@@ -109,7 +109,7 @@ export function useDataSync(userId: string | undefined, currentView: string) {
           }
 
           if (data && data.length > 0) {
-            allNotes.push(...data);
+            allNotes.push(...(data as Note[]));
             if (data.length < PAGE_LIMIT) {
               hasMore = false;
             } else {
@@ -162,7 +162,7 @@ export function useDataSync(userId: string | undefined, currentView: string) {
           }
 
           if (data && data.length > 0) {
-            allPapers.push(...data);
+            allPapers.push(...(data as Paper[]));
             if (data.length < PAGE_LIMIT) {
               hasMore = false;
             } else {
@@ -225,7 +225,7 @@ export function useDataSync(userId: string | undefined, currentView: string) {
           }
 
           if (data && data.length > 0) {
-            allIdeas.push(...data);
+            allIdeas.push(...(data as Idea[]));
             if (data.length < PAGE_LIMIT) {
               hasMore = false;
             } else {

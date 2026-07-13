@@ -183,6 +183,19 @@ export function AddPaperModal({
     }
   }, [isOpen]);
 
+  const handleClose = useCallback(() => {
+    setDoiInput("");
+    setSearchQuery("");
+    setSearchResults([]);
+    setDoiResult(null);
+    setManualTitle("");
+    setManualAuthors("");
+    setManualDoi("");
+    setManualUrl("");
+    setError("");
+    onClose();
+  }, [onClose]);
+
   useEffect(() => {
     if (!isOpen) return;
 
@@ -219,19 +232,6 @@ export function AddPaperModal({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, handleClose]);
-
-  const handleClose = useCallback(() => {
-    setDoiInput("");
-    setSearchQuery("");
-    setSearchResults([]);
-    setDoiResult(null);
-    setManualTitle("");
-    setManualAuthors("");
-    setManualDoi("");
-    setManualUrl("");
-    setError("");
-    onClose();
-  }, [onClose]);
 
   if (!isOpen) return null;
 
