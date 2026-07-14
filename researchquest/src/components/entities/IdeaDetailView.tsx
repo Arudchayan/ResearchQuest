@@ -417,11 +417,11 @@ export function IdeaDetailView({
 
             {/* Stage Selector */}
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-text-secondary">
+              <label htmlFor={isEditing ? `idea-stage-select-${idea.id}` : undefined} className="block text-sm font-medium text-text-secondary">
                 Development Stage
               </label>
               {isEditing ? (
-                <select
+                <select id={`idea-stage-select-${idea.id}`}
                   value={editedStage}
                   onChange={(e) => setEditedStage(e.target.value as IdeaStage)}
                   className={`px-4 py-2 rounded-md border text-sm font-medium ${getStageColor(editedStage)} focus:outline-none focus:ring-2 focus:ring-primary-500`}
