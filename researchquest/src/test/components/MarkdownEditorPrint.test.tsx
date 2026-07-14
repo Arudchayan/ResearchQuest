@@ -113,8 +113,16 @@ describe("MarkdownEditor Print", () => {
     vi.clearAllMocks();
 
     // Mock window.open
+    const mockTitleEl = { textContent: '' };
+    const mockContentEl = { innerHTML: '' };
     mockOpen.mockReturnValue({
       document: {
+        title: '',
+        getElementById: vi.fn((id) => {
+          if (id === 'print-title') return mockTitleEl;
+          if (id === 'print-content') return mockContentEl;
+          return null;
+        }),
         write: mockWrite,
         close: vi.fn(),
       },
@@ -177,14 +185,14 @@ describe("MarkdownEditor Print", () => {
       expect(mockOpen).toHaveBeenCalledWith("", "_blank");
     });
 
-    // Check if document.write was called with expected HTML content
-    expect(mockWrite).toHaveBeenCalledWith(
-      expect.stringContaining("Test Note Title"),
-    );
-    expect(mockWrite).toHaveBeenCalledWith(expect.stringContaining("Heading")); // From rendered markdown
-    expect(mockWrite).toHaveBeenCalledWith(
-      expect.stringContaining("<strong>bold</strong>"),
-    ); // Rendered markdown HTML
+    const printDoc = mockOpen.mock.results[0].value.document;
+    expect(printDoc.title).toBe('Test Note Title');
+
+    const titleEl = printDoc.getElementById('print-title');
+    const contentEl = printDoc.getElementById('print-content');
+    expect(titleEl.textContent).toBe('Test Note Title');
+    expect(contentEl.innerHTML).toContain('Heading');
+    expect(contentEl.innerHTML).toContain('<strong>bold</strong>');
 
     // Wait for the print call (it's inside window.onload in the written HTML string, but JSDOM doesn't execute script tags in write())
     // Actually, my implementation adds a script tag: window.onload = function() { window.print(); ... }
