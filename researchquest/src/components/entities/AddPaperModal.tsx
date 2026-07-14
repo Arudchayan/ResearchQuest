@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import {  useState, useRef, useEffect , useCallback } from "react";
 import { X, Search, Plus, Loader } from "lucide-react";
 import type { CrossrefPaper } from "../../types/database";
 import { isValidUrl } from "../../utils/security";
@@ -46,7 +46,7 @@ export function AddPaperModal({
     setManualAuthors("");
     setManualDoi("");
     setManualUrl("");
-    setPaperDetails(null);
+    setError("");
     setMode("search");
     onClose();
   }, [onClose]);
@@ -233,13 +233,6 @@ export function AddPaperModal({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, handleClose]);
-
-
-  if (!isOpen) return null;
-
-  if (!isOpen) return null;
-
-  if (!isOpen) return null;
 
   if (!isOpen) return null;
 
