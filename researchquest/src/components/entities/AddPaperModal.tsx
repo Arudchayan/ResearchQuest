@@ -35,7 +35,21 @@ export function AddPaperModal({
   const [manualDoi, setManualDoi] = useState("");
   const [manualUrl, setManualUrl] = useState("");
 
-  if (!isOpen) return null;
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  const handleClose = useCallback(() => {
+    setDoiInput("");
+    setSearchQuery("");
+    setSearchResults([]);
+    setDoiResult(null);
+    setManualTitle("");
+    setManualAuthors("");
+    setManualDoi("");
+    setManualUrl("");
+    setPaperDetails(null);
+    setMode("search");
+    onClose();
+  }, [onClose]);
 
   const handleDOISearch = async () => {
     if (!doiInput.trim()) return;
@@ -158,8 +172,6 @@ export function AddPaperModal({
     }
   };
 
-  const dialogRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     if (isOpen) {
       const trigger = document.activeElement as HTMLElement;
@@ -222,18 +234,12 @@ export function AddPaperModal({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, handleClose]);
 
-  const handleClose = () => {
-    setDoiInput("");
-    setSearchQuery("");
-    setSearchResults([]);
-    setDoiResult(null);
-    setManualTitle("");
-    setManualAuthors("");
-    setManualDoi("");
-    setManualUrl("");
-    setError("");
-    onClose();
-  };
+
+  if (!isOpen) return null;
+
+  if (!isOpen) return null;
+
+  if (!isOpen) return null;
 
   return (
     <div
