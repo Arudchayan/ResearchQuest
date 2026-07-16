@@ -82,18 +82,12 @@ export function useEditorActions(
 
     const htmlContent = DOMPurify.sanitize(previewElement.innerHTML);
     const rawTitle = title || "Untitled Note";
-    const documentTitle = rawTitle
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
 
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
-          <title>${documentTitle}</title>
+          <title></title>
           <style>
             body { font-family: sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 2rem; }
             h1, h2, h3 { margin-top: 24px; margin-bottom: 16px; font-weight: 600; }
@@ -103,12 +97,24 @@ export function useEditorActions(
           </style>
         </head>
         <body>
-          <h1>${documentTitle}</h1>
-          <div class="markdown-body">${htmlContent}</div>
+          <h1 id="print-title"></h1>
+          <div class="markdown-body" id="print-content"></div>
           <script>window.onload = function() { window.print(); window.close(); };</script>
         </body>
       </html>
     `);
+
+    printWindow.document.title = rawTitle;
+    const printTitleEl = printWindow.document.getElementById("print-title");
+    if (printTitleEl) {
+      printTitleEl.textContent = rawTitle;
+    }
+
+    const printContentEl = printWindow.document.getElementById("print-content");
+    if (printContentEl) {
+      printContentEl.innerHTML = htmlContent;
+    }
+
     printWindow.document.close();
   }, [title, previewRef]);
 

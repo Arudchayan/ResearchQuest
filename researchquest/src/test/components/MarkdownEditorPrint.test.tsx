@@ -109,15 +109,25 @@ describe("MarkdownEditor Print", () => {
     updated_at: "2023-01-01",
   };
 
+  let mockDocument: any;
+
   beforeEach(async () => {
     vi.clearAllMocks();
 
+    mockDocument = {
+      write: mockWrite,
+      close: vi.fn(),
+      title: "",
+      elements: {
+        "print-title": { textContent: "" },
+        "print-content": { innerHTML: "" },
+      },
+      getElementById: vi.fn((id: string) => mockDocument.elements[id] || null),
+    };
+
     // Mock window.open
     mockOpen.mockReturnValue({
-      document: {
-        write: mockWrite,
-        close: vi.fn(),
-      },
+      document: mockDocument,
       print: mockPrint,
       close: mockClose,
     });
@@ -177,19 +187,15 @@ describe("MarkdownEditor Print", () => {
       expect(mockOpen).toHaveBeenCalledWith("", "_blank");
     });
 
-    // Check if document.write was called with expected HTML content
-    expect(mockWrite).toHaveBeenCalledWith(
-      expect.stringContaining("Test Note Title"),
-    );
-    expect(mockWrite).toHaveBeenCalledWith(expect.stringContaining("Heading")); // From rendered markdown
-    expect(mockWrite).toHaveBeenCalledWith(
-      expect.stringContaining("<strong>bold</strong>"),
-    ); // Rendered markdown HTML
+    // Verify DOM assignments for Title and Content
+    expect(mockDocument.title).toBe("Test Note Title");
+    expect(mockDocument.elements["print-title"].textContent).toBe("Test Note Title");
 
-    // Wait for the print call (it's inside window.onload in the written HTML string, but JSDOM doesn't execute script tags in write())
-    // Actually, my implementation adds a script tag: window.onload = function() { window.print(); ... }
-    // JSDOM does NOT execute scripts inside document.write or dynamically added script tags by default unless configured.
-    // However, the test verifies that the HTML string *contains* the script that calls print.
+    const contentHTML = mockDocument.elements["print-content"].innerHTML;
+    expect(contentHTML).toContain("Heading");
+    expect(contentHTML).toContain("<strong>bold</strong>");
+
+    // Check if document.write was called with expected HTML content (static parts)
     expect(mockWrite).toHaveBeenCalledWith(
       expect.stringContaining("window.print()"),
     );
