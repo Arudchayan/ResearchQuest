@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { X, Search, Plus, Loader } from "lucide-react";
 import type { CrossrefPaper } from "../../types/database";
 import { isValidUrl } from "../../utils/security";
@@ -34,8 +34,6 @@ export function AddPaperModal({
   const [manualAuthors, setManualAuthors] = useState("");
   const [manualDoi, setManualDoi] = useState("");
   const [manualUrl, setManualUrl] = useState("");
-
-  if (!isOpen) return null;
 
   const handleDOISearch = async () => {
     if (!doiInput.trim()) return;
@@ -160,6 +158,20 @@ export function AddPaperModal({
 
   const dialogRef = useRef<HTMLDivElement>(null);
 
+  const handleClose = useCallback(() => {
+    setDoiInput("");
+    setSearchQuery("");
+    setSearchResults([]);
+    setDoiResult(null);
+    setManualTitle("");
+    setManualAuthors("");
+    setManualDoi("");
+    setManualUrl("");
+    setError("");
+    setActiveTab("doi");
+    onClose();
+  }, [onClose]);
+
   useEffect(() => {
     if (isOpen) {
       const trigger = document.activeElement as HTMLElement;
@@ -222,18 +234,7 @@ export function AddPaperModal({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, handleClose]);
 
-  const handleClose = () => {
-    setDoiInput("");
-    setSearchQuery("");
-    setSearchResults([]);
-    setDoiResult(null);
-    setManualTitle("");
-    setManualAuthors("");
-    setManualDoi("");
-    setManualUrl("");
-    setError("");
-    onClose();
-  };
+  if (!isOpen) return null;
 
   return (
     <div
