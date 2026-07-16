@@ -48,6 +48,7 @@ const createMockBuilder = (overrides: any = {}) => {
   if (!builder.lte) builder.lte = vi.fn().mockReturnValue(builder);
   if (!builder.not) builder.not = vi.fn().mockReturnValue(builder);
   if (!builder.limit) builder.limit = vi.fn().mockReturnValue(builder);
+  if (!builder.range) builder.range = vi.fn().mockReturnValue(builder);
 
   // Define terminal methods if not overridden
   if (!builder.single)
@@ -73,7 +74,7 @@ describe("usePapers Hook", () => {
 
       mockSupabaseClient.from.mockImplementation(() =>
         createMockBuilder({
-          order: vi.fn().mockResolvedValue({ data: mockPapers, error: null }),
+          range: vi.fn().mockResolvedValue({ data: mockPapers, error: null }),
         }),
       );
 
