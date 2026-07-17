@@ -98,6 +98,7 @@ describe("MarkdownEditor Print", () => {
   const mockWrite = vi.fn();
   const mockClose = vi.fn();
   const mockOpen = vi.fn();
+  const mockGetElementById = vi.fn();
 
   const mockNote = {
     id: "note-1",
@@ -113,10 +114,18 @@ describe("MarkdownEditor Print", () => {
     vi.clearAllMocks();
 
     // Mock window.open
+    const mockElements: Record<string, any> = {
+      'print-title': { textContent: '' },
+      'print-content': { innerHTML: '' }
+    };
+    mockGetElementById.mockImplementation((id: string) => mockElements[id]);
+
     mockOpen.mockReturnValue({
       document: {
+        title: "",
         write: mockWrite,
         close: vi.fn(),
+        getElementById: mockGetElementById,
       },
       print: mockPrint,
       close: mockClose,
@@ -177,19 +186,19 @@ describe("MarkdownEditor Print", () => {
       expect(mockOpen).toHaveBeenCalledWith("", "_blank");
     });
 
-    // Check if document.write was called with expected HTML content
-    expect(mockWrite).toHaveBeenCalledWith(
-      expect.stringContaining("Test Note Title"),
-    );
-    expect(mockWrite).toHaveBeenCalledWith(expect.stringContaining("Heading")); // From rendered markdown
-    expect(mockWrite).toHaveBeenCalledWith(
-      expect.stringContaining("<strong>bold</strong>"),
-    ); // Rendered markdown HTML
+    // Verify that the title and content elements were updated securely via DOM API
+    expect(mockGetElementById).toHaveBeenCalledWith("print-title");
+    expect(mockGetElementById).toHaveBeenCalledWith("print-content");
 
-    // Wait for the print call (it's inside window.onload in the written HTML string, but JSDOM doesn't execute script tags in write())
-    // Actually, my implementation adds a script tag: window.onload = function() { window.print(); ... }
-    // JSDOM does NOT execute scripts inside document.write or dynamically added script tags by default unless configured.
-    // However, the test verifies that the HTML string *contains* the script that calls print.
+    // Check elements populated by DOM API
+    const titleElement = mockGetElementById("print-title");
+    const contentElement = mockGetElementById("print-content");
+
+    expect(titleElement.textContent).toBe("Test Note Title");
+    expect(contentElement.innerHTML).toContain("Heading");
+    expect(contentElement.innerHTML).toContain("<strong>bold</strong>");
+
+    // Check document write still outputs the script
     expect(mockWrite).toHaveBeenCalledWith(
       expect.stringContaining("window.print()"),
     );
