@@ -39,7 +39,11 @@ export function AuthScreen() {
       }
     } catch (error: any) {
       console.error("AuthScreen auth error:", error);
-      setMessage("Authentication failed. Please check your credentials and try again.");
+      if (isSignUp && error.message?.includes("Password must be at least 8 characters long")) {
+        setMessage(error.message);
+      } else {
+        setMessage("Authentication failed. Please check your credentials and try again.");
+      }
     } finally {
       setLoading(false);
     }
