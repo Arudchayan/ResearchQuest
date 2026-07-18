@@ -182,8 +182,7 @@ export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
             onChange={(event) => setNewTopicName(event.target.value)}
             placeholder="e.g. Literature Review"
             maxLength={50}
-            id={selectId}
-              className="flex-1 px-3 py-2 rounded-md border border-border-subtle bg-bg-base text-small"
+            className="flex-1 px-3 py-2 rounded-md border border-border-subtle bg-bg-base text-small"
           />
           <button
             onClick={() => void handleCreate()}
