@@ -35,6 +35,20 @@ export function AddPaperModal({
   const [manualDoi, setManualDoi] = useState("");
   const [manualUrl, setManualUrl] = useState("");
 
+  const handleClose = useCallback(() => {
+    setDoiInput("");
+    setSearchQuery("");
+    setSearchResults([]);
+    setDoiResult(null);
+    setManualTitle("");
+    setManualAuthors("");
+    setManualDoi("");
+    setManualUrl("");
+    setError("");
+    onClose();
+  }, [onClose]);
+
+
   const handleDOISearch = async () => {
     if (!doiInput.trim()) return;
 
