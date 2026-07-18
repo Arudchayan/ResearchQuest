@@ -220,18 +220,7 @@ export function AddPaperModal({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, handleClose]);
 
-  const handleClose = () => {
-    setDoiInput("");
-    setSearchQuery("");
-    setSearchResults([]);
-    setDoiResult(null);
-    setManualTitle("");
-    setManualAuthors("");
-    setManualDoi("");
-    setManualUrl("");
-    setError("");
-    onClose();
-  };
+
 
   if (!isOpen) return null;
 
