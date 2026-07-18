@@ -14,11 +14,14 @@ export function useEditorActions(
 ) {
   const handleCopyMarkdown = useCallback(() => {
     if (!content) return;
-    navigator.clipboard.writeText(content).then(() => {
-      toast.success("Markdown copied to clipboard");
-    }).catch(() => {
-      toast.error("Failed to copy Markdown");
-    });
+    navigator.clipboard
+      .writeText(content)
+      .then(() => {
+        toast.success("Markdown copied to clipboard");
+      })
+      .catch(() => {
+        toast.error("Failed to copy Markdown");
+      });
   }, [content]);
 
   const handleCopyRichText = useCallback(() => {
@@ -36,17 +39,25 @@ export function useEditorActions(
         "text/html": new Blob([html], { type: "text/html" }),
         "text/plain": new Blob([text], { type: "text/plain" }),
       });
-      navigator.clipboard.write([clipboardItem]).then(() => {
-        toast.success("Rich text copied to clipboard");
-      }).catch(() => {
-        toast.error("Failed to copy rich text");
-      });
+      navigator.clipboard
+        .write([clipboardItem])
+        .then(() => {
+          toast.success("Rich text copied to clipboard");
+        })
+        .catch(() => {
+          toast.error("Failed to copy rich text");
+        });
     } catch (err) {
-      navigator.clipboard.writeText(text).then(() => {
-        toast.success("Plain text copied (Rich text not supported by browser)");
-      }).catch(() => {
-        toast.error("Failed to copy text");
-      });
+      navigator.clipboard
+        .writeText(text)
+        .then(() => {
+          toast.success(
+            "Plain text copied (Rich text not supported by browser)",
+          );
+        })
+        .catch(() => {
+          toast.error("Failed to copy text");
+        });
     }
   }, [previewRef]);
 
@@ -82,18 +93,12 @@ export function useEditorActions(
 
     const htmlContent = DOMPurify.sanitize(previewElement.innerHTML);
     const rawTitle = title || "Untitled Note";
-    const documentTitle = rawTitle
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
 
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
-          <title>${documentTitle}</title>
+          <title></title>
           <style>
             body { font-family: sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 2rem; }
             h1, h2, h3 { margin-top: 24px; margin-bottom: 16px; font-weight: 600; }
@@ -103,12 +108,19 @@ export function useEditorActions(
           </style>
         </head>
         <body>
-          <h1>${documentTitle}</h1>
-          <div class="markdown-body">${htmlContent}</div>
+          <h1 id="print-title"></h1>
+          <div id="print-content" class="markdown-body"></div>
           <script>window.onload = function() { window.print(); window.close(); };</script>
         </body>
       </html>
     `);
+
+    printWindow.document.title = rawTitle;
+    const titleEl = printWindow.document.getElementById("print-title");
+    if (titleEl) titleEl.textContent = rawTitle;
+    const contentEl = printWindow.document.getElementById("print-content");
+    if (contentEl) contentEl.innerHTML = htmlContent;
+
     printWindow.document.close();
   }, [title, previewRef]);
 
@@ -116,7 +128,9 @@ export function useEditorActions(
     if (!selectedNote || !userId) return;
 
     if (content.length > NOTE_BODY_MAX_LENGTH) {
-      toast.error(`Note content exceeds ${NOTE_BODY_MAX_LENGTH.toLocaleString()} characters`);
+      toast.error(
+        `Note content exceeds ${NOTE_BODY_MAX_LENGTH.toLocaleString()} characters`,
+      );
       return;
     }
 

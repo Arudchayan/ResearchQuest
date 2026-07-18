@@ -48,7 +48,8 @@ vi.mock("../../lib/supabase", () => ({
 vi.mock("@uiw/react-codemirror", () => ({
   default: ({ value, onChange, ...props }: any) => {
     // Remove complex props that cause warnings on textarea
-    const { basicSetup, onCreateEditor, extensions, theme, ...validProps } = props;
+    const { basicSetup, onCreateEditor, extensions, theme, ...validProps } =
+      props;
     return (
       <textarea
         data-testid="codemirror-mock"
@@ -117,6 +118,10 @@ describe("MarkdownEditor Print", () => {
       document: {
         write: mockWrite,
         close: vi.fn(),
+        getElementById: vi
+          .fn()
+          .mockReturnValue({ textContent: "", innerHTML: "" }),
+        title: "",
       },
       print: mockPrint,
       close: mockClose,
@@ -177,14 +182,13 @@ describe("MarkdownEditor Print", () => {
       expect(mockOpen).toHaveBeenCalledWith("", "_blank");
     });
 
-    // Check if document.write was called with expected HTML content
+    // Check if document.write was called with expected HTML content (the template)
     expect(mockWrite).toHaveBeenCalledWith(
-      expect.stringContaining("Test Note Title"),
+      expect.stringContaining('id="print-title"'),
     );
-    expect(mockWrite).toHaveBeenCalledWith(expect.stringContaining("Heading")); // From rendered markdown
     expect(mockWrite).toHaveBeenCalledWith(
-      expect.stringContaining("<strong>bold</strong>"),
-    ); // Rendered markdown HTML
+      expect.stringContaining('id="print-content"'),
+    );
 
     // Wait for the print call (it's inside window.onload in the written HTML string, but JSDOM doesn't execute script tags in write())
     // Actually, my implementation adds a script tag: window.onload = function() { window.print(); ... }
