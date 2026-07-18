@@ -39,7 +39,7 @@ export function AuthScreen() {
       }
     } catch (error: any) {
       console.error("AuthScreen auth error:", error);
-      setMessage("Authentication failed. Please check your credentials and try again.");
+      setMessage(error.message || "Authentication failed. Please check your credentials and try again.");
     } finally {
       setLoading(false);
     }

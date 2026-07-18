@@ -73,7 +73,7 @@ describe("usePapers Hook", () => {
 
       mockSupabaseClient.from.mockImplementation(() =>
         createMockBuilder({
-          order: vi.fn().mockResolvedValue({ data: mockPapers, error: null }),
+          range: vi.fn().mockResolvedValue({ data: mockPapers, error: null }),
         }),
       );
 
