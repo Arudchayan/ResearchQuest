@@ -1,0 +1,16 @@
+  const handleClose = useCallback(() => {
+    // Reset all states
+    setActiveTab("doi");
+    setDoiInput("");
+    setDoiResult(null);
+    setSearchQuery("");
+    setSearchResults([]);
+    setLoading(false);
+    setError("");
+    setBibtexInput("");
+    setManualTitle("");
+    setManualAuthors("");
+    setManualDoi("");
+    setManualUrl("");
+    onClose();
+  }, [onClose]);

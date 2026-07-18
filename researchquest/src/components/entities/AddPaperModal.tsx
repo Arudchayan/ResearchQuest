@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { X, Search, Plus, Loader } from "lucide-react";
 import type { CrossrefPaper } from "../../types/database";
 import { isValidUrl } from "../../utils/security";
@@ -34,8 +34,6 @@ export function AddPaperModal({
   const [manualAuthors, setManualAuthors] = useState("");
   const [manualDoi, setManualDoi] = useState("");
   const [manualUrl, setManualUrl] = useState("");
-
-  if (!isOpen) return null;
 
   const handleDOISearch = async () => {
     if (!doiInput.trim()) return;
@@ -234,6 +232,8 @@ export function AddPaperModal({
     setError("");
     onClose();
   };
+
+  if (!isOpen) return null;
 
   return (
     <div
