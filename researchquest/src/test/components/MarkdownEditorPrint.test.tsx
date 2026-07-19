@@ -113,10 +113,13 @@ describe("MarkdownEditor Print", () => {
     vi.clearAllMocks();
 
     // Mock window.open
+    const mockGetElementById = vi.fn().mockReturnValue({});
     mockOpen.mockReturnValue({
       document: {
         write: mockWrite,
         close: vi.fn(),
+        title: "",
+        getElementById: mockGetElementById,
       },
       print: mockPrint,
       close: mockClose,
@@ -177,21 +180,16 @@ describe("MarkdownEditor Print", () => {
       expect(mockOpen).toHaveBeenCalledWith("", "_blank");
     });
 
-    // Check if document.write was called with expected HTML content
-    expect(mockWrite).toHaveBeenCalledWith(
-      expect.stringContaining("Test Note Title"),
-    );
-    expect(mockWrite).toHaveBeenCalledWith(expect.stringContaining("Heading")); // From rendered markdown
-    expect(mockWrite).toHaveBeenCalledWith(
-      expect.stringContaining("<strong>bold</strong>"),
-    ); // Rendered markdown HTML
-
-    // Wait for the print call (it's inside window.onload in the written HTML string, but JSDOM doesn't execute script tags in write())
-    // Actually, my implementation adds a script tag: window.onload = function() { window.print(); ... }
-    // JSDOM does NOT execute scripts inside document.write or dynamically added script tags by default unless configured.
-    // However, the test verifies that the HTML string *contains* the script that calls print.
+    // Check if document.write was called with expected HTML skeleton content
     expect(mockWrite).toHaveBeenCalledWith(
       expect.stringContaining("window.print()"),
     );
+
+    const windowObj = mockOpen.mock.results[0].value;
+
+    // Check DOM APIs
+    expect(windowObj.document.title).toBe("Test Note Title");
+    expect(windowObj.document.getElementById).toHaveBeenCalledWith("print-title");
+    expect(windowObj.document.getElementById).toHaveBeenCalledWith("print-content");
   });
 });
