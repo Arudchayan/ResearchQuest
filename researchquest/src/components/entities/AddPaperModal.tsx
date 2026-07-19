@@ -48,8 +48,6 @@ export function AddPaperModal({
     onClose();
   };
 
-  if (!isOpen) return null;
-
   const handleDOISearch = async () => {
     if (!doiInput.trim()) return;
 
@@ -187,7 +185,6 @@ export function AddPaperModal({
 
       // Lock body scroll
       document.body.style.overflow = "hidden";
-
       return () => {
         document.body.style.overflow = "unset";
         // Restore focus to the trigger element
@@ -234,6 +231,8 @@ export function AddPaperModal({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, handleClose]);
+
+  if (!isOpen) return null;
 
   return (
     <div
