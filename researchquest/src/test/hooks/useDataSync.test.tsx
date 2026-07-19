@@ -10,9 +10,12 @@ function queryResult<T>(result: { data: T[] | null; error: { message: string } |
   builder.eq = vi.fn().mockReturnValue(builder);
   builder.gte = vi.fn().mockReturnValue(builder);
   builder.order = vi.fn().mockReturnValue(builder);
-  builder.range = vi.fn().mockReturnValue(builder);
   builder.then = (onFulfilled?: (value: typeof result) => unknown) =>
     Promise.resolve(result).then(onFulfilled);
+
+  builder.range = vi.fn().mockReturnValue({
+     then: builder.then
+  });
   return builder;
 }
 
@@ -47,15 +50,15 @@ describe("useDataSync sync errors", () => {
     await waitFor(() => {
       expect(useAppStore.getState().dataSyncErrors).toEqual({
         notes: {
-          message: "Failed to load notes preview.",
+          message: "Failed to load notes.",
           resource: "notes",
         },
         papers: {
-          message: "Failed to load papers preview.",
+          message: "Failed to load papers.",
           resource: "papers",
         },
         ideas: {
-          message: "Failed to load ideas preview.",
+          message: "Failed to load ideas.",
           resource: "ideas",
         },
       });
