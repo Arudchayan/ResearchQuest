@@ -714,6 +714,15 @@ async function promoteFeedItem(
       corsHeaders,
     );
   }
+  const targetScope =
+    parsed.value.target === "paper"
+      ? "papers:write"
+      : parsed.value.target === "task"
+      ? "tasks:write"
+      : "notes:write";
+  const targetDenied = requireScopes(ctx, [targetScope], corsHeaders);
+  if (targetDenied) return targetDenied;
+
   const { data: item, error: itemError } = await ctx.supabaseAdmin
     .from("feed_items")
     .select(FEED_ITEM_SELECT)
@@ -749,6 +758,41 @@ async function promoteFeedItem(
   if ("error" in promotion) {
     return errorResponse("VALIDATION_ERROR", promotion.error, 400, corsHeaders);
   }
+
+  // Claim the item first to reduce duplicate promotes under concurrency.
+  const claimPayload = {
+    ...(isRecord(item.payload) ? item.payload : {}),
+    promotion: {
+      target: parsed.value.target,
+      claimed_at: new Date().toISOString(),
+    },
+  };
+  const { data: claimed, error: claimError } = await ctx.supabaseAdmin
+    .from("feed_items")
+    .update({ status: "promoted", payload: claimPayload })
+    .eq("id", id)
+    .eq("user_id", ctx.userId)
+    .neq("status", "promoted")
+    .select(FEED_ITEM_SELECT)
+    .maybeSingle();
+  if (claimError) {
+    console.error("promote feed item claim", claimError);
+    return errorResponse(
+      "INTERNAL_ERROR",
+      "Failed to claim feed item for promotion",
+      500,
+      corsHeaders,
+    );
+  }
+  if (!claimed) {
+    return errorResponse(
+      "CONFLICT",
+      "Feed item is already promoted",
+      409,
+      corsHeaders,
+    );
+  }
+
   const { data: entity, error: entityError } = await ctx.supabaseAdmin
     .from(promotion.table)
     .insert(promotion.row)
@@ -756,6 +800,12 @@ async function promoteFeedItem(
     .single();
   if (entityError || !entity) {
     console.error("promote feed item create target", entityError);
+    // Best-effort rollback of claim so the item can be retried.
+    await ctx.supabaseAdmin
+      .from("feed_items")
+      .update({ status: item.status, payload: item.payload })
+      .eq("id", id)
+      .eq("user_id", ctx.userId);
     return errorResponse(
       "INTERNAL_ERROR",
       "Failed to create promoted entity",
