@@ -37,14 +37,17 @@ interface CrossrefWork {
   type?: string;
 }
 
-function parseAllowedOrigins(): Set<string> {
+function parseAllowedOrigins(): string[] | null {
   const configured = Deno.env.get("ALLOWED_ORIGINS");
-  const origins = configured
-    ?.split(",")
+  if (!configured || !configured.trim()) {
+    // Unset → preserve prior open CORS so production is not broken
+    // until ALLOWED_ORIGINS is configured.
+    return null;
+  }
+  return configured
+    .split(",")
     .map((origin) => origin.trim().replace(/\/$/, ""))
     .filter(Boolean);
-
-  return new Set(origins?.length ? origins : DEFAULT_DEV_ALLOWED_ORIGINS);
 }
 
 function buildCorsHeaders(req: Request): HeadersInit {
@@ -56,8 +59,15 @@ function buildCorsHeaders(req: Request): HeadersInit {
     "Vary": "Origin",
   };
   const origin = req.headers.get("Origin");
+  const allowed = parseAllowedOrigins();
 
-  if (origin && parseAllowedOrigins().has(origin)) {
+  if (allowed === null) {
+    headers["Access-Control-Allow-Origin"] = "*";
+    return headers;
+  }
+
+  const allowlist = allowed.length > 0 ? allowed : DEFAULT_DEV_ALLOWED_ORIGINS;
+  if (origin && allowlist.includes(origin)) {
     headers["Access-Control-Allow-Origin"] = origin;
   }
 
