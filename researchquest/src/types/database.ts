@@ -2,6 +2,10 @@ export type ReadingStatus = "To Read" | "Reading" | "Read";
 export type IdeaStage = "Seed" | "Developing" | "Supported" | "Mature";
 export type EntityType = "note" | "idea" | "paper" | "topic";
 export type ThemePreference = "light" | "dark" | "auto";
+export type FeedItemType = "paper" | "job" | "news" | "custom";
+export type FeedItemStatus = "new" | "triaged" | "archived" | "promoted";
+export type FeedPromoteTarget = "paper" | "task" | "note";
+export type JsonRecord = Record<string, unknown>;
 
 export interface ActiveBoost {
   type: string;
@@ -100,6 +104,33 @@ export interface Task {
   completed: boolean;
   category?: string;
   project_id?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FeedSource {
+  id: string;
+  user_id: string;
+  name: string;
+  kind: string;
+  config: JsonRecord;
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FeedItem {
+  id: string;
+  user_id: string;
+  source_id?: string | null;
+  type: FeedItemType;
+  title: string;
+  summary?: string | null;
+  url?: string | null;
+  payload: JsonRecord;
+  status: FeedItemStatus;
+  external_id?: string | null;
+  published_at?: string | null;
   created_at: string;
   updated_at: string;
 }
