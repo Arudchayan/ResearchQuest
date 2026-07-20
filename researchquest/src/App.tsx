@@ -61,6 +61,12 @@ const FocusWorkspace = lazy(() =>
   })),
 );
 
+const FeedsView = lazy(() =>
+  import("./components/feeds/FeedsView").then((module) => ({
+    default: module.FeedsView,
+  })),
+);
+
 const OnboardingGuide = lazy(() =>
   import("./components/layout/OnboardingGuide").then((module) => ({
     default: module.OnboardingGuide,
@@ -214,7 +220,7 @@ function App() {
       const pathParts = pendingPath.slice(1).split("/");
       const view = pathParts[0] as typeof currentView;
       if (
-        ["dashboard", "notes", "papers", "ideas", "tasks", "topics", "focus"].includes(view)
+        ["dashboard", "notes", "papers", "ideas", "tasks", "topics", "focus", "feeds"].includes(view)
       ) {
         setCurrentView(view);
       } else {
@@ -243,7 +249,7 @@ function App() {
 
       // Validate view
       if (
-        ["dashboard", "notes", "papers", "ideas", "tasks", "topics", "focus"].includes(
+        ["dashboard", "notes", "papers", "ideas", "tasks", "topics", "focus", "feeds"].includes(
           view,
         )
       ) {
@@ -368,6 +374,8 @@ function App() {
         <OnboardingGuide storageKey="rq_focus_onboarding_bridge" />
         <FocusWorkspace userId={userId} />
       </div>
+    ) : currentView === "feeds" ? (
+      <FeedsView />
     ) : null;
 
   return (

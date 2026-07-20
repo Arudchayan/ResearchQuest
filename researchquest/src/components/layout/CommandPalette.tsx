@@ -15,8 +15,10 @@ import {
   Database,
   LayoutDashboard,
   Hash,
+  Inbox,
 } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
+import type { AppView } from "../../store/appStore";
 import { useShallow } from "zustand/react/shallow";
 import { useNotes } from "../../hooks/useNotes";
 import { usePapers } from "../../hooks/usePapers";
@@ -94,9 +96,7 @@ export function CommandPalette() {
   }, []);
 
   // Navigation handlers using App's custom routing
-  const handleNavigate = (
-    view: "dashboard" | "notes" | "papers" | "ideas" | "tasks" | "topics" | "focus",
-  ) => {
+  const handleNavigate = (view: AppView) => {
     setCurrentView(view);
     window.history.pushState(null, "", view === "dashboard" ? "/" : `/${view}`);
     // Trigger popstate event for other listeners if needed (App.tsx listens to it)
@@ -274,6 +274,10 @@ export function CommandPalette() {
           <Command.Item onSelect={() => handleNavigate("topics")}>
             <Hash />
             <span>Go to Topics</span>
+          </Command.Item>
+          <Command.Item onSelect={() => handleNavigate("feeds")}>
+            <Inbox />
+            <span>Go to Feeds</span>
           </Command.Item>
           <Command.Item onSelect={() => handleNavigate("focus")}>
             <Target />

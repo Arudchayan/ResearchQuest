@@ -7,6 +7,7 @@ import {
   X,
   Hash,
   BookOpen,
+  Inbox,
 } from "lucide-react";
 import {
   MagnifyingGlassIcon,
@@ -41,7 +42,7 @@ interface LeftSidebarProps {
 }
 
 type SidebarSearchState = Record<
-  "notes" | "papers" | "ideas" | "tasks" | "focus",
+  "dashboard" | "notes" | "papers" | "ideas" | "tasks" | "topics" | "focus" | "feeds",
   string
 >;
 
@@ -108,7 +109,10 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
     papers: "",
     ideas: "",
     tasks: "",
+    topics: "",
     focus: "",
+    dashboard: "",
+    feeds: "",
   });
   const [isAddIdeaDialogOpen, setIsAddIdeaDialogOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -164,7 +168,12 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
     return false;
   }, [currentView, ideasLoading, notesLoading, papersLoading]);
 
-  const showSidebarSearch = currentView !== "tasks" && currentView !== "focus" && currentView !== "topics";
+  const showSidebarSearch =
+    currentView !== "tasks" &&
+    currentView !== "focus" &&
+    currentView !== "topics" &&
+    currentView !== "feeds" &&
+    currentView !== "dashboard";
 
   const handleAddClick = useCallback(async () => {
     if (currentView === "notes") {
@@ -342,7 +351,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
   );
 
   // Filter entities by search query (memoized for performance)
-  const activeSearchQuery = searchQueries[currentView];
+  const activeSearchQuery = searchQueries[currentView] ?? "";
 
   const normalizedNotesQuery = useMemo(
     () => searchQueries.notes.trim().toLowerCase(),
@@ -635,7 +644,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
           )}
 
           {/* Add Button (hide for tasks, topics, and focus) */}
-          {currentView !== "tasks" && currentView !== "focus" && currentView !== "topics" && (
+          {currentView !== "tasks" && currentView !== "focus" && currentView !== "topics" && currentView !== "feeds" && (
             <button
               onClick={() => {
                 handleAddClick();
@@ -696,7 +705,7 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
             )}
 
             <div className="sr-only" role="status" aria-live="polite">
-              {currentView === "tasks" ? "Task manager is in the main panel" : currentView === "topics" ? "Topic manager is in the main panel" : ""}
+              {currentView === "tasks" ? "Task manager is in the main panel" : currentView === "topics" ? "Topic manager is in the main panel" : currentView === "feeds" ? "Feeds are in the main panel" : ""}
             </div>
 
             {currentView === "tasks" && (
@@ -710,6 +719,13 @@ export function LeftSidebar({ onNavigate }: LeftSidebarProps = {}) {
               <div className="text-center py-12 text-text-tertiary">
                 <Hash className="w-12 h-12 mx-auto mb-3 opacity-50" aria-hidden="true" />
                 <p className="text-small">Topic manager is in the main panel</p>
+              </div>
+            )}
+
+            {currentView === "feeds" && (
+              <div className="text-center py-12 text-text-tertiary">
+                <Inbox className="w-12 h-12 mx-auto mb-3 opacity-50" aria-hidden="true" />
+                <p className="text-small">Feeds are in the main panel</p>
               </div>
             )}
 

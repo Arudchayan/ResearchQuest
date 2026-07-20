@@ -22,6 +22,7 @@ import { useBacklinks } from "../../hooks/useBacklinks";
 import { useRelatedItems } from "../../hooks/useRelatedItems";
 import { useShallow } from "zustand/react/shallow";
 import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
+import { FeedsRail } from "../feeds/FeedsRail";
 
 export function RightSidebar() {
   const {
@@ -428,9 +429,7 @@ export function RightSidebar() {
     <div className="flex-1 flex flex-col h-full overflow-y-auto">
       <div className="p-4 space-y-4">
         {!hasSelection ? (
-          <div className="text-center py-8 text-text-tertiary">
-            <p className="text-small">Select an item to see details</p>
-          </div>
+          <FeedsRail />
         ) : (
           <>
             {/* Backlinks Panel */}

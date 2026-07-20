@@ -2,6 +2,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { X, Keyboard } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAppStore } from "../../store/appStore";
+import type { AppView } from "../../store/appStore";
 
 interface ShortcutItem {
   keys: string[];
@@ -13,8 +14,6 @@ interface ShortcutSection {
   shortcuts: ShortcutItem[];
 }
 
-type AppView = "dashboard" | "notes" | "papers" | "ideas" | "tasks" | "focus" | "topics";
-
 const NAVIGATION_SHORTCUTS: Record<string, { view: AppView; url: string }> = {
   "1": { view: "dashboard", url: "/" },
   "2": { view: "notes", url: "/notes" },
@@ -23,6 +22,7 @@ const NAVIGATION_SHORTCUTS: Record<string, { view: AppView; url: string }> = {
   "5": { view: "tasks", url: "/tasks" },
   "6": { view: "focus", url: "/focus" },
   "7": { view: "topics", url: "/topics" },
+  "8": { view: "feeds", url: "/feeds" },
 };
 
 const isMac =
@@ -66,6 +66,7 @@ const SHORTCUTS: ShortcutSection[] = [
       { keys: [META_KEY, "Alt", "5"], description: "Go to Tasks" },
       { keys: [META_KEY, "Alt", "6"], description: "Go to Focus" },
       { keys: [META_KEY, "Alt", "7"], description: "Go to Topics" },
+      { keys: [META_KEY, "Alt", "8"], description: "Go to Feeds" },
     ],
   },
   {
@@ -86,7 +87,7 @@ export function ShortcutsDialog() {
     const handleKeyDown = (e: KeyboardEvent) => {
       const isMod = e.metaKey || e.ctrlKey;
 
-      // Global Navigation (Mod+Alt+1-6)
+      // Global Navigation (Mod+Alt+1-8)
       if (isMod && e.altKey) {
         const destination = NAVIGATION_SHORTCUTS[e.key];
 

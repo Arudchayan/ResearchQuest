@@ -22,6 +22,7 @@ import {
   Maximize2,
   Hash,
   BookOpen,
+  Inbox,
 } from "lucide-react";
 import { useAppStore } from "../../../store/appStore";
 import { cn } from "../../../lib/utils";
@@ -77,6 +78,7 @@ export function Sidebar() {
     { id: "ideas", label: "Ideas", icon: Lightbulb },
     { id: "tasks", label: "Tasks", icon: CheckSquare },
     { id: "topics", label: "Topics", icon: Hash },
+    { id: "feeds", label: "Feeds", icon: Inbox },
     { id: "focus", label: "Focus Studio", icon: TargetIcon },
   ] as const;
 
