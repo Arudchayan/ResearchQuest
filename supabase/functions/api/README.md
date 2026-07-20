@@ -27,3 +27,14 @@ Wave 0 foundation: health, OpenAPI stub, and API key management.
 ```bash
 deno test --allow-env supabase/functions/api/tests/
 ```
+
+## Future live contract testing
+
+Once the gateway is deployed in an environment with test credentials, run
+Schemathesis against the live OpenAPI endpoint:
+
+```bash
+schemathesis run "$SUPABASE_FUNCTIONS_URL/api/v1/openapi.json" \
+  --base-url "$SUPABASE_FUNCTIONS_URL/api/v1" \
+  --header "Authorization: Bearer $RQ_API_KEY"
+```
