@@ -33,6 +33,7 @@ export function Dashboard() {
     ideas,
     tasks,
     topics,
+    dashboardLibrary,
     focusSessionSecondsToday,
     notesLoading,
     papersLoading,
@@ -52,6 +53,7 @@ export function Dashboard() {
       ideas: state.ideas,
       tasks: state.tasks,
       topics: state.topics,
+      dashboardLibrary: state.dashboardLibrary,
       focusSessionSecondsToday: state.focusSessionSecondsToday,
       notesLoading: state.notesLoading,
       papersLoading: state.papersLoading,
@@ -104,13 +106,28 @@ export function Dashboard() {
     return { pendingTaskCount: pending, completedTaskCount: completed };
   }, [tasks]);
 
+  const notesCount = notes.length > 0 ? notes.length : dashboardLibrary.counts.notes;
+  const papersCount = papers.length > 0 ? papers.length : dashboardLibrary.counts.papers;
+  const ideasCount = ideas.length > 0 ? ideas.length : dashboardLibrary.counts.ideas;
+  const notesSectionLoading = notesLoading || (dashboardLibrary.loading && notes.length === 0);
+  const papersSectionLoading = papersLoading || (dashboardLibrary.loading && papers.length === 0);
+  const ideasSectionLoading = ideasLoading || (dashboardLibrary.loading && ideas.length === 0);
+
   const recentNotes = useMemo(() => {
+    if (notes.length === 0) {
+      return dashboardLibrary.recentNotes;
+    }
+
     return getTopN(notes, 3, (a, b) =>
       b.updated_at > a.updated_at ? 1 : b.updated_at < a.updated_at ? -1 : 0,
     );
-  }, [notes]);
+  }, [dashboardLibrary.recentNotes, notes]);
 
   const readingList = useMemo(() => {
+    if (papers.length === 0) {
+      return dashboardLibrary.readingList;
+    }
+
     return getTopN(
       papers,
       3,
@@ -118,13 +135,17 @@ export function Dashboard() {
         b.created_at > a.created_at ? 1 : b.created_at < a.created_at ? -1 : 0,
       (p) => p.status === "To Read",
     );
-  }, [papers]);
+  }, [dashboardLibrary.readingList, papers]);
 
   const activeIdeas = useMemo(() => {
+    if (ideas.length === 0) {
+      return dashboardLibrary.activeIdeas;
+    }
+
     return getTopN(ideas, 3, (a, b) =>
       b.updated_at > a.updated_at ? 1 : b.updated_at < a.updated_at ? -1 : 0,
     );
-  }, [ideas]);
+  }, [dashboardLibrary.activeIdeas, ideas]);
 
   const activeTopics = useMemo(() => {
     return getTopN(Object.values(topics), 3, (a, b) =>
@@ -190,9 +211,9 @@ export function Dashboard() {
         className="flex flex-wrap gap-x-6 gap-y-2 text-small text-text-secondary border border-border-subtle rounded-sm px-4 py-3 bg-bg-surface"
         aria-label="Library counts"
       >
-        <span>Notes {notes.length}</span>
-        <span>Papers {papers.length}</span>
-        <span>Ideas {ideas.length}</span>
+        <span>Notes {notesCount}</span>
+        <span>Papers {papersCount}</span>
+        <span>Ideas {ideasCount}</span>
         <span>Tasks {tasks.length}</span>
         <span>Topics {Object.keys(topics).length}</span>
       </div>
@@ -291,11 +312,11 @@ export function Dashboard() {
             </div>
 
             <div className="sr-only" role="status" aria-live="polite">
-              {!notesLoading && recentNotes.length === 0 ? "No notes yet" : ""}
+              {!notesSectionLoading && recentNotes.length === 0 ? "No notes yet" : ""}
             </div>
 
             <div className="space-y-3">
-              {notesLoading ? (
+              {notesSectionLoading ? (
                 <ListSkeleton count={3} itemType="note" />
               ) : recentNotes.length === 0 ? (
                 <div className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary">
@@ -350,13 +371,13 @@ export function Dashboard() {
             </div>
 
             <div className="sr-only" role="status" aria-live="polite">
-              {!ideasLoading && activeIdeas.length === 0
+              {!ideasSectionLoading && activeIdeas.length === 0
                 ? "No active ideas"
                 : ""}
             </div>
 
             <div className="space-y-3">
-              {ideasLoading ? (
+              {ideasSectionLoading ? (
                 <ListSkeleton count={3} itemType="idea" />
               ) : activeIdeas.length === 0 ? (
                 <div className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary">
@@ -484,13 +505,13 @@ export function Dashboard() {
             </div>
 
             <div className="sr-only" role="status" aria-live="polite">
-              {!papersLoading && readingList.length === 0
+              {!papersSectionLoading && readingList.length === 0
                 ? "Your reading list is empty"
                 : ""}
             </div>
 
             <div className="space-y-3">
-              {papersLoading ? (
+              {papersSectionLoading ? (
                 <ListSkeleton count={3} itemType="paper" />
               ) : readingList.length === 0 ? (
                 <div className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary">

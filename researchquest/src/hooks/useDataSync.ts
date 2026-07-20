@@ -8,6 +8,7 @@ import { dedupeById } from "../utils/collections";
 
 /** Number of rows to fetch per paginated request. */
 const PAGE_LIMIT = 50;
+const DASHBOARD_PREVIEW_LIMIT = 3;
 
 export function useDataSync(userId: string | undefined, currentView: string) {
   // Use a ref to track what we've already fetched in this session to prevent redundant calls
@@ -23,10 +24,12 @@ export function useDataSync(userId: string | undefined, currentView: string) {
     setDataSyncError,
     clearDataSyncError,
     clearDataSyncErrors,
-    setSelectedNote,
     setSelectedPaper,
     setSelectedIdea,
     setFocusSessionSecondsToday,
+    setDashboardLibrary,
+    setDashboardLibraryLoading,
+    resetDashboardLibrary,
   } = useAppStore(
     useShallow((state) => ({
       setNotes: state.setNotes,
@@ -38,10 +41,12 @@ export function useDataSync(userId: string | undefined, currentView: string) {
       setDataSyncError: state.setDataSyncError,
       clearDataSyncError: state.clearDataSyncError,
       clearDataSyncErrors: state.clearDataSyncErrors,
-      setSelectedNote: state.setSelectedNote,
       setSelectedPaper: state.setSelectedPaper,
       setSelectedIdea: state.setSelectedIdea,
       setFocusSessionSecondsToday: state.setFocusSessionSecondsToday,
+      setDashboardLibrary: state.setDashboardLibrary,
+      setDashboardLibraryLoading: state.setDashboardLibraryLoading,
+      resetDashboardLibrary: state.resetDashboardLibrary,
     })),
   );
 
@@ -55,6 +60,7 @@ export function useDataSync(userId: string | undefined, currentView: string) {
       setIdeasLoading(false);
       setFocusSessionSecondsToday(0);
       clearDataSyncErrors();
+      resetDashboardLibrary();
       fetchedRef.current.clear();
       return;
     }
@@ -63,13 +69,14 @@ export function useDataSync(userId: string | undefined, currentView: string) {
     if (userId && !fetchedRef.current.has(`user_${userId}`)) {
        fetchedRef.current.clear();
        fetchedRef.current.add(`user_${userId}`);
+       resetDashboardLibrary();
     }
 
     const shouldFetch = (domain: string) => {
       if (fetchedRef.current.has(domain)) return false;
       
-      // Always fetch for dashboard
-      if (currentView === 'dashboard') return true;
+      // Dashboard uses lightweight preview/count queries instead of full library fetches.
+      if (currentView === 'dashboard') return domain === 'focus';
       
       // Otherwise only fetch for the active view
       if (domain === 'notes' && currentView === 'notes') return true;
@@ -78,6 +85,93 @@ export function useDataSync(userId: string | undefined, currentView: string) {
       if (domain === 'focus' && currentView === 'focus') return true;
       
       return false;
+    };
+
+    const fetchDashboardLibrary = async (force = false) => {
+      if (currentView !== 'dashboard') return;
+      if (!force && fetchedRef.current.has('dashboard_library')) return;
+      fetchedRef.current.add('dashboard_library');
+
+      setDashboardLibraryLoading(true);
+      try {
+        const [
+          notesResult,
+          readingListResult,
+          paperCountResult,
+          ideasResult,
+        ] = await Promise.all([
+          supabase
+            .from("notes")
+            .select("id, user_id, title, markdown_body, tags, linked_entity_ids, created_at, updated_at", { count: "exact" })
+            .eq("user_id", userId)
+            .order("updated_at", { ascending: false })
+            .range(0, DASHBOARD_PREVIEW_LIMIT - 1),
+          supabase
+            .from("papers")
+            .select("id, user_id, title, authors, doi, source_url, status, topic_ids, abstract, publication_date, created_at, updated_at")
+            .eq("user_id", userId)
+            .eq("status", "To Read")
+            .order("created_at", { ascending: false })
+            .range(0, DASHBOARD_PREVIEW_LIMIT - 1),
+          supabase
+            .from("papers")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", userId),
+          supabase
+            .from("ideas")
+            .select("id, user_id, title, description, stage, linked_note_ids, linked_paper_ids, created_at, updated_at", { count: "exact" })
+            .eq("user_id", userId)
+            .order("updated_at", { ascending: false })
+            .range(0, DASHBOARD_PREVIEW_LIMIT - 1),
+        ]);
+
+        if (notesResult.error) {
+          console.error("Failed to load dashboard notes preview:", notesResult.error);
+          setDataSyncError("notes", "Failed to load notes preview.");
+        } else {
+          clearDataSyncError("notes");
+        }
+
+        if (readingListResult.error || paperCountResult.error) {
+          console.error(
+            "Failed to load dashboard papers preview:",
+            readingListResult.error ?? paperCountResult.error,
+          );
+          setDataSyncError("papers", "Failed to load papers preview.");
+        } else {
+          clearDataSyncError("papers");
+        }
+
+        if (ideasResult.error) {
+          console.error("Failed to load dashboard ideas preview:", ideasResult.error);
+          setDataSyncError("ideas", "Failed to load ideas preview.");
+        } else {
+          clearDataSyncError("ideas");
+        }
+
+        if (notesResult.error || readingListResult.error || paperCountResult.error || ideasResult.error) {
+          return;
+        }
+
+        setDashboardLibrary({
+          recentNotes: notesResult.data ?? [],
+          readingList: readingListResult.data ?? [],
+          activeIdeas: ideasResult.data ?? [],
+          counts: {
+            notes: notesResult.count ?? 0,
+            papers: paperCountResult.count ?? 0,
+            ideas: ideasResult.count ?? 0,
+          },
+          loading: false,
+        });
+      } catch (error) {
+        console.error("Failed to load dashboard library preview:", error);
+        setDataSyncError("notes", "Failed to load dashboard preview.");
+        setDataSyncError("papers", "Failed to load dashboard preview.");
+        setDataSyncError("ideas", "Failed to load dashboard preview.");
+      } finally {
+        setDashboardLibraryLoading(false);
+      }
     };
 
     // --- NOTES ---
@@ -94,7 +188,7 @@ export function useDataSync(userId: string | undefined, currentView: string) {
         while (hasMore) {
           const { data, error } = await supabase
             .from("notes")
-            .select("id, title, markdown_body, tags, linked_entity_ids, created_at, updated_at")
+            .select("id, user_id, title, markdown_body, tags, linked_entity_ids, created_at, updated_at")
             .eq("user_id", userId)
             .order("updated_at", { ascending: false })
             .range(offset, offset + PAGE_LIMIT - 1);
@@ -147,7 +241,7 @@ export function useDataSync(userId: string | undefined, currentView: string) {
         while (hasMore) {
           const { data, error } = await supabase
             .from("papers")
-            .select("id, title, authors, doi, source_url, status, topic_ids, abstract, publication_date, created_at, updated_at")
+            .select("id, user_id, title, authors, doi, source_url, status, topic_ids, abstract, publication_date, created_at, updated_at")
             .eq("user_id", userId)
             .order("updated_at", { ascending: false })
             .range(offset, offset + PAGE_LIMIT - 1);
@@ -210,7 +304,7 @@ export function useDataSync(userId: string | undefined, currentView: string) {
         while (hasMore) {
           const { data, error } = await supabase
             .from("ideas")
-            .select("id, title, description, stage, linked_note_ids, linked_paper_ids, created_at, updated_at")
+            .select("id, user_id, title, description, stage, linked_note_ids, linked_paper_ids, created_at, updated_at")
             .eq("user_id", userId)
             .order("updated_at", { ascending: false })
             .range(offset, offset + PAGE_LIMIT - 1);
@@ -259,8 +353,8 @@ export function useDataSync(userId: string | undefined, currentView: string) {
       }
     };
 
-    const fetchFocusSessionsToday = async () => {
-      if (!shouldFetch('focus')) return;
+    const fetchFocusSessionsToday = async (force = false) => {
+      if (!force && !shouldFetch('focus')) return;
       fetchedRef.current.add('focus');
 
       const startOfDay = new Date();
@@ -283,6 +377,7 @@ export function useDataSync(userId: string | undefined, currentView: string) {
     };
 
     // Initial fetch (only what is needed for current view)
+    void fetchDashboardLibrary();
     void fetchNotes();
     void fetchPapers();
     void fetchIdeas();
@@ -303,6 +398,11 @@ export function useDataSync(userId: string | undefined, currentView: string) {
           filter: `user_id=eq.${userId}`,
         },
         (payload) => {
+          if (!fetchedRef.current.has('notes')) {
+            void fetchDashboardLibrary(true);
+            return;
+          }
+
           if (payload.eventType === "INSERT") {
             setNotes(
               dedupeById([
@@ -343,6 +443,11 @@ export function useDataSync(userId: string | undefined, currentView: string) {
           filter: `user_id=eq.${userId}`,
         },
         (payload) => {
+          if (!fetchedRef.current.has('papers')) {
+            void fetchDashboardLibrary(true);
+            return;
+          }
+
           if (payload.eventType === "INSERT") {
             const newPaper = payload.new as Paper;
             setPapers(
@@ -389,6 +494,11 @@ export function useDataSync(userId: string | undefined, currentView: string) {
           filter: `user_id=eq.${userId}`,
         },
         (payload) => {
+          if (!fetchedRef.current.has('ideas')) {
+            void fetchDashboardLibrary(true);
+            return;
+          }
+
           if (payload.eventType === "INSERT") {
             const newIdea = payload.new as Idea;
             // Check if exists
@@ -437,7 +547,7 @@ export function useDataSync(userId: string | undefined, currentView: string) {
           filter: `user_id=eq.${userId}`,
         },
         () => {
-          void fetchFocusSessionsToday();
+          void fetchFocusSessionsToday(true);
         },
       )
       .subscribe();
@@ -460,6 +570,9 @@ export function useDataSync(userId: string | undefined, currentView: string) {
     setSelectedPaper,
     setSelectedIdea,
     setFocusSessionSecondsToday,
+    setDashboardLibrary,
+    setDashboardLibraryLoading,
+    resetDashboardLibrary,
     currentView,
   ]);
 }

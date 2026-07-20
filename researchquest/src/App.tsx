@@ -97,6 +97,7 @@ function App() {
   const {
     setUser: setUserProfile,
     currentView,
+    effectiveTheme,
     setCurrentView,
     selectedPaper,
     selectedIdea,
@@ -112,6 +113,7 @@ function App() {
     useShallow((state) => ({
       setUser: state.setUser,
       currentView: state.currentView,
+      effectiveTheme: state.effectiveTheme,
       setCurrentView: state.setCurrentView,
       selectedPaper: state.selectedPaper,
       selectedIdea: state.selectedIdea,
@@ -385,7 +387,7 @@ function App() {
           duration={2500}
           offset={16}
           visibleToasts={3}
-          theme={useAppStore.getState().effectiveTheme}
+          theme={effectiveTheme}
           closeButton
           toastOptions={{ duration: 2500 }}
         />

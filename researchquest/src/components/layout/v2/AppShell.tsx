@@ -63,13 +63,6 @@ export function AppShell({ children }: AppShellProps) {
         Skip to content
       </a>
 
-      {/* Desktop Sidebar */}
-      {!isZenMode && (
-        <div className="hidden lg:block h-full shrink-0">
-          <Sidebar />
-        </div>
-      )}
-
       {/* Mobile Sidebar Overlay */}
       {isMobileSidebarOpen && !isZenMode && (
         <div
@@ -78,18 +71,18 @@ export function AppShell({ children }: AppShellProps) {
         />
       )}
 
-      {/* Mobile Sidebar */}
+      {/* Sidebar: fixed drawer on mobile, static rail on desktop */}
       {!isZenMode && (
         <div
           className={cn(
-            "fixed inset-y-0 left-0 z-50 w-64 bg-bg-elevated shadow-lg border-r border-border-subtle transition-transform duration-300 lg:hidden",
+            "fixed inset-y-0 left-0 z-50 h-full w-64 shrink-0 transition-transform duration-300 lg:static lg:z-auto lg:translate-x-0",
             isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full",
           )}
         >
           <Sidebar />
           <button
             onClick={() => setIsMobileSidebarOpen(false)}
-            className="absolute top-4 right-4 p-2 text-text-tertiary hover:text-text-primary rounded-sm focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500 bg-bg-surface"
+            className="absolute top-4 right-4 p-2 text-text-tertiary hover:text-text-primary rounded-sm focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500 bg-bg-surface lg:hidden"
             aria-label="Close sidebar"
           >
             <Cross1Icon className="w-4 h-4" aria-hidden="true" />
