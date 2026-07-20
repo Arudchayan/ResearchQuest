@@ -61,30 +61,30 @@ export function useDataSync(userId: string | undefined, currentView: string) {
 
     // Reset cache if user changes
     if (userId && !fetchedRef.current.has(`user_${userId}`)) {
-       fetchedRef.current.clear();
-       fetchedRef.current.add(`user_${userId}`);
+      fetchedRef.current.clear();
+      fetchedRef.current.add(`user_${userId}`);
     }
 
     const shouldFetch = (domain: string) => {
       if (fetchedRef.current.has(domain)) return false;
-      
+
       // Always fetch for dashboard
-      if (currentView === 'dashboard') return true;
-      
+      if (currentView === "dashboard") return true;
+
       // Otherwise only fetch for the active view
-      if (domain === 'notes' && currentView === 'notes') return true;
-      if (domain === 'papers' && currentView === 'papers') return true;
-      if (domain === 'ideas' && currentView === 'ideas') return true;
-      if (domain === 'focus' && currentView === 'focus') return true;
-      
+      if (domain === "notes" && currentView === "notes") return true;
+      if (domain === "papers" && currentView === "papers") return true;
+      if (domain === "ideas" && currentView === "ideas") return true;
+      if (domain === "focus" && currentView === "focus") return true;
+
       return false;
     };
 
     // --- NOTES ---
     const fetchNotes = async () => {
-      if (!shouldFetch('notes')) return;
-      fetchedRef.current.add('notes');
-      
+      if (!shouldFetch("notes")) return;
+      fetchedRef.current.add("notes");
+
       setNotesLoading(true);
       try {
         const allNotes: Note[] = [];
@@ -94,17 +94,16 @@ export function useDataSync(userId: string | undefined, currentView: string) {
         while (hasMore) {
           const { data, error } = await supabase
             .from("notes")
-            .select("id, title, markdown_body, tags, linked_entity_ids, created_at, updated_at")
+            .select(
+              "id, user_id, title, markdown_body, tags, linked_entity_ids, created_at, updated_at",
+            )
             .eq("user_id", userId)
             .order("updated_at", { ascending: false })
             .range(offset, offset + PAGE_LIMIT - 1);
 
           if (error) {
             console.error("Failed to load notes:", error);
-            setDataSyncError(
-              "notes",
-              "Failed to load notes.",
-            );
+            setDataSyncError("notes", "Failed to load notes.");
             return;
           }
 
@@ -124,10 +123,7 @@ export function useDataSync(userId: string | undefined, currentView: string) {
         setNotes(sortByUpdatedAt(allNotes));
       } catch (error) {
         console.error("Failed to load notes:", error);
-        setDataSyncError(
-          "notes",
-          "Failed to load notes.",
-        );
+        setDataSyncError("notes", "Failed to load notes.");
       } finally {
         setNotesLoading(false);
       }
@@ -135,8 +131,8 @@ export function useDataSync(userId: string | undefined, currentView: string) {
 
     // --- PAPERS ---
     const fetchPapers = async () => {
-      if (!shouldFetch('papers')) return;
-      fetchedRef.current.add('papers');
+      if (!shouldFetch("papers")) return;
+      fetchedRef.current.add("papers");
 
       setPapersLoading(true);
       try {
@@ -147,17 +143,16 @@ export function useDataSync(userId: string | undefined, currentView: string) {
         while (hasMore) {
           const { data, error } = await supabase
             .from("papers")
-            .select("id, title, authors, doi, source_url, status, topic_ids, abstract, publication_date, created_at, updated_at")
+            .select(
+              "id, user_id, title, authors, doi, source_url, status, topic_ids, abstract, publication_date, created_at, updated_at",
+            )
             .eq("user_id", userId)
             .order("updated_at", { ascending: false })
             .range(offset, offset + PAGE_LIMIT - 1);
 
           if (error) {
             console.error("Failed to load papers:", error);
-            setDataSyncError(
-              "papers",
-              "Failed to load papers.",
-            );
+            setDataSyncError("papers", "Failed to load papers.");
             return;
           }
 
@@ -187,10 +182,7 @@ export function useDataSync(userId: string | undefined, currentView: string) {
         }
       } catch (error) {
         console.error("Failed to load papers:", error);
-        setDataSyncError(
-          "papers",
-          "Failed to load papers.",
-        );
+        setDataSyncError("papers", "Failed to load papers.");
       } finally {
         setPapersLoading(false);
       }
@@ -198,8 +190,8 @@ export function useDataSync(userId: string | undefined, currentView: string) {
 
     // --- IDEAS ---
     const fetchIdeas = async () => {
-      if (!shouldFetch('ideas')) return;
-      fetchedRef.current.add('ideas');
+      if (!shouldFetch("ideas")) return;
+      fetchedRef.current.add("ideas");
 
       setIdeasLoading(true);
       try {
@@ -210,17 +202,16 @@ export function useDataSync(userId: string | undefined, currentView: string) {
         while (hasMore) {
           const { data, error } = await supabase
             .from("ideas")
-            .select("id, title, description, stage, linked_note_ids, linked_paper_ids, created_at, updated_at")
+            .select(
+              "id, user_id, title, description, stage, linked_note_ids, linked_paper_ids, created_at, updated_at",
+            )
             .eq("user_id", userId)
             .order("updated_at", { ascending: false })
             .range(offset, offset + PAGE_LIMIT - 1);
 
           if (error) {
             console.error("Failed to load ideas:", error);
-            setDataSyncError(
-              "ideas",
-              "Failed to load ideas.",
-            );
+            setDataSyncError("ideas", "Failed to load ideas.");
             return;
           }
 
@@ -250,18 +241,15 @@ export function useDataSync(userId: string | undefined, currentView: string) {
         }
       } catch (error) {
         console.error("Failed to load ideas:", error);
-        setDataSyncError(
-          "ideas",
-          "Failed to load ideas.",
-        );
+        setDataSyncError("ideas", "Failed to load ideas.");
       } finally {
         setIdeasLoading(false);
       }
     };
 
     const fetchFocusSessionsToday = async () => {
-      if (!shouldFetch('focus')) return;
-      fetchedRef.current.add('focus');
+      if (!shouldFetch("focus")) return;
+      fetchedRef.current.add("focus");
 
       const startOfDay = new Date();
       startOfDay.setHours(0, 0, 0, 0);
