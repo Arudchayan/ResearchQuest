@@ -5,14 +5,12 @@ import {
   Flame,
   Award,
   Star,
-  Sparkles,
   CheckSquare,
   BookOpen,
   Lightbulb,
   Hash,
 } from "lucide-react";
 import {
-  ActivityLogIcon,
   TargetIcon,
   ArrowRightIcon,
   ClockIcon,
@@ -147,7 +145,7 @@ export function Dashboard() {
   }, [tasks]);
 
   const handleCreateNote = () => {
-    setCurrentView("notes");
+    navigateTo("notes");
   };
 
   const navigateTo = (
@@ -162,28 +160,127 @@ export function Dashboard() {
   }
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-title font-serif font-bold text-text-primary flex items-center gap-2">
-            {greeting}, {user.username || "Scholar"}{" "}
-            <Sparkles className="w-6 h-6 text-warning" />
+    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-12 animate-in fade-in duration-500">
+      <section className="min-h-[calc(100svh-8rem)] grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_24rem] gap-8 lg:gap-12 items-center">
+        <div className="max-w-3xl">
+          <div className="text-caption uppercase tracking-[0.28em] text-text-tertiary mb-6">
+            ResearchQuest
+          </div>
+          <h1 className="text-title md:text-hero font-serif font-bold text-text-primary">
+            {greeting}, {user.username || "Scholar"}. Shape today&apos;s inquiry.
           </h1>
-          <p className="text-small text-text-secondary mt-1 font-serif italic">
-            Ready to make some progress today?
+          <p className="text-body-lg text-text-secondary mt-5 max-w-2xl">
+            Gather the next note, paper, and idea into a calmer research rhythm.
           </p>
+          <div className="mt-8 flex flex-col sm:flex-row gap-3" aria-label="Dashboard actions">
+            <button
+              onClick={() => navigateTo("focus")}
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-text-primary text-bg-base rounded-sm font-medium hover:opacity-90 transition-opacity focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+            >
+              <TargetIcon className="w-4 h-4" aria-hidden="true" />
+              Start Focus Session
+            </button>
+            <button
+              onClick={handleCreateNote}
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-bg-surface border border-border-moderate text-text-primary rounded-sm font-medium hover:border-border-strong transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+            >
+              <Plus className="w-4 h-4" aria-hidden="true" />
+              Open Notes
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigateTo("focus")}
-            className="flex items-center gap-2 px-4 py-2 bg-text-primary text-bg-base rounded-sm font-medium hover:opacity-90 transition-opacity focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
-          >
-            <TargetIcon className="w-4 h-4" aria-hidden="true" />
-            Start Focus Session
-          </button>
-        </div>
-      </div>
+
+        <aside className="bg-bg-surface border border-border-moderate rounded-sm shadow-sm p-5">
+          <div className="flex items-center justify-between gap-3 border-b border-border-subtle pb-3 mb-4">
+            <h2 className="font-serif text-lg font-bold text-text-primary">Up next</h2>
+            <span className="text-caption uppercase tracking-widest text-text-tertiary">
+              Today
+            </span>
+          </div>
+
+          <div className="space-y-3">
+            {tasksLoading || papersLoading || ideasLoading ? (
+              <ListSkeleton count={3} itemType="task" />
+            ) : upcomingTasks.length === 0 &&
+              readingList.length === 0 &&
+              activeIdeas.length === 0 ? (
+              <div className="p-5 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary">
+                You&apos;re clear. Choose a focus session when you&apos;re ready.
+              </div>
+            ) : (
+              <>
+                {upcomingTasks.slice(0, 2).map((task) => (
+                  <button
+                    key={task.id}
+                    onClick={() => navigateTo("tasks")}
+                    className="w-full text-left flex items-center gap-3 p-3 bg-bg-base border border-border-subtle rounded-sm hover:border-border-strong transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+                  >
+                    <CheckSquare className="w-4 h-4 text-text-tertiary shrink-0" />
+                    <div className="min-w-0">
+                      <div className="text-small font-medium text-text-primary truncate">
+                        {task.title}
+                      </div>
+                      <div className="text-caption text-text-tertiary font-serif italic">
+                        Task due{" "}
+                        {task.due_date
+                          ? new Date(task.due_date).toLocaleDateString(undefined, {
+                              month: "short",
+                              day: "numeric",
+                            })
+                          : "soon"}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+
+                {readingList.slice(0, 1).map((paper) => (
+                  <button
+                    key={paper.id}
+                    onClick={() => {
+                      setSelectedPaper(paper);
+                      navigateTo("papers");
+                      window.history.pushState(null, "", `/papers/${paper.id}`);
+                    }}
+                    className="w-full text-left flex items-center gap-3 p-3 bg-bg-base border border-border-subtle rounded-sm hover:border-border-strong transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+                  >
+                    <BookOpen className="w-4 h-4 text-text-tertiary shrink-0" />
+                    <div className="min-w-0">
+                      <div className="text-small font-medium text-text-primary truncate">
+                        {paper.title}
+                      </div>
+                      <div className="text-caption text-text-tertiary font-serif italic">
+                        Next paper
+                      </div>
+                    </div>
+                  </button>
+                ))}
+
+                {activeIdeas.slice(0, 1).map((idea) => (
+                  <button
+                    key={idea.id}
+                    onClick={() => {
+                      setSelectedIdea(idea);
+                      navigateTo("ideas");
+                      window.history.pushState(null, "", `/ideas/${idea.id}`);
+                    }}
+                    className="w-full text-left flex items-center gap-3 p-3 bg-bg-base border border-border-subtle rounded-sm hover:border-border-strong transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+                  >
+                    <Lightbulb className="w-4 h-4 text-text-tertiary shrink-0" />
+                    <div className="min-w-0">
+                      <div className="text-small font-medium text-text-primary truncate">
+                        {idea.title}
+                      </div>
+                      <div className="text-caption text-text-tertiary font-serif italic">
+                        Active idea
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </>
+            )}
+          </div>
+        </aside>
+      </section>
 
       {/* RQ-M2-07 entity counts — source: store */}
       <div

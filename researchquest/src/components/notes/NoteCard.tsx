@@ -42,9 +42,9 @@ export const NoteCard = React.memo(function NoteCard({
       onClick={() => onSelect(note)}
       onKeyDown={handleKeyDown}
       className={cn(
-        "group p-4 cursor-pointer hover:bg-white dark:hover:bg-slate-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500",
+        "group p-4 cursor-pointer hover:bg-bg-surface transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500",
         isSelected
-          ? "bg-white dark:bg-slate-800 border-l-4 border-blue-500"
+          ? "bg-bg-surface border-l-4 border-primary-500"
           : "border-l-4 border-transparent",
       )}
     >
@@ -53,8 +53,8 @@ export const NoteCard = React.memo(function NoteCard({
           className={cn(
             "font-medium truncate pr-2",
             !note.title
-              ? "text-slate-400 italic"
-              : "text-slate-900 dark:text-slate-100",
+              ? "text-text-tertiary italic"
+              : "text-text-primary",
           )}
         >
           {note.title ? highlightMatch(note.title, highlightQuery) : "Untitled Note"}
@@ -64,7 +64,7 @@ export const NoteCard = React.memo(function NoteCard({
             <button
               onClick={handleDelete}
               aria-label="Delete note"
-              className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 text-slate-400 hover:text-red-500 transition-all focus:outline-none focus:ring-2 focus:ring-red-500 rounded"
+              className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 text-text-tertiary hover:text-warning transition-all focus:outline-none focus:ring-2 focus:ring-warning rounded"
             >
               <Trash2 className="w-4 h-4" />
             </button>
@@ -75,7 +75,7 @@ export const NoteCard = React.memo(function NoteCard({
         </Tooltip>
       </div>
 
-      <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mb-2 h-8">
+      <p className="text-xs text-text-secondary line-clamp-2 mb-2 h-8">
         {note.markdown_body ? highlightMatch(note.markdown_body, highlightQuery) : "No content..."}
       </p>
 
@@ -84,7 +84,7 @@ export const NoteCard = React.memo(function NoteCard({
           {note.tags.map((tag) => (
             <span
               key={tag}
-              className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700"
+              className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-bg-elevated text-text-secondary border border-border-subtle"
             >
               #{tag}
             </span>
@@ -92,7 +92,7 @@ export const NoteCard = React.memo(function NoteCard({
         </div>
       )}
 
-      <div className="flex items-center gap-2 text-[10px] text-slate-400">
+      <div className="flex items-center gap-2 text-[10px] text-text-tertiary">
         <Clock className="w-3 h-3" />
         <span>
           {formatDistanceToNow(new Date(note.updated_at), { addSuffix: true })}
