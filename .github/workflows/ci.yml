@@ -46,3 +46,20 @@ jobs:
 
       - name: E2E smoke (no Supabase)
         run: pnpm run test:e2e
+
+  edge-api:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: API gateway unit tests
+        run: deno test --allow-env supabase/functions/api/tests/
+
+      - name: OpenAPI fixture present
+        run: test -f supabase/functions/api/openapi.fixture.yaml

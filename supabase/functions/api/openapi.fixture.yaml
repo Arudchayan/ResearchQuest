@@ -1,0 +1,65 @@
+# Minimal OpenAPI contract fixture for Wave 0 gateway.
+# Full Schemathesis runs against a live function in later CI once secrets exist.
+openapi: "3.1.0"
+info:
+  title: ResearchQuest Agent API
+  version: "1.0.0"
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      responses:
+        "200":
+          description: ok
+  /openapi.json:
+    get:
+      operationId: getOpenApi
+      responses:
+        "200":
+          description: ok
+  /keys:
+    get:
+      operationId: listApiKeys
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: ok
+        "401":
+          description: unauthorized
+    post:
+      operationId: createApiKey
+      security:
+        - BearerAuth: []
+      responses:
+        "201":
+          description: created
+        "400":
+          description: validation
+        "401":
+          description: unauthorized
+        "403":
+          description: forbidden
+  /keys/{id}:
+    delete:
+      operationId: revokeApiKey
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: revoked
+        "401":
+          description: unauthorized
+        "404":
+          description: not found
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
