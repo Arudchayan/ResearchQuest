@@ -1,3 +1,4 @@
+// Deprecated legacy sidebar; AppShell uses the v2 layout sidebar.
 import {
   FileText,
   Lightbulb,

@@ -54,7 +54,7 @@ export function ProfileDialog({ open, onClose }: ProfileDialogProps) {
 
       data?.forEach((a: Achievement) => {
         earned.add(a.achievement_type);
-        dates[a.achievement_type] = a.created_at;
+        dates[a.achievement_type] = a.earned_at;
       });
 
       setEarnedAchievements(earned);
