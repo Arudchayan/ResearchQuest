@@ -46,7 +46,7 @@ jobs:
         run: |
           cd researchquest
           pnpm install
-          pnpm audit --json > pnpm-audit-vex.json || true
+          pnpm audit --audit-level=high --json > pnpm-audit-vex.json
           cat pnpm-audit-vex.json
 
   scorecard:
