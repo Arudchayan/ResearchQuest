@@ -39,7 +39,10 @@ export function AuthScreen() {
       }
     } catch (error: any) {
       console.error("AuthScreen auth error:", error);
-      setMessage("Authentication failed. Please check your credentials and try again.");
+      setMessage(
+        error.message ||
+          "Authentication failed. Please check your credentials and try again.",
+      );
     } finally {
       setLoading(false);
     }
@@ -145,7 +148,10 @@ export function AuthScreen() {
           )}
 
           <div>
-            <label htmlFor="auth-email" className="block text-small font-medium text-text-primary mb-1.5 uppercase tracking-wide">
+            <label
+              htmlFor="auth-email"
+              className="block text-small font-medium text-text-primary mb-1.5 uppercase tracking-wide"
+            >
               Email
             </label>
             <input
@@ -161,7 +167,10 @@ export function AuthScreen() {
           </div>
 
           <div>
-            <label htmlFor="auth-password" className="block text-small font-medium text-text-primary mb-1.5 uppercase tracking-wide">
+            <label
+              htmlFor="auth-password"
+              className="block text-small font-medium text-text-primary mb-1.5 uppercase tracking-wide"
+            >
               Password
             </label>
             <div className="relative">
