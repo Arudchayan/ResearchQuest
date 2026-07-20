@@ -7,6 +7,62 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const APP_USER_AGENT = "ResearchQuest/1.0 (mailto:research@researchquest.app)";
 const DEFAULT_TIMEOUT_MS = 8000;
+const DEFAULT_DEV_ALLOWED_ORIGINS = [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:5175",
+  "http://localhost:4173",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:5174",
+  "http://127.0.0.1:5175",
+  "http://127.0.0.1:4173",
+];
+
+interface CrossrefAuthor {
+  given?: string;
+  family?: string;
+}
+
+interface CrossrefWork {
+  DOI?: string;
+  title?: string[];
+  author?: CrossrefAuthor[];
+  abstract?: string;
+  published?: {
+    "date-parts"?: number[][];
+  };
+  URL?: string;
+  "container-title"?: string[];
+  publisher?: string;
+  type?: string;
+}
+
+function parseAllowedOrigins(): Set<string> {
+  const configured = Deno.env.get("ALLOWED_ORIGINS");
+  const origins = configured
+    ?.split(",")
+    .map((origin) => origin.trim().replace(/\/$/, ""))
+    .filter(Boolean);
+
+  return new Set(origins?.length ? origins : DEFAULT_DEV_ALLOWED_ORIGINS);
+}
+
+function buildCorsHeaders(req: Request): HeadersInit {
+  const headers: Record<string, string> = {
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+    "Access-Control-Max-Age": "86400",
+    "Vary": "Origin",
+  };
+  const origin = req.headers.get("Origin");
+
+  if (origin && parseAllowedOrigins().has(origin)) {
+    headers["Access-Control-Allow-Origin"] = origin;
+  }
+
+  return headers;
+}
 
 function getRequiredEnv(name: string): string {
   const value = Deno.env.get(name);
@@ -35,12 +91,12 @@ async function fetchWithTimeout(
   }
 }
 
-function formatCrossrefWork(work: any) {
+function formatCrossrefWork(work: CrossrefWork) {
   return {
     doi: work?.DOI || "",
     title: work?.title?.[0] || "Untitled",
     authors:
-      work?.author?.map((author: any) =>
+      work?.author?.map((author) =>
         `${author?.given || ""} ${author?.family || ""}`.trim(),
       ) || [],
     abstract: work?.abstract || "",
@@ -60,13 +116,7 @@ function jsonResponse(body: unknown, status: number, corsHeaders: HeadersInit) {
 }
 
 Deno.serve(async (req) => {
-  const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type",
-    "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-    "Access-Control-Max-Age": "86400",
-  };
+  const corsHeaders = buildCorsHeaders(req);
 
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });

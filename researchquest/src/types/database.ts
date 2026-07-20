@@ -165,5 +165,5 @@ export interface Achievement {
   title: string;
   description: string;
   xp_awarded: number;
-  created_at: string;
+  earned_at: string;
 }
