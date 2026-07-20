@@ -4,6 +4,7 @@ import {
   writeAudit,
 } from "./_shared/auth.ts";
 import { buildCorsHeaders } from "./_shared/cors.ts";
+import { handleFeedRoute } from "./_shared/feedRoutes.ts";
 import {
   ALL_SCOPES,
   type ApiScope,
@@ -276,6 +277,9 @@ Deno.serve(async (req) => {
 
     const entityResponse = await handleEntityRoute(ctx, req, path, corsHeaders);
     if (entityResponse) return entityResponse;
+
+    const feedResponse = await handleFeedRoute(ctx, req, path, corsHeaders);
+    if (feedResponse) return feedResponse;
 
     return errorResponse(
       "NOT_FOUND",

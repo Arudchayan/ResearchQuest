@@ -217,6 +217,121 @@ const entitySchemas: Record<string, unknown> = {
   },
 };
 
+const feedSchemas: Record<string, unknown> = {
+  FeedSource: {
+    type: "object",
+    properties: {
+      id: { type: "string", format: "uuid" },
+      user_id: { type: "string", format: "uuid" },
+      name: { type: "string" },
+      kind: { type: "string" },
+      config: { type: "object" },
+      enabled: { type: "boolean" },
+      created_at: { type: "string", format: "date-time" },
+      updated_at: { type: "string", format: "date-time" },
+    },
+  },
+  FeedSourceInput: {
+    type: "object",
+    required: ["name", "kind"],
+    properties: {
+      name: { type: "string", minLength: 1, maxLength: 200 },
+      kind: { type: "string", minLength: 1, maxLength: 64 },
+      config: { type: "object", default: {} },
+      enabled: { type: "boolean", default: true },
+    },
+  },
+  FeedItem: {
+    type: "object",
+    properties: {
+      id: { type: "string", format: "uuid" },
+      user_id: { type: "string", format: "uuid" },
+      source_id: { type: ["string", "null"], format: "uuid" },
+      type: { type: "string", enum: ["paper", "job", "news", "custom"] },
+      title: { type: "string" },
+      summary: { type: ["string", "null"] },
+      url: { type: ["string", "null"] },
+      payload: { type: "object" },
+      status: {
+        type: "string",
+        enum: ["new", "triaged", "archived", "promoted"],
+      },
+      external_id: { type: ["string", "null"] },
+      published_at: { type: ["string", "null"], format: "date-time" },
+      created_at: { type: "string", format: "date-time" },
+      updated_at: { type: "string", format: "date-time" },
+    },
+  },
+  FeedItemInput: {
+    type: "object",
+    required: ["type", "title"],
+    properties: {
+      source_id: { type: ["string", "null"], format: "uuid" },
+      type: { type: "string", enum: ["paper", "job", "news", "custom"] },
+      title: { type: "string", minLength: 1, maxLength: 500 },
+      summary: { type: ["string", "null"] },
+      url: { type: ["string", "null"] },
+      payload: { type: "object", default: {} },
+      external_id: { type: ["string", "null"] },
+      published_at: { type: ["string", "null"], format: "date-time" },
+    },
+  },
+  FeedItemBatchCreateRequest: {
+    type: "object",
+    required: ["items"],
+    properties: {
+      items: {
+        type: "array",
+        minItems: 1,
+        maxItems: 100,
+        items: { $ref: "#/components/schemas/FeedItemInput" },
+      },
+    },
+  },
+  FeedItemBatchCreateResponse: {
+    type: "object",
+    required: ["data", "skipped", "created_count", "skipped_count"],
+    properties: {
+      data: {
+        type: "array",
+        items: { $ref: "#/components/schemas/FeedItem" },
+      },
+      skipped: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            index: { type: "integer", minimum: 0 },
+            external_id: { type: "string" },
+            reason: {
+              type: "string",
+              enum: ["duplicate_in_request", "already_exists"],
+            },
+          },
+        },
+      },
+      created_count: { type: "integer", minimum: 0 },
+      skipped_count: { type: "integer", minimum: 0 },
+    },
+  },
+  FeedItemPatchRequest: {
+    type: "object",
+    required: ["status"],
+    properties: {
+      status: { type: "string", enum: ["new", "triaged", "archived"] },
+    },
+  },
+  PromoteFeedItemRequest: {
+    type: "object",
+    required: ["target"],
+    properties: {
+      target: { type: "string", enum: ["paper", "task", "note"] },
+      fields: { type: "object", default: {} },
+    },
+    additionalProperties: true,
+  },
+};
+
 const entities = [
   ["notes", "Notes", "Note", "NoteInput"],
   ["papers", "Papers", "Paper", "PaperInput"],
@@ -423,6 +538,230 @@ function topicLinkPath(
   };
 }
 
+function feedPaths(): Record<string, unknown> {
+  const error = { $ref: "#/components/schemas/Error" };
+  return {
+    "/feed-sources": {
+      get: {
+        operationId: "listFeedSources",
+        summary: "List feed sources",
+        security: [{ BearerAuth: [] }],
+        responses: {
+          "200": {
+            description: "OK",
+            ...jsonContent(envelope("FeedSource", true)),
+          },
+          "401": { description: "Unauthorized", ...jsonContent(error) },
+          "403": { description: "Forbidden", ...jsonContent(error) },
+        },
+      },
+      post: {
+        operationId: "createFeedSource",
+        summary: "Create a feed source",
+        security: [{ BearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            [JSON_MEDIA]: {
+              schema: { $ref: "#/components/schemas/FeedSourceInput" },
+            },
+          },
+        },
+        responses: {
+          "201": {
+            description: "Created",
+            ...jsonContent(envelope("FeedSource")),
+          },
+          "400": { description: "Validation error", ...jsonContent(error) },
+          "401": { description: "Unauthorized", ...jsonContent(error) },
+          "403": { description: "Forbidden", ...jsonContent(error) },
+        },
+      },
+    },
+    "/feed-sources/{id}": {
+      get: {
+        operationId: "getFeedSource",
+        summary: "Get a feed source",
+        security: [{ BearerAuth: [] }],
+        parameters: [idParam()],
+        responses: {
+          "200": { description: "OK", ...jsonContent(envelope("FeedSource")) },
+          "400": { description: "Validation error", ...jsonContent(error) },
+          "404": { description: "Not found", ...jsonContent(error) },
+        },
+      },
+      patch: {
+        operationId: "updateFeedSource",
+        summary: "Update a feed source",
+        security: [{ BearerAuth: [] }],
+        parameters: [idParam()],
+        requestBody: {
+          required: true,
+          content: {
+            [JSON_MEDIA]: {
+              schema: { $ref: "#/components/schemas/FeedSourceInput" },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Updated",
+            ...jsonContent(envelope("FeedSource")),
+          },
+          "400": { description: "Validation error", ...jsonContent(error) },
+          "404": { description: "Not found", ...jsonContent(error) },
+        },
+      },
+      delete: {
+        operationId: "deleteFeedSource",
+        summary: "Delete a feed source",
+        security: [{ BearerAuth: [] }],
+        parameters: [idParam()],
+        responses: {
+          "204": { description: "Deleted" },
+          "400": { description: "Validation error", ...jsonContent(error) },
+          "404": { description: "Not found", ...jsonContent(error) },
+        },
+      },
+    },
+    "/feed-items": {
+      get: {
+        operationId: "listFeedItems",
+        summary: "List feed items",
+        security: [{ BearerAuth: [] }],
+        parameters: [{
+          name: "type",
+          in: "query",
+          schema: {
+            type: "string",
+            enum: ["paper", "job", "news", "custom"],
+          },
+        }, {
+          name: "status",
+          in: "query",
+          schema: {
+            type: "string",
+            enum: ["new", "triaged", "archived", "promoted"],
+          },
+        }],
+        responses: {
+          "200": {
+            description: "OK",
+            ...jsonContent(envelope("FeedItem", true)),
+          },
+          "400": { description: "Validation error", ...jsonContent(error) },
+          "401": { description: "Unauthorized", ...jsonContent(error) },
+          "403": { description: "Forbidden", ...jsonContent(error) },
+        },
+      },
+      post: {
+        operationId: "createFeedItem",
+        summary: "Create a feed item",
+        security: [{ BearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            [JSON_MEDIA]: {
+              schema: { $ref: "#/components/schemas/FeedItemInput" },
+            },
+          },
+        },
+        responses: {
+          "201": {
+            description: "Created",
+            ...jsonContent(envelope("FeedItem")),
+          },
+          "400": { description: "Validation error", ...jsonContent(error) },
+          "401": { description: "Unauthorized", ...jsonContent(error) },
+          "403": { description: "Forbidden", ...jsonContent(error) },
+          "409": { description: "Duplicate", ...jsonContent(error) },
+        },
+      },
+    },
+    "/feed-items:batchCreate": {
+      post: {
+        operationId: "batchCreateFeedItems",
+        summary: "Batch create feed items",
+        security: [{ BearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            [JSON_MEDIA]: {
+              schema: {
+                $ref: "#/components/schemas/FeedItemBatchCreateRequest",
+              },
+            },
+          },
+        },
+        responses: {
+          "201": {
+            description: "Created",
+            ...jsonContent({
+              $ref: "#/components/schemas/FeedItemBatchCreateResponse",
+            }),
+          },
+          "400": { description: "Validation error", ...jsonContent(error) },
+          "401": { description: "Unauthorized", ...jsonContent(error) },
+          "403": { description: "Forbidden", ...jsonContent(error) },
+        },
+      },
+    },
+    "/feed-items/{id}": {
+      patch: {
+        operationId: "patchFeedItem",
+        summary: "Update feed item triage status",
+        security: [{ BearerAuth: [] }],
+        parameters: [idParam()],
+        requestBody: {
+          required: true,
+          content: {
+            [JSON_MEDIA]: {
+              schema: { $ref: "#/components/schemas/FeedItemPatchRequest" },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Updated",
+            ...jsonContent(envelope("FeedItem")),
+          },
+          "400": { description: "Validation error", ...jsonContent(error) },
+          "401": { description: "Unauthorized", ...jsonContent(error) },
+          "403": { description: "Forbidden", ...jsonContent(error) },
+          "404": { description: "Not found", ...jsonContent(error) },
+        },
+      },
+    },
+    "/feed-items/{id}/promote": {
+      post: {
+        operationId: "promoteFeedItem",
+        summary: "Promote a feed item to a core entity",
+        security: [{ BearerAuth: [] }],
+        parameters: [idParam()],
+        requestBody: {
+          required: true,
+          content: {
+            [JSON_MEDIA]: {
+              schema: { $ref: "#/components/schemas/PromoteFeedItemRequest" },
+            },
+          },
+        },
+        responses: {
+          "201": {
+            description: "Promoted",
+            ...jsonContent({ type: "object" }),
+          },
+          "400": { description: "Validation error", ...jsonContent(error) },
+          "401": { description: "Unauthorized", ...jsonContent(error) },
+          "403": { description: "Forbidden", ...jsonContent(error) },
+          "404": { description: "Not found", ...jsonContent(error) },
+          "409": { description: "Conflict", ...jsonContent(error) },
+        },
+      },
+    },
+  };
+}
+
 /** OpenAPI 3.1 document for the ResearchQuest agent REST gateway. */
 export function getOpenApiDocument(baseUrl: string): Record<string, unknown> {
   return {
@@ -431,7 +770,7 @@ export function getOpenApiDocument(baseUrl: string): Record<string, unknown> {
       title: "ResearchQuest Agent API",
       version: "1.0.0",
       description:
-        "Scoped REST gateway for AI agents and automation. Exposes API key management and core entity CRUD.",
+        "Scoped REST gateway for AI agents and automation. Exposes API key management, core entity CRUD, and feeds ingest/triage/promote APIs.",
     },
     servers: [{ url: baseUrl }],
     components: {
@@ -508,6 +847,7 @@ export function getOpenApiDocument(baseUrl: string): Record<string, unknown> {
           },
         },
         ...entitySchemas,
+        ...feedSchemas,
       },
     },
     paths: {
@@ -606,6 +946,7 @@ export function getOpenApiDocument(baseUrl: string): Record<string, unknown> {
           },
         },
       },
+      ...feedPaths(),
       ...allEntityPaths(),
       "/topics/{id}/attach": topicLinkPath("attachTopic"),
       "/topics/{id}/detach": topicLinkPath("detachTopic"),

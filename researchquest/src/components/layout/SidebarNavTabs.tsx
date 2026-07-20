@@ -6,9 +6,10 @@ import {
   CheckSquare,
   Hash,
   Target,
+  Inbox,
 } from "lucide-react";
 
-type TabId = "notes" | "papers" | "ideas" | "tasks" | "topics" | "dashboard" | "focus";
+type TabId = "notes" | "papers" | "ideas" | "tasks" | "topics" | "dashboard" | "focus" | "feeds";
 
 const TABS: { id: TabId; label: string; icon: LucideIcon }[] = [
   { id: "notes", label: "Notes", icon: FileText },
@@ -16,6 +17,7 @@ const TABS: { id: TabId; label: string; icon: LucideIcon }[] = [
   { id: "ideas", label: "Ideas", icon: Lightbulb },
   { id: "tasks", label: "Tasks", icon: CheckSquare },
   { id: "topics", label: "Topics", icon: Hash },
+  { id: "feeds", label: "Feeds", icon: Inbox },
   { id: "focus", label: "Focus", icon: Target },
 ];
 
