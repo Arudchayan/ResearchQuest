@@ -30,7 +30,7 @@ vi.mock("../../utils/export", () => ({
   }),
 }));
 
-describe("CommandPalette Data Management", () => {
+describe("CommandPalette Data & API Settings", () => {
   const originalScrollIntoView = window.HTMLElement.prototype.scrollIntoView;
 
   beforeAll(() => {
@@ -65,12 +65,12 @@ describe("CommandPalette Data Management", () => {
     });
   });
 
-  it("renders Data Management command", async () => {
+  it("renders Data & API Settings command", async () => {
     render(<CommandPalette />);
     fireEvent.keyDown(document, { key: "k", metaKey: true });
 
     await waitFor(() => {
-      expect(screen.getByText("Data Management...")).toBeInTheDocument();
+      expect(screen.getByText("Data & API Settings...")).toBeInTheDocument();
     });
   });
 
@@ -83,14 +83,14 @@ describe("CommandPalette Data Management", () => {
     });
   });
 
-  it("dispatches open-data-management event when Data Management is selected", async () => {
+  it("dispatches open-data-management event when Data & API Settings is selected", async () => {
     render(<CommandPalette />);
     fireEvent.keyDown(document, { key: "k", metaKey: true });
 
     const dispatchEventSpy = vi.spyOn(document, "dispatchEvent");
 
     await waitFor(() => {
-      const item = screen.getByText("Data Management...");
+      const item = screen.getByText("Data & API Settings...");
       fireEvent.click(item);
     });
 
