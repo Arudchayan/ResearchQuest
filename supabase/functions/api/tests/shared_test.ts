@@ -75,7 +75,7 @@ Deno.test("rate limit allows then blocks", () => {
   _resetRateLimitBuckets();
 });
 
-Deno.test("openapi stub contains health and keys paths", () => {
+Deno.test("openapi stub contains health, keys, and entity paths", () => {
   const doc = getOpenApiDocument("https://example.com/functions/v1/api/v1");
   assertEquals(doc.openapi, "3.1.0");
   const paths = doc.paths as Record<string, unknown>;
@@ -83,16 +83,33 @@ Deno.test("openapi stub contains health and keys paths", () => {
   assertExists(paths["/openapi.json"]);
   assertExists(paths["/keys"]);
   assertExists(paths["/keys/{id}"]);
+  assertExists(paths["/notes"]);
+  assertExists(paths["/notes/{id}"]);
+  assertExists(paths["/notes:batchCreate"]);
+  assertExists(paths["/papers"]);
+  assertExists(paths["/papers:batchCreate"]);
+  assertExists(paths["/ideas"]);
+  assertExists(paths["/topics/{id}/attach"]);
+  assertExists(paths["/topics/{id}/detach"]);
+  assertExists(paths["/tasks"]);
+  assertExists(paths["/goals"]);
+  assertExists(paths["/research_goals"]);
 });
 
 Deno.test("cors allowlist from env", () => {
-  Deno.env.set("ALLOWED_ORIGINS", "https://app.example.com,https://other.example.com");
+  Deno.env.set(
+    "ALLOWED_ORIGINS",
+    "https://app.example.com,https://other.example.com",
+  );
   const origins = getAllowedOrigins();
   assertEquals(origins.includes("https://app.example.com"), true);
   const req = new Request("https://example.com", {
     headers: { Origin: "https://app.example.com" },
   });
   const headers = buildCorsHeaders(req);
-  assertEquals(headers["Access-Control-Allow-Origin"], "https://app.example.com");
+  assertEquals(
+    headers["Access-Control-Allow-Origin"],
+    "https://app.example.com",
+  );
   Deno.env.delete("ALLOWED_ORIGINS");
 });
