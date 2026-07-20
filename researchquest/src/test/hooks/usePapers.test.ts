@@ -73,13 +73,13 @@ describe("usePapers Hook", () => {
 
       mockSupabaseClient.from.mockImplementation(() =>
         createMockBuilder({
-          order: vi.fn().mockResolvedValue({ data: mockPapers, error: null }),
+          range: vi.fn().mockResolvedValue({ data: mockPapers, error: null }),
         }),
       );
 
       // Render the sync hook which populates the store
       const { result: syncResult } = renderHook(() =>
-        useDataSync("test-user-id", "dashboard"),
+        useDataSync("test-user-id", "papers"),
       );
       // And the consumption hook
       const { result } = renderHook(() => usePapers("test-user-id"));

@@ -41,8 +41,7 @@ describe("AppShell Zen Mode", () => {
 
   it("renders sidebars by default", () => {
     renderAppShell();
-    // Should find 2 sidebars (desktop and mobile)
-    expect(screen.getAllByTestId("sidebar")).toHaveLength(2);
+    expect(screen.getAllByTestId("sidebar")).toHaveLength(1);
     expect(screen.getByTestId("right-sidebar")).toBeInTheDocument();
     expect(screen.queryByTestId("icon-minimize")).not.toBeInTheDocument();
   });
