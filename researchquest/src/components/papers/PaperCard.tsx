@@ -33,10 +33,10 @@ export const PaperCard = React.memo(function PaperCard({
       aria-label={`Select paper: ${paper.title}`}
       onClick={() => onSelect(paper)}
       onKeyDown={handleKeyDown}
-      className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-5 cursor-pointer hover:border-blue-500 dark:hover:border-blue-500 transition-all hover:shadow-md group focus:outline-none focus:ring-2 focus:ring-blue-500"
+      className="bg-bg-surface border border-border-moderate rounded-xl p-5 cursor-pointer hover:border-border-strong transition-all hover:shadow-md group focus:outline-none focus:ring-2 focus:ring-primary-500"
     >
       <div className="flex items-start justify-between mb-3">
-        <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-blue-600 dark:text-blue-400">
+        <div className="p-2 bg-bg-elevated rounded-lg text-text-primary">
           <BookOpen className="w-5 h-5" />
         </div>
         {paper.doi && (
@@ -45,24 +45,24 @@ export const PaperCard = React.memo(function PaperCard({
             target="_blank"
             rel="noopener noreferrer"
             onClick={handleDoiClick}
-            className="text-xs text-slate-400 hover:text-blue-600 flex items-center gap-1"
+            className="text-xs text-text-tertiary hover:text-text-primary flex items-center gap-1"
           >
             DOI <ExternalLink className="w-3 h-3" />
           </a>
         )}
       </div>
 
-      <h3 className="font-semibold text-slate-900 dark:text-white mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
+      <h3 className="font-semibold text-text-primary mb-2 line-clamp-2 group-hover:underline decoration-border-strong underline-offset-2 transition-colors">
         {paper.title ? highlightMatch(paper.title, highlightQuery) : "Untitled"}
       </h3>
 
-      <p className="text-sm text-slate-500 dark:text-slate-400 mb-4 line-clamp-2">
+      <p className="text-sm text-text-secondary mb-4 line-clamp-2">
         {paper.authors && paper.authors.length > 0
           ? highlightMatch(paper.authors.join(", "), highlightQuery)
           : "Unknown Authors"}
       </p>
 
-      <div className="flex items-center gap-4 text-xs text-slate-400">
+      <div className="flex items-center gap-4 text-xs text-text-tertiary">
         <div className="flex items-center gap-1">
           <Calendar className="w-3 h-3" />
           {/* Optimization: Parse year from string instead of full Date parsing */}
