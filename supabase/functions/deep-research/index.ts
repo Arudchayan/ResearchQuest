@@ -32,6 +32,52 @@ interface AISynthesisResult {
 }
 
 const APP_USER_AGENT = "ResearchQuest/1.0 (mailto:research@researchquest.app)";
+const DEFAULT_DEV_ALLOWED_ORIGINS = [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:5175",
+  "http://localhost:4173",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:5174",
+  "http://127.0.0.1:5175",
+  "http://127.0.0.1:4173",
+];
+
+function parseAllowedOrigins(): string[] | null {
+  const configured = Deno.env.get("ALLOWED_ORIGINS");
+  if (!configured || !configured.trim()) {
+    // Unset → preserve prior open CORS so production is not broken
+    // until ALLOWED_ORIGINS is configured.
+    return null;
+  }
+  return configured
+    .split(",")
+    .map((origin) => origin.trim().replace(/\/$/, ""))
+    .filter(Boolean);
+}
+
+function buildCorsHeaders(req: Request): HeadersInit {
+  const headers: Record<string, string> = {
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+    "Access-Control-Max-Age": "86400",
+    "Vary": "Origin",
+  };
+  const origin = req.headers.get("Origin");
+  const allowed = parseAllowedOrigins();
+
+  if (allowed === null) {
+    headers["Access-Control-Allow-Origin"] = "*";
+    return headers;
+  }
+
+  const allowlist = allowed.length > 0 ? allowed : DEFAULT_DEV_ALLOWED_ORIGINS;
+  if (origin && allowlist.includes(origin)) {
+    headers["Access-Control-Allow-Origin"] = origin;
+  }
+
+  return headers;
+}
 
 function getRequiredEnv(name: string): string {
   const value = Deno.env.get(name);
@@ -231,12 +277,7 @@ function buildFallbackSummary(query: string, papers: SemanticPaper[]): string {
 }
 
 Deno.serve(async (req) => {
-  const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-    "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-    "Access-Control-Max-Age": "86400",
-  };
+  const corsHeaders = buildCorsHeaders(req);
 
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
