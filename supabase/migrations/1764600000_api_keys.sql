@@ -42,29 +42,15 @@ CREATE INDEX IF NOT EXISTS idx_api_key_audit_created_at ON api_key_audit(created
 ALTER TABLE api_keys ENABLE ROW LEVEL SECURITY;
 ALTER TABLE api_key_audit ENABLE ROW LEVEL SECURITY;
 
+-- SELECT only for end users. Mint/revoke/audit writes go through the edge
+-- gateway with the service role so clients cannot forge key_hash or scopes.
 CREATE POLICY "Users can view own api keys"
     ON api_keys FOR SELECT
-    USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can insert own api keys"
-    ON api_keys FOR INSERT
-    WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can update own api keys"
-    ON api_keys FOR UPDATE
-    USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can delete own api keys"
-    ON api_keys FOR DELETE
     USING (auth.uid() = user_id);
 
 CREATE POLICY "Users can view own api key audit"
     ON api_key_audit FOR SELECT
     USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can insert own api key audit"
-    ON api_key_audit FOR INSERT
-    WITH CHECK (auth.uid() = user_id);
 
 -- Mirror table definitions for reference
 COMMENT ON TABLE api_keys IS 'Hashed per-user API keys for ResearchQuest agent REST gateway';
