@@ -329,7 +329,7 @@ export function CommandPalette() {
 
           <Command.Item onSelect={handleOpenDataManagement}>
             <Database />
-            <span>Data Management...</span>
+            <span>Data & API Settings...</span>
           </Command.Item>
 
           <Command.Item onSelect={handleExport}>

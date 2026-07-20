@@ -20,6 +20,7 @@ import { useAppStore } from "../../store/appStore";
 import { useShallow } from "zustand/react/shallow";
 import { validateFileSize } from "../../utils/security";
 import { toast } from "sonner";
+import { ApiKeysPanel } from "./ApiKeysPanel";
 
 type ExportPayload = Omit<ExportData, "metadata">;
 type ImportedTopic = NonNullable<ExportData["topics"]>[number];
@@ -236,7 +237,7 @@ const handleExport = () => {
     <Dialog.Root open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm animate-in fade-in duration-200" />
-        <Dialog.Content className="fixed left-[50%] top-[50%] z-[60] w-full max-w-2xl translate-x-[-50%] translate-y-[-50%] rounded-xl bg-bg-surface shadow-2xl border border-border-subtle overflow-hidden outline-none animate-in zoom-in-95 duration-200">
+        <Dialog.Content className="fixed left-[50%] top-[50%] z-[60] w-full max-w-4xl max-h-[90vh] translate-x-[-50%] translate-y-[-50%] rounded-xl bg-bg-surface shadow-2xl border border-border-subtle overflow-hidden outline-none animate-in zoom-in-95 duration-200 flex flex-col">
           <div className="flex items-center justify-between px-6 py-5 border-b border-border-subtle bg-bg-elevated">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 shadow-sm">
@@ -244,10 +245,10 @@ const handleExport = () => {
               </div>
               <div>
                 <Dialog.Title className="text-xl font-bold text-text-primary">
-                  Data Management
+                  Data & API Settings
                 </Dialog.Title>
                 <Dialog.Description className="text-sm text-text-secondary">
-                  Export your research data or restore from a backup
+                  Export backups, restore data, and manage agent API keys
                 </Dialog.Description>
               </div>
             </div>
@@ -264,7 +265,7 @@ const handleExport = () => {
           <Tabs.Root
             value={activeTab}
             onValueChange={setActiveTab}
-            className="flex flex-col h-full"
+            className="flex flex-col flex-1 min-h-0"
           >
             <div className="px-6 pt-4 pb-0 border-b border-border-subtle">
               <Tabs.List className="flex gap-6">
@@ -280,10 +281,16 @@ const handleExport = () => {
                 >
                   Import Data
                 </Tabs.Trigger>
+                <Tabs.Trigger
+                  value="api-keys"
+                  className="pb-3 text-sm font-medium text-text-secondary data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 data-[state=active]:border-b-2 data-[state=active]:border-blue-600 dark:data-[state=active]:border-blue-400 transition-all outline-none"
+                >
+                  API Keys
+                </Tabs.Trigger>
               </Tabs.List>
             </div>
 
-            <div className="p-6 min-h-[300px]">
+            <div className="p-6 min-h-[300px] overflow-y-auto">
               <Tabs.Content
                 value="export"
                 className="space-y-6 outline-none animate-in fade-in duration-300"
@@ -502,6 +509,13 @@ const handleExport = () => {
                     </div>
                   </div>
                 )}
+              </Tabs.Content>
+
+              <Tabs.Content
+                value="api-keys"
+                className="outline-none animate-in fade-in duration-300"
+              >
+                <ApiKeysPanel active={activeTab === "api-keys"} />
               </Tabs.Content>
             </div>
           </Tabs.Root>
