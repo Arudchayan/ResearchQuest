@@ -1,4 +1,4 @@
-# Minimal OpenAPI contract fixture for Wave 0 gateway.
+# Minimal OpenAPI contract fixture for gateway smoke tests.
 # Full Schemathesis runs against a live function in later CI once secrets exist.
 openapi: "3.1.0"
 info:
@@ -9,55 +9,112 @@ paths:
     get:
       operationId: getHealth
       responses:
-        "200":
-          description: ok
+        "200": { description: ok }
   /openapi.json:
     get:
       operationId: getOpenApi
       responses:
-        "200":
-          description: ok
+        "200": { description: ok }
   /keys:
     get:
       operationId: listApiKeys
-      security:
-        - BearerAuth: []
+      security: [{ BearerAuth: [] }]
       responses:
-        "200":
-          description: ok
-        "401":
-          description: unauthorized
+        "200": { description: ok }
+        "401": { description: unauthorized }
     post:
       operationId: createApiKey
-      security:
-        - BearerAuth: []
+      security: [{ BearerAuth: [] }]
       responses:
-        "201":
-          description: created
-        "400":
-          description: validation
-        "401":
-          description: unauthorized
-        "403":
-          description: forbidden
+        "201": { description: created }
+        "400": { description: validation }
+        "401": { description: unauthorized }
+        "403": { description: forbidden }
   /keys/{id}:
     delete:
       operationId: revokeApiKey
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
+      security: [{ BearerAuth: [] }]
       responses:
-        "204":
-          description: revoked
-        "401":
-          description: unauthorized
-        "404":
-          description: not found
+        "204": { description: revoked }
+        "401": { description: unauthorized }
+        "404": { description: not found }
+  /feed-sources:
+    get:
+      operationId: listFeedSources
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200": { description: ok }
+        "401": { description: unauthorized }
+        "403": { description: forbidden }
+    post:
+      operationId: createFeedSource
+      security: [{ BearerAuth: [] }]
+      responses:
+        "201": { description: created }
+        "400": { description: validation }
+        "401": { description: unauthorized }
+        "403": { description: forbidden }
+  /feed-sources/{id}:
+    get:
+      operationId: getFeedSource
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200": { description: ok }
+        "404": { description: not found }
+    patch:
+      operationId: updateFeedSource
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200": { description: updated }
+        "400": { description: validation }
+        "404": { description: not found }
+    delete:
+      operationId: deleteFeedSource
+      security: [{ BearerAuth: [] }]
+      responses:
+        "204": { description: deleted }
+        "404": { description: not found }
+  /feed-items:
+    get:
+      operationId: listFeedItems
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: type, in: query, required: false, schema: { type: string } }
+        - { name: status, in: query, required: false, schema: { type: string } }
+      responses:
+        "200": { description: ok }
+        "400": { description: validation }
+    post:
+      operationId: createFeedItem
+      security: [{ BearerAuth: [] }]
+      responses:
+        "201": { description: created }
+        "400": { description: validation }
+        "409": { description: duplicate }
+  /feed-items:batchCreate:
+    post:
+      operationId: batchCreateFeedItems
+      security: [{ BearerAuth: [] }]
+      responses:
+        "201": { description: created }
+        "400": { description: validation }
+  /feed-items/{id}:
+    patch:
+      operationId: patchFeedItem
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200": { description: updated }
+        "400": { description: validation }
+        "404": { description: not found }
+  /feed-items/{id}/promote:
+    post:
+      operationId: promoteFeedItem
+      security: [{ BearerAuth: [] }]
+      responses:
+        "201": { description: promoted }
+        "400": { description: validation }
+        "404": { description: not found }
+        "409": { description: conflict }
 components:
   securitySchemes:
     BearerAuth:

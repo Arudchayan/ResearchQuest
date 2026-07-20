@@ -1,12 +1,17 @@
-import { authenticateRequest, requireScopes, writeAudit } from "./_shared/auth.ts";
+import {
+  authenticateRequest,
+  requireScopes,
+  writeAudit,
+} from "./_shared/auth.ts";
 import { buildCorsHeaders } from "./_shared/cors.ts";
+import { handleFeedRoute } from "./_shared/feedRoutes.ts";
 import {
   ALL_SCOPES,
+  type ApiScope,
   errorResponse,
   generateApiKeySecret,
   jsonResponse,
   sha256Hex,
-  type ApiScope,
 } from "./_shared/http.ts";
 import { getOpenApiDocument } from "./_shared/openapi.ts";
 import type { AuthContext } from "./_shared/auth.ts";
@@ -34,7 +39,9 @@ function isValidScope(scope: string): scope is ApiScope {
   return (ALL_SCOPES as readonly string[]).includes(scope);
 }
 
-async function handleHealth(corsHeaders: Record<string, string>): Promise<Response> {
+async function handleHealth(
+  corsHeaders: Record<string, string>,
+): Promise<Response> {
   return jsonResponse(
     {
       status: "ok",
@@ -73,7 +80,12 @@ async function handleListKeys(
 
   if (error) {
     console.error("list keys", error);
-    return errorResponse("INTERNAL_ERROR", "Failed to list API keys", 500, corsHeaders);
+    return errorResponse(
+      "INTERNAL_ERROR",
+      "Failed to list API keys",
+      500,
+      corsHeaders,
+    );
   }
 
   await writeAudit(ctx, "keys.list", "api_keys", 200, req);
@@ -99,7 +111,12 @@ async function handleCreateKey(
   try {
     body = await req.json();
   } catch {
-    return errorResponse("VALIDATION_ERROR", "Invalid JSON body", 400, corsHeaders);
+    return errorResponse(
+      "VALIDATION_ERROR",
+      "Invalid JSON body",
+      400,
+      corsHeaders,
+    );
   }
 
   const name = typeof body.name === "string" ? body.name.trim() : "";
@@ -126,7 +143,12 @@ async function handleCreateKey(
   if (body.expires_at != null) {
     const parsed = Date.parse(body.expires_at);
     if (Number.isNaN(parsed)) {
-      return errorResponse("VALIDATION_ERROR", "expires_at must be ISO-8601", 400, corsHeaders);
+      return errorResponse(
+        "VALIDATION_ERROR",
+        "expires_at must be ISO-8601",
+        400,
+        corsHeaders,
+      );
     }
     expiresAt = new Date(parsed).toISOString();
   }
@@ -151,7 +173,12 @@ async function handleCreateKey(
 
   if (error || !data) {
     console.error("create key", error);
-    return errorResponse("INTERNAL_ERROR", "Failed to create API key", 500, corsHeaders);
+    return errorResponse(
+      "INTERNAL_ERROR",
+      "Failed to create API key",
+      500,
+      corsHeaders,
+    );
   }
 
   await writeAudit(ctx, "keys.create", `api_keys/${data.id}`, 201, req, {
@@ -174,7 +201,12 @@ async function handleRevokeKey(
   const uuidRe =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   if (!uuidRe.test(id)) {
-    return errorResponse("VALIDATION_ERROR", "Invalid key id", 400, corsHeaders);
+    return errorResponse(
+      "VALIDATION_ERROR",
+      "Invalid key id",
+      400,
+      corsHeaders,
+    );
   }
 
   const { data, error } = await ctx.supabaseAdmin
@@ -188,7 +220,12 @@ async function handleRevokeKey(
 
   if (error) {
     console.error("revoke key", error);
-    return errorResponse("INTERNAL_ERROR", "Failed to revoke API key", 500, corsHeaders);
+    return errorResponse(
+      "INTERNAL_ERROR",
+      "Failed to revoke API key",
+      500,
+      corsHeaders,
+    );
   }
   if (!data) {
     return errorResponse("NOT_FOUND", "API key not found", 404, corsHeaders);
@@ -237,9 +274,22 @@ Deno.serve(async (req) => {
       return await handleRevokeKey(ctx, req, revokeMatch[1], corsHeaders);
     }
 
-    return errorResponse("NOT_FOUND", `No route for ${req.method} ${path}`, 404, corsHeaders);
+    const feedResponse = await handleFeedRoute(ctx, req, path, corsHeaders);
+    if (feedResponse) return feedResponse;
+
+    return errorResponse(
+      "NOT_FOUND",
+      `No route for ${req.method} ${path}`,
+      404,
+      corsHeaders,
+    );
   } catch (err) {
     console.error("unhandled", err);
-    return errorResponse("INTERNAL_ERROR", "Unexpected server error", 500, corsHeaders);
+    return errorResponse(
+      "INTERNAL_ERROR",
+      "Unexpected server error",
+      500,
+      corsHeaders,
+    );
   }
 });
