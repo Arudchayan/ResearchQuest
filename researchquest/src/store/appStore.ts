@@ -11,6 +11,15 @@ import type {
 } from "../types/database";
 
 export type DataSyncResource = "notes" | "papers" | "ideas" | "tasks" | "topics";
+export type AppView =
+  | "dashboard"
+  | "notes"
+  | "papers"
+  | "ideas"
+  | "tasks"
+  | "focus"
+  | "topics"
+  | "feeds";
 
 export interface DataSyncError {
   resource: DataSyncResource;
@@ -54,10 +63,8 @@ interface AppState {
   setUser: (user: UserProfile | null) => void;
 
   // Current view
-  currentView: "dashboard" | "notes" | "papers" | "ideas" | "tasks" | "focus" | "topics";
-  setCurrentView: (
-    view: "dashboard" | "notes" | "papers" | "ideas" | "tasks" | "focus" | "topics",
-  ) => void;
+  currentView: AppView;
+  setCurrentView: (view: AppView) => void;
 
   // Selected entity
   selectedNote: Note | null;
