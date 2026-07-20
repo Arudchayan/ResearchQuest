@@ -286,7 +286,7 @@ export function Sidebar() {
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-sm text-small font-medium text-text-secondary hover:bg-bg-elevated hover:text-text-primary transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
         >
           <Database className="w-4 h-4" aria-hidden="true" />
-          Data & Backup
+          Data & API
         </button>
 
         <button
