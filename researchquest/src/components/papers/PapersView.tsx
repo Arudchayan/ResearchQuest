@@ -296,7 +296,7 @@ export function PapersView() {
   };
 
   return (
-    <div className="relative flex h-full bg-slate-50 dark:bg-slate-900 overflow-hidden">
+    <div className="relative flex h-full bg-bg-base text-text-primary overflow-hidden">
       {/* Main Content */}
       <div
         className={cn(
@@ -304,53 +304,53 @@ export function PapersView() {
           selectedPaper && "max-lg:hidden",
         )}
       >
-        <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="p-4 sm:p-6 border-b border-border-subtle bg-bg-surface flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="min-w-0">
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+            <h1 className="text-2xl font-serif font-bold text-text-primary">
               Research Library
             </h1>
-            <p className="text-slate-500 dark:text-slate-400 text-sm">
+            <p className="text-text-secondary text-sm">
               Manage and organize your research papers
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <DropdownMenu.Root>
               <DropdownMenu.Trigger asChild>
-                <button className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-2 font-medium">
+                <button className="px-4 py-2 bg-bg-surface border border-border-moderate text-text-secondary rounded-lg hover:bg-bg-elevated hover:text-text-primary transition-colors flex items-center gap-2 font-medium">
                   <Download className="w-5 h-5" />
                   Export
                 </button>
               </DropdownMenu.Trigger>
               <DropdownMenu.Portal>
                 <DropdownMenu.Content
-                  className="min-w-[180px] bg-white dark:bg-slate-950 rounded-lg shadow-lg border border-slate-200 dark:border-slate-800 p-1 z-50 animate-in fade-in-0 zoom-in-95"
+                  className="min-w-[180px] bg-bg-surface rounded-lg shadow-lg border border-border-moderate p-1 z-50 animate-in fade-in-0 zoom-in-95"
                   align="end"
                   sideOffset={5}
                 >
                   <DropdownMenu.Item
                     onSelect={() => handleExport("markdown")}
-                    className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md cursor-pointer outline-none"
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-md cursor-pointer outline-none"
                   >
                     <FileText className="w-4 h-4" />
                     Markdown (.md)
                   </DropdownMenu.Item>
                   <DropdownMenu.Item
                     onSelect={() => handleExport("bibtex")}
-                    className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md cursor-pointer outline-none"
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-md cursor-pointer outline-none"
                   >
                     <FileText className="w-4 h-4" />
                     BibTeX (.bib)
                   </DropdownMenu.Item>
                   <DropdownMenu.Item
                     onSelect={() => handleExport("csv")}
-                    className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md cursor-pointer outline-none"
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-md cursor-pointer outline-none"
                   >
                     <Table className="w-4 h-4" />
                     CSV (.csv)
                   </DropdownMenu.Item>
                   <DropdownMenu.Item
                     onSelect={() => handleExport("json")}
-                    className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md cursor-pointer outline-none"
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-md cursor-pointer outline-none"
                   >
                     <FileJson className="w-4 h-4" />
                     JSON (.json)
@@ -361,7 +361,7 @@ export function PapersView() {
 
             <button
               onClick={() => setIsAddDialogOpen(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 font-medium"
+              className="px-4 py-2 bg-text-primary text-bg-base rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2 font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
             >
               <Plus className="w-5 h-5" />
               Add Paper
@@ -369,10 +369,10 @@ export function PapersView() {
           </div>
         </div>
 
-        <div className="p-4 bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row gap-4">
+        <div className="p-4 bg-bg-surface border-b border-border-subtle flex flex-col sm:flex-row gap-4">
           <div className="relative flex-1 sm:max-w-md">
             <label htmlFor="papers-search-input" className="sr-only">Search library</label>
-            <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-3 top-2.5 w-4 h-4 text-text-tertiary" />
             <input
               id="papers-search-input"
               ref={searchInputRef}
@@ -380,7 +380,7 @@ export function PapersView() {
               placeholder="Search library..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-10 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-9 pr-10 py-2 bg-bg-elevated border border-border-moderate rounded-lg text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-primary-500"
               aria-label="Search papers"
             />
             {searchQuery && (
@@ -389,7 +389,7 @@ export function PapersView() {
                   setSearchQuery("");
                   searchInputRef.current?.focus();
                 }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-tertiary hover:text-text-primary hover:bg-bg-elevated rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
                 aria-label="Clear search"
               >
                 <X className="w-3 h-3" aria-hidden="true" />
@@ -398,11 +398,11 @@ export function PapersView() {
           </div>
 
           <div className="flex items-center gap-2">
-            <ArrowUpDown className="w-4 h-4 text-slate-400" />
+            <ArrowUpDown className="w-4 h-4 text-text-tertiary" />
             <select
               value={sortOption}
               onChange={(e) => setSortOption(e.target.value as SortOption)}
-              className="px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer min-w-[180px]"
+              className="px-3 py-2 bg-bg-elevated border border-border-moderate rounded-lg text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer min-w-[180px]"
               aria-label="Sort papers"
             >
               <option value="updated_desc">Last Updated (Newest)</option>
@@ -440,13 +440,13 @@ export function PapersView() {
             </div>
           ) : filteredPapers.length === 0 ? (
             <div className="text-center py-20">
-              <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                <BookOpen className="w-8 h-8 text-slate-400 opacity-50" />
+              <div className="w-16 h-16 bg-bg-surface border border-border-subtle rounded-full flex items-center justify-center mx-auto mb-4">
+                <BookOpen className="w-8 h-8 text-text-tertiary opacity-50" />
               </div>
-              <h3 className="text-lg font-medium text-slate-900 dark:text-white">
+              <h3 className="text-lg font-serif font-medium text-text-primary">
                 {searchQuery ? "No matches found" : "No papers found"}
               </h3>
-              <p className="text-slate-500 dark:text-slate-400 max-w-sm mx-auto mt-2">
+              <p className="text-text-secondary max-w-sm mx-auto mt-2">
                 {searchQuery
                   ? "Try a different keyword or clear your search."
                   : "Start building your library by adding your first research paper."}
@@ -454,7 +454,7 @@ export function PapersView() {
               {!searchQuery && (
                 <button
                   onClick={() => setIsAddDialogOpen(true)}
-                  className="mt-4 text-blue-600 hover:text-blue-700 font-medium"
+                  className="mt-4 text-text-primary hover:underline underline-offset-4 font-medium"
                 >
                   Add a paper now &rarr;
                 </button>
@@ -514,26 +514,26 @@ export function PapersView() {
 
       {/* Detail Drawer (Sheet) */}
       {selectedPaper && (
-        <div className="absolute inset-0 w-full border-l-0 lg:border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col h-full shadow-2xl z-20 lg:relative lg:inset-auto lg:w-[500px]">
-          <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50 backdrop-blur-sm">
+        <div className="absolute inset-0 w-full border-l-0 lg:border-l border-border-subtle bg-bg-surface flex flex-col h-full shadow-2xl z-20 lg:relative lg:inset-auto lg:w-[500px]">
+          <div className="p-4 border-b border-border-subtle flex items-center justify-between bg-bg-elevated/80 backdrop-blur-sm">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setSelectedPaper(null)}
-                className="lg:hidden p-2 -ml-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"
+                className="lg:hidden p-2 -ml-2 hover:bg-bg-surface rounded-full transition-colors"
                 aria-label="Back to papers"
               >
-                <ArrowLeft className="w-5 h-5 text-slate-500" />
+                <ArrowLeft className="w-5 h-5 text-text-secondary" />
               </button>
-              <h2 className="font-semibold text-slate-900 dark:text-white">
+              <h2 className="font-semibold text-text-primary">
                 Paper Details
               </h2>
             </div>
             <button
               onClick={() => setSelectedPaper(null)}
               aria-label="Close details"
-              className="hidden lg:flex p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="hidden lg:flex p-2 hover:bg-bg-surface rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
-              <X className="w-5 h-5 text-slate-500" />
+              <X className="w-5 h-5 text-text-secondary" />
             </button>
           </div>
           <div className="flex-1 overflow-y-auto overflow-x-hidden">
@@ -552,15 +552,15 @@ export function PapersView() {
           <Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 animate-fade-in" />
           <Dialog.Content
             aria-describedby={undefined}
-            className="fixed left-[50%] top-[50%] max-h-[85vh] w-[90vw] max-w-[1000px] translate-x-[-50%] translate-y-[-50%] rounded-xl bg-white dark:bg-slate-950 p-0 shadow-2xl focus:outline-none z-50 overflow-hidden animate-slide-in border border-slate-200 dark:border-slate-800"
+            className="fixed left-[50%] top-[50%] max-h-[85vh] w-[90vw] max-w-[1000px] translate-x-[-50%] translate-y-[-50%] rounded-xl bg-bg-surface p-0 shadow-2xl focus:outline-none z-50 overflow-hidden animate-slide-in border border-border-moderate"
           >
-            <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800">
+            <div className="flex items-center justify-between p-4 border-b border-border-subtle">
               <Dialog.Title className="text-lg font-semibold px-2">
                 Add New Paper
               </Dialog.Title>
               <Dialog.Close
                 aria-label="Close"
-                className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full"
+                className="p-2 hover:bg-bg-elevated rounded-full"
               >
                 <X className="w-5 h-5" />
               </Dialog.Close>
