@@ -34,7 +34,7 @@ describe("useDataSync sync errors", () => {
     });
   });
 
-  test("stores fetch failures for notes, papers, and ideas", async () => {
+  test("stores dashboard preview fetch failures for notes, papers, and ideas", async () => {
     mockSupabaseClient.from.mockImplementation((table: string) =>
       queryResult({
         data: null,
@@ -47,15 +47,15 @@ describe("useDataSync sync errors", () => {
     await waitFor(() => {
       expect(useAppStore.getState().dataSyncErrors).toEqual({
         notes: {
-          message: "notes unavailable",
+          message: "Failed to load notes preview.",
           resource: "notes",
         },
         papers: {
-          message: "papers unavailable",
+          message: "Failed to load papers preview.",
           resource: "papers",
         },
         ideas: {
-          message: "ideas unavailable",
+          message: "Failed to load ideas preview.",
           resource: "ideas",
         },
       });
