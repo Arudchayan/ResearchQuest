@@ -91,4 +91,35 @@ describe("useDataSync sync errors", () => {
       });
     });
   });
+
+  test("clears stale ideas when an ideas fetch returns no rows", async () => {
+    useAppStore.setState({
+      ideas: [
+        {
+          id: "stale-idea",
+          user_id: "user-1",
+          title: "Stale Idea",
+          description: "",
+          stage: "Seed",
+          linked_note_ids: [],
+          linked_paper_ids: [],
+          created_at: "2024-01-01T00:00:00Z",
+          updated_at: "2024-01-01T00:00:00Z",
+        },
+      ],
+    });
+
+    mockSupabaseClient.from.mockImplementation(() =>
+      queryResult({
+        data: [],
+        error: null,
+      }),
+    );
+
+    renderHook(() => useDataSync("user-1", "ideas"));
+
+    await waitFor(() => {
+      expect(useAppStore.getState().ideas).toEqual([]);
+    });
+  });
 });

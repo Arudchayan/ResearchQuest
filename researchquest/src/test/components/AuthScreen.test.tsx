@@ -82,7 +82,7 @@ describe("AuthScreen Security", () => {
     // Expect validation error
     await waitFor(() => {
       expect(
-        screen.getByText(/Authentication failed/i),
+        screen.getByText(/Password must be at least 8 characters long\./i),
       ).toBeInTheDocument();
     });
 
