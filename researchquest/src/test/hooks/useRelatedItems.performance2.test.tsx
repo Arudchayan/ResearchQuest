@@ -40,14 +40,14 @@ describe("useRelatedItems Local Performance", () => {
 
       builder.then = (onFulfilled: any) => {
         if (table === "topic_notes") {
-          // the first call is to check if entity has topics
-          if (builder.eq.mock.calls.length > 0) {
-             return Promise.resolve({ data: [{ topic_id: "t1" }], error: null }).then(onFulfilled);
+          // Current-entity topic lookup uses .eq() only; related-item lookup uses .in().
+          const isRelatedLookup = builder.in.mock.calls.length > 0;
+          if (!isRelatedLookup) {
+            return Promise.resolve({ data: [{ topic_id: "t1" }], error: null }).then(onFulfilled);
           }
-          // the second call is to fetch related items
           const relatedData = Array.from({ length: numLinks }, (_, i) => ({
             note_id: `note-${numNotes - i - 1}`, // search backwards, worst case for .find()
-            topic_id: "t1"
+            topic_id: "t1",
           }));
           return Promise.resolve({ data: relatedData, error: null }).then(onFulfilled);
         }
@@ -67,6 +67,8 @@ describe("useRelatedItems Local Performance", () => {
 
     const end = performance.now();
     console.log(`Hydration took ${end - start}ms`);
-    expect(result.current.relatedItems.length).toBe(numLinks);
+    // Hook caps related links to keep sidebar hydration bounded.
+    expect(result.current.relatedItems.length).toBe(50);
+    expect(result.current.relatedItems.length).toBeLessThanOrEqual(numLinks);
   });
 });
