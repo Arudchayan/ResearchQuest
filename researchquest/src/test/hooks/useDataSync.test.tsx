@@ -10,9 +10,12 @@ function queryResult<T>(result: { data: T[] | null; error: { message: string } |
   builder.eq = vi.fn().mockReturnValue(builder);
   builder.gte = vi.fn().mockReturnValue(builder);
   builder.order = vi.fn().mockReturnValue(builder);
-  builder.range = vi.fn().mockReturnValue(builder);
   builder.then = (onFulfilled?: (value: typeof result) => unknown) =>
     Promise.resolve(result).then(onFulfilled);
+
+  builder.range = vi.fn().mockReturnValue({
+     then: builder.then
+  });
   return builder;
 }
 
