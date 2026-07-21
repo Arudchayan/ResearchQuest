@@ -1,76 +1,108 @@
 # Comprehensive System Evaluation Synthesis
 
-Date: 2026-07-21
+Date: 2026-07-21  
+Branch: `cursor/comprehensive-system-evaluation-c747`
 
 ## Executive summary
 
-Five independent reviews (optimizations, gaps, cost-benefit, SWOT, and architecture) converged on the same direction: ResearchQuest has a strong alpha foundation in the React/Supabase app, scoped agent API, and research-entity data model, but the highest-leverage work is now consistency, operational hardening, and closing the Feeds loop. The most actionable in-repo findings were documentation drift, package-manager ambiguity, inaccurate project metadata, and unclear alpha boundaries for API-oriented feed ingestion versus UI-supported triage. Larger architecture concerns, such as distributed rate limiting and scheduled ingest reliability, should be sequenced after the current docs and source-of-truth cleanup.
+Five independent specialist reviews (optimizations, gaps, cost-benefit, SWOT, architecture) evaluated ResearchQuest end-to-end. They agree the product has a strong alpha foundation—entity coverage, Supabase sync, agent API, security journals, and broad unit tests—but the highest-risk gaps were security-boundary holes (topic-link ownership, permissive CORS, privileged admin bootstrap), performance traps (Command Palette task refetch, index name collisions, unbounded search rendering), and documentation/product-boundary drift. This pass implemented the highest-ROI, low-to-medium-risk remediations; larger refactors (god store split, server-side FTS wiring, atomic XP RPCs, distributed rate limits) remain sequenced as Do soon / Defer.
 
-## Critical / High findings actionable in-repo
+## Review round 1 — independent findings (condensed)
 
-1. **Package manager source of truth was ambiguous**
-   - Evaluation signal: dependency cleanup and CI reliability reviews flagged dual lockfiles as avoidable install drift.
-   - Impact: agents, CI, and contributors could select npm despite the project scripts and README using pnpm.
-   - Actionability: delete the stale npm lockfile and keep `pnpm-lock.yaml`.
+### Optimizations (top actionable)
 
-2. **Agent API documentation lagged implemented routes**
-   - Evaluation signal: architecture and gap reviews found the API README still described a foundation phase while runtime routes include entity CRUD, batch creation, topic linking, feeds, and discovery endpoints.
-   - Impact: agents could target wrong payloads or miss shipped capabilities.
-   - Actionability: rewrite the API README from `index.ts`, `routes/entities.ts`, and `_shared/feedRoutes.ts`; point `/explore` and `/openapi.json` out as the contract source of truth.
+| Sev | Finding | Status |
+|-----|---------|--------|
+| High | Index name collisions blocked composite task/topic indexes | Fixed (migration) |
+| High | CommandPalette always called `useTasks` → fetch + realtime at startup | Fixed |
+| High | Missing entity-side topic junction indexes | Fixed |
+| Medium | Ideas sync skipped `setIdeas` when remote empty → stale UI | Fixed |
+| Medium | Autosave wrote/awarded XP even when note unchanged | Fixed (skip no-op) |
+| Medium | Unbounded Command Palette search rendering | Fixed (cap 50) |
+| Medium | Auth clients recreated per request; rate-limit buckets never evicted | Fixed |
+| Medium | RLS `auth.uid()` not initPlan form on topics/junctions | Fixed |
+| High | Batch paper import / API `:batchCreate` N+1 | Deferred (larger change) |
+| High | Always-on realtime across all domains | Deferred |
+| Medium | Task mutations refetch full list after optimistic update | Deferred |
+| Medium | Full-collection fetch of large bodies into Zustand | Deferred |
 
-3. **Root README overstated or misidentified project facts**
-   - Evaluation signal: gap and optimization reviews found metadata drift in table count and listed frontend libraries.
-   - Impact: contributors get a misleading picture of schema scope and runtime dependencies.
-   - Actionability: update the table count from `supabase/tables` and remove tech-stack entries absent from `researchquest/package.json`.
+### Gaps (top actionable)
 
-4. **Feeds capability boundary needed sharper alpha messaging**
-   - Evaluation signal: SWOT and cost-benefit reviews identified Feeds as strategically important but only partially productized.
-   - Impact: users may expect end-to-end RSS/source management and scheduled ingest in the UI when current support centers on triaging/promoting existing `feed_items` and agent/API ingestion.
-   - Actionability: document current UI support separately from incomplete source/RSS management UI and scheduled ingest.
+| Sev | Finding | Status |
+|-----|---------|--------|
+| Critical* | Topics permissive RLS (false positive if migrations applied in order; still hardened) | Defensive drop + recreate |
+| High | Feed promotion bypassed http(s) URL validation | Fixed |
+| High | `create-admin-user` wildcard CORS, any method, no rate limit | Fixed |
+| High | No live RLS/E2E authenticated coverage | Deferred (needs Supabase env) |
+| High | Feeds source/RSS UI incomplete | Documented as alpha boundary |
+| Medium | Dead `AddPaperModal` duplicate | Deleted |
+| Medium | AddPaperView tabs missing keyboard ARIA pattern | Fixed |
+| Medium | AuthScreen hid password-strength errors | Fixed |
+| Medium | Stale API README / root README metadata | Fixed |
+| Medium | Markdown XSS tests over-mocked | Partially improved via autosave tests; deeper preview DOM test still Do soon |
+| Low | Missing `focus_sessions` table doc file | Fixed |
 
-5. **Operational hardening remains alpha-grade**
-   - Evaluation signal: architecture review called out in-memory rate limiting and isolate-local enforcement as acceptable for alpha but not production-grade.
-   - Impact: limits are not globally coordinated and reset with isolate lifecycle.
-   - Actionability: document the limitation now; defer distributed quota enforcement until usage warrants the cost.
+\*Original critical finding assumed permissive policies remained; later migration already dropped them. Hardening migration still drops them defensively and recreates owner policies with `(select auth.uid())`.
 
-## Prioritized remediation backlog
+### Cost-benefit — investment backlog (applied)
 
-### Do now
+1. Dual lockfile removal — **Done**
+2. Legacy layout retirement — **Deferred** (large test surface)
+3. CORS / admin bootstrap lockdown — **Done**
+4. RLS regression hardening — **Partial** (DB ownership triggers + policy refresh)
+5. CSP / test-login hygiene — **Deferred**
+6. Entity view consolidation — **Deferred**
+7. Server-side XP RPCs — **Deferred**
+8. Integration tests — **Deferred**
+9. Feed ingest / Zotero — **Deferred** (product)
+10. Editor splitting / FTS / CDN — **Deferred**
 
-- Remove stale package-manager artifacts so pnpm is the only lockfile path.
-- Align API README with implemented gateway routes and examples.
-- Make root README facts match the current schema and dependency graph.
-- Add a persistent evaluation synthesis document for tracking follow-up work.
-- Label Feeds as alpha: UI triage/promote works for `feed_items`; source/RSS UI and scheduled ingest remain incomplete.
+### SWOT — implied actions addressed this pass
+
+- Fail-closed / safer CORS on edge functions
+- Topic ownership invariants at DB boundary
+- API docs aligned with implementation
+- Search result capping + avoid spurious task fetch
+- Clear Feeds alpha messaging
+
+### Architecture — structural defects addressed vs deferred
+
+| Issue | This pass |
+|-------|-----------|
+| Junction ownership only checked in API handlers | DB trigger ownership enforcement |
+| Service-role gateway bypassing RLS | Deferred (repository layer) |
+| Split sync ownership / god store | Deferred |
+| Dual layout / duplicate list components | Deferred (AddPaperModal removed only) |
+| Client-side denormalized counts / XP | Deferred |
+| Contract/test architecture | Docs + Deno unit tests for feeds validation |
+
+## Fixed this pass (commits)
+
+1. `e88e7de` — docs: evaluation synthesis, API README rewrite, root README cleanup, delete `package-lock.json`
+2. `8629a29` — migration `1764800000_security_perf_hardening.sql` + `focus_sessions.sql` table doc
+3. `c1f5214` — frontend: ideas sync, CommandPalette, AuthScreen, autosave no-op, AddPaperView a11y, useRelatedItems user filter, delete AddPaperModal
+4. `262713a` — edge: auth singletons, rate-limit eviction, feed URL validation, admin-user hardening, fetch-paper/deep-research CORS
+
+## Remaining prioritized backlog
 
 ### Do soon
 
-- Add or expand API contract checks that compare documented examples against `/openapi.json` or route fixtures.
-- Decide the user-facing design for feed source management, RSS configuration, and ingest scheduling.
-- Add smoke coverage for the complete Feeds journey: ingest item, triage item, promote item.
-- Review API key scope presets for common agent workflows so users do not over-grant permissions.
-- Document deployment and operations expectations for the Edge Function gateway.
+- Wire Notes/Papers/Command Palette to existing Postgres FTS RPCs
+- Atomic XP / daily-log / focus completion RPCs
+- Authenticated Playwright + local Supabase RLS contract tests
+- Real markdown preview XSS DOM assertions (no heavy mocks)
+- Retire deprecated `LeftSidebar` + migrate its tests to v2
+- Batch import / `:batchCreate` bulk paths
+- Feed source management UI + scheduled ingest (or keep agent-only)
 
 ### Defer
 
-- Replace isolate-local rate limiting with a distributed quota backend.
-- Build generalized connector infrastructure beyond RSS/source management.
-- Add advanced analytics or dashboards until core ingestion and triage flows are stable.
-- Pursue larger architecture refactors unless they directly reduce reliability or security risk.
+- Distributed rate limiting (Redis/Upstash)
+- God-store split / React Query migration
+- Offline/PWA, collaboration, PDF storage
+- Full TypeScript `strict` enablement in one shot
+- Next.js/SSR rewrite
 
-## In progress / Fixed this pass
+## Review round 2
 
-> Replace the placeholders below with exact PR links and commit references during release notes or review handoff.
-
-- **Package manager cleanup** — stale npm lockfile removed; pnpm remains the dependency source of truth. See PR: _TBD_.
-- **API gateway documentation refresh** — endpoint table, scopes, examples, and alpha rate-limit note updated from implemented routes. See PR: _TBD_.
-- **Root README cleanup** — table count, dependency-backed tech stack, Edge Function list, and Feeds alpha status updated. See PR: _TBD_.
-- **Evaluation tracking** — this synthesis document added under `docs/evaluations/`. See PR: _TBD_.
-
-## Review-specific synthesis
-
-- **Optimizations review:** prioritize low-risk cleanup that reduces contributor and agent friction before adding new runtime behavior.
-- **Gaps review:** close documentation and product-boundary gaps first; the most visible mismatch was Feeds and the agent API README.
-- **Cost-benefit review:** defer distributed systems work until traffic justifies it; docs, lockfile cleanup, and focused tests have the best near-term return.
-- **SWOT review:** preserve strengths in entity modeling, Supabase integration, and agent-oriented API discovery while reducing threats from stale docs and unclear alpha promises.
-- **Architecture review:** keep `/explore` and `/openapi.json` as machine-readable contracts, and treat in-memory rate limiting plus feed scheduling as explicit alpha constraints.
+Placeholder — filled after the second independent review cycle.
