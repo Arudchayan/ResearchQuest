@@ -35,6 +35,19 @@ export function AddPaperModal({
   const [manualDoi, setManualDoi] = useState("");
   const [manualUrl, setManualUrl] = useState("");
 
+  const handleClose = () => {
+    setDoiInput("");
+    setSearchQuery("");
+    setSearchResults([]);
+    setDoiResult(null);
+    setManualTitle("");
+    setManualAuthors("");
+    setManualDoi("");
+    setManualUrl("");
+    setError("");
+    onClose();
+  };
+
   if (!isOpen) return null;
 
   const handleDOISearch = async () => {
@@ -221,19 +234,6 @@ export function AddPaperModal({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, handleClose]);
-
-  const handleClose = () => {
-    setDoiInput("");
-    setSearchQuery("");
-    setSearchResults([]);
-    setDoiResult(null);
-    setManualTitle("");
-    setManualAuthors("");
-    setManualDoi("");
-    setManualUrl("");
-    setError("");
-    onClose();
-  };
 
   return (
     <div
