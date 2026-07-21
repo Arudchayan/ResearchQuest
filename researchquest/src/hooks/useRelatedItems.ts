@@ -163,7 +163,12 @@ export function useRelatedItems(
         }
       }
 
-      setRelatedLinks(Array.from(linkMap.values()));
+      // Cap before hydration — UI only previews a handful; unbounded maps hurt large graphs.
+      const RELATED_LINKS_CAP = 50;
+      const capped = Array.from(linkMap.values())
+        .sort((a, b) => b.topicCount - a.topicCount)
+        .slice(0, RELATED_LINKS_CAP);
+      setRelatedLinks(capped);
     } catch (error) {
       logger.error("Error fetching related items", error);
       setRelatedLinks([]);

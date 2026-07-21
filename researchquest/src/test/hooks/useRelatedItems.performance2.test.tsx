@@ -67,6 +67,8 @@ describe("useRelatedItems Local Performance", () => {
 
     const end = performance.now();
     console.log(`Hydration took ${end - start}ms`);
-    expect(result.current.relatedItems.length).toBe(numLinks);
+    // Hook caps related links to keep sidebar hydration bounded.
+    expect(result.current.relatedItems.length).toBe(50);
+    expect(result.current.relatedItems.length).toBeLessThanOrEqual(numLinks);
   });
 });
