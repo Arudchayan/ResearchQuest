@@ -22,7 +22,9 @@ import {
 import { getOpenApiDocument } from "../_shared/openapi.ts";
 import { buildCorsHeaders, getAllowedOrigins } from "../_shared/cors.ts";
 import {
+  isHttpUrl,
   planFeedItemBatch,
+  promotedPaperSourceUrl,
   validateFeedItemBatchCreate,
   validateFeedItemCreate,
   validateFeedItemPatch,
@@ -131,6 +133,7 @@ Deno.test("validateFeedItemCreate normalizes item input", () => {
     type: "paper",
     title: "  Example Paper  ",
     summary: "  summary  ",
+    url: " https://example.com/paper ",
     external_id: "  arxiv:123  ",
     published_at: "2025-01-02T03:04:05Z",
     payload: { doi: "10.1000/example" },
@@ -139,8 +142,24 @@ Deno.test("validateFeedItemCreate normalizes item input", () => {
   assertEquals(result.error, undefined);
   assertEquals(result.value?.title, "Example Paper");
   assertEquals(result.value?.summary, "summary");
+  assertEquals(result.value?.url, "https://example.com/paper");
   assertEquals(result.value?.external_id, "arxiv:123");
   assertEquals(result.value?.published_at, "2025-01-02T03:04:05.000Z");
+});
+
+Deno.test("feed URL validation only allows http(s) URLs", () => {
+  assertEquals(isHttpUrl("https://example.com/paper"), true);
+  assertEquals(isHttpUrl("http://example.com/paper"), true);
+  assertEquals(isHttpUrl("javascript:alert(1)"), false);
+  assertEquals(isHttpUrl("ftp://example.com/paper"), false);
+
+  const result = validateFeedItemCreate({
+    type: "paper",
+    title: "Example Paper",
+    url: "javascript:alert(1)",
+  });
+
+  assertEquals(result.error, "url must be an http(s) URL");
 });
 
 Deno.test("validateFeedItemCreate rejects invalid type and payload", () => {
@@ -151,6 +170,26 @@ Deno.test("validateFeedItemCreate rejects invalid type and payload", () => {
   });
 
   assertEquals(result.error, "type must be one of: paper, job, news, custom");
+});
+
+Deno.test("paper promotion source_url validation rejects invalid URLs", () => {
+  const fromFields = promotedPaperSourceUrl(
+    { source_url: "javascript:alert(1)" },
+    undefined,
+  );
+  assertEquals(fromFields, { error: "source_url must be an http(s) URL" });
+
+  const fromFeedItem = promotedPaperSourceUrl(
+    {},
+    "data:text/html,unsafe",
+  );
+  assertEquals(fromFeedItem, { error: "source_url must be an http(s) URL" });
+
+  const valid = promotedPaperSourceUrl(
+    { source_url: " https://example.com/from-fields " },
+    "https://example.com/from-item",
+  );
+  assertEquals(valid.value, "https://example.com/from-fields");
 });
 
 Deno.test("validateFeedItemBatchCreate reports item indexes", () => {

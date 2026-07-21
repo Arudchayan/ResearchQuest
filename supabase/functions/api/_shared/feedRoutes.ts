@@ -9,6 +9,7 @@ import {
   isUuid,
   type JsonRecord,
   planFeedItemBatch,
+  promotedPaperSourceUrl,
   type PromoteTarget,
   validateFeedItemBatchCreate,
   validateFeedItemCreate,
@@ -164,6 +165,8 @@ function buildPromotedEntityInsert(
   if (!title) return { error: "title is required for promotion" };
 
   if (target === "paper") {
+    const sourceUrl = promotedPaperSourceUrl(fields, url);
+    if (sourceUrl.error) return { error: sourceUrl.error };
     return {
       table: "papers",
       row: {
@@ -172,8 +175,7 @@ function buildPromotedEntityInsert(
         authors: stringArrayField(fields, "authors") ??
           stringArrayField(payload, "authors") ?? [],
         doi: stringField(fields, "doi") ?? stringField(payload, "doi") ?? null,
-        source_url: stringField(fields, "source_url") ??
-          stringField(fields, "url") ?? url ?? null,
+        source_url: sourceUrl.value,
         status: stringField(fields, "status") ?? "To Read",
         topic_ids: stringArrayField(fields, "topic_ids") ?? [],
         abstract: stringField(fields, "abstract") ?? summary ?? null,
@@ -714,12 +716,11 @@ async function promoteFeedItem(
       corsHeaders,
     );
   }
-  const targetScope =
-    parsed.value.target === "paper"
-      ? "papers:write"
-      : parsed.value.target === "task"
-      ? "tasks:write"
-      : "notes:write";
+  const targetScope = parsed.value.target === "paper"
+    ? "papers:write"
+    : parsed.value.target === "task"
+    ? "tasks:write"
+    : "notes:write";
   const targetDenied = requireScopes(ctx, [targetScope], corsHeaders);
   if (targetDenied) return targetDenied;
 
