@@ -3,6 +3,7 @@ import { getAllowedOrigins } from "../api/_shared/cors.ts";
 const FETCH_TIMEOUT_MS = 10000; // 10 seconds timeout
 const RATE_LIMIT_MAX_REQUESTS = 5;
 const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_KEY = "create-admin-user:global";
 
 interface RateLimitBucket {
   timestamps: number[];
@@ -21,7 +22,7 @@ function buildCorsHeaders(req: Request): Record<string, string> {
   return {
     "Access-Control-Allow-Origin": allowOrigin,
     "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type, x-application-name, x-request-id, x-user-agent, x-forwarded-for",
+      "authorization, x-client-info, apikey, content-type, x-application-name, x-request-id, x-user-agent",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Max-Age": "86400",
     "Access-Control-Allow-Credentials": "false",
@@ -29,25 +30,19 @@ function buildCorsHeaders(req: Request): Record<string, string> {
   };
 }
 
-function getClientIp(req: Request): string {
-  return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    req.headers.get("cf-connecting-ip") ||
-    "unknown";
-}
-
-function checkRateLimit(ip: string): boolean {
+function checkRateLimit(): boolean {
   const now = Date.now();
   const windowStart = now - RATE_LIMIT_WINDOW_MS;
-  const bucket = rateLimitBuckets.get(ip) ?? { timestamps: [] };
+  const bucket = rateLimitBuckets.get(RATE_LIMIT_KEY) ?? { timestamps: [] };
   bucket.timestamps = bucket.timestamps.filter((timestamp) =>
     timestamp > windowStart
   );
   if (bucket.timestamps.length >= RATE_LIMIT_MAX_REQUESTS) {
-    rateLimitBuckets.set(ip, bucket);
+    rateLimitBuckets.set(RATE_LIMIT_KEY, bucket);
     return false;
   }
   bucket.timestamps.push(now);
-  rateLimitBuckets.set(ip, bucket);
+  rateLimitBuckets.set(RATE_LIMIT_KEY, bucket);
   return true;
 }
 
@@ -113,7 +108,7 @@ Deno.serve(async (req) => {
     );
   }
 
-  if (!checkRateLimit(getClientIp(req))) {
+  if (!checkRateLimit()) {
     return new Response(
       JSON.stringify({
         error: { code: "RATE_LIMITED", message: "Too many requests" },
