@@ -122,4 +122,44 @@ describe("useDataSync sync errors", () => {
       expect(useAppStore.getState().ideas).toEqual([]);
     });
   });
+
+  test("allows retrying notes after a failed fetch", async () => {
+    let notesFetches = 0;
+
+    mockSupabaseClient.from.mockImplementation((table: string) => {
+      if (table === "notes") {
+        notesFetches += 1;
+        return queryResult({
+          data: notesFetches === 1 ? null : [],
+          error: notesFetches === 1 ? { message: "notes unavailable" } : null,
+        });
+      }
+
+      return queryResult({
+        data: [],
+        error: null,
+      });
+    });
+
+    const { rerender } = renderHook(
+      ({ view }) => useDataSync("user-1", view),
+      { initialProps: { view: "notes" } },
+    );
+
+    await waitFor(() => {
+      expect(useAppStore.getState().dataSyncErrors.notes).toEqual({
+        message: "Failed to load notes.",
+        resource: "notes",
+      });
+    });
+    expect(notesFetches).toBe(1);
+
+    rerender({ view: "ideas" });
+    rerender({ view: "notes" });
+
+    await waitFor(() => {
+      expect(notesFetches).toBe(2);
+      expect(useAppStore.getState().dataSyncErrors.notes).toBeNull();
+    });
+  });
 });
