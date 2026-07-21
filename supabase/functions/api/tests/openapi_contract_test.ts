@@ -162,6 +162,12 @@ const OPERATION_SMOKE_FIXTURES: SmokeFixture[] = [
     expectedStatuses: ["200"],
   },
   {
+    path: "/explore",
+    method: "get",
+    operationId: "getExplore",
+    expectedStatuses: ["200", "400"],
+  },
+  {
     path: "/keys",
     method: "get",
     operationId: "listApiKeys",
