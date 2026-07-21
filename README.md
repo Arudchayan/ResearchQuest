@@ -17,6 +17,7 @@ A research management dashboard for tracking papers, notes, ideas, topics, and r
 - **Topics** — Organize entities into topics with automatic count tracking.
 - **Tasks** — Reading tasks created automatically when you add papers. Manual task creation with priorities and due dates.
 - **Focus Studio** — Timer-based focus sessions with XP tracking.
+- **Feeds (alpha)** — Triage ingested `feed_items` and promote leads into papers, tasks, or notes. Feed source/RSS management UI and scheduled ingest are still incomplete and primarily agent-API oriented.
 - **Gamification** — XP, levels, streaks, and achievements for research activity.
 - **Zen Mode** — Distraction-free workspace (Ctrl+Shift+F).
 - **Command Palette** — Quick search and navigation (Ctrl+K).
@@ -83,9 +84,6 @@ The app shows a config error screen and the Supabase auth UI — useful for test
 | Auth | Supabase Auth (email/password) |
 | Database | PostgreSQL via Supabase |
 | Editor | CodeMirror 6 |
-| Charts | Recharts |
-| Animations | Framer Motion |
-| Forms | react-hook-form + Zod |
 | Tests | Vitest + Testing Library + Playwright |
 
 ## Project Structure
@@ -143,9 +141,10 @@ Modern browsers (Chrome, Firefox, Safari, Edge). No IE11 support.
 
 ## Database
 
-15 PostgreSQL tables with Row-Level Security (RLS). See `supabase/tables/` for schema and `supabase/migrations/` for migrations.
+21 PostgreSQL tables with Row-Level Security (RLS). See `supabase/tables/` for schema and `supabase/migrations/` for migrations.
 
 Edge functions in `supabase/functions/` (Deno runtime):
+- `api` — Agent API gateway for scoped entity, feed, and key management
 - `fetch-paper` — Crossref DOI/query search
 - `deep-research` — Deep research orchestration
 - `create-admin-user` — Admin user bootstrap
@@ -179,7 +178,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
 - [ ] Offline support / PWA
 - [ ] Collaborative research sessions
-- [ ] RSS feed integration for paper discovery
+- [ ] Feed source/RSS management UI and scheduled ingest
 - [ ] Zotero/ Mendeley import
 - [ ] Bibliography export (BibTeX, CSL)
 - [ ] Mobile-optimized view

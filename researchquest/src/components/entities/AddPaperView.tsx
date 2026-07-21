@@ -19,7 +19,10 @@ interface AddPaperViewProps {
   searchByQuery: (query: string, options?: PaperSearchOptions) => Promise<CrossrefPaper[]>;
 }
 
-const TAB_LABELS: Record<"doi" | "search" | "import" | "manual", string> = {
+const ADD_PAPER_TABS = ["doi", "search", "import", "manual"] as const;
+type AddPaperTab = typeof ADD_PAPER_TABS[number];
+
+const TAB_LABELS: Record<AddPaperTab, string> = {
   doi: "DOI Search",
   search: "Keyword Search",
   import: "Import BibTeX",
@@ -27,7 +30,7 @@ const TAB_LABELS: Record<"doi" | "search" | "import" | "manual", string> = {
 };
 
 export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: AddPaperViewProps) {
-  const [activeTab, setActiveTab] = useState<"doi" | "search" | "manual" | "import">("doi");
+  const [activeTab, setActiveTab] = useState<AddPaperTab>("doi");
   const [successMessage, setSuccessMessage] = useState("");
   const setSelectedPaper = useAppStore((state) => state.setSelectedPaper);
 
@@ -168,6 +171,33 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
     if (count > 0) showSuccess(`Successfully imported ${count} papers!`);
   };
 
+  const selectTab = (tab: AddPaperTab) => {
+    setSearchError("");
+    setImportError("");
+    setActiveTab(tab);
+  };
+
+  const handleTabKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    const currentIndex = ADD_PAPER_TABS.indexOf(activeTab);
+    let nextTab: AddPaperTab | null = null;
+
+    if (event.key === "ArrowLeft") {
+      nextTab = ADD_PAPER_TABS[(currentIndex - 1 + ADD_PAPER_TABS.length) % ADD_PAPER_TABS.length];
+    } else if (event.key === "ArrowRight") {
+      nextTab = ADD_PAPER_TABS[(currentIndex + 1) % ADD_PAPER_TABS.length];
+    } else if (event.key === "Home") {
+      nextTab = ADD_PAPER_TABS[0];
+    } else if (event.key === "End") {
+      nextTab = ADD_PAPER_TABS[ADD_PAPER_TABS.length - 1];
+    }
+
+    if (!nextTab) return;
+
+    event.preventDefault();
+    selectTab(nextTab);
+    document.getElementById(`tab-${nextTab}`)?.focus();
+  };
+
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <div className="mb-8 flex items-center gap-3">
@@ -195,7 +225,7 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
         role="tablist"
         aria-label="Add paper methods"
       >
-        {(["doi", "search", "import", "manual"] as const).map((tab) => (
+        {ADD_PAPER_TABS.map((tab) => (
           <button
             key={tab}
             type="button"
@@ -203,11 +233,9 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
             aria-selected={activeTab === tab}
             aria-controls={`tabpanel-${tab}`}
             id={`tab-${tab}`}
-            onClick={() => {
-              setSearchError("");
-              setImportError("");
-              setActiveTab(tab);
-            }}
+            tabIndex={activeTab === tab ? 0 : -1}
+            onClick={() => selectTab(tab)}
+            onKeyDown={handleTabKeyDown}
             className={`px-6 py-3 text-sm font-medium transition-all relative ${activeTab === tab ? "text-primary-600" : "text-text-secondary"}`}
           >
             {TAB_LABELS[tab]}

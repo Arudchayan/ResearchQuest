@@ -294,8 +294,6 @@ export function useTasks(userId: string | undefined) {
       logger.error("Failed to award XP", e),
     );
 
-    void fetchTasks();
-
     return data;
   }
 
@@ -355,7 +353,6 @@ export function useTasks(userId: string | undefined) {
       return false;
     }
 
-    void fetchTasks();
     return true;
   }
 
@@ -407,7 +404,6 @@ export function useTasks(userId: string | undefined) {
       );
     }
 
-    void fetchTasks();
     return true;
   }
 
@@ -437,7 +433,6 @@ export function useTasks(userId: string | undefined) {
       return false;
     }
 
-    void fetchTasks();
     return true;
   }
 
@@ -470,7 +465,6 @@ export function useTasks(userId: string | undefined) {
     }
 
     toast.success("Task restored");
-    void fetchTasks();
     return data;
   }
 

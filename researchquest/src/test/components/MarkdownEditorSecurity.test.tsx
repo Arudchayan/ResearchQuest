@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, act } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, act, fireEvent } from "@testing-library/react";
 import { MarkdownEditor } from "../../components/editor/MarkdownEditor";
 import { useAppStore } from "../../store/appStore";
 import { supabase } from "../../lib/supabase";
@@ -131,6 +131,43 @@ describe("MarkdownEditor Security", () => {
     });
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("skips autosave when the selected note is unchanged", async () => {
+    vi.useFakeTimers();
+
+    render(<MarkdownEditor />);
+    await act(async () => {});
+    screen.getByTestId("codemirror-mock");
+
+    await act(async () => {
+      vi.advanceTimersByTime(1100);
+    });
+
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it("autosaves changed note content", async () => {
+    vi.useFakeTimers();
+
+    render(<MarkdownEditor />);
+    await act(async () => {});
+    const textarea = screen.getByTestId("codemirror-mock");
+
+    await act(async () => {
+      fireEvent.change(textarea, { target: { value: "Changed content #tag" } });
+      vi.advanceTimersByTime(1100);
+    });
+
+    expect(mockUpdate).toHaveBeenCalledWith({
+      title: "Test Note",
+      markdown_body: "Changed content #tag",
+      tags: ["tag"],
+    });
+  });
+
   it("fix: enforces input length validation and does NOT send large payload to Supabase", async () => {
     render(<MarkdownEditor />);
 
@@ -150,8 +187,6 @@ describe("MarkdownEditor Security", () => {
     // Create a large string exceeding the limit
     const largeContent = "a".repeat(NOTE_BODY_MAX_LENGTH + 100);
 
-    const { fireEvent } = await import("@testing-library/react");
-
     await act(async () => {
       fireEvent.change(textarea, { target: { value: largeContent } });
     });
@@ -163,7 +198,5 @@ describe("MarkdownEditor Security", () => {
 
     // Assert that update was NOT called with the large content
     expect(mockUpdate).not.toHaveBeenCalled();
-
-    vi.useRealTimers();
   });
 });
