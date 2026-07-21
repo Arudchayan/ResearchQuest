@@ -330,9 +330,7 @@ export function useDataSync(userId: string | undefined, currentView: string) {
         }
 
         clearDataSyncError("ideas");
-        if (allIdeas.length > 0) {
-          setIdeas(allIdeas);
-        }
+        setIdeas(allIdeas);
 
         const current = useAppStore.getState().selectedIdea;
         if (current) {

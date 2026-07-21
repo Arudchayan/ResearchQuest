@@ -62,6 +62,7 @@ export function useRelatedItems(
       const { data: currentTopics, error: topicsError } = await supabase
         .from(topicTable)
         .select("topic_id")
+        .eq("user_id", userId)
         .eq(entityColumn, entityId);
 
       if (topicsError || !currentTopics || currentTopics.length === 0) {
@@ -82,6 +83,7 @@ export function useRelatedItems(
         supabase
           .from("topic_notes")
           .select("note_id, topic_id")
+          .eq("user_id", userId)
           .in("topic_id", topicIds)
           .neq(
             "note_id",
@@ -93,6 +95,7 @@ export function useRelatedItems(
         supabase
           .from("topic_papers")
           .select("paper_id, topic_id")
+          .eq("user_id", userId)
           .in("topic_id", topicIds)
           .neq(
             "paper_id",
@@ -104,6 +107,7 @@ export function useRelatedItems(
         supabase
           .from("topic_ideas")
           .select("idea_id, topic_id")
+          .eq("user_id", userId)
           .in("topic_id", topicIds)
           .neq(
             "idea_id",
