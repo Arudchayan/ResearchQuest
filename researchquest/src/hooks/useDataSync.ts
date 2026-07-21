@@ -5,6 +5,7 @@ import { useShallow } from "zustand/react/shallow";
 import { sortByUpdatedAt } from "../utils/sort";
 import type { Note, Paper, Idea } from "../types/database";
 import { dedupeById } from "../utils/collections";
+import { logger } from "../utils/logger";
 
 /** Number of rows to fetch per paginated request. */
 const PAGE_LIMIT = 50;
@@ -365,6 +366,12 @@ export function useDataSync(userId: string | undefined, currentView: string) {
         .gte("completed_at", startOfDay.toISOString());
 
       if (error) {
+        if (error.code === "PGRST205" || /focus_sessions/i.test(error.message)) {
+          logger.error(
+            "[RQ] focus_sessions table missing — apply migration 1764300000_create_focus_sessions.sql",
+            error,
+          );
+        }
         return;
       }
 

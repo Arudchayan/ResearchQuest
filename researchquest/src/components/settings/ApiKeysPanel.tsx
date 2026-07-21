@@ -85,10 +85,30 @@ async function getSessionToken(): Promise<string> {
 async function parseErrorMessage(response: Response): Promise<string> {
   try {
     const body = await response.json();
-    return body?.error?.message || body?.message || response.statusText;
+    const message = body?.error?.message || body?.message || response.statusText;
+    if (
+      response.status === 404 &&
+      (message === "Requested function was not found" ||
+        /function was not found/i.test(String(message)))
+    ) {
+      return "Agent API edge function is not deployed. Deploy supabase/functions/api and apply pending migrations.";
+    }
+    return message || "Request failed";
   } catch {
+    if (response.status === 404) {
+      return "Agent API edge function is not deployed. Deploy supabase/functions/api and apply pending migrations.";
+    }
     return response.statusText || "Request failed";
   }
+}
+
+function mapFetchFailure(err: unknown): Error {
+  if (err instanceof TypeError) {
+    return new Error(
+      "Could not reach the Agent API gateway. Confirm the `api` edge function is deployed and CORS ALLOWED_ORIGINS includes this site.",
+    );
+  }
+  return err instanceof Error ? err : new Error("Request failed");
 }
 
 async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -99,10 +119,15 @@ async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
     headers.set("Content-Type", "application/json");
   }
 
-  const response = await fetch(apiUrl(path), {
-    ...init,
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(apiUrl(path), {
+      ...init,
+      headers,
+    });
+  } catch (err) {
+    throw mapFetchFailure(err);
+  }
 
   if (!response.ok) {
     throw new Error(await parseErrorMessage(response));

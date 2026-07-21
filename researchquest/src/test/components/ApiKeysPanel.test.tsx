@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiKeysPanel } from "../../components/settings/ApiKeysPanel";
 import { mockSupabaseClient } from "../mocks/supabase";
@@ -103,5 +104,40 @@ describe("ApiKeysPanel", () => {
       "rq_new-secret",
     );
     expect(screen.getByText("Local agent")).toBeInTheDocument();
+  });
+
+  it("explains when the api edge function is missing", async () => {
+    const errorSpy = vi.spyOn(toast, "error").mockImplementation(() => "");
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(
+        { code: "NOT_FOUND", message: "Requested function was not found" },
+        404,
+      ),
+    );
+
+    render(<ApiKeysPanel active={true} />);
+
+    await waitFor(() => {
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/edge function is not deployed/i),
+      );
+    });
+
+    errorSpy.mockRestore();
+  });
+
+  it("explains network/CORS failures when the gateway is unreachable", async () => {
+    const errorSpy = vi.spyOn(toast, "error").mockImplementation(() => "");
+    fetchMock.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+
+    render(<ApiKeysPanel active={true} />);
+
+    await waitFor(() => {
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/Could not reach the Agent API gateway/i),
+      );
+    });
+
+    errorSpy.mockRestore();
   });
 });

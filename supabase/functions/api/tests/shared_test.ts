@@ -114,7 +114,7 @@ Deno.test("cors allowlist from env", () => {
     "https://app.example.com,https://other.example.com",
   );
   const origins = getAllowedOrigins();
-  assertEquals(origins.includes("https://app.example.com"), true);
+  assertEquals(origins?.includes("https://app.example.com"), true);
   const req = new Request("https://example.com", {
     headers: { Origin: "https://app.example.com" },
   });
@@ -123,6 +123,26 @@ Deno.test("cors allowlist from env", () => {
     headers["Access-Control-Allow-Origin"],
     "https://app.example.com",
   );
+  Deno.env.delete("ALLOWED_ORIGINS");
+});
+
+Deno.test("cors is open when ALLOWED_ORIGINS is unset", () => {
+  Deno.env.delete("ALLOWED_ORIGINS");
+  assertEquals(getAllowedOrigins(), null);
+  const req = new Request("https://example.com", {
+    headers: { Origin: "https://research-quest-wine.vercel.app" },
+  });
+  const headers = buildCorsHeaders(req);
+  assertEquals(headers["Access-Control-Allow-Origin"], "*");
+});
+
+Deno.test("cors omits allow-origin for unmatched origin when allowlist set", () => {
+  Deno.env.set("ALLOWED_ORIGINS", "https://app.example.com");
+  const req = new Request("https://example.com", {
+    headers: { Origin: "https://evil.example.com" },
+  });
+  const headers = buildCorsHeaders(req);
+  assertEquals(headers["Access-Control-Allow-Origin"], undefined);
   Deno.env.delete("ALLOWED_ORIGINS");
 });
 

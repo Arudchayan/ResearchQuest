@@ -143,12 +143,15 @@ Modern browsers (Chrome, Firefox, Safari, Edge). No IE11 support.
 
 ## Database
 
-15 PostgreSQL tables with Row-Level Security (RLS). See `supabase/tables/` for schema and `supabase/migrations/` for migrations.
+15+ PostgreSQL tables with Row-Level Security (RLS). See `supabase/tables/` for schema and `supabase/migrations/` for migrations.
 
 Edge functions in `supabase/functions/` (Deno runtime):
+- `api` — Agent REST gateway (health, OpenAPI, API keys, entities, feeds)
 - `fetch-paper` — Crossref DOI/query search
 - `deep-research` — Deep research orchestration
 - `create-admin-user` — Admin user bootstrap
+
+**Production deploy:** apply migrations and deploy functions before using Focus Studio aggregates or API keys in the hosted app. See [supabase/DEPLOY.md](supabase/DEPLOY.md).
 
 ## Tests
 

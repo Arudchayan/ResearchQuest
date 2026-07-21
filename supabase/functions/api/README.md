@@ -116,8 +116,10 @@ curl -X POST "$SUPABASE_URL/functions/v1/api/v1/tasks:batchCreate" \
 ## Env
 
 - `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (standard)
-- `ALLOWED_ORIGINS` — comma-separated CORS allowlist (defaults to localhost Vite
-  ports)
+- `ALLOWED_ORIGINS` — comma-separated CORS allowlist. When unset, CORS is open
+  (`*`) so production deployments are not blocked by the localhost defaults.
+  Set this once you want a tight allowlist (for example
+  `https://research-quest-wine.vercel.app`).
 
 ## Tests
 

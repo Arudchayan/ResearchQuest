@@ -5,22 +5,24 @@ const DEV_ORIGINS = [
   "http://127.0.0.1:4173",
 ];
 
-export function getAllowedOrigins(): string[] {
+/**
+ * Returns the configured CORS allowlist, or `null` when ALLOWED_ORIGINS is
+ * unset so callers can preserve open CORS (same posture as deep-research /
+ * fetch-paper) until production origins are configured.
+ */
+export function getAllowedOrigins(): string[] | null {
   const fromEnv = Deno.env.get("ALLOWED_ORIGINS");
-  if (fromEnv && fromEnv.trim()) {
-    return fromEnv.split(",").map((o) => o.trim()).filter(Boolean);
+  if (!fromEnv || !fromEnv.trim()) {
+    return null;
   }
-  return DEV_ORIGINS;
+  return fromEnv
+    .split(",")
+    .map((o) => o.trim().replace(/\/$/, ""))
+    .filter(Boolean);
 }
 
 export function buildCorsHeaders(req: Request): Record<string, string> {
-  const origin = req.headers.get("Origin");
-  const allowed = getAllowedOrigins();
-  const allowOrigin =
-    origin && allowed.includes(origin) ? origin : allowed[0] ?? "http://localhost:5173";
-
-  return {
-    "Access-Control-Allow-Origin": allowOrigin,
+  const headers: Record<string, string> = {
     "Access-Control-Allow-Headers":
       "authorization, x-client-info, apikey, content-type, x-request-id",
     "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
@@ -28,4 +30,21 @@ export function buildCorsHeaders(req: Request): Record<string, string> {
     "Access-Control-Allow-Credentials": "false",
     Vary: "Origin",
   };
+
+  const origin = req.headers.get("Origin");
+  const allowed = getAllowedOrigins();
+
+  if (allowed === null) {
+    // Unset → open CORS so deployed production apps are not blocked until
+    // ALLOWED_ORIGINS is configured.
+    headers["Access-Control-Allow-Origin"] = "*";
+    return headers;
+  }
+
+  const allowlist = allowed.length > 0 ? allowed : DEV_ORIGINS;
+  if (origin && allowlist.includes(origin)) {
+    headers["Access-Control-Allow-Origin"] = origin;
+  }
+
+  return headers;
 }
