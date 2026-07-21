@@ -1,0 +1,38 @@
+# For detailed configuration reference documentation, visit:
+# https://supabase.com/docs/guides/local-development/cli/config
+project_id = "researchquest"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+
+[db.migrations]
+enabled = true
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+enabled = true
+
+# Agent gateway + paper helpers authenticate inside the function.
+[functions.api]
+verify_jwt = false
+
+[functions.fetch-paper]
+verify_jwt = false
+
+[functions.deep-research]
+verify_jwt = false
+
+[functions.create-admin-user]
+verify_jwt = true

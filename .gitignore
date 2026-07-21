@@ -24,3 +24,6 @@ researchquest/UI_UX_AUDIT.md
 node_modules/
 .vite/
 package-lock.json
+
+# Supabase CLI local link state
+supabase/.temp/
