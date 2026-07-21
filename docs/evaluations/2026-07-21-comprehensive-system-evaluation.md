@@ -105,4 +105,35 @@ Five independent specialist reviews (optimizations, gaps, cost-benefit, SWOT, ar
 
 ## Review round 2
 
-Placeholder — filled after the second independent review cycle.
+Second independent cycle (gaps/security, optimizations, architecture) verified Round-1 remediations and surfaced more High/Medium items.
+
+### Fixed in Round 2
+
+| Finding | Fix |
+|---------|-----|
+| Admin bootstrap XFF-spoofable rate limit | Global bucket; drop XFF from CORS headers |
+| `fetch-paper` / `deep-research` no per-user limits | 30/min and 10/min in-memory limits → 429 |
+| `topic_quests` / feed_items source ownership holes | Migration `1764801000_round2_security_hardening.sql` |
+| `save_idea_with_links` / `evaluate_user_streaks` privileges | Fail-closed auth + REVOKE/GRANT hardening |
+| Unsafe feed item URLs rendered as links | `FeedItemCard` validates before `<a href>` |
+| Sync marks domain fetched before success | Markers moved to success path; retry works |
+| Task mutations full-refetch after optimistic write | Removed success-path `fetchTasks()` |
+| Focus session double-count today seconds | Removed local increment; realtime aggregate wins |
+| Topic junction user_id omit race | Always include `user_id` on junction upserts |
+| Import duplicate count / misleading UI copy | Count inserted rows; honest “skipped” messaging |
+| Unbounded related-items hydration | Cap related links at 50 |
+| Feed promote length limits bypassed | Title/body/abstract/description caps on promote |
+
+### Remaining after Round 2 (intentionally deferred)
+
+- Wire Postgres FTS into Notes/Papers/Command Palette
+- Atomic XP / daily-log RPC
+- Transactional feed promote + import
+- Authenticated E2E + live RLS integration tests
+- LeftSidebar / dual-layout retirement
+- Full-collection pagination / view-scoped realtime
+- `batchCreate` bulk inserts
+- Distributed rate limiting
+- Array-link ownership validation / topic_ids normalization
+
+These require larger product or schema moves and are tracked as Do soon / Defer rather than blocking this evaluation PR.
