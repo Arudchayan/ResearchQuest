@@ -8,9 +8,29 @@ Wave 0 foundation: health, OpenAPI stub, and API key management.
 | ------ | ----------------------------------- | ----------------------------- | ------------------------------- |
 | GET    | `/functions/v1/api/v1/health`       | none                          | Health check                    |
 | GET    | `/functions/v1/api/v1/openapi.json` | none                          | OpenAPI 3.1 document            |
+| GET    | `/functions/v1/api/v1/explore`      | none                          | Agent-friendly API discovery    |
 | GET    | `/functions/v1/api/v1/keys`         | JWT or API key (`keys:read`)  | List keys                       |
 | POST   | `/functions/v1/api/v1/keys`         | JWT only                      | Mint key (secret returned once) |
 | DELETE | `/functions/v1/api/v1/keys/:id`     | JWT or API key (`keys:write`) | Revoke key                      |
+
+## Discovery endpoints
+
+Use these to learn the API before making authenticated calls:
+
+- **`GET /explore`** — Start here for LLM agents and automation. Returns inline
+  schemas, required fields, scope mappings, copy-paste examples, and workflow
+  recipes. Supports optional filters: `?resource=notes`, `?action=create`,
+  `?include=schemas,examples,workflows,scopes`.
+- **`GET /openapi.json`** — Full OpenAPI 3.1 machine contract for codegen,
+  Schemathesis fuzz testing, and strict schema validation.
+
+```bash
+curl "$SUPABASE_URL/functions/v1/api/v1/explore"
+
+curl "$SUPABASE_URL/functions/v1/api/v1/explore?resource=notes&action=create"
+
+curl "$SUPABASE_URL/functions/v1/api/v1/openapi.json"
+```
 
 ## Auth
 
