@@ -50,15 +50,15 @@ describe("useDataSync sync errors", () => {
     await waitFor(() => {
       expect(useAppStore.getState().dataSyncErrors).toEqual({
         notes: {
-          message: "Failed to load notes.",
+          message: "Failed to load notes preview.",
           resource: "notes",
         },
         papers: {
-          message: "Failed to load papers.",
+          message: "Failed to load papers preview.",
           resource: "papers",
         },
         ideas: {
-          message: "Failed to load ideas.",
+          message: "Failed to load ideas preview.",
           resource: "ideas",
         },
       });
