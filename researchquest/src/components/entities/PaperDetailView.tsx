@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useId } from "react";
 import {
   BookOpen,
   Calendar,
@@ -54,6 +54,9 @@ export function PaperDetailView({
   const [showCitation, setShowCitation] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const isMounted = useRef(true);
+
+  const authorsInputId = useId();
+  const statusInputId = useId();
 
   const { createNote } = useNotes(useAppStore.getState().user?.id);
 
@@ -362,18 +365,18 @@ export function PaperDetailView({
 
             {/* Authors */}
             <div className="space-y-2 mb-4">
-              <label className="block text-sm font-medium text-text-secondary">
+              <label htmlFor={authorsInputId} className="block text-sm font-medium text-text-secondary">
                 Authors
               </label>
               {isEditing ? (
                 <input
+                  id={authorsInputId}
                   type="text"
                   value={editedAuthors}
                   onChange={(e) => setEditedAuthors(e.target.value)}
                   maxLength={1000}
                   className="w-full px-4 py-2 bg-bg-base border border-border-subtle rounded-md text-body text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="Author 1, Author 2, et al."
-                  aria-label="Authors"
                 />
               ) : (
                 <p className="text-lg text-text-secondary">
@@ -384,11 +387,12 @@ export function PaperDetailView({
 
             {/* Status Selector */}
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-text-secondary">
+              <label htmlFor={statusInputId} className="block text-sm font-medium text-text-secondary">
                 Reading Status
               </label>
               {isEditing ? (
                 <select
+                  id={statusInputId}
                   value={editedStatus}
                   onChange={(e) =>
                     setEditedStatus(e.target.value as ReadingStatus)
