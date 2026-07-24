@@ -88,6 +88,10 @@ export function FeedsRail() {
         </div>
       </div>
 
+      <div className="sr-only" role="status" aria-live="polite">
+        {!loading && !error && items.length === 0 ? "No new feed items. New items will appear here as agents ingest them." : ""}
+      </div>
+
       {loading ? (
         <div className="space-y-2" role="status" aria-live="polite">
           {[0, 1, 2].map((index) => (
@@ -104,7 +108,7 @@ export function FeedsRail() {
         </div>
       ) : items.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border-moderate bg-bg-elevated p-4 text-center">
-          <Inbox className="mx-auto h-6 w-6 text-text-tertiary" aria-hidden="true" />
+          <Inbox className="mx-auto h-6 w-6 text-text-tertiary opacity-50" aria-hidden="true" />
           <p className="mt-2 text-small font-medium text-text-primary">
             No new feed items
           </p>
