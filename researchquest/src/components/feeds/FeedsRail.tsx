@@ -1,7 +1,11 @@
 import { Inbox } from "lucide-react";
 import { useState } from "react";
 import { useAppStore } from "../../store/appStore";
-import { useFeedItems, FEED_ITEM_TYPES, type FeedTypeFilter } from "../../hooks/useFeedItems";
+import {
+  useFeedItems,
+  FEED_ITEM_TYPES,
+  type FeedTypeFilter,
+} from "../../hooks/useFeedItems";
 import { FeedItemCard } from "./FeedItemCard";
 import type { FeedPromoteTarget } from "../../types/database";
 import { cn } from "../../lib/utils";
@@ -68,7 +72,10 @@ export function FeedsRail() {
           </button>
         </div>
 
-        <div className="mt-3 flex flex-wrap gap-1.5" aria-label="Feed type filters">
+        <div
+          className="mt-3 flex flex-wrap gap-1.5"
+          aria-label="Feed type filters"
+        >
           {(["all", ...FEED_ITEM_TYPES] as FeedTypeFilter[]).map((filter) => (
             <button
               key={filter}
@@ -88,23 +95,38 @@ export function FeedsRail() {
         </div>
       </div>
 
+      <div className="sr-only" role="status" aria-live="polite">
+        {loading
+          ? "Loading feeds"
+          : error
+            ? error
+            : items.length === 0
+              ? "No new feed items. New items will appear here as agents ingest them."
+              : ""}
+      </div>
+
       {loading ? (
-        <div className="space-y-2" role="status" aria-live="polite">
+        <div className="space-y-2" aria-hidden="true">
           {[0, 1, 2].map((index) => (
             <div
               key={index}
               className="h-28 animate-pulse rounded-lg border border-border-subtle bg-bg-elevated"
             />
           ))}
-          <span className="sr-only">Loading feeds</span>
         </div>
       ) : error ? (
         <div className="rounded-lg border border-border-subtle bg-bg-elevated p-4 text-caption text-text-secondary">
           {error}
         </div>
       ) : items.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border-moderate bg-bg-elevated p-4 text-center">
-          <Inbox className="mx-auto h-6 w-6 text-text-tertiary" aria-hidden="true" />
+        <div
+          className="rounded-lg border border-dashed border-border-moderate bg-bg-elevated p-4 text-center"
+          aria-hidden="true"
+        >
+          <Inbox
+            className="mx-auto h-6 w-6 text-text-tertiary"
+            aria-hidden="true"
+          />
           <p className="mt-2 text-small font-medium text-text-primary">
             No new feed items
           </p>

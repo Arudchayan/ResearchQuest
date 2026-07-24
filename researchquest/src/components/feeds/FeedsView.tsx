@@ -55,7 +55,10 @@ export function FeedsView() {
             <div>
               <div className="flex items-center gap-3 text-text-primary">
                 <div className="rounded-lg border border-border-subtle bg-bg-elevated p-2">
-                  <Inbox className="h-5 w-5 text-primary-500" aria-hidden="true" />
+                  <Inbox
+                    className="h-5 w-5 text-primary-500"
+                    aria-hidden="true"
+                  />
                 </div>
                 <div>
                   <h1 className="font-serif text-2xl font-bold tracking-tight">
@@ -89,22 +92,24 @@ export function FeedsView() {
                 Type
               </h2>
               <div className="mt-2 flex flex-wrap gap-2">
-                {(["all", ...FEED_ITEM_TYPES] as FeedTypeFilter[]).map((filter) => (
-                  <button
-                    key={filter}
-                    type="button"
-                    onClick={() => setType(filter)}
-                    className={cn(
-                      "rounded-full border px-3 py-1.5 text-small font-medium transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500",
-                      type === filter
-                        ? "border-primary-500 bg-primary-500 text-bg-base"
-                        : "border-border-subtle bg-bg-base text-text-secondary hover:border-border-moderate hover:text-text-primary",
-                    )}
-                    aria-pressed={type === filter}
-                  >
-                    {TYPE_LABELS[filter]}
-                  </button>
-                ))}
+                {(["all", ...FEED_ITEM_TYPES] as FeedTypeFilter[]).map(
+                  (filter) => (
+                    <button
+                      key={filter}
+                      type="button"
+                      onClick={() => setType(filter)}
+                      className={cn(
+                        "rounded-full border px-3 py-1.5 text-small font-medium transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500",
+                        type === filter
+                          ? "border-primary-500 bg-primary-500 text-bg-base"
+                          : "border-border-subtle bg-bg-base text-text-secondary hover:border-border-moderate hover:text-text-primary",
+                      )}
+                      aria-pressed={type === filter}
+                    >
+                      {TYPE_LABELS[filter]}
+                    </button>
+                  ),
+                )}
               </div>
             </div>
 
@@ -139,19 +144,30 @@ export function FeedsView() {
         <section aria-label="Feed items">
           <div className="mb-3 flex items-center justify-between">
             <p className="text-small text-text-secondary">
-              {loading ? "Loading feed items..." : `${items.length} item${items.length === 1 ? "" : "s"}`}
+              {loading
+                ? "Loading feed items..."
+                : `${items.length} item${items.length === 1 ? "" : "s"}`}
             </p>
           </div>
 
+          <div className="sr-only" role="status" aria-live="polite">
+            {loading
+              ? "Loading feeds"
+              : error
+                ? error
+                : items.length === 0
+                  ? "Nothing to triage. Try a different filter, or check back when agents ingest more feed items."
+                  : ""}
+          </div>
+
           {loading ? (
-            <div className="space-y-3" role="status" aria-live="polite">
+            <div className="space-y-3" aria-hidden="true">
               {[0, 1, 2].map((index) => (
                 <div
                   key={index}
                   className="h-44 animate-pulse rounded-xl border border-border-subtle bg-bg-surface"
                 />
               ))}
-              <span className="sr-only">Loading feeds</span>
             </div>
           ) : error ? (
             <div className="rounded-xl border border-border-subtle bg-bg-surface p-6 text-text-secondary">
@@ -159,11 +175,13 @@ export function FeedsView() {
             </div>
           ) : items.length === 0 ? (
             <div
-              role="status"
-              aria-live="polite"
+              aria-hidden="true"
               className="rounded-xl border border-dashed border-border-moderate bg-bg-surface p-10 text-center"
             >
-              <Inbox className="mx-auto h-8 w-8 text-text-tertiary" aria-hidden="true" />
+              <Inbox
+                className="mx-auto h-8 w-8 text-text-tertiary"
+                aria-hidden="true"
+              />
               <h2 className="mt-3 font-serif text-xl font-semibold text-text-primary">
                 Nothing to triage
               </h2>
