@@ -143,6 +143,10 @@ export function FeedsView() {
             </p>
           </div>
 
+          <div className="sr-only" role="status" aria-live="polite">
+            {!loading && !error && items.length === 0 ? "Nothing to triage. Try a different filter, or check back when agents ingest more feed items." : ""}
+          </div>
+
           {loading ? (
             <div className="space-y-3" role="status" aria-live="polite">
               {[0, 1, 2].map((index) => (
@@ -159,11 +163,9 @@ export function FeedsView() {
             </div>
           ) : items.length === 0 ? (
             <div
-              role="status"
-              aria-live="polite"
               className="rounded-xl border border-dashed border-border-moderate bg-bg-surface p-10 text-center"
             >
-              <Inbox className="mx-auto h-8 w-8 text-text-tertiary" aria-hidden="true" />
+              <Inbox className="mx-auto h-8 w-8 text-text-tertiary opacity-50" aria-hidden="true" />
               <h2 className="mt-3 font-serif text-xl font-semibold text-text-primary">
                 Nothing to triage
               </h2>
