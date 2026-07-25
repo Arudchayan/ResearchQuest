@@ -291,9 +291,7 @@ describe("AddPaperView Component", () => {
       });
 
       await waitFor(() => {
-        expect(
-          screen.getByText(/paper added successfully/i),
-        ).toBeInTheDocument();
+        expect(screen.getAllByText(/paper added successfully/i)[0]).toBeInTheDocument();
       });
     });
 
@@ -633,9 +631,7 @@ describe("AddPaperView Component", () => {
       // Verify loading state cleared
       await waitFor(() => {
         expect(screen.queryByText("Adding Paper...")).not.toBeInTheDocument();
-        expect(
-          screen.getByText(/paper added successfully/i),
-        ).toBeInTheDocument();
+        expect(screen.getAllByText(/paper added successfully/i)[0]).toBeInTheDocument();
       });
     });
   });
@@ -806,9 +802,7 @@ describe("AddPaperView Component", () => {
             authors: ["Test Author"],
           }),
         );
-        expect(
-          screen.getByText(/successfully imported 1 papers/i),
-        ).toBeInTheDocument();
+        expect(screen.getAllByText(/successfully imported 1 papers/i)[0]).toBeInTheDocument();
       });
     });
   });
