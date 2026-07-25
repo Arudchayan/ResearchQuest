@@ -200,6 +200,9 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
+      <div className="sr-only" role="status" aria-live="polite">
+        {successMessage}
+      </div>
       <div className="mb-8 flex items-center gap-3">
         <div className="p-3 bg-primary-100 dark:bg-primary-900/20 rounded-lg">
           <BookOpen className="w-6 h-6 text-primary-600" />
@@ -212,7 +215,6 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
 
       {successMessage && (
         <div
-          role="status"
           className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3"
         >
           <CheckCircle2 className="w-5 h-5 text-green-600" />
