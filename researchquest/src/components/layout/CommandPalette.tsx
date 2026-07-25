@@ -56,7 +56,7 @@ export function CommandPalette() {
       user: state.user,
       topics: state.topics,
       tasks: state.tasks,
-    }))
+    })),
   );
 
   const topicsArray = useMemo(() => Object.values(topics), [topics]);
@@ -94,7 +94,10 @@ export function CommandPalette() {
 
     return () => {
       document.removeEventListener("keydown", down);
-      document.removeEventListener("open-command-palette", handleOpenCommandPalette);
+      document.removeEventListener(
+        "open-command-palette",
+        handleOpenCommandPalette,
+      );
     };
   }, []);
 
@@ -157,7 +160,8 @@ export function CommandPalette() {
   };
 
   const handleExport = async () => {
-    const { user, notes, papers, ideas, topics, tasks } = useAppStore.getState();
+    const { user, notes, papers, ideas, topics, tasks } =
+      useAppStore.getState();
     if (!user?.id) {
       setOpen(false);
       return;
@@ -247,11 +251,17 @@ export function CommandPalette() {
       return searchItems.slice(0, SEARCH_RESULTS_LIMIT);
     }
 
-    return searchItems
-      .filter((entry) =>
-        `${entry.type}: ${entry.label}`.toLowerCase().includes(normalizedSearch),
-      )
-      .slice(0, SEARCH_RESULTS_LIMIT);
+    const results = [];
+    for (let i = 0; i < searchItems.length; i++) {
+      const entry = searchItems[i];
+      if (
+        `${entry.type}: ${entry.label}`.toLowerCase().includes(normalizedSearch)
+      ) {
+        results.push(entry);
+        if (results.length === SEARCH_RESULTS_LIMIT) break;
+      }
+    }
+    return results;
   }, [searchItems, searchValue]);
 
   return (
@@ -269,7 +279,9 @@ export function CommandPalette() {
       </div>
 
       <Command.List>
-        <Command.Empty role="status" aria-live="polite">No results found.</Command.Empty>
+        <Command.Empty role="status" aria-live="polite">
+          No results found.
+        </Command.Empty>
 
         <Command.Group heading="Navigation">
           <Command.Item onSelect={() => handleNavigate("dashboard")}>
@@ -401,9 +413,7 @@ export function CommandPalette() {
               {entry.type === "task" && (
                 <CheckSquare className="text-green-500" />
               )}
-              {entry.type === "topic" && (
-                <Hash className="text-purple-500" />
-              )}
+              {entry.type === "topic" && <Hash className="text-purple-500" />}
               <div className="flex flex-col">
                 <span>{entry.label}</span>
                 <span className="text-xs text-text-tertiary capitalize">
