@@ -372,14 +372,6 @@ export function TaskManager() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="p-4 sm:p-6">
-        <ListSkeleton count={6} itemType="task" />
-      </div>
-    );
-  }
-
   return (
     <div className="h-full flex flex-col bg-bg-base">
       {/* Header */}
@@ -594,7 +586,9 @@ export function TaskManager() {
         {!loading && !tasksSyncError && sortedTasks.length === 0 ? (searchQuery ? "No matches found. Try a different keyword or clear your search." : "No tasks match your filters") : ""}
       </div>
       <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-        {sortedTasks.length === 0 ? (
+        {loading ? (
+          <ListSkeleton count={6} itemType="task" />
+        ) : sortedTasks.length === 0 ? (
           <div className="text-center py-16">
             <CheckCircle2
               className="w-16 h-16 mx-auto mb-4 text-text-tertiary opacity-50"

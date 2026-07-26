@@ -282,10 +282,6 @@ export function IdeaList({
     }
   }, [ideaToDelete, onDeleteIdea, onRestoreIdea]);
 
-  if (loading) {
-    return <ListSkeleton count={5} itemType="idea" />;
-  }
-
   const emptyMessage = ideas.length === 0
     ? "No ideas yet. Create your first idea above."
     : (filteredIdeas.length === 0 ? "No matches found. Try a different keyword or clear your search." : "");
@@ -293,10 +289,12 @@ export function IdeaList({
   return (
     <>
       <div className="sr-only" role="status" aria-live="polite">
-        {emptyMessage}
+        {!loading ? emptyMessage : ""}
       </div>
 
-      {ideas.length === 0 ? (
+      {loading ? (
+        <ListSkeleton count={5} itemType="idea" />
+      ) : ideas.length === 0 ? (
         <div className="text-center py-12 text-text-tertiary" aria-hidden="true">
           <Lightbulb className="w-12 h-12 mx-auto mb-3 opacity-50" />
           <p className="text-small">No ideas yet</p>

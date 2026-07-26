@@ -241,17 +241,15 @@ export function NoteList({
     }
   }, [noteToDelete, onDeleteNote, onRestoreNote]);
 
-  if (loading) {
-    return <ListSkeleton count={5} itemType="note" />;
-  }
-
   return (
     <>
       <div className="sr-only" role="status" aria-live="polite">
-        {emptyMessage}
+        {!loading ? emptyMessage : ""}
       </div>
 
-      {notes.length === 0 ? (
+      {loading ? (
+        <ListSkeleton count={5} itemType="note" />
+      ) : notes.length === 0 ? (
         searchQuery ? (
           <div className="text-center py-12 text-text-tertiary" aria-hidden="true">
             <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
