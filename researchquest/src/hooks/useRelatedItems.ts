@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { useAppStore } from "../store/appStore";
 import { deriveTitleFromMarkdown } from "../utils/text";
 import { logger } from "../utils/logger";
+import { getTopN } from "../utils/collections";
 
 export interface RelatedItem {
   id: string;
@@ -165,9 +166,11 @@ export function useRelatedItems(
 
       // Cap before hydration — UI only previews a handful; unbounded maps hurt large graphs.
       const RELATED_LINKS_CAP = 50;
-      const capped = Array.from(linkMap.values())
-        .sort((a, b) => b.topicCount - a.topicCount)
-        .slice(0, RELATED_LINKS_CAP);
+      const capped = getTopN(
+        Array.from(linkMap.values()),
+        RELATED_LINKS_CAP,
+        (a, b) => b.topicCount - a.topicCount
+      );
       setRelatedLinks(capped);
     } catch (error) {
       logger.error("Error fetching related items", error);
