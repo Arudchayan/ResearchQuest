@@ -247,11 +247,15 @@ export function CommandPalette() {
       return searchItems.slice(0, SEARCH_RESULTS_LIMIT);
     }
 
-    return searchItems
-      .filter((entry) =>
-        `${entry.type}: ${entry.label}`.toLowerCase().includes(normalizedSearch),
-      )
-      .slice(0, SEARCH_RESULTS_LIMIT);
+    const filtered: any[] = [];
+    for (let i = 0; i < searchItems.length; i++) {
+      if (filtered.length >= SEARCH_RESULTS_LIMIT) break;
+      const entry = searchItems[i];
+      if (`${entry.type}: ${entry.label}`.toLowerCase().includes(normalizedSearch)) {
+        filtered.push(entry);
+      }
+    }
+    return filtered;
   }, [searchItems, searchValue]);
 
   return (
