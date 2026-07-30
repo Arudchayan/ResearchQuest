@@ -139,6 +139,7 @@ const PaperCardComponent = ({
           onChange={handleStatusChange}
           className={`px-2 py-1 text-caption rounded-md border ${getStatusColor(paper.status)} transition-colors`}
           onClick={(e) => e.stopPropagation()}
+          aria-label={`Update status for ${paper.title}`}
         >
           <option value="To Read">To Read</option>
           <option value="Reading">Reading</option>

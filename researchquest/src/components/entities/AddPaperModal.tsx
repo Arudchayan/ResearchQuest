@@ -35,7 +35,6 @@ export function AddPaperModal({
   const [manualDoi, setManualDoi] = useState("");
   const [manualUrl, setManualUrl] = useState("");
 
-
   const handleDOISearch = async () => {
     if (!doiInput.trim()) return;
 
@@ -74,9 +73,7 @@ export function AddPaperModal({
       handleClose();
     } catch (error) {
       logger.error("Failed to add paper", error);
-      setError(
-        "Failed to add paper. Please try again.",
-      );
+      setError("Failed to add paper. Please try again.");
     }
   };
 
@@ -114,9 +111,7 @@ export function AddPaperModal({
       handleClose();
     } catch (error) {
       logger.error("Failed to add paper", error);
-      setError(
-        "Failed to add paper. Please try again.",
-      );
+      setError("Failed to add paper. Please try again.");
     }
   };
 
@@ -151,9 +146,7 @@ export function AddPaperModal({
       handleClose();
     } catch (error) {
       logger.error("Failed to add paper", error);
-      setError(
-        "Failed to add paper. Please try again.",
-      );
+      setError("Failed to add paper. Please try again.");
     }
   };
 
@@ -236,7 +229,6 @@ export function AddPaperModal({
 
   if (!isOpen) return null;
 
-
   return (
     <div
       ref={dialogRef}
@@ -246,7 +238,10 @@ export function AddPaperModal({
       aria-labelledby="add-paper-title"
       onClick={handleClose}
     >
-      <div className="bg-bg-surface rounded-lg shadow-lg border border-border-subtle max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="bg-bg-surface rounded-lg shadow-lg border border-border-subtle max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-border-subtle">
           <h2
@@ -360,7 +355,11 @@ export function AddPaperModal({
                 </form>
               </div>
               {error && (
-                <div id="doi-error" role="alert" className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-small rounded-md">
+                <div
+                  id="doi-error"
+                  role="alert"
+                  className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-small rounded-md"
+                >
                   {error}
                 </div>
               )}
@@ -472,7 +471,11 @@ export function AddPaperModal({
               )}
 
               {error && (
-                <div id="search-error" role="alert" className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-small rounded-md">
+                <div
+                  id="search-error"
+                  role="alert"
+                  className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-small rounded-md"
+                >
                   {error}
                 </div>
               )}
@@ -481,7 +484,10 @@ export function AddPaperModal({
 
           {activeTab === "manual" && (
             <form
-              onSubmit={(e) => { e.preventDefault(); void handleManualAdd(); }}
+              onSubmit={(e) => {
+                e.preventDefault();
+                void handleManualAdd();
+              }}
               className="space-y-4"
               role="tabpanel"
               id="modal-panel-manual"
@@ -558,7 +564,11 @@ export function AddPaperModal({
               </div>
 
               {error && (
-                <div id="manual-error" role="alert" className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-small rounded-md">
+                <div
+                  id="manual-error"
+                  role="alert"
+                  className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-small rounded-md"
+                >
                   {error}
                 </div>
               )}
