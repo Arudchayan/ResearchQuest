@@ -73,13 +73,7 @@ describe("usePapers Hook", () => {
 
       mockSupabaseClient.from.mockImplementation(() =>
         createMockBuilder({
-          order: vi
-            .fn()
-            .mockReturnValue({
-              range: vi
-                .fn()
-                .mockResolvedValue({ data: mockPapers, error: null }),
-            }),
+          order: vi.fn().mockReturnValue({ range: vi.fn().mockResolvedValue({ data: mockPapers, error: null }) }),
         }),
       );
 
@@ -241,9 +235,11 @@ describe("usePapers Hook", () => {
                 createMockBuilder({
                   select: vi.fn().mockReturnValue(
                     createMockBuilder({
-                      single: vi.fn().mockResolvedValue({
-                        error: { message: "Update failed" },
-                      }),
+                      single: vi
+                        .fn()
+                        .mockResolvedValue({
+                          error: { message: "Update failed" },
+                        }),
                     }),
                   ),
                 }),

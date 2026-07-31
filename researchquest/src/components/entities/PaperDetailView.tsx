@@ -384,12 +384,11 @@ export function PaperDetailView({
 
             {/* Status Selector */}
             <div className="space-y-2">
-              <label htmlFor="paper-status" className="block text-sm font-medium text-text-secondary">
+              <label className="block text-sm font-medium text-text-secondary">
                 Reading Status
               </label>
               {isEditing ? (
                 <select
-                  id="paper-status"
                   value={editedStatus}
                   onChange={(e) =>
                     setEditedStatus(e.target.value as ReadingStatus)

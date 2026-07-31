@@ -94,7 +94,7 @@ export function useDataSync(userId: string | undefined, currentView: string) {
         while (hasMore) {
           const { data, error } = await supabase
             .from("notes")
-            .select("id, user_id, title, markdown_body, tags, linked_entity_ids, created_at, updated_at")
+            .select("id, title, markdown_body, tags, linked_entity_ids, created_at, updated_at")
             .eq("user_id", userId)
             .order("updated_at", { ascending: false })
             .range(offset, offset + PAGE_LIMIT - 1);
@@ -147,7 +147,7 @@ export function useDataSync(userId: string | undefined, currentView: string) {
         while (hasMore) {
           const { data, error } = await supabase
             .from("papers")
-            .select("id, user_id, title, authors, doi, source_url, status, topic_ids, abstract, publication_date, created_at, updated_at")
+            .select("id, title, authors, doi, source_url, status, topic_ids, abstract, publication_date, created_at, updated_at")
             .eq("user_id", userId)
             .order("updated_at", { ascending: false })
             .range(offset, offset + PAGE_LIMIT - 1);
@@ -210,7 +210,7 @@ export function useDataSync(userId: string | undefined, currentView: string) {
         while (hasMore) {
           const { data, error } = await supabase
             .from("ideas")
-            .select("id, user_id, title, description, stage, linked_note_ids, linked_paper_ids, created_at, updated_at")
+            .select("id, title, description, stage, linked_note_ids, linked_paper_ids, created_at, updated_at")
             .eq("user_id", userId)
             .order("updated_at", { ascending: false })
             .range(offset, offset + PAGE_LIMIT - 1);

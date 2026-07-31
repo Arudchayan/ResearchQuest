@@ -4,10 +4,7 @@ import { useDataSync } from "../../hooks/useDataSync";
 import { useAppStore } from "../../store/appStore";
 import { mockSupabaseClient } from "../mocks/supabase";
 
-function queryResult<T>(result: {
-  data: T[] | null;
-  error: { message: string } | null;
-}) {
+function queryResult<T>(result: { data: T[] | null; error: { message: string } | null }) {
   const builder: any = {};
   builder.select = vi.fn().mockReturnValue(builder);
   builder.eq = vi.fn().mockReturnValue(builder);
@@ -71,9 +68,7 @@ describe("useDataSync sync errors", () => {
 
   test("clears stale sync errors after successful fetches", async () => {
     useAppStore.getState().setDataSyncError("notes", "Previous notes failure");
-    useAppStore
-      .getState()
-      .setDataSyncError("papers", "Previous papers failure");
+    useAppStore.getState().setDataSyncError("papers", "Previous papers failure");
     useAppStore.getState().setDataSyncError("ideas", "Previous ideas failure");
 
     mockSupabaseClient.from.mockImplementation(() =>

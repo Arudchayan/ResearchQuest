@@ -22,10 +22,7 @@ import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
 import { useNotes } from "../../hooks/useNotes";
 import { useAppStore } from "../../store/appStore";
-import {
-  performDeepResearch,
-  type DeepResearchData,
-} from "../../utils/deepResearch";
+import { performDeepResearch, type DeepResearchData } from "../../utils/deepResearch";
 import { logger } from "../../utils/logger";
 import {
   convertIdeasToMarkdown,
@@ -172,35 +169,25 @@ export function IdeaDetailView({
     try {
       const result: DeepResearchData = await performDeepResearch(idea.title);
 
-      const papersSection =
-        result.papers && result.papers.length > 0
-          ? `\n\n**Top Papers Found:**\n` +
-            result.papers
-              .map((p) => {
-                const authors = p.authors.slice(0, 2).join(", ");
-                const meta = [
-                  p.year,
-                  p.citationCount != null
-                    ? `${p.citationCount} citations`
-                    : null,
-                ]
-                  .filter(Boolean)
-                  .join(" · ");
-                return `- "${p.title}"${authors ? ` — ${authors}` : ""}${meta ? ` (${meta})` : ""}`;
-              })
-              .join("\n")
-          : "";
+      const papersSection = result.papers && result.papers.length > 0
+        ? `\n\n**Top Papers Found:**\n` +
+          result.papers
+            .map((p) => {
+              const authors = p.authors.slice(0, 2).join(", ");
+              const meta = [p.year, p.citationCount != null ? `${p.citationCount} citations` : null]
+                .filter(Boolean)
+                .join(" · ");
+              return `- "${p.title}"${authors ? ` — ${authors}` : ""}${meta ? ` (${meta})` : ""}`;
+            })
+            .join("\n")
+        : "";
 
       const researchText =
         `\n\n### Deep Research Insights\n${result.summary}\n\n**Suggested Keywords:** ${result.suggestedKeywords?.join(", ")}\n\n**Reasoning Steps:**\n${result.reasoningSteps?.map((step, i) => `${i + 1}. ${step}`).join("\n")}` +
         papersSection;
 
       const newDescription = (idea.description || "") + researchText;
-      const success = await onUpdate(
-        idea.id,
-        { description: newDescription },
-        idea.stage,
-      );
+      const success = await onUpdate(idea.id, { description: newDescription }, idea.stage);
 
       if (success) {
         toast.success("Deep research insights added to description");
@@ -208,8 +195,7 @@ export function IdeaDetailView({
         toast.error("Failed to save research insights");
       }
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "Deep research failed";
+      const message = err instanceof Error ? err.message : "Deep research failed";
       logger.error("Deep research failed", err);
       toast.error(message);
     } finally {
@@ -338,10 +324,7 @@ export function IdeaDetailView({
                               className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
                               aria-label="Export idea"
                             >
-                              <Download
-                                className="w-5 h-5"
-                                aria-hidden="true"
-                              />
+                              <Download className="w-5 h-5" aria-hidden="true" />
                             </button>
                           </DropdownMenu.Trigger>
                         </TooltipTrigger>
@@ -384,16 +367,10 @@ export function IdeaDetailView({
                           className="p-2 bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 rounded-md hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors disabled:opacity-50"
                           aria-label="Deep Research AI Reasoning"
                         >
-                          {isDeepResearching ? (
-                            <Loader className="w-5 h-5 animate-spin" />
-                          ) : (
-                            <Search className="w-5 h-5" aria-hidden="true" />
-                          )}
+                          {isDeepResearching ? <Loader className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" aria-hidden="true" />}
                         </button>
                       </TooltipTrigger>
-                      <TooltipContent>
-                        Deep Research AI Reasoning
-                      </TooltipContent>
+                      <TooltipContent>Deep Research AI Reasoning</TooltipContent>
                     </Tooltip>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -440,15 +417,11 @@ export function IdeaDetailView({
 
             {/* Stage Selector */}
             <div className="space-y-2">
-              <label
-                htmlFor={isEditing ? `idea-stage-select-${idea.id}` : undefined}
-                className="block text-sm font-medium text-text-secondary"
-              >
+              <label htmlFor={isEditing ? `idea-stage-select-${idea.id}` : undefined} className="block text-sm font-medium text-text-secondary">
                 Development Stage
               </label>
               {isEditing ? (
-                <select
-                  id={`idea-stage-select-${idea.id}`}
+                <select id={`idea-stage-select-${idea.id}`}
                   value={editedStage}
                   onChange={(e) => setEditedStage(e.target.value as IdeaStage)}
                   className={`px-4 py-2 rounded-md border text-sm font-medium ${getStageColor(editedStage)} focus:outline-none focus:ring-2 focus:ring-primary-500`}

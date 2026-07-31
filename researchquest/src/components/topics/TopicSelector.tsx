@@ -144,12 +144,11 @@ export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
 
       {availableTopics.length > 0 && (
         <div>
-          <label htmlFor="topic-select" className="block text-caption text-text-secondary mb-1">
+          <label className="block text-caption text-text-secondary mb-1">
             Add an existing topic
           </label>
           <div className="flex gap-2">
             <select
-              id="topic-select"
               className="flex-1 px-3 py-2 rounded-md border border-border-subtle bg-bg-base text-small"
               onChange={(event) => {
                 const topic = topicsMap.get(event.target.value);
