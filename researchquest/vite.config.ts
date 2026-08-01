@@ -5,8 +5,7 @@ import sourceIdentifierPlugin from 'vite-plugin-source-identifier'
 
 const repoRoot = path.resolve(__dirname, "..")
 
-export default defineConfig(({ mode }) => {
-  const isProd = mode === 'prod'
+export default defineConfig(({ mode, command }) => {
   // Root `.env` (monorepo) + local `researchquest/.env*` — local wins.
   const merged = { ...loadEnv(mode, repoRoot, ""), ...loadEnv(mode, __dirname, "") }
   // Playwright smoke runs Vite with empty VITE_* vars but loadEnv would still read `.env` from disk.
@@ -27,7 +26,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(), 
       sourceIdentifierPlugin({
-        enabled: !isProd,
+        enabled: command === 'serve',
         attributePrefix: 'data-matrix',
         includeProps: true,
       })
