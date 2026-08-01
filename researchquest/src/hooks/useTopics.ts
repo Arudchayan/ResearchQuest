@@ -624,7 +624,7 @@ export function useTopics(userId: string | undefined) {
       const table = ENTITY_TABLE[entityType];
       const column = ENTITY_COLUMN[entityType];
 
-      let query = supabase
+      const query = supabase
         .from(table)
         .delete()
         .eq("topic_id", topicId)
