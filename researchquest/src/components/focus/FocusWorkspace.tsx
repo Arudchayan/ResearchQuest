@@ -157,10 +157,8 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                   logger.error("[RQ] focus_sessions insert failed", error);
                   return;
                 }
-                const {
-                  focusSessionSecondsToday,
-                  setFocusSessionSecondsToday,
-                } = useAppStore.getState();
+                const { focusSessionSecondsToday, setFocusSessionSecondsToday } =
+                  useAppStore.getState();
                 setFocusSessionSecondsToday(
                   focusSessionSecondsToday + sessionLength,
                 );
