@@ -89,7 +89,7 @@ function FeedSourceLink({
     <a
       href={url}
       target="_blank"
-      rel="noreferrer"
+      rel="noopener noreferrer"
       className="inline-flex items-center gap-1 text-caption font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400"
     >
       Open source
