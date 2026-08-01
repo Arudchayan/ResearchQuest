@@ -846,23 +846,6 @@ export function getOpenApiDocument(baseUrl: string): Record<string, unknown> {
             timestamp: { type: "string", format: "date-time" },
           },
         },
-        AgentExploreResponse: {
-          type: "object",
-          required: ["data"],
-          properties: {
-            data: {
-              type: "object",
-              required: ["api", "endpoints"],
-              properties: {
-                api: { type: "object" },
-                auth: { type: "object" },
-                domain: { type: "object" },
-                endpoints: { type: "array", items: { type: "object" } },
-                workflows: { type: "array", items: { type: "object" } },
-              },
-            },
-          },
-        },
         ...entitySchemas,
         ...feedSchemas,
       },
@@ -890,74 +873,6 @@ export function getOpenApiDocument(baseUrl: string): Record<string, unknown> {
             "200": {
               description: "OpenAPI document",
               ...jsonContent({ type: "object" }),
-            },
-          },
-        },
-      },
-      "/explore": {
-        get: {
-          operationId: "getExplore",
-          summary: "Agent-friendly API discovery with examples and workflows",
-          security: [],
-          parameters: [
-            {
-              name: "resource",
-              in: "query",
-              required: false,
-              schema: {
-                type: "string",
-                enum: [
-                  "notes",
-                  "papers",
-                  "ideas",
-                  "topics",
-                  "tasks",
-                  "goals",
-                  "feeds",
-                  "keys",
-                  "meta",
-                ],
-              },
-            },
-            {
-              name: "action",
-              in: "query",
-              required: false,
-              schema: {
-                type: "string",
-                enum: [
-                  "list",
-                  "get",
-                  "create",
-                  "update",
-                  "delete",
-                  "batchCreate",
-                  "attach",
-                  "detach",
-                  "promote",
-                  "ingest",
-                ],
-              },
-            },
-            {
-              name: "include",
-              in: "query",
-              required: false,
-              schema: { type: "string" },
-              description:
-                "Comma-separated sections: schemas, examples, workflows, scopes",
-            },
-          ],
-          responses: {
-            "200": {
-              description: "Agent explore document",
-              ...jsonContent({
-                $ref: "#/components/schemas/AgentExploreResponse",
-              }),
-            },
-            "400": {
-              description: "Invalid filter parameters",
-              ...jsonContent({ $ref: "#/components/schemas/Error" }),
             },
           },
         },

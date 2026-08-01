@@ -37,18 +37,9 @@ export function AuthScreen() {
         });
         if (error) throw error;
       }
-    } catch (error: unknown) {
+    } catch (error: any) {
       console.error("AuthScreen auth error:", error);
-      if (
-        error instanceof Error &&
-        isSignUp &&
-        error.message &&
-        error.message.toLowerCase().startsWith("password must")
-      ) {
-        setMessage(error.message);
-      } else {
-        setMessage("Authentication failed. Please check your credentials and try again.");
-      }
+      setMessage("Authentication failed. Please check your credentials and try again.");
     } finally {
       setLoading(false);
     }

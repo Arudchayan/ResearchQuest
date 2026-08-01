@@ -222,11 +222,7 @@ const handleExport = () => {
         setImportFile(null);
         setParsedData(null);
         if (fileInputRef.current) fileInputRef.current.value = "";
-        const duplicateSummary =
-          result.skipped > 0 ? `; skipped ${result.skipped} duplicates` : "";
-        toast.success(
-          `Imported ${result.imported} items successfully${duplicateSummary}`,
-        );
+        toast.success(`Imported ${result.imported} items successfully`);
         onClose();
       }
     } catch (err) {
@@ -477,7 +473,7 @@ const handleExport = () => {
                       <AlertTriangle className="w-5 h-5 shrink-0" />
                       <p>
                         Importing will merge data with your existing library.
-                        Existing items with the same ID will be skipped. This
+                        Existing items with the same ID will be updated. This
                         action cannot be undone.
                       </p>
                     </div>

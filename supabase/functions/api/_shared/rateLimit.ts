@@ -5,12 +5,9 @@
 
 interface Bucket {
   timestamps: number[];
-  windowMs: number;
 }
 
 const buckets = new Map<string, Bucket>();
-const SWEEP_EVERY_CHECKS = 100;
-let checkCount = 0;
 
 export interface RateLimitResult {
   allowed: boolean;
@@ -26,19 +23,14 @@ export function checkRateLimit(
 ): RateLimitResult {
   const now = Date.now();
   const windowStart = now - windowMs;
-  const bucket = buckets.get(key) ?? { timestamps: [], windowMs };
+  let bucket = buckets.get(key);
+  if (!bucket) {
+    bucket = { timestamps: [] };
+    buckets.set(key, bucket);
+  }
   bucket.timestamps = bucket.timestamps.filter((t) => t > windowStart);
-  bucket.windowMs = windowMs;
-  checkCount += 1;
-  if (checkCount % SWEEP_EVERY_CHECKS === 0) {
-    sweepExpiredBuckets(now);
-  }
-  if (bucket.timestamps.length === 0) {
-    buckets.delete(key);
-  }
   if (bucket.timestamps.length >= limit) {
     const oldest = bucket.timestamps[0] ?? now;
-    buckets.set(key, bucket);
     return {
       allowed: false,
       limit,
@@ -47,7 +39,6 @@ export function checkRateLimit(
     };
   }
   bucket.timestamps.push(now);
-  buckets.set(key, bucket);
   return {
     allowed: true,
     limit,
@@ -56,9 +47,7 @@ export function checkRateLimit(
   };
 }
 
-export function rateLimitHeaders(
-  result: RateLimitResult,
-): Record<string, string> {
+export function rateLimitHeaders(result: RateLimitResult): Record<string, string> {
   return {
     "X-RateLimit-Limit": String(result.limit),
     "X-RateLimit-Remaining": String(result.remaining),
@@ -66,18 +55,7 @@ export function rateLimitHeaders(
   };
 }
 
-function sweepExpiredBuckets(now: number): void {
-  for (const [key, bucket] of buckets) {
-    const windowStart = now - bucket.windowMs;
-    bucket.timestamps = bucket.timestamps.filter((t) => t > windowStart);
-    if (bucket.timestamps.length === 0) {
-      buckets.delete(key);
-    }
-  }
-}
-
 /** Test helper */
 export function _resetRateLimitBuckets(): void {
   buckets.clear();
-  checkCount = 0;
 }

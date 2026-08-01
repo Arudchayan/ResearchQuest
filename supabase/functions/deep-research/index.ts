@@ -32,8 +32,6 @@ interface AISynthesisResult {
 }
 
 const APP_USER_AGENT = "ResearchQuest/1.0 (mailto:research@researchquest.app)";
-const RATE_LIMIT_MAX_REQUESTS = 10;
-const RATE_LIMIT_WINDOW_MS = 60_000;
 const DEFAULT_DEV_ALLOWED_ORIGINS = [
   "http://localhost:5173",
   "http://localhost:5174",
@@ -45,21 +43,12 @@ const DEFAULT_DEV_ALLOWED_ORIGINS = [
   "http://127.0.0.1:4173",
 ];
 
-interface RateLimitBucket {
-  timestamps: number[];
-}
-
-interface RateLimitResult {
-  allowed: boolean;
-  resetAt: number;
-}
-
-const rateLimitBuckets = new Map<string, RateLimitBucket>();
-
-function parseAllowedOrigins(): string[] {
+function parseAllowedOrigins(): string[] | null {
   const configured = Deno.env.get("ALLOWED_ORIGINS");
   if (!configured || !configured.trim()) {
-    return DEFAULT_DEV_ALLOWED_ORIGINS;
+    // Unset → preserve prior open CORS so production is not broken
+    // until ALLOWED_ORIGINS is configured.
+    return null;
   }
   return configured
     .split(",")
@@ -77,11 +66,14 @@ function buildCorsHeaders(req: Request): HeadersInit {
   const origin = req.headers.get("Origin");
   const allowed = parseAllowedOrigins();
 
+  if (allowed === null) {
+    headers["Access-Control-Allow-Origin"] = "*";
+    return headers;
+  }
+
   const allowlist = allowed.length > 0 ? allowed : DEFAULT_DEV_ALLOWED_ORIGINS;
   if (origin && allowlist.includes(origin)) {
     headers["Access-Control-Allow-Origin"] = origin;
-  } else {
-    headers["Access-Control-Allow-Origin"] = allowlist[0];
   }
 
   return headers;
@@ -101,32 +93,6 @@ function jsonResponse(body: unknown, status: number, corsHeaders: HeadersInit) {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
-}
-
-function checkRateLimit(userId: string): RateLimitResult {
-  const now = Date.now();
-  const windowStart = now - RATE_LIMIT_WINDOW_MS;
-  const key = `deep-research:${userId}`;
-  const bucket = rateLimitBuckets.get(key) ?? { timestamps: [] };
-  bucket.timestamps = bucket.timestamps.filter((timestamp) =>
-    timestamp > windowStart
-  );
-
-  if (bucket.timestamps.length >= RATE_LIMIT_MAX_REQUESTS) {
-    rateLimitBuckets.set(key, bucket);
-    return {
-      allowed: false,
-      resetAt: (bucket.timestamps[0] ?? now) + RATE_LIMIT_WINDOW_MS,
-    };
-  }
-
-  bucket.timestamps.push(now);
-  rateLimitBuckets.set(key, bucket);
-  return { allowed: true, resetAt: now + RATE_LIMIT_WINDOW_MS };
-}
-
-function retryAfterSeconds(resetAt: number): string {
-  return String(Math.max(1, Math.ceil((resetAt - Date.now()) / 1000)));
 }
 
 async function fetchWithTimeout(
@@ -339,23 +305,6 @@ Deno.serve(async (req) => {
         { error: { code: "UNAUTHORIZED", message: "Invalid or expired token" } },
         401,
         corsHeaders,
-      );
-    }
-
-    const rateLimit = checkRateLimit(user.id);
-    if (!rateLimit.allowed) {
-      return new Response(
-        JSON.stringify({
-          error: { code: "RATE_LIMITED", message: "Too many requests" },
-        }),
-        {
-          status: 429,
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json",
-            "Retry-After": retryAfterSeconds(rateLimit.resetAt),
-          },
-        },
       );
     }
 

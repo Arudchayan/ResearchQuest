@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import type { FeedItem, FeedItemType, FeedPromoteTarget } from "../../types/database";
-import { isValidUrl } from "../../utils/security";
 
 const TYPE_LABELS: Record<FeedItemType, string> = {
   paper: "Paper",
@@ -64,38 +63,6 @@ function formatFeedDate(value?: string | null) {
     month: "short",
     day: "numeric",
   });
-}
-
-function FeedSourceLink({
-  compact,
-  url,
-}: {
-  compact: boolean;
-  url?: string | null;
-}) {
-  if (compact || !url) {
-    return null;
-  }
-
-  if (!isValidUrl(url)) {
-    return (
-      <span className="inline-flex items-center gap-1 text-caption font-medium text-text-tertiary">
-        Open source
-      </span>
-    );
-  }
-
-  return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noreferrer"
-      className="inline-flex items-center gap-1 text-caption font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400"
-    >
-      Open source
-      <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-    </a>
-  );
 }
 
 interface FeedItemCardProps {
@@ -177,7 +144,17 @@ export function FeedItemCard({
             </p>
           )}
 
-          <FeedSourceLink compact={compact} url={item.url} />
+          {item.url && !compact && (
+            <a
+              href={item.url}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 text-caption font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400"
+            >
+              Open source
+              <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+            </a>
+          )}
         </div>
       </div>
 

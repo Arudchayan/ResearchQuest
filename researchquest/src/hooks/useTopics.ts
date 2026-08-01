@@ -43,12 +43,34 @@ const ENTITY_COLUMN: Record<TopicEntityType, string> = {
 
 // Global caches to persist across hook instances/remounts
 const globalLinkCache = new Map<string, string[]>();
+const tableSupportCache = new Map<string, Promise<boolean>>();
 const fetchedUsers = new Set<string>();
 let importRefreshVersion = 0;
 
 export function resetTopicsCache() {
   fetchedUsers.clear();
   importRefreshVersion++;
+}
+
+function tableSupportsUserId(table: string): Promise<boolean> {
+  let promise = tableSupportCache.get(table);
+  if (!promise) {
+    promise = (async () => {
+      const { error } = await supabase.from(table).select("user_id").limit(1);
+
+      let supported = true;
+      if (error) {
+        const normalized =
+          `${error.message ?? ""} ${error.details ?? ""}`.toLowerCase();
+        if (normalized.includes("column") && normalized.includes("user_id")) {
+          supported = false;
+        }
+      }
+      return supported;
+    })();
+    tableSupportCache.set(table, promise);
+  }
+  return promise;
 }
 
 function coerceCount(value?: { count: number | null }[]): number {
@@ -141,6 +163,12 @@ export function useTopics(userId: string | undefined) {
   const [questsLoading, setQuestsLoading] = useState(false);
 
   const supportsCountsRef = useRef(true);
+  const linkSupportsUserIdRef = useRef<Record<TopicEntityType, boolean>>({
+    note: false,
+    paper: true,
+    idea: true,
+  });
+
   const isRelationshipError = useCallback((err: PostgrestError | null) => {
     if (!err) return false;
     const match = err.message
@@ -325,6 +353,45 @@ export function useTopics(userId: string | undefined) {
       setQuests((prev) => [quest, ...prev]);
     }
   }, [quests, topics, userId]);
+
+  useEffect(() => {
+    if (!userId) {
+      linkSupportsUserIdRef.current = { note: false, paper: true, idea: true };
+      return;
+    }
+
+    let cancelled = false;
+
+    const detect = async () => {
+      const entries = await Promise.all(
+        (["note", "paper", "idea"] as const).map(async (type) => {
+          const table = ENTITY_TABLE[type];
+          try {
+            const supports = await tableSupportsUserId(table);
+            return { type, supports };
+          } catch (error) {
+            logger.error(
+              `Failed to detect user_id support for ${table}`,
+              (error as Error).message || error,
+            );
+            return { type, supports: linkSupportsUserIdRef.current[type] };
+          }
+        }),
+      );
+
+      if (cancelled) return;
+
+      entries.forEach(({ type, supports }) => {
+        linkSupportsUserIdRef.current[type] = supports;
+      });
+    };
+
+    void detect();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   // Refs to track if we need a force-refresh after cache reset
   const prevImportVersion = useRef(importRefreshVersion);
@@ -579,14 +646,26 @@ export function useTopics(userId: string | undefined) {
       const payload: Record<string, unknown> = {
         topic_id: topicId,
         [column]: entityId,
-        user_id: userId,
       };
+
+      if (linkSupportsUserIdRef.current[entityType]) {
+        payload.user_id = userId;
+      }
 
       const { error: upsertError } = await supabase
         .from(table)
         .upsert(payload, { onConflict: `topic_id,${column}` });
 
       if (upsertError) {
+        const normalizedMessage =
+          `${upsertError.message ?? ""} ${upsertError.details ?? ""}`.toLowerCase();
+        const missingUserId =
+          normalizedMessage.includes("user_id") &&
+          normalizedMessage.includes("does not exist");
+        if (missingUserId && linkSupportsUserIdRef.current[entityType]) {
+          linkSupportsUserIdRef.current[entityType] = false;
+          return attachTopicToEntity(topicId, entityId, entityType);
+        }
         logger.error(
           "Failed to link topic:",
           upsertError.message || "Unknown error",
@@ -628,8 +707,11 @@ export function useTopics(userId: string | undefined) {
         .from(table)
         .delete()
         .eq("topic_id", topicId)
-        .eq(column, entityId)
-        .eq("user_id", userId);
+        .eq(column, entityId);
+
+      if (linkSupportsUserIdRef.current[entityType]) {
+        query = query.eq("user_id", userId);
+      }
 
       const { error: deleteError } = await query;
 
@@ -670,11 +752,11 @@ export function useTopics(userId: string | undefined) {
 
       const table = ENTITY_TABLE[entityType];
       const column = ENTITY_COLUMN[entityType];
-      const query = supabase
-        .from(table)
-        .select("topic_id")
-        .eq(column, entityId)
-        .eq("user_id", userId);
+      let query = supabase.from(table).select("topic_id").eq(column, entityId);
+
+      if (linkSupportsUserIdRef.current[entityType]) {
+        query = query.eq("user_id", userId);
+      }
 
       const { data, error: fetchError } = await query;
 

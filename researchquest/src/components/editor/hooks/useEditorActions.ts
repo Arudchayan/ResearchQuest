@@ -3,11 +3,6 @@ import { toast } from "sonner";
 import DOMPurify from "dompurify";
 import { NOTE_BODY_MAX_LENGTH } from "../../../hooks/useNotes";
 
-function areStringArraysEqual(left: string[], right: string[]) {
-  if (left.length !== right.length) return false;
-  return left.every((value, index) => value === right[index]);
-}
-
 export function useEditorActions(
   content: string,
   title: string,
@@ -87,12 +82,18 @@ export function useEditorActions(
 
     const htmlContent = DOMPurify.sanitize(previewElement.innerHTML);
     const rawTitle = title || "Untitled Note";
+    const documentTitle = rawTitle
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
 
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
-          <title></title>
+          <title>${documentTitle}</title>
           <style>
             body { font-family: sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 2rem; }
             h1, h2, h3 { margin-top: 24px; margin-bottom: 16px; font-weight: 600; }
@@ -102,23 +103,13 @@ export function useEditorActions(
           </style>
         </head>
         <body>
-          <h1 id="print-title"></h1>
-          <div id="print-content" class="markdown-body"></div>
+          <h1>${documentTitle}</h1>
+          <div class="markdown-body">${htmlContent}</div>
           <script>window.onload = function() { window.print(); window.close(); };</script>
         </body>
       </html>
     `);
     printWindow.document.close();
-
-    printWindow.document.title = rawTitle;
-    const titleElement = printWindow.document.getElementById("print-title");
-    if (titleElement) {
-      titleElement.textContent = rawTitle;
-    }
-    const contentElement = printWindow.document.getElementById("print-content");
-    if (contentElement) {
-      contentElement.innerHTML = htmlContent;
-    }
   }, [title, previewRef]);
 
   const saveNote = useCallback(async () => {
@@ -129,25 +120,16 @@ export function useEditorActions(
       return;
     }
 
-    const tagMatches = content.match(/#(\w+)/g);
-    const tags = tagMatches
-      ? [...new Set(tagMatches.map((tag) => tag.slice(1)))]
-      : [];
-
-    const trimmedTitle = title.trim();
-    const persistedTitle = trimmedTitle.length > 0 ? trimmedTitle : null;
-    const selectedTags = Array.isArray(selectedNote.tags) ? selectedNote.tags : [];
-
-    if (
-      selectedNote.title === persistedTitle &&
-      selectedNote.markdown_body === content &&
-      areStringArraysEqual(selectedTags, tags)
-    ) {
-      return;
-    }
-
     setSaving(true);
     try {
+      const tagMatches = content.match(/#(\w+)/g);
+      const tags = tagMatches
+        ? [...new Set(tagMatches.map((tag) => tag.slice(1)))]
+        : [];
+
+      const trimmedTitle = title.trim();
+      const persistedTitle = trimmedTitle.length > 0 ? trimmedTitle : null;
+
       await updateNote(selectedNote.id, {
         title: persistedTitle,
         markdown_body: content,

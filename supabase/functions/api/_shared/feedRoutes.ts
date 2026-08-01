@@ -9,7 +9,6 @@ import {
   isUuid,
   type JsonRecord,
   planFeedItemBatch,
-  promotedPaperSourceUrl,
   type PromoteTarget,
   validateFeedItemBatchCreate,
   validateFeedItemCreate,
@@ -163,17 +162,8 @@ function buildPromotedEntityInsert(
   const payload = isRecord(item.payload) ? item.payload : {};
 
   if (!title) return { error: "title is required for promotion" };
-  if (title.length > 500) {
-    return { error: "title must be at most 500 characters" };
-  }
 
   if (target === "paper") {
-    const sourceUrl = promotedPaperSourceUrl(fields, url);
-    if (sourceUrl.error) return { error: sourceUrl.error };
-    const abstract = stringField(fields, "abstract") ?? summary ?? null;
-    if (abstract && abstract.length > 50_000) {
-      return { error: "abstract must be at most 50000 characters" };
-    }
     return {
       table: "papers",
       row: {
@@ -182,10 +172,11 @@ function buildPromotedEntityInsert(
         authors: stringArrayField(fields, "authors") ??
           stringArrayField(payload, "authors") ?? [],
         doi: stringField(fields, "doi") ?? stringField(payload, "doi") ?? null,
-        source_url: sourceUrl.value,
+        source_url: stringField(fields, "source_url") ??
+          stringField(fields, "url") ?? url ?? null,
         status: stringField(fields, "status") ?? "To Read",
         topic_ids: stringArrayField(fields, "topic_ids") ?? [],
-        abstract,
+        abstract: stringField(fields, "abstract") ?? summary ?? null,
         publication_date: stringField(fields, "publication_date") ??
           publicationDateFromFeedItem(item) ??
           null,
@@ -198,17 +189,13 @@ function buildPromotedEntityInsert(
     if (!["high", "medium", "low"].includes(priority)) {
       return { error: "priority must be one of: high, medium, low" };
     }
-    const description = stringField(fields, "description") ?? summary ?? url ??
-      null;
-    if (description && description.length > 10_000) {
-      return { error: "description must be at most 10000 characters" };
-    }
     return {
       table: "tasks",
       row: {
         user_id: userId,
         title,
-        description,
+        description: stringField(fields, "description") ?? summary ?? url ??
+          null,
         completed: booleanField(fields, "completed") ?? false,
         priority,
         category: stringField(fields, "category") ?? "Feeds",
@@ -225,19 +212,12 @@ function buildPromotedEntityInsert(
   ]
     .filter((line) => line !== "")
     .join("\n");
-  const markdownBody = stringField(fields, "markdown_body") ?? defaultBody;
-  if (!markdownBody || markdownBody.length < 1) {
-    return { error: "markdown_body is required for note promotion" };
-  }
-  if (markdownBody.length > 100_000) {
-    return { error: "markdown_body must be at most 100000 characters" };
-  }
   return {
     table: "notes",
     row: {
       user_id: userId,
       title,
-      markdown_body: markdownBody,
+      markdown_body: stringField(fields, "markdown_body") ?? defaultBody,
       tags: stringArrayField(fields, "tags") ?? [],
       linked_entity_ids: stringArrayField(fields, "linked_entity_ids") ?? [],
     },
@@ -734,11 +714,12 @@ async function promoteFeedItem(
       corsHeaders,
     );
   }
-  const targetScope = parsed.value.target === "paper"
-    ? "papers:write"
-    : parsed.value.target === "task"
-    ? "tasks:write"
-    : "notes:write";
+  const targetScope =
+    parsed.value.target === "paper"
+      ? "papers:write"
+      : parsed.value.target === "task"
+      ? "tasks:write"
+      : "notes:write";
   const targetDenied = requireScopes(ctx, [targetScope], corsHeaders);
   if (targetDenied) return targetDenied;
 

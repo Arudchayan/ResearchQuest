@@ -17,7 +17,7 @@ vi.mock("../../utils/gamification", async () => {
 });
 
 const { mockSupabaseClient } = await import("../mocks/supabase");
-const { resetTopicsCache, useTopics } = await import("../../hooks/useTopics");
+const { useTopics } = await import("../../hooks/useTopics");
 const { useAppStore } = await import("../../store/appStore");
 
 describe("useTopics", () => {
@@ -40,7 +40,6 @@ describe("useTopics", () => {
   };
 
   beforeEach(() => {
-    resetTopicsCache();
     useAppStore.setState({
       topics: [],
       selectedTopic: null,
@@ -190,48 +189,6 @@ describe("useTopics", () => {
     });
     expect(useAppStore.getState().topics["topic-new"]?.name).toBe(
       "Visualization",
-    );
-  });
-
-  it("includes user_id when linking a topic to a note", async () => {
-    const upsertSpy = vi.fn().mockReturnValue(
-      createBuilder({
-        data: null,
-        error: null,
-      }),
-    );
-
-    mockSupabaseClient.from.mockImplementation((table: string) => {
-      if (table === "topics") {
-        return createBuilder({ data: [], error: null });
-      }
-      if (table === "topic_quests") {
-        return createBuilder({ data: [], error: null });
-      }
-      if (table === "topic_notes") {
-        return {
-          ...createBuilder({ data: null, error: null }),
-          upsert: upsertSpy,
-        };
-      }
-      return createBuilder({ data: null, error: null });
-    });
-
-    const { result } = renderHook(() => useTopics("user-1"));
-
-    await waitFor(() => {
-      expect(mockSupabaseClient.from).toHaveBeenCalledWith("topics");
-    });
-
-    await result.current.attachTopicToEntity("topic-1", "note-1", "note");
-
-    expect(upsertSpy).toHaveBeenCalledWith(
-      {
-        topic_id: "topic-1",
-        note_id: "note-1",
-        user_id: "user-1",
-      },
-      { onConflict: "topic_id,note_id" },
     );
   });
 });

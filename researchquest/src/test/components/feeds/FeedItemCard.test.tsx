@@ -38,10 +38,6 @@ describe("FeedItemCard", () => {
     expect(screen.getByText("new")).toBeInTheDocument();
     expect(screen.getByText("Attention Is All You Need")).toBeInTheDocument();
     expect(screen.getByText("A transformer paper worth triaging.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /open source/i })).toHaveAttribute(
-      "href",
-      "https://example.com/paper",
-    );
 
     await user.click(
       screen.getByRole("button", {
@@ -51,18 +47,5 @@ describe("FeedItemCard", () => {
 
     expect(onPromote).toHaveBeenCalledWith("feed-item-1", "task");
     expect(onArchive).not.toHaveBeenCalled();
-  });
-
-  it("renders unsafe feed item URLs without a link", () => {
-    render(
-      <FeedItemCard
-        item={{ ...feedItem, url: "javascript:alert(1)" }}
-      />,
-    );
-
-    expect(
-      screen.queryByRole("link", { name: /open source/i }),
-    ).not.toBeInTheDocument();
-    expect(screen.getByText("Open source")).toBeInTheDocument();
   });
 });

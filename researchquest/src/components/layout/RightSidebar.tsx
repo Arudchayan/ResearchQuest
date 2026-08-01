@@ -376,7 +376,7 @@ export function RightSidebar() {
   return (
     <div className="flex-1 flex flex-col h-full overflow-y-auto">
       <div className="p-4 space-y-4">
-        {!hasSelection && isRightSidebarOpen ? (
+        {!hasSelection ? (
           <FeedsRail />
         ) : (
           <>

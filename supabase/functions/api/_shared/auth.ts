@@ -1,7 +1,4 @@
-import {
-  createClient,
-  SupabaseClient,
-} from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import {
   errorResponse,
   hasScope,
@@ -19,43 +16,27 @@ export interface AuthContext {
   supabaseUser: SupabaseClient;
 }
 
-let serviceClient: SupabaseClient | null = null;
-let anonBaseClient: SupabaseClient | null = null;
-
 function getServiceClient(): SupabaseClient {
-  if (serviceClient) return serviceClient;
   const url = Deno.env.get("SUPABASE_URL");
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!url || !serviceKey) {
     throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
   }
-  serviceClient = createClient(url, serviceKey, {
+  return createClient(url, serviceKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  return serviceClient;
 }
 
-function getAnonBaseClient(): SupabaseClient {
-  if (anonBaseClient) return anonBaseClient;
-  const url = Deno.env.get("SUPABASE_URL");
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
-  if (!url || !anonKey) {
-    throw new Error("Missing SUPABASE_URL or SUPABASE_ANON_KEY");
-  }
-  anonBaseClient = createClient(url, anonKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  return anonBaseClient;
-}
-
-function getAnonClient(jwt: string): SupabaseClient {
+function getAnonClient(jwt?: string): SupabaseClient {
   const url = Deno.env.get("SUPABASE_URL");
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
   if (!url || !anonKey) {
     throw new Error("Missing SUPABASE_URL or SUPABASE_ANON_KEY");
   }
   return createClient(url, anonKey, {
-    global: { headers: { Authorization: `Bearer ${jwt}` } },
+    global: jwt
+      ? { headers: { Authorization: `Bearer ${jwt}` } }
+      : undefined,
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }
@@ -87,30 +68,13 @@ export async function authenticateRequest(
         .maybeSingle();
 
       if (error || !keyRow) {
-        return errorResponse(
-          "UNAUTHORIZED",
-          "Invalid API key",
-          401,
-          corsHeaders,
-        );
+        return errorResponse("UNAUTHORIZED", "Invalid API key", 401, corsHeaders);
       }
       if (keyRow.revoked_at) {
-        return errorResponse(
-          "UNAUTHORIZED",
-          "API key revoked",
-          401,
-          corsHeaders,
-        );
+        return errorResponse("UNAUTHORIZED", "API key revoked", 401, corsHeaders);
       }
-      if (
-        keyRow.expires_at && new Date(keyRow.expires_at).getTime() < Date.now()
-      ) {
-        return errorResponse(
-          "UNAUTHORIZED",
-          "API key expired",
-          401,
-          corsHeaders,
-        );
+      if (keyRow.expires_at && new Date(keyRow.expires_at).getTime() < Date.now()) {
+        return errorResponse("UNAUTHORIZED", "API key expired", 401, corsHeaders);
       }
 
       const rl = checkRateLimit(`key:${keyRow.id}`);
@@ -140,17 +104,10 @@ export async function authenticateRequest(
     }
 
     // JWT session path (for key management from the app)
-    const supabaseAnon = getAnonBaseClient();
     const supabaseUser = getAnonClient(token);
-    const { data: userData, error: userError } = await supabaseAnon.auth
-      .getUser(token);
+    const { data: userData, error: userError } = await supabaseUser.auth.getUser(token);
     if (userError || !userData?.user) {
-      return errorResponse(
-        "UNAUTHORIZED",
-        "Invalid session token",
-        401,
-        corsHeaders,
-      );
+      return errorResponse("UNAUTHORIZED", "Invalid session token", 401, corsHeaders);
     }
 
     const rl = checkRateLimit(`jwt:${userData.user.id}`);
@@ -168,7 +125,7 @@ export async function authenticateRequest(
       apiKeyId: null,
       scopes: ["*"],
       authMode: "jwt",
-      supabaseAdmin,
+      supabaseAdmin: getServiceClient(),
       supabaseUser,
     };
   } catch (err) {
