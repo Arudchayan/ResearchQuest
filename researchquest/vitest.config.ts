@@ -20,6 +20,7 @@ export default defineConfig({
       '**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build,eslint,prettier}.config.*',
       '**/*.bench.test.ts',
       '**/*.bench.test.tsx',
+      '**/viteProductionBuild.test.ts',
     ],
     coverage: {
       provider: 'v8',
