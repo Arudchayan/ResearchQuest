@@ -21,7 +21,8 @@ export function AuthScreen() {
       if (isSignUp) {
         const passwordStrength = isStrongPassword(password);
         if (!passwordStrength.valid) {
-          throw new Error(passwordStrength.message);
+          setMessage(passwordStrength.message ?? "Invalid password.");
+          return;
         }
 
         const { error } = await supabase.auth.signUp({
