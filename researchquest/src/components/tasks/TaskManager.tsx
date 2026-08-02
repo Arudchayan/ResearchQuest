@@ -332,7 +332,7 @@ export function TaskManager() {
     setFormDueDate("");
   };
 
-  const handleExport = (format: "markdown" | "csv" | "json") => {
+  const handleExport = useCallback((format: "markdown" | "csv" | "json") => {
     if (sortedTasks.length === 0) {
       toast.error("No tasks to export");
       return;
@@ -370,7 +370,18 @@ export function TaskManager() {
       logger.error("Export failed", err);
       toast.error("Failed to export tasks");
     }
-  };
+  }, [sortedTasks]);
+
+  useEffect(() => {
+    const handleExportShortcut = () => {
+      handleExport("markdown");
+    };
+
+    document.addEventListener("export-current-view", handleExportShortcut);
+    return () => {
+      document.removeEventListener("export-current-view", handleExportShortcut);
+    };
+  }, [handleExport]);
 
   return (
     <div className="h-full flex flex-col bg-bg-base">

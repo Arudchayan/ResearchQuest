@@ -245,7 +245,7 @@ export function IdeasBoard() {
     }
   };
 
-  const handleExport = (format: "markdown" | "csv" | "json") => {
+  const handleExport = useCallback((format: "markdown" | "csv" | "json") => {
     if (filteredIdeas.length === 0) {
       toast.error("No ideas to export");
       return;
@@ -283,7 +283,18 @@ export function IdeasBoard() {
       logger.error("Export failed", err);
       toast.error("Failed to export ideas");
     }
-  };
+  }, [filteredIdeas]);
+
+  useEffect(() => {
+    const handleExportShortcut = () => {
+      handleExport("markdown");
+    };
+
+    document.addEventListener("export-current-view", handleExportShortcut);
+    return () => {
+      document.removeEventListener("export-current-view", handleExportShortcut);
+    };
+  }, [handleExport]);
 
   return (
     <div className="relative flex h-full bg-bg-base text-text-primary overflow-hidden">

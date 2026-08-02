@@ -203,7 +203,7 @@ export function TopicsView() {
     [deleteTopic, setSelectedTopic],
   );
 
-  const handleExport = (format: "markdown" | "csv" | "json") => {
+  const handleExport = useCallback((format: "markdown" | "csv" | "json") => {
     if (filteredTopics.length === 0) {
       toast.error("No topics to export");
       return;
@@ -241,7 +241,18 @@ export function TopicsView() {
       logger.error("Export failed", err);
       toast.error("Failed to export topics");
     }
-  };
+  }, [filteredTopics]);
+
+  useEffect(() => {
+    const handleExportShortcut = () => {
+      handleExport("markdown");
+    };
+
+    document.addEventListener("export-current-view", handleExportShortcut);
+    return () => {
+      document.removeEventListener("export-current-view", handleExportShortcut);
+    };
+  }, [handleExport]);
 
   return (
     <div className="h-full flex flex-col md:flex-row bg-white dark:bg-slate-950">

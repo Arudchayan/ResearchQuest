@@ -41,6 +41,7 @@ const SHORTCUTS: ShortcutSection[] = [
       { keys: ["?"], description: "Show Keyboard Shortcuts" },
       { keys: ["/"], description: "Open Command Palette (Search)" },
       { keys: [META_KEY, "."], description: "Toggle Context Panel" },
+      { keys: [META_KEY, "E"], description: "Export current view" },
     ],
   },
   {
@@ -86,6 +87,13 @@ export function ShortcutsDialog() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const isMod = e.metaKey || e.ctrlKey;
+
+      // Export current view
+      if (isMod && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "e") {
+        e.preventDefault();
+        document.dispatchEvent(new CustomEvent("export-current-view"));
+        return;
+      }
 
       // Global Navigation (Mod+Alt+1-8)
       if (isMod && e.altKey) {
