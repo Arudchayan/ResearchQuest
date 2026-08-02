@@ -14,11 +14,7 @@ const TYPE_LABELS: Record<FeedTypeFilter, string> = {
   custom: "Custom",
 };
 
-interface FeedsRailProps {
-  enabled?: boolean;
-}
-
-export function FeedsRail({ enabled = true }: FeedsRailProps) {
+export function FeedsRail() {
   const [type, setType] = useState<FeedTypeFilter>("all");
   const userId = useAppStore((state) => state.user?.id);
   const setCurrentView = useAppStore((state) => state.setCurrentView);
@@ -34,7 +30,6 @@ export function FeedsRail({ enabled = true }: FeedsRailProps) {
     type,
     status: "new",
     limit: 5,
-    enabled,
   });
 
   const navigateToFeeds = () => {
