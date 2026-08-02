@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { useAppStore } from "../store/appStore";
 import { deriveTitleFromMarkdown } from "../utils/text";
 import { logger } from "../utils/logger";
+import { getTopN } from "../utils/collections";
 
 export interface RelatedItem {
   id: string;
@@ -62,6 +63,7 @@ export function useRelatedItems(
       const { data: currentTopics, error: topicsError } = await supabase
         .from(topicTable)
         .select("topic_id")
+        .eq("user_id", userId)
         .eq(entityColumn, entityId);
 
       if (topicsError || !currentTopics || currentTopics.length === 0) {
@@ -82,6 +84,7 @@ export function useRelatedItems(
         supabase
           .from("topic_notes")
           .select("note_id, topic_id")
+          .eq("user_id", userId)
           .in("topic_id", topicIds)
           .neq(
             "note_id",
@@ -93,6 +96,7 @@ export function useRelatedItems(
         supabase
           .from("topic_papers")
           .select("paper_id, topic_id")
+          .eq("user_id", userId)
           .in("topic_id", topicIds)
           .neq(
             "paper_id",
@@ -104,6 +108,7 @@ export function useRelatedItems(
         supabase
           .from("topic_ideas")
           .select("idea_id, topic_id")
+          .eq("user_id", userId)
           .in("topic_id", topicIds)
           .neq(
             "idea_id",
@@ -159,7 +164,14 @@ export function useRelatedItems(
         }
       }
 
-      setRelatedLinks(Array.from(linkMap.values()));
+      // Cap before hydration — UI only previews a handful; unbounded maps hurt large graphs.
+      const RELATED_LINKS_CAP = 50;
+      const capped = getTopN(
+        Array.from(linkMap.values()),
+        RELATED_LINKS_CAP,
+        (a, b) => b.topicCount - a.topicCount
+      );
+      setRelatedLinks(capped);
     } catch (error) {
       logger.error("Error fetching related items", error);
       setRelatedLinks([]);

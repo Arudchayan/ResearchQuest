@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase";
 import { awardXP, XP_REWARDS } from "../utils/gamification";
 import { toast } from "sonner";
@@ -9,9 +10,148 @@ import type { Task } from "../types/database";
 
 export type { Task } from "../types/database";
 
+function sortTasksByDueDate(taskList: Task[]) {
+  // Implement Schwartzian transform to avoid O(N log N) Date parsing overhead during sort
+  const mapped = taskList.map((task) => {
+    const parsedDate = parseDateInput(task.due_date);
+    return {
+      task,
+      dueTime: parsedDate ? parsedDate.getTime() : null,
+    };
+  });
+
+  mapped.sort((a, b) => {
+    const aDue = a.dueTime;
+    const bDue = b.dueTime;
+
+    if (aDue === null && bDue === null) {
+      return a.task.created_at > b.task.created_at ? 1 : -1;
+    }
+    if (aDue === null) return 1;
+    if (bDue === null) return -1;
+    if (aDue === bDue) {
+      return a.task.created_at > b.task.created_at ? 1 : -1;
+    }
+    return aDue - bDue;
+  });
+
+  return mapped.map((m) => m.task);
+}
+
+function applyTasksRealtimePayload(payload: {
+  eventType: "INSERT" | "UPDATE" | "DELETE";
+  // Supabase provides different payload shapes depending on event type.
+  // Use `any` here to avoid TS2352 between insert/update/delete payload variants,
+  // then cast to Task based on `eventType`.
+  new: any;
+  old: any;
+}) {
+  const setTasks = useAppStore.getState().setTasks;
+
+  logger.log("Tasks realtime update:", payload);
+
+  if (payload.eventType === "INSERT") {
+    const nextTask = payload.new as Task;
+    const previousTasks = useAppStore.getState().tasks;
+    const exists = previousTasks.some((task) => task.id === nextTask.id);
+    if (exists) {
+      logger.log(
+        "Task already exists (from optimistic update), skipping realtime insert",
+      );
+      return;
+    }
+    setTasks(sortTasksByDueDate([...previousTasks, nextTask]));
+    return;
+  }
+
+  if (payload.eventType === "UPDATE") {
+    const updatedTask = payload.new as Task;
+    const previousTasks = useAppStore.getState().tasks;
+    setTasks(
+      sortTasksByDueDate(
+        previousTasks.map((task) =>
+          task.id === updatedTask.id ? updatedTask : task,
+        ),
+      ),
+    );
+    return;
+  }
+
+  if (payload.eventType === "DELETE") {
+    const deletedTask = payload.old as Task;
+    const previousTasks = useAppStore.getState().tasks;
+    setTasks(previousTasks.filter((task) => task.id !== deletedTask.id));
+  }
+}
+
+let tasksRealtimeChannel: RealtimeChannel | null = null;
+let tasksRealtimeUserId: string | null = null;
+let tasksRealtimeRefCount = 0;
+
+function acquireTasksRealtimeSubscription(userId: string) {
+  // If we're switching users, fully tear down the previous channel.
+  if (
+    tasksRealtimeChannel &&
+    tasksRealtimeUserId &&
+    tasksRealtimeUserId !== userId
+  ) {
+    void tasksRealtimeChannel.unsubscribe();
+    tasksRealtimeChannel = null;
+    tasksRealtimeUserId = null;
+    tasksRealtimeRefCount = 0;
+  }
+
+  tasksRealtimeRefCount += 1;
+
+  if (tasksRealtimeChannel && tasksRealtimeUserId === userId) {
+    return;
+  }
+
+  if (tasksRealtimeChannel) {
+    void tasksRealtimeChannel.unsubscribe();
+    tasksRealtimeChannel = null;
+    tasksRealtimeUserId = null;
+  }
+
+  tasksRealtimeUserId = userId;
+  tasksRealtimeChannel = supabase
+    .channel(`tasks_realtime_${userId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "tasks",
+        filter: `user_id=eq.${userId}`,
+      },
+      (payload) => {
+        // Supabase uses different payload variants depending on eventType.
+        // Keep runtime behavior, but loosen typing to satisfy TS.
+        applyTasksRealtimePayload(payload as any);
+      },
+    )
+    .subscribe((status) => {
+      logger.log("Tasks subscription status:", status);
+    });
+}
+
+function releaseTasksRealtimeSubscription() {
+  tasksRealtimeRefCount = Math.max(0, tasksRealtimeRefCount - 1);
+
+  if (tasksRealtimeRefCount > 0) {
+    return;
+  }
+
+  if (tasksRealtimeChannel) {
+    void tasksRealtimeChannel.unsubscribe();
+    tasksRealtimeChannel = null;
+    tasksRealtimeUserId = null;
+  }
+}
+
 export function useTasks(userId: string | undefined) {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
+  const tasks = useAppStore((state) => state.tasks);
+  const loading = useAppStore((state) => state.tasksLoading);
   const [error, setError] = useState<string | null>(null);
   const setGlobalTasks = useAppStore((state) => state.setTasks);
   const setGlobalTasksLoading = useAppStore((state) => state.setTasksLoading);
@@ -19,7 +159,6 @@ export function useTasks(userId: string | undefined) {
 
   const commitTasks = useCallback(
     (nextTasks: Task[]) => {
-      setTasks(nextTasks);
       setGlobalTasks(nextTasks);
     },
     [setGlobalTasks],
@@ -27,42 +166,11 @@ export function useTasks(userId: string | undefined) {
 
   const updateCommittedTasks = useCallback(
     (updater: (previousTasks: Task[]) => Task[]) => {
-      setTasks((previousTasks) => {
-        const nextTasks = updater(previousTasks);
-        setGlobalTasks(nextTasks);
-        return nextTasks;
-      });
+      const previousTasks = useAppStore.getState().tasks;
+      setGlobalTasks(updater(previousTasks));
     },
     [setGlobalTasks],
   );
-
-  const sortTasksByDueDate = useCallback((taskList: Task[]) => {
-    // Implement Schwartzian transform to avoid O(N log N) Date parsing overhead during sort
-    const mapped = taskList.map((task) => {
-      const parsedDate = parseDateInput(task.due_date);
-      return {
-        task,
-        dueTime: parsedDate ? parsedDate.getTime() : null,
-      };
-    });
-
-    mapped.sort((a, b) => {
-      const aDue = a.dueTime;
-      const bDue = b.dueTime;
-
-      if (aDue === null && bDue === null) {
-        return a.task.created_at > b.task.created_at ? 1 : -1;
-      }
-      if (aDue === null) return 1;
-      if (bDue === null) return -1;
-      if (aDue === bDue) {
-        return a.task.created_at > b.task.created_at ? 1 : -1;
-      }
-      return aDue - bDue;
-    });
-
-    return mapped.map((m) => m.task);
-  }, []);
 
   const fetchTasks = useCallback(async () => {
     if (!userId) return;
@@ -88,79 +196,24 @@ export function useTasks(userId: string | undefined) {
       setError("Failed to fetch tasks");
       setDataSyncError("tasks", "Failed to fetch tasks");
     } finally {
-      setLoading(false);
       setGlobalTasksLoading(false);
     }
-  }, [userId, sortTasksByDueDate, commitTasks, setGlobalTasksLoading, setDataSyncError]);
+  }, [userId, commitTasks, setGlobalTasksLoading, setDataSyncError]);
 
   useEffect(() => {
     if (!userId) {
       commitTasks([]);
-      setLoading(false);
       setGlobalTasksLoading(false);
       return;
     }
 
     fetchTasks();
-
-    // Subscribe to realtime updates
-    const subscription = supabase
-      .channel(`tasks_realtime_${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "tasks",
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload) => {
-          logger.log("Tasks realtime update:", payload);
-          // Optimistic UI update based on event type
-          if (payload.eventType === "INSERT") {
-            // Check if task already exists (from optimistic update) to avoid duplicates
-            updateCommittedTasks((prev) => {
-              const exists = prev.some(
-                (t) => t.id === (payload.new as Task).id,
-              );
-              if (exists) {
-                logger.log(
-                  "Task already exists (from optimistic update), skipping realtime insert",
-                );
-                return prev;
-              }
-              return sortTasksByDueDate([...(prev ?? []), payload.new as Task]);
-            });
-          } else if (payload.eventType === "UPDATE") {
-            updateCommittedTasks((prev) =>
-              sortTasksByDueDate(
-                prev.map((task) =>
-                  task.id === payload.new.id ? (payload.new as Task) : task,
-                ),
-              ),
-            );
-          } else if (payload.eventType === "DELETE") {
-            updateCommittedTasks((prev) =>
-              prev.filter((task) => task.id !== payload.old.id),
-            );
-          }
-        },
-      )
-      .subscribe((status) => {
-        logger.log("Tasks subscription status:", status);
-      });
+    acquireTasksRealtimeSubscription(userId);
 
     return () => {
-      subscription.unsubscribe();
+      releaseTasksRealtimeSubscription();
     };
-  }, [
-    commitTasks,
-    fetchTasks,
-    setGlobalTasksLoading,
-    sortTasksByDueDate,
-    updateCommittedTasks,
-    userId,
-  ]);
+  }, [commitTasks, fetchTasks, setGlobalTasksLoading, userId]);
 
   async function createTask(taskData: Partial<Task>): Promise<Task | null> {
     if (!userId) {
@@ -241,8 +294,6 @@ export function useTasks(userId: string | undefined) {
       logger.error("Failed to award XP", e),
     );
 
-    void fetchTasks();
-
     return data;
   }
 
@@ -302,7 +353,6 @@ export function useTasks(userId: string | undefined) {
       return false;
     }
 
-    void fetchTasks();
     return true;
   }
 
@@ -354,7 +404,6 @@ export function useTasks(userId: string | undefined) {
       );
     }
 
-    void fetchTasks();
     return true;
   }
 
@@ -384,7 +433,6 @@ export function useTasks(userId: string | undefined) {
       return false;
     }
 
-    void fetchTasks();
     return true;
   }
 
@@ -417,7 +465,6 @@ export function useTasks(userId: string | undefined) {
     }
 
     toast.success("Task restored");
-    void fetchTasks();
     return data;
   }
 

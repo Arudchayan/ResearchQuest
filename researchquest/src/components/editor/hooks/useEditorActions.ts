@@ -3,6 +3,11 @@ import { toast } from "sonner";
 import DOMPurify from "dompurify";
 import { NOTE_BODY_MAX_LENGTH } from "../../../hooks/useNotes";
 
+function areStringArraysEqual(left: string[], right: string[]) {
+  if (left.length !== right.length) return false;
+  return left.every((value, index) => value === right[index]);
+}
+
 export function useEditorActions(
   content: string,
   title: string,
@@ -124,16 +129,25 @@ export function useEditorActions(
       return;
     }
 
+    const tagMatches = content.match(/#(\w+)/g);
+    const tags = tagMatches
+      ? [...new Set(tagMatches.map((tag) => tag.slice(1)))]
+      : [];
+
+    const trimmedTitle = title.trim();
+    const persistedTitle = trimmedTitle.length > 0 ? trimmedTitle : null;
+    const selectedTags = Array.isArray(selectedNote.tags) ? selectedNote.tags : [];
+
+    if (
+      selectedNote.title === persistedTitle &&
+      selectedNote.markdown_body === content &&
+      areStringArraysEqual(selectedTags, tags)
+    ) {
+      return;
+    }
+
     setSaving(true);
     try {
-      const tagMatches = content.match(/#(\w+)/g);
-      const tags = tagMatches
-        ? [...new Set(tagMatches.map((tag) => tag.slice(1)))]
-        : [];
-
-      const trimmedTitle = title.trim();
-      const persistedTitle = trimmedTitle.length > 0 ? trimmedTitle : null;
-
       await updateNote(selectedNote.id, {
         title: persistedTitle,
         markdown_body: content,

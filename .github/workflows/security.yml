@@ -28,7 +28,7 @@ jobs:
           fetch-depth: 0
 
       - name: Secret Scan
-        uses: trufflesecurity/trufflehog@v3.95.8
+        uses: trufflesecurity/trufflehog@v3.95.9
         with:
           path: ./
 

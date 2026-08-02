@@ -3,6 +3,10 @@ import {
   requireScopes,
   writeAudit,
 } from "./_shared/auth.ts";
+import {
+  getAgentExploreDocument,
+  parseExploreFilters,
+} from "./_shared/agentExplore.ts";
 import { buildCorsHeaders } from "./_shared/cors.ts";
 import { handleFeedRoute } from "./_shared/feedRoutes.ts";
 import {
@@ -52,6 +56,20 @@ async function handleHealth(
     200,
     corsHeaders,
   );
+}
+
+async function handleExplore(
+  req: Request,
+  corsHeaders: Record<string, string>,
+): Promise<Response> {
+  const url = new URL(req.url);
+  const filters = parseExploreFilters(url.searchParams);
+  if (filters instanceof Response) {
+    const headers = { ...corsHeaders, "Content-Type": "application/json" };
+    return new Response(await filters.text(), { status: filters.status, headers });
+  }
+  const baseUrl = `${url.origin}/functions/v1/api/v1`;
+  return jsonResponse(getAgentExploreDocument(baseUrl, filters), 200, corsHeaders);
 }
 
 async function handleOpenApi(
@@ -256,6 +274,10 @@ Deno.serve(async (req) => {
       (path === "/openapi.json" || path === "/v1/openapi.json")
     ) {
       return await handleOpenApi(req, corsHeaders);
+    }
+
+    if (req.method === "GET" && path === "/explore") {
+      return await handleExplore(req, corsHeaders);
     }
 
     // Authenticated routes

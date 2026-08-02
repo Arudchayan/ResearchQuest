@@ -68,10 +68,12 @@ vi.mock("../../components/ui/Skeleton", () => ({
 
 describe("FocusWorkspace", () => {
   const userId = "user-123";
+  let setFocusSessionSecondsTodayMock: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
+    setFocusSessionSecondsTodayMock = vi.fn();
 
     const storeMock = (selector: any) => {
       return vi.fn();
@@ -79,7 +81,7 @@ describe("FocusWorkspace", () => {
     (useAppStore as any).mockImplementation(storeMock);
     (useAppStore as any).getState = () => ({
       focusSessionSecondsToday: 0,
-      setFocusSessionSecondsToday: vi.fn(),
+      setFocusSessionSecondsToday: setFocusSessionSecondsTodayMock,
       setSelectedNote: vi.fn(),
       setSelectedPaper: vi.fn(),
       setCurrentView: vi.fn(),
@@ -164,5 +166,19 @@ describe("FocusWorkspace", () => {
       "Focus session complete!",
       expect.objectContaining({ body: expect.stringContaining("My Note") }),
     );
+  });
+
+  it("does not locally increment today's focus seconds after completion", async () => {
+    render(<FocusWorkspace userId={userId} />);
+
+    fireEvent.click(screen.getByText("My Note"));
+    fireEvent.click(screen.getByText("Start focus"));
+
+    await act(async () => {
+      vi.advanceTimersByTime(25 * 60 * 1000 + 1000);
+      await Promise.resolve();
+    });
+
+    expect(setFocusSessionSecondsTodayMock).not.toHaveBeenCalled();
   });
 });
