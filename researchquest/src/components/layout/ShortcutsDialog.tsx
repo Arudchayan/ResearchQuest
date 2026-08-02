@@ -33,6 +33,14 @@ const isMac =
 const META_KEY = isMac ? "Cmd" : "Ctrl";
 const META_SYMBOL = isMac ? "⌘" : "Ctrl";
 
+const EXPORTABLE_VIEWS = new Set<AppView>([
+  "notes",
+  "papers",
+  "ideas",
+  "tasks",
+  "topics",
+]);
+
 const SHORTCUTS: ShortcutSection[] = [
   {
     title: "General",
@@ -88,8 +96,20 @@ export function ShortcutsDialog() {
     const handleKeyDown = (e: KeyboardEvent) => {
       const isMod = e.metaKey || e.ctrlKey;
 
-      // Export current view
+      const target = e.target as HTMLElement;
+      const isEditableTarget =
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable ||
+        (target instanceof HTMLElement &&
+          target.closest("[contenteditable='true']") !== null);
+
+      // Export current view on routes that provide an export action.
       if (isMod && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "e") {
+        if (isEditableTarget || !EXPORTABLE_VIEWS.has(useAppStore.getState().currentView)) {
+          return;
+        }
+
         e.preventDefault();
         document.dispatchEvent(new CustomEvent("export-current-view"));
         return;
@@ -123,7 +143,6 @@ export function ShortcutsDialog() {
       }
 
       // Ignore if typing in an input for other shortcuts
-      const target = e.target as HTMLElement;
       const isInput =
         target.tagName === "INPUT" ||
         target.tagName === "TEXTAREA" ||
