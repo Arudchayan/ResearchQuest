@@ -253,7 +253,7 @@ export function NotesView() {
     [setSelectedNote],
   );
 
-  const handleExport = (format: "markdown" | "csv" | "json") => {
+  const handleExport = useCallback((format: "markdown" | "csv" | "json") => {
     if (filteredNotes.length === 0) {
       toast.error("No notes to export");
       return;
@@ -291,7 +291,18 @@ export function NotesView() {
       logger.error("Export failed", err);
       toast.error("Failed to export notes");
     }
-  };
+  }, [filteredNotes]);
+
+  useEffect(() => {
+    const handleExportShortcut = () => {
+      handleExport("markdown");
+    };
+
+    document.addEventListener("export-current-view", handleExportShortcut);
+    return () => {
+      document.removeEventListener("export-current-view", handleExportShortcut);
+    };
+  }, [handleExport]);
 
   return (
     <div className="relative flex h-full flex-col overflow-hidden bg-bg-base text-text-primary lg:flex-row">

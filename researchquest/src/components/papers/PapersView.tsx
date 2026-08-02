@@ -250,7 +250,7 @@ export function PapersView() {
     overscan: 2,
   });
 
-  const handleExport = (format: "markdown" | "bibtex" | "csv" | "json") => {
+  const handleExport = useCallback((format: "markdown" | "bibtex" | "csv" | "json") => {
     if (filteredPapers.length === 0) {
       toast.error("No papers to export");
       return;
@@ -293,7 +293,18 @@ export function PapersView() {
       logger.error("Export failed", err);
       toast.error("Failed to export papers");
     }
-  };
+  }, [filteredPapers]);
+
+  useEffect(() => {
+    const handleExportShortcut = () => {
+      handleExport("markdown");
+    };
+
+    document.addEventListener("export-current-view", handleExportShortcut);
+    return () => {
+      document.removeEventListener("export-current-view", handleExportShortcut);
+    };
+  }, [handleExport]);
 
   return (
     <div className="relative flex h-full bg-bg-base text-text-primary overflow-hidden">
