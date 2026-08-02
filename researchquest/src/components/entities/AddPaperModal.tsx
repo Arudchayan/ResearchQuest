@@ -35,7 +35,7 @@ export function AddPaperModal({
   const [manualDoi, setManualDoi] = useState("");
   const [manualUrl, setManualUrl] = useState("");
 
-  if (!isOpen) return null;
+
 
   const handleDOISearch = async () => {
     if (!doiInput.trim()) return;
@@ -236,6 +236,8 @@ export function AddPaperModal({
   }, [isOpen, handleClose]);
 
 
+
+  if (!isOpen) return null;
 
   return (
     <div
