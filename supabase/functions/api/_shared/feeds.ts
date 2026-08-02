@@ -82,36 +82,6 @@ export function isUuid(value: string): boolean {
   return UUID_RE.test(value);
 }
 
-export function isHttpUrl(value: string): boolean {
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
-function stringField(body: JsonRecord, field: string): string | undefined {
-  const raw = body[field];
-  if (typeof raw !== "string") return undefined;
-  const value = raw.trim();
-  return value || undefined;
-}
-
-export function promotedPaperSourceUrl(
-  fields: JsonRecord,
-  itemUrl?: string,
-): ValidationResult<string | null> {
-  const sourceUrl = stringField(fields, "source_url") ??
-    stringField(fields, "url") ??
-    (typeof itemUrl === "string" ? itemUrl.trim() || undefined : undefined) ??
-    null;
-  if (sourceUrl && !isHttpUrl(sourceUrl)) {
-    return { error: "source_url must be an http(s) URL" };
-  }
-  return { value: sourceUrl };
-}
-
 function optionalString(
   body: JsonRecord,
   field: string,
@@ -253,9 +223,6 @@ export function validateFeedItemCreate(
 
   const url = optionalString(body, "url", 2_048);
   if (url.error) return { error: url.error };
-  if (url.value && !isHttpUrl(url.value)) {
-    return { error: "url must be an http(s) URL" };
-  }
 
   const externalId = optionalString(body, "external_id", 512);
   if (externalId.error) return { error: externalId.error };

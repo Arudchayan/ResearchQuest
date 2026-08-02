@@ -9,12 +9,6 @@ paths:
     get: { operationId: getHealth, responses: { "200": { description: ok } } }
   /openapi.json:
     get: { operationId: getOpenApi, responses: { "200": { description: ok } } }
-  /explore:
-    get:
-      operationId: getExplore
-      responses:
-        "200": { description: ok }
-        "400": { description: validation }
   /keys:
     get: {
       operationId: listApiKeys,

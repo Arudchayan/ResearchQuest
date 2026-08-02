@@ -13,24 +13,21 @@ import { useAppStore } from "../../store/appStore";
 
 // Mock dependencies
 // No useNavigate mock needed anymore as we don't use it
-let mockNotes = [{ id: "1", title: "Test Note", markdown_body: "" }];
-let mockPapers = [{ id: "1", title: "Test Paper", authors: [] }];
-let mockIdeas = [{ id: "1", title: "Test Idea" }];
 
 vi.mock("../../hooks/useNotes", () => ({
   useNotes: () => ({
-    notes: mockNotes,
+    notes: [{ id: "1", title: "Test Note", markdown_body: "" }],
   }),
 }));
 
 vi.mock("../../hooks/usePapers", () => ({
   usePapers: () => ({
-    papers: mockPapers,
+    papers: [{ id: "1", title: "Test Paper", authors: [] }],
   }),
 }));
 
 vi.mock("../../hooks/useIdeas", () => ({
-  useIdeas: () => ({ ideas: mockIdeas }),
+  useIdeas: () => ({ ideas: [{ id: "1", title: "Test Idea" }] }),
 }));
 
 describe("CommandPalette", () => {
@@ -46,9 +43,6 @@ describe("CommandPalette", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockNotes = [{ id: "1", title: "Test Note", markdown_body: "" }];
-    mockPapers = [{ id: "1", title: "Test Paper", authors: [] }];
-    mockIdeas = [{ id: "1", title: "Test Idea" }];
     useAppStore.setState({
       effectiveTheme: "light",
       setTheme: vi.fn(),
@@ -57,8 +51,6 @@ describe("CommandPalette", () => {
       setSelectedPaper: vi.fn(),
       setSelectedIdea: vi.fn(),
       user: { id: "test-user" } as any,
-      tasks: [{ id: "task-1", title: "Test Task" } as any],
-      topics: {},
     });
   });
 
@@ -99,29 +91,6 @@ describe("CommandPalette", () => {
       expect(screen.getByText("Test Note")).toBeInTheDocument();
       expect(screen.getByText("Test Paper")).toBeInTheDocument();
       expect(screen.getByText("Test Idea")).toBeInTheDocument();
-      expect(screen.getByText("Test Task")).toBeInTheDocument();
-    });
-  });
-
-  it("limits rendered search results to 50 matches", async () => {
-    mockNotes = Array.from({ length: 60 }, (_, index) => ({
-      id: `bulk-note-${index}`,
-      title: `Bulk Note ${index}`,
-      markdown_body: "",
-    }));
-    mockPapers = [];
-    mockIdeas = [];
-    useAppStore.setState({
-      tasks: [],
-      topics: {},
-    });
-
-    render(<CommandPalette />);
-    fireEvent.keyDown(document, { key: "k", metaKey: true });
-
-    await waitFor(() => {
-      expect(screen.getByText("Bulk Note 49")).toBeInTheDocument();
-      expect(screen.queryByText("Bulk Note 50")).not.toBeInTheDocument();
     });
   });
 

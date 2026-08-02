@@ -155,7 +155,13 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
               .then(({ error }) => {
                 if (error) {
                   logger.error("[RQ] focus_sessions insert failed", error);
+                  return;
                 }
+                const { focusSessionSecondsToday, setFocusSessionSecondsToday } =
+                  useAppStore.getState();
+                setFocusSessionSecondsToday(
+                  focusSessionSecondsToday + sessionLength,
+                );
               });
           }
 
@@ -187,73 +193,56 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     sessionLength > 0 ? (sessionLength - effectiveTimeLeft) / sessionLength : 0;
 
   const quickTargets = useMemo(() => {
-    const safeNotes = notes || [];
-    const notesItems = [];
-    for (let i = 0; i < Math.min(safeNotes.length, 4); i++) {
-      const note = safeNotes[i];
-      notesItems.push({
-        id: note.id,
-        title: extractNoteSummary(note),
-        meta: new Date(note.updated_at).toLocaleDateString(),
-      });
-    }
-
-    const safePapers = papers || [];
-    const papersItems = [];
-    for (let i = 0; i < safePapers.length && papersItems.length < 4; i++) {
-      const paper = safePapers[i];
-      if (paper.status === "To Read" || paper.status === "Reading") {
-        papersItems.push({
-          id: paper.id,
-          title: paper.title,
-          meta: paper.publication_date
-            ? (
-                parseInt(paper.publication_date.substring(0, 4)) || "No year"
-              ).toString()
-            : "No year",
-        });
-      }
-    }
-
-    const safeTasks = tasks || [];
-    const tasksItems = [];
-    for (let i = 0; i < safeTasks.length && tasksItems.length < 4; i++) {
-      const task = safeTasks[i];
-      if (!task.completed) {
-        tasksItems.push({
-          id: task.id,
-          title: task.title,
-          meta: task.due_date
-            ? new Date(task.due_date).toLocaleString(undefined, {
-                month: "short",
-                day: "numeric",
-              })
-            : "No due date",
-        });
-      }
-    }
-
     return [
       {
         type: "note" as FocusTargetType,
         title: "Notes",
         description: "Recently edited notes ready for synthesis",
         icon: FileText,
-        items: notesItems,
+        items: notes.slice(0, 4).map((note) => ({
+          id: note.id,
+          title: extractNoteSummary(note),
+          meta: new Date(note.updated_at).toLocaleDateString(),
+        })),
       },
       {
         type: "paper" as FocusTargetType,
         title: "Papers",
         description: "Papers waiting for a close read or annotation",
         icon: BookOpen,
-        items: papersItems,
+        items: papers
+          .filter(
+            (paper) => paper.status === "To Read" || paper.status === "Reading",
+          )
+          .slice(0, 4)
+          .map((paper) => ({
+            id: paper.id,
+            title: paper.title,
+            meta: paper.publication_date
+              ? (
+                  parseInt(paper.publication_date.substring(0, 4)) || "No year"
+                ).toString()
+              : "No year",
+          })),
       },
       {
         type: "task" as FocusTargetType,
         title: "Tasks",
         description: "Upcoming commitments that benefit from deep work",
         icon: CheckSquare,
-        items: tasksItems,
+        items: tasks
+          .filter((task) => !task.completed)
+          .slice(0, 4)
+          .map((task) => ({
+            id: task.id,
+            title: task.title,
+            meta: task.due_date
+              ? new Date(task.due_date).toLocaleString(undefined, {
+                  month: "short",
+                  day: "numeric",
+                })
+              : "No due date",
+          })),
       },
     ];
   }, [notes, papers, tasks]);

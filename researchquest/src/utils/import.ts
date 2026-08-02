@@ -90,26 +90,19 @@ export async function importData(
 
   const toastId = toast.loading("Importing data...");
   let imported = 0;
-  let skipped = 0;
+  const skipped = 0;
 
   const upsertOnId = async (table: string, rows: Record<string, unknown>[]) => {
     if (rows.length === 0) return;
-    const { data: insertedRows, error } = await supabase
-      .from(table)
-      .upsert(rows, {
-        onConflict: "id",
-        ignoreDuplicates: true,
-      })
-      .select("id");
+    const { error } = await supabase.from(table).upsert(rows, {
+      onConflict: "id",
+      ignoreDuplicates: true,
+    });
     if (error) {
       logger.error(`[RQ] import upsert failed: ${table}`, error);
       throw error;
     }
-    const insertedCount = Array.isArray(insertedRows)
-      ? insertedRows.length
-      : rows.length;
-    imported += insertedCount;
-    skipped += rows.length - insertedCount;
+    imported += rows.length;
   };
 
   try {
@@ -163,11 +156,7 @@ export async function importData(
       await upsertOnId("topic_ideas", rows);
     }
 
-    const duplicateSummary =
-      skipped > 0 ? `; skipped ${skipped} duplicates` : "";
-    toast.success(`Imported ${imported} rows${duplicateSummary}`, {
-      id: toastId,
-    });
+    toast.success(`Imported ${imported} rows`, { id: toastId });
     return { success: true, imported, skipped };
   } catch (error) {
     logger.error("Import failed", error);
