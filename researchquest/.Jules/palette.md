@@ -1,3 +1,0 @@
-## 2024-05-05 - Consistent Focus Rings and ARIA states for Dialog Buttons
-**Learning:** Shared UI primitives like ConfirmDialog and FormDialog must consistently implement keyboard focus rings (`focus-visible:outline`) and screen reader announcements for loading states (`aria-live="polite"` and `aria-atomic="true"`) on action buttons to ensure base accessibility across the application. Furthermore, decorative elements inside buttons (like spinners or 'X' close icons) should be explicitly hidden using `aria-hidden="true"`.
-**Action:** When creating or modifying button-like components, default to adding `focus-visible` utility classes and explicitly handling ARIA states for loading conditions.
