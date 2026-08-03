@@ -42,7 +42,7 @@ export function EntityGraph() {
     setSelectedNote,
     setSelectedPaper,
     setSelectedIdea,
-    isRightSidebarOpen
+    isRightSidebarOpen,
   } = useAppStore(
     useShallow((state) => ({
       selectedNote: state.selectedNote,
@@ -53,8 +53,8 @@ export function EntityGraph() {
       setSelectedNote: state.setSelectedNote,
       setSelectedPaper: state.setSelectedPaper,
       setSelectedIdea: state.setSelectedIdea,
-      isRightSidebarOpen: state.isRightSidebarOpen
-    }))
+      isRightSidebarOpen: state.isRightSidebarOpen,
+    })),
   );
 
   const currentEntity = selectedNote || selectedPaper || selectedIdea;
@@ -71,14 +71,14 @@ export function EntityGraph() {
     currentEntityId,
     currentEntityType,
     user?.id,
-    { enabled: isRightSidebarOpen && !!currentEntityId }
+    { enabled: isRightSidebarOpen && !!currentEntityId },
   );
 
   const { relatedItems } = useRelatedItems(
     currentEntityId,
     currentEntityType,
     user?.id,
-    { enabled: isRightSidebarOpen && !!currentEntityId }
+    { enabled: isRightSidebarOpen && !!currentEntityId },
   );
 
   const [nodes, setNodes] = useState<Node[]>([]);
@@ -89,7 +89,9 @@ export function EntityGraph() {
 
   useEffect(() => {
     mountedRef.current = true;
-    return () => { mountedRef.current = false; };
+    return () => {
+      mountedRef.current = false;
+    };
   }, []);
 
   // Initialize nodes and edges
@@ -120,11 +122,11 @@ export function EntityGraph() {
 
     // Add backlink nodes
     backlinks.forEach((item, index) => {
-      if (newNodes.some(n => n.id === item.id)) return;
-      
+      if (newNodes.some((n) => n.id === item.id)) return;
+
       const angle = (index / backlinks.length) * Math.PI * 2;
       const distance = 80;
-      
+
       newNodes.push({
         id: item.id,
         type: item.type as NodeType,
@@ -146,11 +148,11 @@ export function EntityGraph() {
 
     // Add related items nodes
     relatedItems.forEach((item, index) => {
-      if (newNodes.some(n => n.id === item.id)) return;
-      
-      const angle = (index / relatedItems.length) * Math.PI * 2 + (Math.PI / 4);
+      if (newNodes.some((n) => n.id === item.id)) return;
+
+      const angle = (index / relatedItems.length) * Math.PI * 2 + Math.PI / 4;
       const distance = 120;
-      
+
       newNodes.push({
         id: item.id,
         type: item.type as NodeType,
@@ -173,8 +175,13 @@ export function EntityGraph() {
     nodesRef.current = newNodes;
     setNodes([...newNodes]);
     setEdges(newEdges);
-    
-  }, [currentEntityId, backlinks, relatedItems, currentEntity, currentEntityType]);
+  }, [
+    currentEntityId,
+    backlinks,
+    relatedItems,
+    currentEntity,
+    currentEntityType,
+  ]);
 
   // Force directed graph simulation
   useEffect(() => {
@@ -182,7 +189,7 @@ export function EntityGraph() {
 
     let isRunning = true;
 
-    let cachedNodeMap = new Map<string, Node>();
+    const cachedNodeMap = new Map<string, Node>();
     let lastNodesRef: Node[] | null = null;
 
     const tick = () => {
@@ -191,7 +198,10 @@ export function EntityGraph() {
       const currentNodes = nodesRef.current;
 
       if (lastNodesRef !== currentNodes) {
-        cachedNodeMap = new Map(currentNodes.map(n => [n.id, n]));
+        cachedNodeMap.clear();
+        for (let i = 0; i < currentNodes.length; i++) {
+          cachedNodeMap.set(currentNodes[i].id, currentNodes[i]);
+        }
         lastNodesRef = currentNodes;
       }
 
@@ -203,15 +213,16 @@ export function EntityGraph() {
           const dy = currentNodes[j].y - currentNodes[i].y;
           const distanceSq = dx * dx + dy * dy;
           if (distanceSq === 0) continue;
-          
+
           const distance = Math.sqrt(distanceSq);
-          const minDistance = currentNodes[i].radius + currentNodes[j].radius + 30;
-          
+          const minDistance =
+            currentNodes[i].radius + currentNodes[j].radius + 30;
+
           if (distance < minDistance) {
-            const force = (minDistance - distance) / distance * 0.5;
+            const force = ((minDistance - distance) / distance) * 0.5;
             const fx = dx * force;
             const fy = dy * force;
-            
+
             if (i !== 0) {
               currentNodes[i].vx -= fx;
               currentNodes[i].vy -= fy;
@@ -224,7 +235,7 @@ export function EntityGraph() {
         }
       }
 
-      edges.forEach(edge => {
+      edges.forEach((edge) => {
         const sourceNode = cachedNodeMap.get(edge.source);
         const targetNode = cachedNodeMap.get(edge.target);
 
@@ -232,14 +243,14 @@ export function EntityGraph() {
           const dx = targetNode.x - sourceNode.x;
           const dy = targetNode.y - sourceNode.y;
           const distance = Math.sqrt(dx * dx + dy * dy);
-          
-          const targetDistance = edge.type === 'backlink' ? 80 : 120;
-          
+
+          const targetDistance = edge.type === "backlink" ? 80 : 120;
+
           if (distance > 0) {
             const force = (distance - targetDistance) * 0.05;
             const fx = (dx / distance) * force;
             const fy = (dy / distance) * force;
-            
+
             if (sourceNode.id !== currentEntityId) {
               sourceNode.vx += fx;
               sourceNode.vy += fy;
@@ -253,8 +264,8 @@ export function EntityGraph() {
       });
 
       let hasMovement = false;
-      
-      currentNodes.forEach(node => {
+
+      currentNodes.forEach((node) => {
         if (node.id === currentEntityId) {
           node.x = CENTER_X;
           node.y = CENTER_Y;
@@ -274,7 +285,7 @@ export function EntityGraph() {
 
         node.x += node.vx;
         node.y += node.vy;
-        
+
         if (Math.abs(node.vx) > 0.1 || Math.abs(node.vy) > 0.1) {
           hasMovement = true;
         }
@@ -297,12 +308,9 @@ export function EntityGraph() {
     };
   }, [edges, currentEntityId]);
 
-  const handleNavigateToItem = (
-    itemId: string,
-    itemType: string,
-  ) => {
+  const handleNavigateToItem = (itemId: string, itemType: string) => {
     if (itemId === currentEntityId) return;
-    
+
     if (itemType === "note") {
       setCurrentView("notes");
       const fetchNote = async () => {
@@ -380,10 +388,14 @@ export function EntityGraph() {
   const getNodeColorClass = (relationship: string, type: string) => {
     if (relationship === "current") {
       switch (type) {
-        case "note": return "bg-blue-500 border-blue-600 dark:bg-blue-600 dark:border-blue-700";
-        case "paper": return "bg-purple-500 border-purple-600 dark:bg-purple-600 dark:border-purple-700";
-        case "idea": return "bg-amber-500 border-amber-600 dark:bg-amber-600 dark:border-amber-700";
-        default: return "bg-slate-500 border-slate-600 dark:bg-slate-600 dark:border-slate-700";
+        case "note":
+          return "bg-blue-500 border-blue-600 dark:bg-blue-600 dark:border-blue-700";
+        case "paper":
+          return "bg-purple-500 border-purple-600 dark:bg-purple-600 dark:border-purple-700";
+        case "idea":
+          return "bg-amber-500 border-amber-600 dark:bg-amber-600 dark:border-amber-700";
+        default:
+          return "bg-slate-500 border-slate-600 dark:bg-slate-600 dark:border-slate-700";
       }
     } else if (relationship === "backlink") {
       return "bg-indigo-400 border-indigo-500 dark:bg-indigo-500 dark:border-indigo-600";
@@ -392,72 +404,88 @@ export function EntityGraph() {
     }
   };
 
-  const renderNodeMap = new Map(nodes.map(n => [n.id, n]));
+  const renderNodeMap = new Map<string, Node>();
+  for (let i = 0; i < nodes.length; i++) {
+    renderNodeMap.set(nodes[i].id, nodes[i]);
+  }
 
   return (
     <>
       <div className="sr-only" role="status" aria-live="polite">
-        {!currentEntityId || nodes.length <= 1 ? "No connections found yet. Add backlinks or shared topics to see the entity graph." : ""}
+        {!currentEntityId || nodes.length <= 1
+          ? "No connections found yet. Add backlinks or shared topics to see the entity graph."
+          : ""}
       </div>
-      {(!currentEntityId || nodes.length <= 1) ? (
+      {!currentEntityId || nodes.length <= 1 ? (
         <div className="flex items-center justify-center h-40 text-sm text-text-tertiary bg-bg-base/50 rounded-lg border border-dashed border-border-subtle p-4 text-center">
-          No connections found yet. Add backlinks or shared topics to see the entity graph.
+          No connections found yet. Add backlinks or shared topics to see the
+          entity graph.
         </div>
       ) : (
-      <div className="relative w-full overflow-hidden bg-bg-base/50 rounded-lg border border-border-subtle" style={{ height: GRAPH_HEIGHT }}>
-        <svg className="absolute inset-0 w-full h-full pointer-events-none">
-        {edges.map((edge) => {
-          const sourceNode = renderNodeMap.get(edge.source);
-          const targetNode = renderNodeMap.get(edge.target);
-          if (!sourceNode || !targetNode) return null;
+        <div
+          className="relative w-full overflow-hidden bg-bg-base/50 rounded-lg border border-border-subtle"
+          style={{ height: GRAPH_HEIGHT }}
+        >
+          <svg className="absolute inset-0 w-full h-full pointer-events-none">
+            {edges.map((edge) => {
+              const sourceNode = renderNodeMap.get(edge.source);
+              const targetNode = renderNodeMap.get(edge.target);
+              if (!sourceNode || !targetNode) return null;
 
-          return (
-            <line
-              key={`${edge.source}-${edge.target}-${edge.type}`}
-              x1={sourceNode.x}
-              y1={sourceNode.y}
-              x2={targetNode.x}
-              y2={targetNode.y}
-              className={
-                (edge.type === 'backlink'
-                  ? "stroke-indigo-400/50 dark:stroke-indigo-500/50"
-                  : "stroke-teal-400/50 dark:stroke-teal-500/50")
-                + " graph-edge"
-              }
-              strokeWidth={edge.type === 'backlink' ? 2 : 1.5}
-              strokeDasharray={edge.type === 'related' ? "4 4" : "none"}
-            />
-          );
-        })}
-      </svg>
+              return (
+                <line
+                  key={`${edge.source}-${edge.target}-${edge.type}`}
+                  x1={sourceNode.x}
+                  y1={sourceNode.y}
+                  x2={targetNode.x}
+                  y2={targetNode.y}
+                  className={
+                    (edge.type === "backlink"
+                      ? "stroke-indigo-400/50 dark:stroke-indigo-500/50"
+                      : "stroke-teal-400/50 dark:stroke-teal-500/50") +
+                    " graph-edge"
+                  }
+                  strokeWidth={edge.type === "backlink" ? 2 : 1.5}
+                  strokeDasharray={edge.type === "related" ? "4 4" : "none"}
+                />
+              );
+            })}
+          </svg>
 
-      {nodes.map((node) => {
-        const isCenter = node.relationship === "current";
-        return (
-          <button
-            key={node.id}
-            onClick={() => handleNavigateToItem(node.id, node.type)}
-            aria-label={isCenter ? `Current ${node.type}: ${node.title}` : `Navigate to ${node.type} ${node.title}`}
-            className={
-              `absolute flex items-center justify-center rounded-full shadow-md border-2 cursor-pointer outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 group graph-node ${getNodeColorClass(node.relationship, node.type)}`
-            }
-            style={{
-              width: node.radius * 2,
-              height: node.radius * 2,
-              left: node.x - node.radius,
-              top: node.y - node.radius,
-            }}
-          >
-            {getNodeIcon(node.type, isCenter)}
-            
-            <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-bg-surface text-text-primary text-xs px-2 py-1 rounded shadow border border-border-subtle opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50" aria-hidden="true">
-              {node.title}
-              <div className="text-[10px] text-text-tertiary capitalize mt-0.5">{node.type} &bull; {node.relationship}</div>
-            </div>
-          </button>
-        );
-      })}
-      </div>
+          {nodes.map((node) => {
+            const isCenter = node.relationship === "current";
+            return (
+              <button
+                key={node.id}
+                onClick={() => handleNavigateToItem(node.id, node.type)}
+                aria-label={
+                  isCenter
+                    ? `Current ${node.type}: ${node.title}`
+                    : `Navigate to ${node.type} ${node.title}`
+                }
+                className={`absolute flex items-center justify-center rounded-full shadow-md border-2 cursor-pointer outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 group graph-node ${getNodeColorClass(node.relationship, node.type)}`}
+                style={{
+                  width: node.radius * 2,
+                  height: node.radius * 2,
+                  left: node.x - node.radius,
+                  top: node.y - node.radius,
+                }}
+              >
+                {getNodeIcon(node.type, isCenter)}
+
+                <div
+                  className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-bg-surface text-text-primary text-xs px-2 py-1 rounded shadow border border-border-subtle opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50"
+                  aria-hidden="true"
+                >
+                  {node.title}
+                  <div className="text-[10px] text-text-tertiary capitalize mt-0.5">
+                    {node.type} &bull; {node.relationship}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
       )}
     </>
   );
