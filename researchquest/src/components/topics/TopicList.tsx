@@ -34,16 +34,7 @@ export function TopicList({
     [onSelectTopic],
   );
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12 text-text-tertiary">
-        <Loader2 className="w-5 h-5 animate-spin" />
-        <span className="ml-2 text-small">Loading topics...</span>
-      </div>
-    );
-  }
-
-  const emptyMessage = !topics.length
+  const emptyMessage = (!loading && !topics.length)
     ? (highlightQuery ? "No matches found. Try a different keyword or clear your search." : "No topics yet. Create a topic to start organizing your research")
     : "";
 
@@ -53,7 +44,12 @@ export function TopicList({
         {emptyMessage}
       </div>
 
-      {!topics.length ? (
+      {loading ? (
+        <div className="flex items-center justify-center py-12 text-text-tertiary">
+          <Loader2 className="w-5 h-5 animate-spin" />
+          <span className="ml-2 text-small">Loading topics...</span>
+        </div>
+      ) : !topics.length ? (
         highlightQuery ? (
           <div
             className="text-center py-12 text-text-tertiary"
