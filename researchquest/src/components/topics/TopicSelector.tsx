@@ -59,10 +59,13 @@ export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
   // from O(N) to O(1). When used inside a loop (like rendering selected topics),
   // this prevents O(N*M) performance bottlenecks during hydration or rendering.
   // Impact: Significantly reduces CPU overhead and memory churn for large topic lists.
-  const topicsMap = useMemo(
-    () => new Map(topics.map((t) => [t.id, t])),
-    [topics],
-  );
+  const topicsMap = useMemo(() => {
+    const map = new Map<string, TopicWithCounts>();
+    for (let i = 0; i < topics.length; i++) {
+      map.set(topics[i].id, topics[i]);
+    }
+    return map;
+  }, [topics]);
   // Using a Set for selectedIds lookup reduces time complexity from O(N*M) to O(N+M).
   // Impact: Faster filtering of available topics when many topics are selected.
   const selectedIdsSet = useMemo(() => new Set(selectedIds), [selectedIds]);
@@ -146,7 +149,10 @@ export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
 
       {availableTopics.length > 0 && (
         <div>
-          <label htmlFor={selectId} className="block text-caption text-text-secondary mb-1">
+          <label
+            htmlFor={selectId}
+            className="block text-caption text-text-secondary mb-1"
+          >
             Add an existing topic
           </label>
           <div className="flex gap-2">
@@ -173,7 +179,10 @@ export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
       )}
 
       <div className="pt-3 border-t border-border-subtle">
-        <label htmlFor={inputId} className="block text-caption text-text-secondary mb-1">
+        <label
+          htmlFor={inputId}
+          className="block text-caption text-text-secondary mb-1"
+        >
           Create and link new topic
         </label>
         <div className="flex gap-2">
