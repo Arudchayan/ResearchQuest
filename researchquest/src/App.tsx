@@ -61,6 +61,12 @@ const FocusWorkspace = lazy(() =>
   })),
 );
 
+const FeedsView = lazy(() =>
+  import("./components/feeds/FeedsView").then((module) => ({
+    default: module.FeedsView,
+  })),
+);
+
 const OnboardingGuide = lazy(() =>
   import("./components/layout/OnboardingGuide").then((module) => ({
     default: module.OnboardingGuide,
@@ -81,8 +87,9 @@ const ShortcutsDialog = lazy(() =>
 
 function RouteLoadingFallback() {
   return (
-    <div className="flex h-full min-h-[320px] items-center justify-center px-6 py-10 text-sm text-text-secondary">
-      Loading view…
+    <div className="flex h-full min-h-[320px] items-center justify-center px-6 py-10">
+      <div className="h-8 w-8 animate-pulse rounded-full bg-border-moderate" aria-hidden="true" />
+      <span className="sr-only">Loading…</span>
     </div>
   );
 }
@@ -92,11 +99,11 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | undefined>(undefined);
   const [pendingPath, setPendingPath] = useState<string | null>(null);
-  // ⚡ Optimization: Use useShallow with an object selector to prevent the App component
-  // from unnecessarily re-rendering on unrelated state changes in the global appStore.
+  // Use useShallow to prevent unnecessary re-renders
   const {
     setUser: setUserProfile,
     currentView,
+    effectiveTheme,
     setCurrentView,
     selectedPaper,
     selectedIdea,
@@ -112,6 +119,7 @@ function App() {
     useShallow((state) => ({
       setUser: state.setUser,
       currentView: state.currentView,
+      effectiveTheme: state.effectiveTheme,
       setCurrentView: state.setCurrentView,
       selectedPaper: state.selectedPaper,
       selectedIdea: state.selectedIdea,
@@ -214,7 +222,7 @@ function App() {
       const pathParts = pendingPath.slice(1).split("/");
       const view = pathParts[0] as typeof currentView;
       if (
-        ["dashboard", "notes", "papers", "ideas", "tasks", "topics", "focus"].includes(view)
+        ["dashboard", "notes", "papers", "ideas", "tasks", "topics", "focus", "feeds"].includes(view)
       ) {
         setCurrentView(view);
       } else {
@@ -243,7 +251,7 @@ function App() {
 
       // Validate view
       if (
-        ["dashboard", "notes", "papers", "ideas", "tasks", "topics", "focus"].includes(
+        ["dashboard", "notes", "papers", "ideas", "tasks", "topics", "focus", "feeds"].includes(
           view,
         )
       ) {
@@ -368,6 +376,8 @@ function App() {
         <OnboardingGuide storageKey="rq_focus_onboarding_bridge" />
         <FocusWorkspace userId={userId} />
       </div>
+    ) : currentView === "feeds" ? (
+      <FeedsView />
     ) : null;
 
   return (
@@ -385,7 +395,7 @@ function App() {
           duration={2500}
           offset={16}
           visibleToasts={3}
-          theme={useAppStore.getState().effectiveTheme}
+          theme={effectiveTheme}
           closeButton
           toastOptions={{ duration: 2500 }}
         />

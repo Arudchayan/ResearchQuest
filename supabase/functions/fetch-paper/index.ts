@@ -7,6 +7,80 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const APP_USER_AGENT = "ResearchQuest/1.0 (mailto:research@researchquest.app)";
 const DEFAULT_TIMEOUT_MS = 8000;
+const RATE_LIMIT_MAX_REQUESTS = 30;
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const DEFAULT_DEV_ALLOWED_ORIGINS = [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:5175",
+  "http://localhost:4173",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:5174",
+  "http://127.0.0.1:5175",
+  "http://127.0.0.1:4173",
+];
+
+interface CrossrefAuthor {
+  given?: string;
+  family?: string;
+}
+
+interface CrossrefWork {
+  DOI?: string;
+  title?: string[];
+  author?: CrossrefAuthor[];
+  abstract?: string;
+  published?: {
+    "date-parts"?: number[][];
+  };
+  URL?: string;
+  "container-title"?: string[];
+  publisher?: string;
+  type?: string;
+}
+
+interface RateLimitBucket {
+  timestamps: number[];
+}
+
+interface RateLimitResult {
+  allowed: boolean;
+  resetAt: number;
+}
+
+const rateLimitBuckets = new Map<string, RateLimitBucket>();
+
+function parseAllowedOrigins(): string[] {
+  const configured = Deno.env.get("ALLOWED_ORIGINS");
+  if (!configured || !configured.trim()) {
+    return DEFAULT_DEV_ALLOWED_ORIGINS;
+  }
+  return configured
+    .split(",")
+    .map((origin) => origin.trim().replace(/\/$/, ""))
+    .filter(Boolean);
+}
+
+function buildCorsHeaders(req: Request): HeadersInit {
+  const headers: Record<string, string> = {
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+    "Access-Control-Max-Age": "86400",
+    "Vary": "Origin",
+  };
+  const origin = req.headers.get("Origin");
+  const allowed = parseAllowedOrigins();
+
+  const allowlist = allowed.length > 0 ? allowed : DEFAULT_DEV_ALLOWED_ORIGINS;
+  if (origin && allowlist.includes(origin)) {
+    headers["Access-Control-Allow-Origin"] = origin;
+  } else {
+    headers["Access-Control-Allow-Origin"] = allowlist[0];
+  }
+
+  return headers;
+}
 
 function getRequiredEnv(name: string): string {
   const value = Deno.env.get(name);
@@ -35,12 +109,12 @@ async function fetchWithTimeout(
   }
 }
 
-function formatCrossrefWork(work: any) {
+function formatCrossrefWork(work: CrossrefWork) {
   return {
     doi: work?.DOI || "",
     title: work?.title?.[0] || "Untitled",
     authors:
-      work?.author?.map((author: any) =>
+      work?.author?.map((author) =>
         `${author?.given || ""} ${author?.family || ""}`.trim(),
       ) || [],
     abstract: work?.abstract || "",
@@ -59,14 +133,34 @@ function jsonResponse(body: unknown, status: number, corsHeaders: HeadersInit) {
   });
 }
 
+function checkRateLimit(userId: string): RateLimitResult {
+  const now = Date.now();
+  const windowStart = now - RATE_LIMIT_WINDOW_MS;
+  const key = `fetch-paper:${userId}`;
+  const bucket = rateLimitBuckets.get(key) ?? { timestamps: [] };
+  bucket.timestamps = bucket.timestamps.filter((timestamp) =>
+    timestamp > windowStart
+  );
+
+  if (bucket.timestamps.length >= RATE_LIMIT_MAX_REQUESTS) {
+    rateLimitBuckets.set(key, bucket);
+    return {
+      allowed: false,
+      resetAt: (bucket.timestamps[0] ?? now) + RATE_LIMIT_WINDOW_MS,
+    };
+  }
+
+  bucket.timestamps.push(now);
+  rateLimitBuckets.set(key, bucket);
+  return { allowed: true, resetAt: now + RATE_LIMIT_WINDOW_MS };
+}
+
+function retryAfterSeconds(resetAt: number): string {
+  return String(Math.max(1, Math.ceil((resetAt - Date.now()) / 1000)));
+}
+
 Deno.serve(async (req) => {
-  const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type",
-    "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-    "Access-Control-Max-Age": "86400",
-  };
+  const corsHeaders = buildCorsHeaders(req);
 
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -98,6 +192,23 @@ Deno.serve(async (req) => {
         { error: { code: "UNAUTHORIZED", message: "Invalid or expired token" } },
         401,
         corsHeaders,
+      );
+    }
+
+    const rateLimit = checkRateLimit(user.id);
+    if (!rateLimit.allowed) {
+      return new Response(
+        JSON.stringify({
+          error: { code: "RATE_LIMITED", message: "Too many requests" },
+        }),
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "Retry-After": retryAfterSeconds(rateLimit.resetAt),
+          },
+        },
       );
     }
 

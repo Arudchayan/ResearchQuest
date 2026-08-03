@@ -19,3 +19,8 @@ researchquest/.jules/
 # Generated audit reports from portfolio expert cron jobs
 researchquest/UI_UX_AUDIT.md
 *.audit-report.md
+
+# Ignore root-level npm/pnpm install artifacts (should only run in researchquest/)
+node_modules/
+.vite/
+package-lock.json

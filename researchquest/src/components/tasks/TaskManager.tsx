@@ -82,7 +82,7 @@ export function TaskManager() {
     });
   }, []);
 
-  // ⚡ PERFORMANCE OPTIMIZATION: Pre-compute searchable text fields
+  // Performance: Pre-compute searchable text fields
   // so that expensive string concatenation and toLowerCase operations are
   // decoupled from the fast keystroke filtering loop.
   const searchableTasks = useMemo(() => {
@@ -112,7 +112,7 @@ export function TaskManager() {
   }, [tasks]);
 
   const sortedTasks = useMemo(() => {
-    // ⚡ PERFORMANCE OPTIMIZATION: Filter tasks inside the useMemo hook
+    // Performance: Filter tasks inside the useMemo hook
     // to prevent the array from being recreated on every single render.
     // If filteredTasks was defined outside and passed as a dependency,
     // this useMemo would invalidate on every unrelated state change (like typing in an input).
@@ -176,7 +176,7 @@ export function TaskManager() {
         if (priorityDiff !== 0) {
           return priorityDiff;
         }
-        // ⚡ PERFORMANCE OPTIMIZATION: Use string comparison for ISO dates
+        // Performance: Use string comparison for ISO dates
         // instead of parsing Date objects inside the sort callback.
         const aDue = a.due_date || "9999-12-31";
         const bDue = b.due_date || "9999-12-31";
@@ -193,7 +193,7 @@ export function TaskManager() {
     }
 
     return filtered.sort((a, b) => {
-      // ⚡ PERFORMANCE OPTIMIZATION: Use string comparison for ISO dates
+      // Performance: Use string comparison for ISO dates
       // instead of parsing Date objects inside the sort callback.
       const aDue = a.due_date || "9999-12-31";
       const bDue = b.due_date || "9999-12-31";
@@ -214,7 +214,6 @@ export function TaskManager() {
   ]);
 
   // Calculate progress
-  // ⚡ PERFORMANCE OPTIMIZATION:
   // Compute aggregate statistics in a single O(N) pass inside useMemo.
   // This avoids chaining multiple .filter().length calls that create unnecessary
   // intermediate arrays and trigger redundant iterations during render.
@@ -333,7 +332,7 @@ export function TaskManager() {
     setFormDueDate("");
   };
 
-  const handleExport = (format: "markdown" | "csv" | "json") => {
+  const handleExport = useCallback((format: "markdown" | "csv" | "json") => {
     if (sortedTasks.length === 0) {
       toast.error("No tasks to export");
       return;
@@ -371,15 +370,18 @@ export function TaskManager() {
       logger.error("Export failed", err);
       toast.error("Failed to export tasks");
     }
-  };
+  }, [sortedTasks]);
 
-  if (loading) {
-    return (
-      <div className="p-4 sm:p-6">
-        <ListSkeleton count={6} itemType="task" />
-      </div>
-    );
-  }
+  useEffect(() => {
+    const handleExportShortcut = () => {
+      handleExport("markdown");
+    };
+
+    document.addEventListener("export-current-view", handleExportShortcut);
+    return () => {
+      document.removeEventListener("export-current-view", handleExportShortcut);
+    };
+  }, [handleExport]);
 
   return (
     <div className="h-full flex flex-col bg-bg-base">
@@ -591,9 +593,14 @@ export function TaskManager() {
 
       {/* Task List */}
       {tasksSyncError && <InlineError message={tasksSyncError.message} />}
+      <div className="sr-only" role="status" aria-live="polite">
+        {!loading && !tasksSyncError && sortedTasks.length === 0 ? (searchQuery ? "No matches found. Try a different keyword or clear your search." : "No tasks match your filters") : ""}
+      </div>
       <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-        {sortedTasks.length === 0 ? (
-          <div className="text-center py-16" role="status" aria-live="polite">
+        {loading ? (
+          <ListSkeleton count={6} itemType="task" />
+        ) : sortedTasks.length === 0 ? (
+          <div className="text-center py-16">
             <CheckCircle2
               className="w-16 h-16 mx-auto mb-4 text-text-tertiary opacity-50"
               aria-hidden="true"

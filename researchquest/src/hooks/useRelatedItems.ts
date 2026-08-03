@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { useAppStore } from "../store/appStore";
 import { deriveTitleFromMarkdown } from "../utils/text";
 import { logger } from "../utils/logger";
+import { getTopN } from "../utils/collections";
 
 export interface RelatedItem {
   id: string;
@@ -62,6 +63,7 @@ export function useRelatedItems(
       const { data: currentTopics, error: topicsError } = await supabase
         .from(topicTable)
         .select("topic_id")
+        .eq("user_id", userId)
         .eq(entityColumn, entityId);
 
       if (topicsError || !currentTopics || currentTopics.length === 0) {
@@ -74,8 +76,6 @@ export function useRelatedItems(
 
       // Now find other entities that share these topics
       const linkMap = new Map<string, RelatedLink>();
-
-      // ⚡ PERFORMANCE OPTIMIZATION:
       // We fetch only the IDs. We do NOT hydrate with store data here.
       // This allows us to keep this effect independent of store updates.
       // Additionally, we use Promise.all to fetch related items concurrently.
@@ -84,6 +84,7 @@ export function useRelatedItems(
         supabase
           .from("topic_notes")
           .select("note_id, topic_id")
+          .eq("user_id", userId)
           .in("topic_id", topicIds)
           .neq(
             "note_id",
@@ -95,6 +96,7 @@ export function useRelatedItems(
         supabase
           .from("topic_papers")
           .select("paper_id, topic_id")
+          .eq("user_id", userId)
           .in("topic_id", topicIds)
           .neq(
             "paper_id",
@@ -106,6 +108,7 @@ export function useRelatedItems(
         supabase
           .from("topic_ideas")
           .select("idea_id, topic_id")
+          .eq("user_id", userId)
           .in("topic_id", topicIds)
           .neq(
             "idea_id",
@@ -161,7 +164,14 @@ export function useRelatedItems(
         }
       }
 
-      setRelatedLinks(Array.from(linkMap.values()));
+      // Cap before hydration — UI only previews a handful; unbounded maps hurt large graphs.
+      const RELATED_LINKS_CAP = 50;
+      const capped = getTopN(
+        Array.from(linkMap.values()),
+        RELATED_LINKS_CAP,
+        (a, b) => b.topicCount - a.topicCount
+      );
+      setRelatedLinks(capped);
     } catch (error) {
       logger.error("Error fetching related items", error);
       setRelatedLinks([]);
@@ -180,12 +190,15 @@ export function useRelatedItems(
     if (relatedLinks.length === 0) return [];
 
     const results: RelatedItem[] = [];
-
-    // ⚡ PERFORMANCE OPTIMIZATION:
     // Pre-compute Map lookups (O(1)) instead of repeated array scans (O(N*M)) when hydrating links from the store.
-    const notesMap = new Map(notes.map((n) => [n.id, n]));
-    const papersMap = new Map(papers.map((p) => [p.id, p]));
-    const ideasMap = new Map(ideas.map((i) => [i.id, i]));
+    const notesMap = new Map();
+    for (let i = 0; i < notes.length; i++) notesMap.set(notes[i].id, notes[i]);
+
+    const papersMap = new Map();
+    for (let i = 0; i < papers.length; i++) papersMap.set(papers[i].id, papers[i]);
+
+    const ideasMap = new Map();
+    for (let i = 0; i < ideas.length; i++) ideasMap.set(ideas[i].id, ideas[i]);
 
     for (const link of relatedLinks) {
       let fullItem: any = null;
@@ -230,7 +243,7 @@ export function useRelatedItems(
       if (b.sharedTopics !== a.sharedTopics) {
         return b.sharedTopics - a.sharedTopics;
       }
-      // ⚡ PERFORMANCE OPTIMIZATION: String comparison for ISO dates
+      // Performance: String comparison for ISO dates
       if (b.updated_at > a.updated_at) return 1;
       if (b.updated_at < a.updated_at) return -1;
       return 0;

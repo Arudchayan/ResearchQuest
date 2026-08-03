@@ -13,7 +13,7 @@ import {
   ArrowUpDown,
   ArrowLeft,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useAppStore } from "../../store/appStore";
 import { useShallow } from "zustand/react/shallow";
@@ -46,14 +46,13 @@ type SortOption =
   | "title_desc";
 
 const STAGES: { id: IdeaStage; label: string; color: string }[] = [
-  { id: "Seed", label: "Seed", color: "bg-emerald-500" },
-  { id: "Developing", label: "Developing", color: "bg-blue-500" },
-  { id: "Supported", label: "Supported", color: "bg-purple-500" },
-  { id: "Mature", label: "Mature", color: "bg-amber-500" },
+  { id: "Seed", label: "Seed", color: "bg-success" },
+  { id: "Developing", label: "Developing", color: "bg-primary-500" },
+  { id: "Supported", label: "Supported", color: "bg-purple" },
+  { id: "Mature", label: "Mature", color: "bg-warning" },
 ];
 
 export function IdeasBoard() {
-  // ⚡ PERFORMANCE OPTIMIZATION:
   // Using useShallow to prevent unnecessary re-renders of the entire IdeasBoard
   // when unrelated properties in the global appStore change.
   const {
@@ -87,7 +86,7 @@ export function IdeasBoard() {
   const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastDeletedRef = useRef<Idea | null>(null);
 
-  // ⚡ PERFORMANCE OPTIMIZATION: Pre-compute derived text fields for faster searching
+  // Performance: Pre-compute derived text fields for faster searching
   const searchableIdeas = useMemo(() => {
     return (ideas || []).map((idea) => ({
       idea,
@@ -226,7 +225,12 @@ export function IdeasBoard() {
     const currentIndex = STAGES.findIndex((s) => s.id === currentStage);
     const nextStage = STAGES[currentIndex + 1];
     if (nextStage) {
-      await updateIdea(ideaId, { stage: nextStage.id });
+      const update = () => updateIdea(ideaId, { stage: nextStage.id });
+      if (document.startViewTransition) {
+        document.startViewTransition(update);
+      } else {
+        await update();
+      }
     }
   };
 
@@ -241,7 +245,7 @@ export function IdeasBoard() {
     }
   };
 
-  const handleExport = (format: "markdown" | "csv" | "json") => {
+  const handleExport = useCallback((format: "markdown" | "csv" | "json") => {
     if (filteredIdeas.length === 0) {
       toast.error("No ideas to export");
       return;
@@ -279,56 +283,67 @@ export function IdeasBoard() {
       logger.error("Export failed", err);
       toast.error("Failed to export ideas");
     }
-  };
+  }, [filteredIdeas]);
+
+  useEffect(() => {
+    const handleExportShortcut = () => {
+      handleExport("markdown");
+    };
+
+    document.addEventListener("export-current-view", handleExportShortcut);
+    return () => {
+      document.removeEventListener("export-current-view", handleExportShortcut);
+    };
+  }, [handleExport]);
 
   return (
-    <div className="relative flex h-full bg-slate-50 dark:bg-slate-900 overflow-hidden">
+    <div className="relative flex h-full bg-bg-base text-text-primary overflow-hidden">
       <div
         className={cn(
           "flex-1 flex flex-col min-w-0",
           selectedIdea && "max-lg:hidden",
         )}
       >
-        <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="p-4 sm:p-6 border-b border-border-subtle bg-bg-surface flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="min-w-0">
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+            <h1 className="text-2xl font-serif font-bold text-text-primary">
               Idea Board
             </h1>
-            <p className="text-slate-500 dark:text-slate-400 text-sm">
+            <p className="text-text-secondary text-sm">
               Track the evolution of your research concepts
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <DropdownMenu.Root>
               <DropdownMenu.Trigger asChild>
-                <button className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-2 font-medium">
+                <button className="px-4 py-2 bg-bg-surface border border-border-moderate text-text-secondary rounded-lg hover:bg-bg-elevated hover:text-text-primary transition-colors flex items-center gap-2 font-medium">
                   <Download className="w-5 h-5" />
                   Export
                 </button>
               </DropdownMenu.Trigger>
               <DropdownMenu.Portal>
                 <DropdownMenu.Content
-                  className="min-w-[180px] bg-white dark:bg-slate-950 rounded-lg shadow-lg border border-slate-200 dark:border-slate-800 p-1 z-50 animate-in fade-in-0 zoom-in-95"
+                  className="min-w-[180px] bg-bg-surface rounded-lg shadow-lg border border-border-moderate p-1 z-50 animate-in fade-in-0 zoom-in-95"
                   align="end"
                   sideOffset={5}
                 >
                   <DropdownMenu.Item
                     onSelect={() => handleExport("markdown")}
-                    className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md cursor-pointer outline-none"
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-md cursor-pointer outline-none"
                   >
                     <FileText className="w-4 h-4" />
                     Markdown (.md)
                   </DropdownMenu.Item>
                   <DropdownMenu.Item
                     onSelect={() => handleExport("csv")}
-                    className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md cursor-pointer outline-none"
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-md cursor-pointer outline-none"
                   >
                     <Table className="w-4 h-4" />
                     CSV (.csv)
                   </DropdownMenu.Item>
                   <DropdownMenu.Item
                     onSelect={() => handleExport("json")}
-                    className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md cursor-pointer outline-none"
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-md cursor-pointer outline-none"
                   >
                     <FileJson className="w-4 h-4" />
                     JSON (.json)
@@ -338,7 +353,7 @@ export function IdeasBoard() {
             </DropdownMenu.Root>
             <button
               onClick={() => setIsCreateDialogOpen(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 font-medium"
+              className="px-4 py-2 bg-text-primary text-bg-base rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2 font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
             >
               <Plus className="w-5 h-5" />
               New Idea
@@ -346,10 +361,10 @@ export function IdeasBoard() {
           </div>
         </div>
 
-        <div className="p-4 bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row gap-4">
+        <div className="p-4 bg-bg-surface border-b border-border-subtle flex flex-col sm:flex-row gap-4">
           <div className="relative flex-1 sm:max-w-md">
             <label htmlFor="ideas-search-input" className="sr-only">Search ideas</label>
-            <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-3 top-2.5 w-4 h-4 text-text-tertiary" />
             <input
               id="ideas-search-input"
               ref={searchInputRef}
@@ -357,7 +372,7 @@ export function IdeasBoard() {
               placeholder="Search ideas..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-10 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-9 pr-10 py-2 bg-bg-elevated border border-border-moderate rounded-lg text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-primary-500"
               aria-label="Search ideas"
             />
             {searchQuery && (
@@ -366,7 +381,7 @@ export function IdeasBoard() {
                   setSearchQuery("");
                   searchInputRef.current?.focus();
                 }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-tertiary hover:text-text-primary hover:bg-bg-elevated rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
                 aria-label="Clear search"
               >
                 <X className="w-3 h-3" aria-hidden="true" />
@@ -375,11 +390,11 @@ export function IdeasBoard() {
           </div>
 
           <div className="flex items-center gap-2">
-            <ArrowUpDown className="w-4 h-4 text-slate-400 flex-shrink-0" />
+            <ArrowUpDown className="w-4 h-4 text-text-tertiary flex-shrink-0" />
             <select
               value={sortOption}
               onChange={(e) => setSortOption(e.target.value as SortOption)}
-              className="px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer min-w-[180px]"
+              className="px-3 py-2 bg-bg-elevated border border-border-moderate rounded-lg text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer min-w-[180px]"
               aria-label="Sort ideas"
             >
               <option value="updated_desc">Last Updated (Newest)</option>
@@ -390,6 +405,10 @@ export function IdeasBoard() {
               <option value="title_desc">Title (Z-A)</option>
             </select>
           </div>
+        </div>
+
+        <div className="sr-only" role="status" aria-live="polite">
+          {!ideasLoading && !ideasSyncError && filteredIdeas.length === 0 ? (searchQuery ? "No matches found. Try a different keyword or clear your search." : "No ideas yet") : ""}
         </div>
 
         <div className="flex-1 overflow-auto p-4 sm:p-6 flex flex-col">
@@ -406,17 +425,17 @@ export function IdeasBoard() {
               return (
                 <div
                   key={stage.id}
-                  className="w-full lg:w-80 flex flex-col min-h-[280px] lg:h-full rounded-xl bg-slate-100/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800"
+                  className="w-full lg:w-80 flex flex-col min-h-[280px] lg:h-full rounded-xl bg-bg-elevated border border-border-subtle"
                 >
-                  <div className="p-4 flex items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 rounded-t-xl sticky top-0 z-10">
+                  <div className="p-4 flex items-center justify-between border-b border-border-subtle bg-bg-surface rounded-t-xl sticky top-0 z-10">
                     <div className="flex items-center gap-2">
                       <div
                         className={cn("w-3 h-3 rounded-full", stage.color)}
                       />
-                      <h3 className="font-semibold text-slate-900 dark:text-white">
+                      <h3 className="font-semibold text-text-primary">
                         {stage.label}
                       </h3>
-                      <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 text-xs rounded-full font-medium">
+                      <span className="px-2 py-0.5 bg-bg-elevated text-text-secondary text-xs rounded-full font-medium">
                         {stageIdeas.length}
                       </span>
                     </div>
@@ -427,14 +446,11 @@ export function IdeasBoard() {
                       <ListSkeleton count={3} itemType="idea" />
                     ) : (
                       <>
-                        <AnimatePresence mode="popLayout">
                           {stageIdeas.map((idea) => (
-                            <motion.div
-                              layoutId={idea.id}
+                            <div
                               key={idea.id}
-                              initial={{ opacity: 0, y: 20 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, scale: 0.9 }}
+                              className="group bg-bg-surface p-4 rounded-lg border border-border-moderate shadow-sm hover:shadow-md cursor-pointer transition-all hover:border-border-strong focus:outline-none focus:ring-2 focus:ring-primary-500 animate-fade-slide-in"
+                              style={{ viewTransitionName: `idea-${idea.id}` }}
                               onClick={() => setSelectedIdea(idea)}
                               onKeyDown={(e) => {
                                 if (e.key === "Enter" || e.key === " ") {
@@ -443,10 +459,9 @@ export function IdeasBoard() {
                                 }
                               }}
                               tabIndex={0}
-                              className="group bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md cursor-pointer transition-all hover:border-blue-400 dark:hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                             >
                               <div className="flex items-start justify-between mb-2">
-                                <h4 className="font-medium text-slate-900 dark:text-white line-clamp-2 leading-snug">
+                                <h4 className="font-medium text-text-primary line-clamp-2 leading-snug">
                                   {idea.title ? highlightMatch(idea.title, searchQuery) : "Untitled"}
                                 </h4>
                                 <button
@@ -455,39 +470,51 @@ export function IdeasBoard() {
                                     setIdeaToDelete(idea);
                                   }}
                                   aria-label={`Delete ${idea.title}`}
-                                  className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all rounded"
+                                  className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 p-1 text-text-tertiary hover:text-warning hover:bg-warning-bg transition-all rounded"
                                 >
                                   <Trash2 className="w-4 h-4" />
                                 </button>
                               </div>
 
-                              <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-3 mb-3">
+                              <p className="text-sm text-text-secondary line-clamp-3 mb-3">
                                 {idea.description
                                   ? highlightMatch(idea.description, searchQuery)
                                   : "No description provided..."}
                               </p>
 
                               {stage.id !== "Mature" && (
-                                <div className="flex justify-end pt-2 border-t border-slate-100 dark:border-slate-700/50">
+                                <div className="flex justify-end pt-2 border-t border-border-subtle">
                                   <button
                                     onClick={(e) =>
                                       handleMoveStage(e, idea.id, idea.stage)
                                     }
                                     aria-label="Advance idea to next stage"
-                                    className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity"
+                                    className="text-xs font-medium text-text-primary hover:underline flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity"
                                   >
                                     Advance <ArrowRight className="w-3 h-3" />
                                   </button>
                                 </div>
                               )}
-                            </motion.div>
+                            </div>
                           ))}
-                        </AnimatePresence>
+
+                        <div className="sr-only" role="status" aria-live="polite">
+                          {stageIdeas.length === 0 ? (
+                            searchQuery ? `No matches found in ${stage.label}. Try a different keyword or clear your search.` : `No ideas yet in ${stage.label}`
+                          ) : (
+                            ""
+                          )}
+                        </div>
 
                         {stageIdeas.length === 0 && (
-                          <div className="p-8 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-lg text-slate-400" role="status" aria-live="polite">
+                          <div className="p-8 text-center border-2 border-dashed border-border-moderate rounded-lg text-text-tertiary">
                             <Lightbulb className="w-8 h-8 mx-auto mb-2 opacity-50" aria-hidden="true" />
-                            <p className="text-sm">{searchQuery ? "No matches found" : "No ideas yet"}</p>
+                            <p className="text-sm font-medium mb-1">{searchQuery ? "No matches found" : "No ideas yet"}</p>
+                            {searchQuery && (
+                              <p className="text-xs text-text-secondary">
+                                Try a different keyword or clear your search.
+                              </p>
+                            )}
                           </div>
                         )}
                       </>
@@ -502,24 +529,24 @@ export function IdeasBoard() {
 
       {/* Idea Detail Drawer */}
       {selectedIdea && (
-        <div className="absolute inset-0 w-full border-l-0 lg:border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col h-full shadow-2xl z-20 lg:relative lg:inset-auto lg:w-[450px]">
-          <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+        <div className="absolute inset-0 w-full border-l-0 lg:border-l border-border-subtle bg-bg-surface flex flex-col h-full shadow-2xl z-20 lg:relative lg:inset-auto lg:w-[450px]">
+          <div className="p-4 border-b border-border-subtle flex items-center justify-between">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setSelectedIdea(null)}
-                className="lg:hidden p-2 -ml-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+                className="lg:hidden p-2 -ml-2 hover:bg-bg-elevated rounded-full transition-colors"
                 aria-label="Back to board"
               >
-                <ArrowLeft className="w-5 h-5 text-slate-500" />
+                <ArrowLeft className="w-5 h-5 text-text-secondary" />
               </button>
-              <h2 className="font-semibold text-slate-900 dark:text-white">
+              <h2 className="font-semibold text-text-primary">
                 Idea Details
               </h2>
             </div>
             <button
               onClick={() => setSelectedIdea(null)}
               aria-label="Close details"
-              className="hidden lg:flex p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full"
+              className="hidden lg:flex p-2 hover:bg-bg-elevated rounded-full"
             >
               <X className="w-5 h-5" />
             </button>
@@ -542,24 +569,24 @@ export function IdeasBoard() {
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 animate-fade-in" />
           <Dialog.Content
-            className="fixed left-[50%] top-[50%] max-h-[85vh] w-[90vw] max-w-[500px] translate-x-[-50%] translate-y-[-50%] rounded-xl bg-white dark:bg-slate-950 p-6 shadow-2xl focus:outline-none z-50 animate-slide-in border border-slate-200 dark:border-slate-800"
+            className="fixed left-[50%] top-[50%] max-h-[85vh] w-[90vw] max-w-[500px] translate-x-[-50%] translate-y-[-50%] rounded-xl bg-bg-surface p-6 shadow-2xl focus:outline-none z-50 animate-slide-in border border-border-moderate"
             aria-describedby={undefined}
           >
-            <Dialog.Title className="text-xl font-bold mb-4 text-slate-900 dark:text-white">
+            <Dialog.Title className="text-xl font-serif font-bold mb-4 text-text-primary">
               Capture New Idea
             </Dialog.Title>
             <form onSubmit={(e) => { e.preventDefault(); void handleCreate(); }} className="space-y-4">
               <div>
                 <label
                   htmlFor="create-idea-title"
-                  className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
+                  className="block text-sm font-medium text-text-secondary mb-1"
                 >
                   Title
                 </label>
                 <input
                   id="create-idea-title"
                   autoFocus
-                  className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full px-4 py-2 bg-bg-elevated border border-border-moderate rounded-lg text-text-primary placeholder:text-text-tertiary focus:ring-2 focus:ring-primary-500 outline-none"
                   placeholder="e.g. Quantum Entanglement in Biology"
                   value={newIdeaTitle}
                   onChange={(e) => setNewIdeaTitle(e.target.value)}
@@ -569,7 +596,7 @@ export function IdeasBoard() {
                 />
                 <div className="flex justify-end h-5 mt-1">
                   {isTitleFocused && (
-                    <span className="text-xs text-slate-400 animate-in fade-in duration-200">
+                    <span className="text-xs text-text-tertiary animate-in fade-in duration-200">
                       {newIdeaTitle.length}/255
                     </span>
                   )}
@@ -578,13 +605,13 @@ export function IdeasBoard() {
               <div>
                 <label
                   htmlFor="create-idea-description"
-                  className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
+                  className="block text-sm font-medium text-text-secondary mb-1"
                 >
                   Description
                 </label>
                 <textarea
                   id="create-idea-description"
-                  className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none h-32 resize-none"
+                  className="w-full px-4 py-2 bg-bg-elevated border border-border-moderate rounded-lg text-text-primary placeholder:text-text-tertiary focus:ring-2 focus:ring-primary-500 outline-none h-32 resize-none"
                   placeholder="Briefly describe your hypothesis..."
                   value={newIdeaDesc}
                   onChange={(e) => setNewIdeaDesc(e.target.value)}
@@ -595,14 +622,14 @@ export function IdeasBoard() {
                 <button
                   type="button"
                   onClick={() => setIsCreateDialogOpen(false)}
-                  className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg font-medium"
+                  className="px-4 py-2 text-text-secondary hover:bg-bg-elevated rounded-lg font-medium"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={!newIdeaTitle.trim()}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50"
+                  className="px-6 py-2 bg-text-primary text-bg-base rounded-lg hover:opacity-90 transition-opacity font-medium disabled:opacity-50"
                 >
                   Create Idea
                 </button>

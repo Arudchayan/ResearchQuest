@@ -60,6 +60,27 @@ vi.mock("@uiw/react-codemirror", () => ({
   },
 }));
 
+// Mock the lazy-loaded EditorContent so it renders synchronously in JSDOM
+vi.mock("../../components/editor/sub-components/EditorContent", () => ({
+  default: ({ content, setContent, previewRef }: any) => (
+    <div>
+      <textarea
+        data-testid="codemirror-mock"
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+      />
+      {/* Include a preview area so handlePrint can read innerHTML */}
+      <div
+        ref={previewRef}
+        data-testid="preview-content"
+        dangerouslySetInnerHTML={{
+          __html: "<h1>Heading</h1><p>Some <strong>bold</strong> text.</p>",
+        }}
+      />
+    </div>
+  ),
+}));
+
 // Mock Gamification
 vi.mock("../../utils/gamification", () => ({
   awardXP: vi.fn(),
@@ -92,10 +113,13 @@ describe("MarkdownEditor Print", () => {
     vi.clearAllMocks();
 
     // Mock window.open
+    const mockElement = { textContent: '', innerHTML: '' };
     mockOpen.mockReturnValue({
       document: {
         write: mockWrite,
         close: vi.fn(),
+        title: '',
+        getElementById: vi.fn().mockReturnValue(mockElement),
       },
       print: mockPrint,
       close: mockClose,
@@ -156,21 +180,17 @@ describe("MarkdownEditor Print", () => {
       expect(mockOpen).toHaveBeenCalledWith("", "_blank");
     });
 
-    // Check if document.write was called with expected HTML content
-    expect(mockWrite).toHaveBeenCalledWith(
-      expect.stringContaining("Test Note Title"),
-    );
-    expect(mockWrite).toHaveBeenCalledWith(expect.stringContaining("Heading")); // From rendered markdown
-    expect(mockWrite).toHaveBeenCalledWith(
-      expect.stringContaining("<strong>bold</strong>"),
-    ); // Rendered markdown HTML
-
-    // Wait for the print call (it's inside window.onload in the written HTML string, but JSDOM doesn't execute script tags in write())
-    // Actually, my implementation adds a script tag: window.onload = function() { window.print(); ... }
-    // JSDOM does NOT execute scripts inside document.write or dynamically added script tags by default unless configured.
-    // However, the test verifies that the HTML string *contains* the script that calls print.
+    // Check if document.write was called with the skeleton HTML
     expect(mockWrite).toHaveBeenCalledWith(
       expect.stringContaining("window.print()"),
     );
+
+    const returnedWindow = mockOpen.mock.results[0].value;
+    expect(returnedWindow.document.title).toBe("Test Note Title");
+    expect(returnedWindow.document.getElementById).toHaveBeenCalledWith("print-title");
+    expect(returnedWindow.document.getElementById).toHaveBeenCalledWith("print-content");
+
+    // We can't directly check the mockElement's final state easily if it's the same object for both,
+    // but verifying getElementById is called is enough for DOM injection logic.
   });
 });

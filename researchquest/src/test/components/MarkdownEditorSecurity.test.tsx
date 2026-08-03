@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, act, fireEvent } from "@testing-library/react";
 import { MarkdownEditor } from "../../components/editor/MarkdownEditor";
 import { useAppStore } from "../../store/appStore";
 import { supabase } from "../../lib/supabase";
@@ -57,6 +57,19 @@ vi.mock("react-markdown", () => ({
   default: ({ children }: any) => (
     <div data-testid="markdown-preview">{children}</div>
   ),
+}));
+
+// Mock the lazy-loaded EditorContent to avoid suspense issues in tests
+vi.mock("../../components/editor/sub-components/EditorContent", () => ({
+  default: ({ content, setContent }: any) => {
+    return (
+      <textarea
+        data-testid="codemirror-mock"
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+      />
+    );
+  },
 }));
 
 const NOTE_BODY_MAX_LENGTH = 100000;
@@ -118,18 +131,61 @@ describe("MarkdownEditor Security", () => {
     });
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("skips autosave when the selected note is unchanged", async () => {
+    vi.useFakeTimers();
+
+    render(<MarkdownEditor />);
+    await act(async () => {});
+    screen.getByTestId("codemirror-mock");
+
+    await act(async () => {
+      vi.advanceTimersByTime(1100);
+    });
+
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it("autosaves changed note content", async () => {
+    vi.useFakeTimers();
+
+    render(<MarkdownEditor />);
+    await act(async () => {});
+    const textarea = screen.getByTestId("codemirror-mock");
+
+    await act(async () => {
+      fireEvent.change(textarea, { target: { value: "Changed content #tag" } });
+      vi.advanceTimersByTime(1100);
+    });
+
+    expect(mockUpdate).toHaveBeenCalledWith({
+      title: "Test Note",
+      markdown_body: "Changed content #tag",
+      tags: ["tag"],
+    });
+  });
+
   it("fix: enforces input length validation and does NOT send large payload to Supabase", async () => {
     render(<MarkdownEditor />);
 
-    // Create a large string exceeding the limit
-    const largeContent = "a".repeat(NOTE_BODY_MAX_LENGTH + 100);
-
-    // Simulate CodeMirror change
+    // Use findByTestId which waits for suspense/lazy resolution
     const textarea = await screen.findByTestId("codemirror-mock");
 
-    const { fireEvent, act } = await import("@testing-library/react");
-
+    // Install fake timers to control debounce
     vi.useFakeTimers();
+
+    // Let the initial auto-save debounce settle
+    await act(async () => {
+      vi.advanceTimersByTime(1100);
+    });
+    // Clear the initial save call so we can assert no LARGE payload was sent
+    mockUpdate.mockClear();
+
+    // Create a large string exceeding the limit
+    const largeContent = "a".repeat(NOTE_BODY_MAX_LENGTH + 100);
 
     await act(async () => {
       fireEvent.change(textarea, { target: { value: largeContent } });
@@ -142,7 +198,5 @@ describe("MarkdownEditor Security", () => {
 
     // Assert that update was NOT called with the large content
     expect(mockUpdate).not.toHaveBeenCalled();
-
-    vi.useRealTimers();
   });
 });

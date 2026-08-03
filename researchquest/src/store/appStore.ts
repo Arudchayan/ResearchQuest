@@ -11,6 +11,15 @@ import type {
 } from "../types/database";
 
 export type DataSyncResource = "notes" | "papers" | "ideas" | "tasks" | "topics";
+export type AppView =
+  | "dashboard"
+  | "notes"
+  | "papers"
+  | "ideas"
+  | "tasks"
+  | "focus"
+  | "topics"
+  | "feeds";
 
 export interface DataSyncError {
   resource: DataSyncResource;
@@ -18,6 +27,30 @@ export interface DataSyncError {
 }
 
 type DataSyncErrorState = Record<DataSyncResource, DataSyncError | null>;
+
+export interface DashboardLibrarySnapshot {
+  recentNotes: Note[];
+  readingList: Paper[];
+  activeIdeas: Idea[];
+  counts: {
+    notes: number;
+    papers: number;
+    ideas: number;
+  };
+  loading: boolean;
+}
+
+const createEmptyDashboardLibrary = (): DashboardLibrarySnapshot => ({
+  recentNotes: [],
+  readingList: [],
+  activeIdeas: [],
+  counts: {
+    notes: 0,
+    papers: 0,
+    ideas: 0,
+  },
+  loading: false,
+});
 
 interface AppState {
   // Theme
@@ -30,10 +63,8 @@ interface AppState {
   setUser: (user: UserProfile | null) => void;
 
   // Current view
-  currentView: "dashboard" | "notes" | "papers" | "ideas" | "tasks" | "focus" | "topics";
-  setCurrentView: (
-    view: "dashboard" | "notes" | "papers" | "ideas" | "tasks" | "focus" | "topics",
-  ) => void;
+  currentView: AppView;
+  setCurrentView: (view: AppView) => void;
 
   // Selected entity
   selectedNote: Note | null;
@@ -73,6 +104,12 @@ interface AppState {
   setDataSyncError: (resource: DataSyncResource, message: string) => void;
   clearDataSyncError: (resource: DataSyncResource) => void;
   clearDataSyncErrors: () => void;
+
+  // Lightweight dashboard previews/counts. These do not imply full collections are loaded.
+  dashboardLibrary: DashboardLibrarySnapshot;
+  setDashboardLibrary: (dashboardLibrary: DashboardLibrarySnapshot) => void;
+  setDashboardLibraryLoading: (loading: boolean) => void;
+  resetDashboardLibrary: () => void;
 
   // Topics collection
   topics: Record<string, TopicWithCounts>;
@@ -184,6 +221,18 @@ export const useAppStore = create<AppState>()(
             topics: null,
           },
         }),
+
+      dashboardLibrary: createEmptyDashboardLibrary(),
+      setDashboardLibrary: (dashboardLibrary) => set({ dashboardLibrary }),
+      setDashboardLibraryLoading: (loading) =>
+        set((state) => ({
+          dashboardLibrary: {
+            ...state.dashboardLibrary,
+            loading,
+          },
+        })),
+      resetDashboardLibrary: () =>
+        set({ dashboardLibrary: createEmptyDashboardLibrary() }),
 
       // Topics collection state
       topics: {},

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useId } from "react";
 import { Plus, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "../../lib/supabase";
@@ -12,6 +12,8 @@ interface TopicSelectorProps {
 }
 
 export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
+  const selectId = useId();
+  const inputId = useId();
   const storeUserId = useAppStore((state) => state.user?.id);
   const [userId, setUserId] = useState<string | undefined>(storeUserId);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -53,18 +55,17 @@ export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
 
     void fetchSelected();
   }, [entityId, entityType, getTopicIdsForEntity]);
-
-  // ⚡ PERFORMANCE OPTIMIZATION:
   // Pre-computing a lookup Map reduces the time complexity of finding a topic by ID
   // from O(N) to O(1). When used inside a loop (like rendering selected topics),
   // this prevents O(N*M) performance bottlenecks during hydration or rendering.
   // Impact: Significantly reduces CPU overhead and memory churn for large topic lists.
-  const topicsMap = useMemo(
-    () => new Map(topics.map((t) => [t.id, t])),
-    [topics],
-  );
-
-  // ⚡ PERFORMANCE OPTIMIZATION:
+  const topicsMap = useMemo(() => {
+    const map = new Map<string, TopicWithCounts>();
+    for (let i = 0; i < topics.length; i++) {
+      map.set(topics[i].id, topics[i]);
+    }
+    return map;
+  }, [topics]);
   // Using a Set for selectedIds lookup reduces time complexity from O(N*M) to O(N+M).
   // Impact: Faster filtering of available topics when many topics are selected.
   const selectedIdsSet = useMemo(() => new Set(selectedIds), [selectedIds]);
@@ -109,6 +110,9 @@ export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
 
   return (
     <div className="bg-bg-surface border border-border-subtle rounded-lg p-4 space-y-3">
+      <div role="status" aria-live="polite" className="sr-only">
+        {selectedIds.length === 0 ? "No topics linked yet." : ""}
+      </div>
       <div className="flex items-center justify-between">
         <h3 className="text-small font-semibold text-text-primary">Topics</h3>
         {(loading || loadingLinks) && (
@@ -117,7 +121,7 @@ export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
       </div>
 
       {selectedIds.length === 0 ? (
-        <p className="text-caption text-text-tertiary" role="status" aria-live="polite">No topics linked yet.</p>
+        <p className="text-caption text-text-tertiary">No topics linked yet.</p>
       ) : (
         <div className="flex flex-wrap gap-2">
           {selectedIds.map((topicId) => {
@@ -145,11 +149,15 @@ export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
 
       {availableTopics.length > 0 && (
         <div>
-          <label className="block text-caption text-text-secondary mb-1">
+          <label
+            htmlFor={selectId}
+            className="block text-caption text-text-secondary mb-1"
+          >
             Add an existing topic
           </label>
           <div className="flex gap-2">
             <select
+              id={selectId}
               className="flex-1 px-3 py-2 rounded-md border border-border-subtle bg-bg-base text-small"
               onChange={(event) => {
                 const topic = topicsMap.get(event.target.value);
@@ -171,12 +179,15 @@ export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
       )}
 
       <div className="pt-3 border-t border-border-subtle">
-        <label htmlFor="new-topic-input" className="block text-caption text-text-secondary mb-1">
+        <label
+          htmlFor={inputId}
+          className="block text-caption text-text-secondary mb-1"
+        >
           Create and link new topic
         </label>
         <div className="flex gap-2">
           <input
-            id="new-topic-input"
+            id={inputId}
             value={newTopicName}
             onChange={(event) => setNewTopicName(event.target.value)}
             placeholder="e.g. Literature Review"

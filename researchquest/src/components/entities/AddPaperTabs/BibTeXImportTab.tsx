@@ -106,6 +106,7 @@ export function BibTeXImportTab({
                   checked={selectedEntryIds.has(entry.id)}
                   onChange={() => toggleEntrySelection(entry.id)}
                   className="mt-1"
+                  aria-label={entry.title ? `Select ${entry.title}` : `Select entry ${entry.id}`}
                 />
                 <div className="flex-1 min-w-0">
                   <p className="font-medium truncate">{entry.title || "Untitled"}</p>

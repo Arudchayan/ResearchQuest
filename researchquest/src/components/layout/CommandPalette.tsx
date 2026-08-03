@@ -15,20 +15,22 @@ import {
   Database,
   LayoutDashboard,
   Hash,
+  Inbox,
 } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
+import type { AppView } from "../../store/appStore";
 import { useShallow } from "zustand/react/shallow";
 import { useNotes } from "../../hooks/useNotes";
 import { usePapers } from "../../hooks/usePapers";
 import { useIdeas } from "../../hooks/useIdeas";
-import { useTasks } from "../../hooks/useTasks";
 import { exportData } from "../../utils/export";
 import "./CommandPalette.css";
 
+const SEARCH_RESULTS_LIMIT = 50;
+
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
-
-  // ⚡ PERFORMANCE OPTIMIZATION:
+  const [searchValue, setSearchValue] = useState("");
   // Using useShallow with an object selector to prevent CommandPalette from
   // unnecessarily re-rendering on unrelated state changes in the global appStore.
   const {
@@ -41,6 +43,7 @@ export function CommandPalette() {
     setSelectedTopic,
     user,
     topics,
+    tasks,
   } = useAppStore(
     useShallow((state) => ({
       setTheme: state.setTheme,
@@ -52,6 +55,7 @@ export function CommandPalette() {
       setSelectedTopic: state.setSelectedTopic,
       user: state.user,
       topics: state.topics,
+      tasks: state.tasks,
     }))
   );
 
@@ -61,7 +65,6 @@ export function CommandPalette() {
   const { notes } = useNotes(user?.id);
   const { papers } = usePapers(user?.id);
   const { ideas } = useIdeas(user?.id);
-  const { tasks } = useTasks(user?.id);
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -96,9 +99,7 @@ export function CommandPalette() {
   }, []);
 
   // Navigation handlers using App's custom routing
-  const handleNavigate = (
-    view: "dashboard" | "notes" | "papers" | "ideas" | "tasks" | "topics" | "focus",
-  ) => {
+  const handleNavigate = (view: AppView) => {
     setCurrentView(view);
     window.history.pushState(null, "", view === "dashboard" ? "/" : `/${view}`);
     // Trigger popstate event for other listeners if needed (App.tsx listens to it)
@@ -190,18 +191,74 @@ export function CommandPalette() {
 
   // Memoize search items
   const searchItems = useMemo(() => {
-    return [
-      ...notes.map((n) => ({
+    const results: any[] = [];
+    const safeNotes = notes || [];
+    for (let i = 0; i < safeNotes.length; i++) {
+      results.push({
         type: "note",
-        item: n,
-        label: n.title || "Untitled Note",
-      })),
-      ...papers.map((p) => ({ type: "paper", item: p, label: p.title })),
-      ...ideas.map((i) => ({ type: "idea", item: i, label: i.title })),
-      ...tasks.map((t) => ({ type: "task", item: t, label: t.title })),
-      ...(topicsArray || []).map((t) => ({ type: "topic", item: t, label: t.name })),
-    ];
+        item: safeNotes[i],
+        label: safeNotes[i].title || "Untitled Note",
+      });
+    }
+
+    const safePapers = papers || [];
+    for (let i = 0; i < safePapers.length; i++) {
+      results.push({
+        type: "paper",
+        item: safePapers[i],
+        label: safePapers[i].title,
+      });
+    }
+
+    const safeIdeas = ideas || [];
+    for (let i = 0; i < safeIdeas.length; i++) {
+      results.push({
+        type: "idea",
+        item: safeIdeas[i],
+        label: safeIdeas[i].title,
+      });
+    }
+
+    const safeTasks = tasks || [];
+    for (let i = 0; i < safeTasks.length; i++) {
+      results.push({
+        type: "task",
+        item: safeTasks[i],
+        label: safeTasks[i].title,
+      });
+    }
+
+    const safeTopicsArray = topicsArray || [];
+    for (let i = 0; i < safeTopicsArray.length; i++) {
+      results.push({
+        type: "topic",
+        item: safeTopicsArray[i],
+        label: safeTopicsArray[i].name,
+      });
+    }
+
+    return results;
   }, [notes, papers, ideas, tasks, topicsArray]);
+
+  const visibleSearchItems = useMemo(() => {
+    const normalizedSearch = searchValue.trim().toLowerCase();
+
+    if (!normalizedSearch) {
+      return searchItems.slice(0, SEARCH_RESULTS_LIMIT);
+    }
+
+    const results = [];
+    for (let i = 0; i < searchItems.length; i++) {
+      const entry = searchItems[i];
+      if (`${entry.type}: ${entry.label}`.toLowerCase().includes(normalizedSearch)) {
+        results.push(entry);
+        if (results.length === SEARCH_RESULTS_LIMIT) {
+          break;
+        }
+      }
+    }
+    return results;
+  }, [searchItems, searchValue]);
 
   return (
     <Command.Dialog open={open} onOpenChange={setOpen} label="Command Menu">
@@ -210,7 +267,11 @@ export function CommandPalette() {
         cmdk-input-wrapper=""
       >
         <Search className="w-5 h-5 text-text-tertiary mr-2" />
-        <Command.Input placeholder="Type a command or search..." />
+        <Command.Input
+          placeholder="Type a command or search..."
+          value={searchValue}
+          onValueChange={setSearchValue}
+        />
       </div>
 
       <Command.List>
@@ -240,6 +301,10 @@ export function CommandPalette() {
           <Command.Item onSelect={() => handleNavigate("topics")}>
             <Hash />
             <span>Go to Topics</span>
+          </Command.Item>
+          <Command.Item onSelect={() => handleNavigate("feeds")}>
+            <Inbox />
+            <span>Go to Feeds</span>
           </Command.Item>
           <Command.Item onSelect={() => handleNavigate("focus")}>
             <Target />
@@ -295,7 +360,7 @@ export function CommandPalette() {
 
           <Command.Item onSelect={handleOpenDataManagement}>
             <Database />
-            <span>Data Management...</span>
+            <span>Data & API Settings...</span>
           </Command.Item>
 
           <Command.Item onSelect={handleExport}>
@@ -320,7 +385,7 @@ export function CommandPalette() {
         </Command.Group>
 
         <Command.Group heading="Search Results">
-          {searchItems.map((entry) => (
+          {visibleSearchItems.map((entry) => (
             <Command.Item
               key={`${entry.type}-${entry.item.id}`}
               onSelect={() => {

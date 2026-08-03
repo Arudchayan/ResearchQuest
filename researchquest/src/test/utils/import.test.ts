@@ -49,7 +49,12 @@ describe("importData", () => {
 
   it("should import data correctly", async () => {
     // Setup mock responses
-    const upsertMock = vi.fn().mockResolvedValue({ error: null });
+    const upsertMock = vi.fn((rows: { id: string }[]) => ({
+      select: vi.fn().mockResolvedValue({
+        data: rows.map((row) => ({ id: row.id })),
+        error: null,
+      }),
+    }));
 
     // We need to setup the chain: from(table).upsert(data)
     mockSupabaseClient.from.mockReturnValue({
@@ -68,6 +73,41 @@ describe("importData", () => {
     expect(upsertMock).toHaveBeenCalledTimes(5);
 
     expect(toast.success).toHaveBeenCalled();
+  });
+
+  it("counts duplicate rows skipped by import upserts", async () => {
+    const file = createMockFile({
+      metadata: { appName: "ResearchQuest", version: "1.0", timestamp: "" },
+      notes: [
+        { id: "n1", title: "Existing Note" },
+        { id: "n2", title: "New Note" },
+      ],
+      papers: [],
+      ideas: [],
+      topics: [],
+      tasks: [],
+      topicNotes: [],
+      topicPapers: [],
+      topicIdeas: [],
+    });
+    const upsertMock = vi.fn().mockReturnValue({
+      select: vi.fn().mockResolvedValue({
+        data: [{ id: "n2" }],
+        error: null,
+      }),
+    });
+
+    mockSupabaseClient.from.mockReturnValue({
+      upsert: upsertMock,
+    } as any);
+
+    const result = await importData(file, userId);
+
+    expect(result).toEqual({ success: true, imported: 1, skipped: 1 });
+    expect(toast.success).toHaveBeenCalledWith(
+      "Imported 1 rows; skipped 1 duplicates",
+      expect.any(Object),
+    );
   });
 
   it("should handle invalid JSON", async () => {
@@ -122,9 +162,12 @@ describe("importData", () => {
   });
 
   it("should handle supabase error", async () => {
-    const upsertMock = vi
-      .fn()
-      .mockResolvedValue({ error: { message: "DB Error" } });
+    const upsertMock = vi.fn().mockReturnValue({
+      select: vi.fn().mockResolvedValue({
+        data: null,
+        error: { message: "DB Error" },
+      }),
+    });
     mockSupabaseClient.from.mockReturnValue({
       upsert: upsertMock,
     } as any);

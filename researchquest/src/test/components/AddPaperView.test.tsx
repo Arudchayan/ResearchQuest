@@ -104,6 +104,41 @@ describe("AddPaperView Component", () => {
       ).toBeInTheDocument();
     });
 
+    it("supports roving keyboard navigation between tabs", async () => {
+      render(
+        <TooltipProvider delayDuration={0}><AddPaperView
+          onAdd={mockOnAdd}
+          searchByDOI={mockSearchByDOI}
+          searchByQuery={mockSearchByQuery}
+        /></TooltipProvider>,
+      );
+
+      const doiTab = screen.getByRole("tab", { name: TAB_NAMES.doi });
+      const keywordTab = screen.getByRole("tab", { name: TAB_NAMES.search });
+      const importTab = screen.getByRole("tab", { name: TAB_NAMES.import });
+      const manualTab = screen.getByRole("tab", { name: TAB_NAMES.manual });
+
+      expect(doiTab).toHaveAttribute("tabindex", "0");
+      expect(keywordTab).toHaveAttribute("tabindex", "-1");
+
+      doiTab.focus();
+      await userEvent.keyboard("{ArrowRight}");
+
+      expect(keywordTab).toHaveFocus();
+      expect(keywordTab).toHaveAttribute("tabindex", "0");
+      expect(screen.getByPlaceholderText(/e.g., CRISPR gene editing/i)).toBeInTheDocument();
+
+      await userEvent.keyboard("{End}");
+      expect(manualTab).toHaveFocus();
+      expect(manualTab).toHaveAttribute("tabindex", "0");
+      expect(screen.getByPlaceholderText(/Enter paper title/i)).toBeInTheDocument();
+
+      await userEvent.keyboard("{Home}");
+      expect(doiTab).toHaveFocus();
+      expect(doiTab).toHaveAttribute("tabindex", "0");
+      expect(importTab).toHaveAttribute("tabindex", "-1");
+    });
+
     it("should clear errors when switching tabs", async () => {
       mockSearchByDOI.mockResolvedValue(null);
 
@@ -256,9 +291,7 @@ describe("AddPaperView Component", () => {
       });
 
       await waitFor(() => {
-        expect(
-          screen.getByText(/paper added successfully/i),
-        ).toBeInTheDocument();
+        expect(screen.getAllByText(/paper added successfully/i)[0]).toBeInTheDocument();
       });
     });
 
@@ -598,9 +631,7 @@ describe("AddPaperView Component", () => {
       // Verify loading state cleared
       await waitFor(() => {
         expect(screen.queryByText("Adding Paper...")).not.toBeInTheDocument();
-        expect(
-          screen.getByText(/paper added successfully/i),
-        ).toBeInTheDocument();
+        expect(screen.getAllByText(/paper added successfully/i)[0]).toBeInTheDocument();
       });
     });
   });
@@ -771,9 +802,7 @@ describe("AddPaperView Component", () => {
             authors: ["Test Author"],
           }),
         );
-        expect(
-          screen.getByText(/successfully imported 1 papers/i),
-        ).toBeInTheDocument();
+        expect(screen.getAllByText(/successfully imported 1 papers/i)[0]).toBeInTheDocument();
       });
     });
   });

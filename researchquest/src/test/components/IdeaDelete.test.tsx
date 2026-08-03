@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { IdeaDetailView } from "../../components/entities/IdeaDetailView";
-import { TooltipProvider } from "../../components/ui/tooltip";
 import type { Idea } from "../../types/database";
 
 // Mock icons
@@ -21,6 +20,14 @@ vi.mock("lucide-react", () => ({
   FileText: () => <span>FileTextIcon</span>,
   Search: () => <span>SearchIcon</span>,
   Loader: () => <span>LoaderIcon</span>,
+}));
+
+// Mock Tooltip to avoid TooltipProvider requirement
+vi.mock("@radix-ui/react-tooltip", () => ({
+  Provider: ({ children }: any) => children,
+  Root: ({ children }: any) => children,
+  Trigger: ({ children }: any) => children,
+  Content: () => null,
 }));
 
 // Mock sub-components
@@ -50,13 +57,11 @@ describe("IdeaDetailView", () => {
     const onUpdate = vi.fn();
 
     render(
-      <TooltipProvider delayDuration={0}>
-        <IdeaDetailView
-          idea={mockIdea}
-          onUpdate={onUpdate}
-          onDelete={onDelete}
-        />
-      </TooltipProvider>,
+      <IdeaDetailView
+        idea={mockIdea}
+        onUpdate={onUpdate}
+        onDelete={onDelete}
+      />,
     );
 
     expect(screen.getByRole("button", { name: /delete idea/i })).toBeInTheDocument();
@@ -67,13 +72,11 @@ describe("IdeaDetailView", () => {
     const onUpdate = vi.fn();
 
     render(
-      <TooltipProvider delayDuration={0}>
-        <IdeaDetailView
-          idea={mockIdea}
-          onUpdate={onUpdate}
-          onDelete={onDelete}
-        />
-      </TooltipProvider>,
+      <IdeaDetailView
+        idea={mockIdea}
+        onUpdate={onUpdate}
+        onDelete={onDelete}
+      />,
     );
 
     const deleteButton = screen.getByRole("button", { name: /delete idea/i });
@@ -96,13 +99,11 @@ describe("IdeaDetailView", () => {
     const onUpdate = vi.fn();
 
     render(
-      <TooltipProvider delayDuration={0}>
-        <IdeaDetailView
-          idea={mockIdea}
-          onUpdate={onUpdate}
-          onDelete={onDelete}
-        />
-      </TooltipProvider>,
+      <IdeaDetailView
+        idea={mockIdea}
+        onUpdate={onUpdate}
+        onDelete={onDelete}
+      />,
     );
 
     const deleteButton = screen.getByRole("button", { name: /delete idea/i });
@@ -123,7 +124,7 @@ describe("IdeaDetailView", () => {
 
   it("does not render delete button if onDelete is not provided", () => {
     const onUpdate = vi.fn();
-    render(<TooltipProvider delayDuration={0}><IdeaDetailView idea={mockIdea} onUpdate={onUpdate} /></TooltipProvider>);
+    render(<IdeaDetailView idea={mockIdea} onUpdate={onUpdate} />);
     expect(screen.queryByRole("button", { name: /delete idea/i })).not.toBeInTheDocument();
   });
 });

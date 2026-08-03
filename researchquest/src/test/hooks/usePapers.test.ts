@@ -48,6 +48,7 @@ const createMockBuilder = (overrides: any = {}) => {
   if (!builder.lte) builder.lte = vi.fn().mockReturnValue(builder);
   if (!builder.not) builder.not = vi.fn().mockReturnValue(builder);
   if (!builder.limit) builder.limit = vi.fn().mockReturnValue(builder);
+  if (!builder.range) builder.range = vi.fn().mockReturnValue(builder);
 
   // Define terminal methods if not overridden
   if (!builder.single)
@@ -73,14 +74,15 @@ describe("usePapers Hook", () => {
 
       mockSupabaseClient.from.mockImplementation(() =>
         createMockBuilder({
-          order: vi.fn().mockResolvedValue({ data: mockPapers, error: null }),
+          range: vi.fn().mockResolvedValue({ data: mockPapers, error: null }),
         }),
       );
 
       // Render the sync hook which populates the store
       const { result: syncResult } = renderHook(() =>
-        useDataSync("test-user-id", "dashboard"),
+        useDataSync("test-user-id", "papers"),
       );
+      // And the consumption hook
       const { result } = renderHook(() => usePapers("test-user-id"));
 
       // Initially loading should be true (set by sync hook)
@@ -315,11 +317,15 @@ describe("usePapers Hook", () => {
     it("should set up realtime subscription via useDataSync", async () => {
       mockSupabaseClient.from.mockImplementation(() =>
         createMockBuilder({
-          order: vi.fn().mockResolvedValue({ data: [], error: null }),
+          order: vi.fn().mockReturnValue(
+            createMockBuilder({
+              range: vi.fn().mockResolvedValue({ data: [], error: null }),
+            }),
+          ),
         }),
       );
 
-      renderHook(() => useDataSync("test-user-id", "dashboard"));
+      renderHook(() => useDataSync("test-user-id", "papers"));
 
       await waitFor(() => {
         expect(mockSupabaseClient.channel).toHaveBeenCalledWith(

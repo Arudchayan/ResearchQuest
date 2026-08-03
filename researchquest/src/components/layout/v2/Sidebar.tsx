@@ -22,6 +22,7 @@ import {
   Maximize2,
   Hash,
   BookOpen,
+  Inbox,
 } from "lucide-react";
 import { useAppStore } from "../../../store/appStore";
 import { cn } from "../../../lib/utils";
@@ -77,6 +78,7 @@ export function Sidebar() {
     { id: "ideas", label: "Ideas", icon: Lightbulb },
     { id: "tasks", label: "Tasks", icon: CheckSquare },
     { id: "topics", label: "Topics", icon: Hash },
+    { id: "feeds", label: "Feeds", icon: Inbox },
     { id: "focus", label: "Focus Studio", icon: TargetIcon },
   ] as const;
 
@@ -205,7 +207,7 @@ export function Sidebar() {
             </div>
             <div className="text-xs">
               <span className="block font-medium text-text-primary truncate max-w-[80px]">
-                User
+                {user?.username || "User"}
               </span>
               <span className="flex items-center gap-1 text-text-secondary">
                 <Flame className="w-3 h-3 text-warning" aria-hidden="true" />{" "}
@@ -286,7 +288,7 @@ export function Sidebar() {
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-sm text-small font-medium text-text-secondary hover:bg-bg-elevated hover:text-text-primary transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
         >
           <Database className="w-4 h-4" aria-hidden="true" />
-          Data & Backup
+          Data & API
         </button>
 
         <button

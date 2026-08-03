@@ -1,12 +1,11 @@
 import path from "path"
 import react from "@vitejs/plugin-react"
 import { defineConfig, loadEnv } from "vite"
-import sourceIdentifierPlugin from 'vite-plugin-source-identifier'
+import { visualizer } from 'rollup-plugin-visualizer'
 
 const repoRoot = path.resolve(__dirname, "..")
 
-export default defineConfig(({ mode, command }) => {
-  // Root `.env` (monorepo) + local `researchquest/.env*` — local wins.
+export default defineConfig(({ mode }) => {
   const merged = { ...loadEnv(mode, repoRoot, ""), ...loadEnv(mode, __dirname, "") }
   // Playwright smoke runs Vite with empty VITE_* vars but loadEnv would still read `.env` from disk.
   const forceNoSupabase = process.env.PLAYWRIGHT_TEST_NO_SUPABASE === "1"
@@ -25,11 +24,13 @@ export default defineConfig(({ mode, command }) => {
     },
     plugins: [
       react(), 
-      sourceIdentifierPlugin({
-        enabled: command === 'serve',
-        attributePrefix: 'data-matrix',
-        includeProps: true,
-      })
+      ...(process.env.ANALYZE ? [visualizer({
+        filename: 'dist/stats.json',
+        template: 'raw-data',
+        open: false,
+        gzipSize: true,
+        brotliSize: false,
+      })] : []),
     ],
     resolve: {
       alias: {
@@ -51,7 +52,7 @@ export default defineConfig(({ mode, command }) => {
           manualChunks: {
             'react-vendor': ['react', 'react-dom'],
             'supabase': ['@supabase/supabase-js'],
-            'ui': ['lucide-react', 'framer-motion'],
+            'ui': ['lucide-react'],
             'cm-core': ['@codemirror/view', '@codemirror/state', '@uiw/react-codemirror', '@uiw/codemirror-theme-github'],
           },
         },

@@ -22,6 +22,7 @@ import { useBacklinks } from "../../hooks/useBacklinks";
 import { useRelatedItems } from "../../hooks/useRelatedItems";
 import { useShallow } from "zustand/react/shallow";
 import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
+import { FeedsRail } from "../feeds/FeedsRail";
 
 export function RightSidebar() {
   const {
@@ -237,8 +238,8 @@ export function RightSidebar() {
 
     clearRealtimeChannels();
 
-    const logsChannel = supabase
-      .channel("right_sidebar_daily_logs")
+    const summaryChannel = supabase
+      .channel(`right_sidebar_summary_${userId}`)
       .on(
         "postgres_changes",
         {
@@ -251,10 +252,6 @@ export function RightSidebar() {
           void fetchTodayXp(userId);
         },
       )
-      .subscribe();
-
-    const papersChannel = supabase
-      .channel("right_sidebar_papers")
       .on(
         "postgres_changes",
         {
@@ -267,10 +264,6 @@ export function RightSidebar() {
           void fetchWeeklyPapers(userId);
         },
       )
-      .subscribe();
-
-    const ideasChannel = supabase
-      .channel("right_sidebar_ideas")
       .on(
         "postgres_changes",
         {
@@ -283,10 +276,6 @@ export function RightSidebar() {
           void fetchActiveIdeas(userId);
         },
       )
-      .subscribe();
-
-    const tasksChannel = supabase
-      .channel("right_sidebar_tasks")
       .on(
         "postgres_changes",
         {
@@ -301,12 +290,7 @@ export function RightSidebar() {
       )
       .subscribe();
 
-    realtimeChannelsRef.current = [
-      logsChannel,
-      papersChannel,
-      ideasChannel,
-      tasksChannel,
-    ];
+    realtimeChannelsRef.current = [summaryChannel];
 
     return () => {
       isMounted = false;
@@ -321,64 +305,29 @@ export function RightSidebar() {
     itemId: string,
     itemType: "note" | "paper" | "idea",
   ) => {
+    const { notes, papers, ideas } = useAppStore.getState();
+
     if (itemType === "note") {
       setCurrentView("notes");
-      // We need to fetch the note first
-      const fetchNote = async () => {
-        try {
-          const { data } = await supabase
-            .from("notes")
-            .select("*")
-            .eq("id", itemId)
-            .single();
-
-          if (data) {
-            setSelectedNote(data);
-            window.history.pushState(null, "", `/notes/${itemId}`);
-          }
-        } catch (error) {
-          logger.error("Error navigating to note:", error);
-        }
-      };
-      void fetchNote();
+      const note = notes.find((item) => item.id === itemId);
+      if (note) {
+        setSelectedNote(note);
+      }
+      window.history.pushState(null, "", `/notes/${itemId}`);
     } else if (itemType === "paper") {
       setCurrentView("papers");
-      const fetchPaper = async () => {
-        try {
-          const { data } = await supabase
-            .from("papers")
-            .select("*")
-            .eq("id", itemId)
-            .single();
-
-          if (data) {
-            setSelectedPaper(data);
-            window.history.pushState(null, "", `/papers/${itemId}`);
-          }
-        } catch (error) {
-          logger.error("Error navigating to paper:", error);
-        }
-      };
-      void fetchPaper();
+      const paper = papers.find((item) => item.id === itemId);
+      if (paper) {
+        setSelectedPaper(paper);
+      }
+      window.history.pushState(null, "", `/papers/${itemId}`);
     } else if (itemType === "idea") {
       setCurrentView("ideas");
-      const fetchIdea = async () => {
-        try {
-          const { data } = await supabase
-            .from("ideas")
-            .select("*")
-            .eq("id", itemId)
-            .single();
-
-          if (data) {
-            setSelectedIdea(data);
-            window.history.pushState(null, "", `/ideas/${itemId}`);
-          }
-        } catch (error) {
-          logger.error("Error navigating to idea:", error);
-        }
-      };
-      void fetchIdea();
+      const idea = ideas.find((item) => item.id === itemId);
+      if (idea) {
+        setSelectedIdea(idea);
+      }
+      window.history.pushState(null, "", `/ideas/${itemId}`);
     }
   };
 
@@ -427,10 +376,8 @@ export function RightSidebar() {
   return (
     <div className="flex-1 flex flex-col h-full overflow-y-auto">
       <div className="p-4 space-y-4">
-        {!hasSelection ? (
-          <div className="text-center py-8 text-text-tertiary">
-            <p className="text-small">Select an item to see details</p>
-          </div>
+        {!hasSelection && isRightSidebarOpen ? (
+          <FeedsRail />
         ) : (
           <>
             {/* Backlinks Panel */}
@@ -444,12 +391,15 @@ export function RightSidebar() {
                   </span>
                 )}
               </h3>
+              <div className="sr-only" role="status" aria-live="polite">
+                {!backlinksLoading && backlinks.length === 0 ? "No items link to this yet. Link from notes or ideas to create connections." : ""}
+              </div>
               {backlinksLoading ? (
                 <div className="text-caption text-text-tertiary">
                   Loading...
                 </div>
               ) : backlinks.length === 0 ? (
-                <div className="text-caption text-text-tertiary" role="status" aria-live="polite">
+                <div className="text-caption text-text-tertiary">
                   No items link to this yet. Link from notes or ideas to create
                   connections.
                 </div>
@@ -503,12 +453,15 @@ export function RightSidebar() {
                   </span>
                 )}
               </h3>
+              <div className="sr-only" role="status" aria-live="polite">
+                {!relatedLoading && relatedItems.length === 0 ? "No related items found. Add topics to discover connections." : ""}
+              </div>
               {relatedLoading ? (
                 <div className="text-caption text-text-tertiary">
                   Loading...
                 </div>
               ) : relatedItems.length === 0 ? (
-                <div className="text-caption text-text-tertiary" role="status" aria-live="polite">
+                <div className="text-caption text-text-tertiary">
                   No related items found. Add topics to discover connections.
                 </div>
               ) : (

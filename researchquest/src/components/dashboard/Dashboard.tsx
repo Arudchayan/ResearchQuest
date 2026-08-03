@@ -5,14 +5,12 @@ import {
   Flame,
   Award,
   Star,
-  Sparkles,
   CheckSquare,
   BookOpen,
   Lightbulb,
   Hash,
 } from "lucide-react";
 import {
-  ActivityLogIcon,
   TargetIcon,
   ArrowRightIcon,
   ClockIcon,
@@ -21,9 +19,9 @@ import { useAppStore } from "../../store/appStore";
 import { useShallow } from "zustand/react/shallow";
 import { getLevelTitle } from "../../utils/gamification";
 import { ListSkeleton } from "../ui/Skeleton";
+import { getTopN } from "../../utils/collections";
 
 export function Dashboard() {
-  // ⚡ PERFORMANCE OPTIMIZATION:
   // Using useShallow to prevent unnecessary re-renders of the entire Dashboard
   // when unrelated properties in the global appStore change.
   const {
@@ -33,6 +31,7 @@ export function Dashboard() {
     ideas,
     tasks,
     topics,
+    dashboardLibrary,
     focusSessionSecondsToday,
     notesLoading,
     papersLoading,
@@ -52,6 +51,7 @@ export function Dashboard() {
       ideas: state.ideas,
       tasks: state.tasks,
       topics: state.topics,
+      dashboardLibrary: state.dashboardLibrary,
       focusSessionSecondsToday: state.focusSessionSecondsToday,
       notesLoading: state.notesLoading,
       papersLoading: state.papersLoading,
@@ -88,8 +88,6 @@ export function Dashboard() {
   }, [user]);
 
   const focusMinutesToday = Math.floor(focusSessionSecondsToday / 60);
-
-  // ⚡ PERFORMANCE OPTIMIZATION:
   // Compute multiple aggregate statistics in a single O(N) pass inside useMemo.
   // This avoids chaining multiple .filter().length calls that create unnecessary
   // intermediate arrays and trigger redundant iterations during render.
@@ -106,76 +104,74 @@ export function Dashboard() {
     return { pendingTaskCount: pending, completedTaskCount: completed };
   }, [tasks]);
 
+  const notesCount = notes.length > 0 ? notes.length : dashboardLibrary.counts.notes;
+  const papersCount = papers.length > 0 ? papers.length : dashboardLibrary.counts.papers;
+  const ideasCount = ideas.length > 0 ? ideas.length : dashboardLibrary.counts.ideas;
+  const notesSectionLoading = notesLoading || (dashboardLibrary.loading && notes.length === 0);
+  const papersSectionLoading = papersLoading || (dashboardLibrary.loading && papers.length === 0);
+  const ideasSectionLoading = ideasLoading || (dashboardLibrary.loading && ideas.length === 0);
+
   const recentNotes = useMemo(() => {
-    return [...notes]
-      .sort((a, b) => {
-        // Optimization: Use direct string comparison for ISO dates instead of localeCompare
-        return b.updated_at > a.updated_at
-          ? 1
-          : b.updated_at < a.updated_at
-            ? -1
-            : 0;
-      })
-      .slice(0, 3);
-  }, [notes]);
+    if (notes.length === 0) {
+      return dashboardLibrary.recentNotes;
+    }
+
+    return getTopN(notes, 3, (a, b) =>
+      b.updated_at > a.updated_at ? 1 : b.updated_at < a.updated_at ? -1 : 0,
+    );
+  }, [dashboardLibrary.recentNotes, notes]);
 
   const readingList = useMemo(() => {
-    return papers
-      .filter((p) => p.status === "To Read")
-      .sort((a, b) => {
-        // Optimization: Use direct string comparison for ISO dates instead of localeCompare
-        return b.created_at > a.created_at
-          ? 1
-          : b.created_at < a.created_at
-            ? -1
-            : 0;
-      })
-      .slice(0, 3);
-  }, [papers]);
+    if (papers.length === 0) {
+      return dashboardLibrary.readingList;
+    }
+
+    return getTopN(
+      papers,
+      3,
+      (a, b) =>
+        b.created_at > a.created_at ? 1 : b.created_at < a.created_at ? -1 : 0,
+      (p) => p.status === "To Read",
+    );
+  }, [dashboardLibrary.readingList, papers]);
 
   const activeIdeas = useMemo(() => {
-    return [...ideas]
-      .sort((a, b) => {
-        // Optimization: Use direct string comparison for ISO dates instead of localeCompare
-        return b.updated_at > a.updated_at
-          ? 1
-          : b.updated_at < a.updated_at
-            ? -1
-            : 0;
-      })
-      .slice(0, 3);
-  }, [ideas]);
+    if (ideas.length === 0) {
+      return dashboardLibrary.activeIdeas;
+    }
+
+    return getTopN(ideas, 3, (a, b) =>
+      b.updated_at > a.updated_at ? 1 : b.updated_at < a.updated_at ? -1 : 0,
+    );
+  }, [dashboardLibrary.activeIdeas, ideas]);
 
   const activeTopics = useMemo(() => {
-    return Object.values(topics)
-      .sort((a, b) => {
-        // Optimization: Use direct string comparison for ISO dates instead of localeCompare
-        return b.updated_at > a.updated_at
-          ? 1
-          : b.updated_at < a.updated_at
-            ? -1
-            : 0;
-      })
-      .slice(0, 3);
+    return getTopN(Object.values(topics), 3, (a, b) =>
+      b.updated_at > a.updated_at ? 1 : b.updated_at < a.updated_at ? -1 : 0,
+    );
   }, [topics]);
 
   const upcomingTasks = useMemo(() => {
-    return tasks
-      .filter((t) => !t.completed)
-      .sort((a, b) => {
+    return getTopN(
+      tasks,
+      3,
+      (a, b) => {
         if (!a.due_date) return 1;
         if (!b.due_date) return -1;
         // Optimization: Use direct string comparison for ISO dates instead of localeCompare
         return a.due_date > b.due_date ? 1 : a.due_date < b.due_date ? -1 : 0;
-      })
-      .slice(0, 3);
+      },
+      (t) => !t.completed,
+    );
   }, [tasks]);
 
   const handleCreateNote = () => {
-    setCurrentView("notes");
+    navigateTo("notes");
   };
 
-  const navigateTo = (view: "notes" | "papers" | "focus" | "tasks" | "ideas" | "topics") => {
+  const navigateTo = (
+    view: "notes" | "papers" | "focus" | "tasks" | "ideas" | "topics",
+  ) => {
     setCurrentView(view);
     window.history.pushState(null, "", `/${view}`);
   };
@@ -185,37 +181,136 @@ export function Dashboard() {
   }
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-title font-serif font-bold text-text-primary flex items-center gap-2">
-            {greeting}, {user.username || "Scholar"}{" "}
-            <Sparkles className="w-6 h-6 text-warning" />
+    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-12 animate-in fade-in duration-500">
+      <section className="min-h-[calc(100svh-8rem)] grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_24rem] gap-8 lg:gap-12 items-center">
+        <div className="max-w-3xl">
+          <div className="text-caption uppercase tracking-[0.28em] text-text-tertiary mb-6">
+            ResearchQuest
+          </div>
+          <h1 className="text-title md:text-hero font-serif font-bold text-text-primary">
+            {greeting}, {user.username || "Scholar"}. Shape today&apos;s inquiry.
           </h1>
-          <p className="text-small text-text-secondary mt-1 font-serif italic">
-            Ready to make some progress today?
+          <p className="text-body-lg text-text-secondary mt-5 max-w-2xl">
+            Gather the next note, paper, and idea into a calmer research rhythm.
           </p>
+          <div className="mt-8 flex flex-col sm:flex-row gap-3" aria-label="Dashboard actions">
+            <button
+              onClick={() => navigateTo("focus")}
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-text-primary text-bg-base rounded-sm font-medium hover:opacity-90 transition-opacity focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+            >
+              <TargetIcon className="w-4 h-4" aria-hidden="true" />
+              Start Focus Session
+            </button>
+            <button
+              onClick={handleCreateNote}
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-bg-surface border border-border-moderate text-text-primary rounded-sm font-medium hover:border-border-strong transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+            >
+              <Plus className="w-4 h-4" aria-hidden="true" />
+              Open Notes
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigateTo("focus")}
-            className="flex items-center gap-2 px-4 py-2 bg-text-primary text-bg-base rounded-sm font-medium hover:opacity-90 transition-opacity focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
-          >
-            <TargetIcon className="w-4 h-4" aria-hidden="true" />
-            Start Focus Session
-          </button>
-        </div>
-      </div>
+
+        <aside className="bg-bg-surface border border-border-moderate rounded-sm shadow-sm p-5">
+          <div className="flex items-center justify-between gap-3 border-b border-border-subtle pb-3 mb-4">
+            <h2 className="font-serif text-lg font-bold text-text-primary">Up next</h2>
+            <span className="text-caption uppercase tracking-widest text-text-tertiary">
+              Today
+            </span>
+          </div>
+
+          <div className="space-y-3">
+            {tasksLoading || papersLoading || ideasLoading ? (
+              <ListSkeleton count={3} itemType="task" />
+            ) : upcomingTasks.length === 0 &&
+              readingList.length === 0 &&
+              activeIdeas.length === 0 ? (
+              <div className="p-5 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary">
+                You&apos;re clear. Choose a focus session when you&apos;re ready.
+              </div>
+            ) : (
+              <>
+                {upcomingTasks.slice(0, 2).map((task) => (
+                  <button
+                    key={task.id}
+                    onClick={() => navigateTo("tasks")}
+                    className="w-full text-left flex items-center gap-3 p-3 bg-bg-base border border-border-subtle rounded-sm hover:border-border-strong transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+                  >
+                    <CheckSquare className="w-4 h-4 text-text-tertiary shrink-0" />
+                    <div className="min-w-0">
+                      <div className="text-small font-medium text-text-primary truncate">
+                        {task.title}
+                      </div>
+                      <div className="text-caption text-text-tertiary font-serif italic">
+                        Task due{" "}
+                        {task.due_date
+                          ? new Date(task.due_date).toLocaleDateString(undefined, {
+                              month: "short",
+                              day: "numeric",
+                            })
+                          : "soon"}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+
+                {readingList.slice(0, 1).map((paper) => (
+                  <button
+                    key={paper.id}
+                    onClick={() => {
+                      setSelectedPaper(paper);
+                      navigateTo("papers");
+                      window.history.pushState(null, "", `/papers/${paper.id}`);
+                    }}
+                    className="w-full text-left flex items-center gap-3 p-3 bg-bg-base border border-border-subtle rounded-sm hover:border-border-strong transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+                  >
+                    <BookOpen className="w-4 h-4 text-text-tertiary shrink-0" />
+                    <div className="min-w-0">
+                      <div className="text-small font-medium text-text-primary truncate">
+                        {paper.title}
+                      </div>
+                      <div className="text-caption text-text-tertiary font-serif italic">
+                        Next paper
+                      </div>
+                    </div>
+                  </button>
+                ))}
+
+                {activeIdeas.slice(0, 1).map((idea) => (
+                  <button
+                    key={idea.id}
+                    onClick={() => {
+                      setSelectedIdea(idea);
+                      navigateTo("ideas");
+                      window.history.pushState(null, "", `/ideas/${idea.id}`);
+                    }}
+                    className="w-full text-left flex items-center gap-3 p-3 bg-bg-base border border-border-subtle rounded-sm hover:border-border-strong transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+                  >
+                    <Lightbulb className="w-4 h-4 text-text-tertiary shrink-0" />
+                    <div className="min-w-0">
+                      <div className="text-small font-medium text-text-primary truncate">
+                        {idea.title}
+                      </div>
+                      <div className="text-caption text-text-tertiary font-serif italic">
+                        Active idea
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </>
+            )}
+          </div>
+        </aside>
+      </section>
 
       {/* RQ-M2-07 entity counts — source: store */}
       <div
         className="flex flex-wrap gap-x-6 gap-y-2 text-small text-text-secondary border border-border-subtle rounded-sm px-4 py-3 bg-bg-surface"
         aria-label="Library counts"
       >
-        <span>Notes {notes.length}</span>
-        <span>Papers {papers.length}</span>
-        <span>Ideas {ideas.length}</span>
+        <span>Notes {notesCount}</span>
+        <span>Papers {papersCount}</span>
+        <span>Ideas {ideasCount}</span>
         <span>Tasks {tasks.length}</span>
         <span>Topics {Object.keys(topics).length}</span>
       </div>
@@ -287,7 +382,8 @@ export function Dashboard() {
                 {focusMinutesToday} min
               </div>
               <div className="text-small text-text-secondary font-serif italic">
-                {pendingTaskCount} pending · {completedTaskCount} completed tasks
+                {pendingTaskCount} pending · {completedTaskCount} completed
+                tasks
               </div>
             </div>
           </div>
@@ -307,19 +403,20 @@ export function Dashboard() {
                 onClick={() => navigateTo("notes")}
                 className="text-small text-text-secondary hover:text-text-primary font-medium flex items-center gap-1 uppercase tracking-wider transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 rounded-sm"
               >
-                View all <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
+                View all{" "}
+                <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
               </button>
             </div>
 
+            <div className="sr-only" role="status" aria-live="polite">
+              {!notesSectionLoading && recentNotes.length === 0 ? "No notes yet" : ""}
+            </div>
+
             <div className="space-y-3">
-              {notesLoading ? (
+              {notesSectionLoading ? (
                 <ListSkeleton count={3} itemType="note" />
               ) : recentNotes.length === 0 ? (
-                <div
-                  className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary"
-                  role="status"
-                  aria-live="polite"
-                >
+                <div className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary">
                   <p className="mb-3">No notes yet</p>
                   <button
                     onClick={() => navigateTo("notes")}
@@ -365,19 +462,22 @@ export function Dashboard() {
                 onClick={() => navigateTo("ideas")}
                 className="text-small text-text-secondary hover:text-text-primary font-medium flex items-center gap-1 uppercase tracking-wider transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 rounded-sm"
               >
-                View Board <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
+                View Board{" "}
+                <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
               </button>
             </div>
 
+            <div className="sr-only" role="status" aria-live="polite">
+              {!ideasSectionLoading && activeIdeas.length === 0
+                ? "No active ideas"
+                : ""}
+            </div>
+
             <div className="space-y-3">
-              {ideasLoading ? (
+              {ideasSectionLoading ? (
                 <ListSkeleton count={3} itemType="idea" />
               ) : activeIdeas.length === 0 ? (
-                <div
-                  className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary"
-                  role="status"
-                  aria-live="polite"
-                >
+                <div className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary">
                   <p className="mb-3">No active ideas.</p>
                   <button
                     onClick={() => navigateTo("ideas")}
@@ -434,15 +534,17 @@ export function Dashboard() {
               </button>
             </div>
 
+            <div className="sr-only" role="status" aria-live="polite">
+              {!topicsLoading && activeTopics.length === 0
+                ? "No active topics"
+                : ""}
+            </div>
+
             <div className="space-y-3">
               {topicsLoading ? (
                 <ListSkeleton count={3} itemType="note" />
               ) : activeTopics.length === 0 ? (
-                <div
-                  className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary"
-                  role="status"
-                  aria-live="polite"
-                >
+                <div className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary">
                   <p className="mb-3">No active topics.</p>
                   <button
                     onClick={() => navigateTo("topics")}
@@ -471,7 +573,8 @@ export function Dashboard() {
                       </span>
                     </div>
                     <span className="text-caption font-serif italic text-text-tertiary shrink-0">
-                      {topic.note_count + topic.paper_count + topic.idea_count} items
+                      {topic.note_count + topic.paper_count + topic.idea_count}{" "}
+                      items
                     </span>
                   </button>
                 ))
@@ -498,15 +601,17 @@ export function Dashboard() {
               </button>
             </div>
 
+            <div className="sr-only" role="status" aria-live="polite">
+              {!papersSectionLoading && readingList.length === 0
+                ? "Your reading list is empty"
+                : ""}
+            </div>
+
             <div className="space-y-3">
-              {papersLoading ? (
+              {papersSectionLoading ? (
                 <ListSkeleton count={3} itemType="paper" />
               ) : readingList.length === 0 ? (
-                <div
-                  className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary"
-                  role="status"
-                  aria-live="polite"
-                >
+                <div className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary">
                   <p className="mb-3">Your reading list is empty.</p>
                   <button
                     onClick={() => navigateTo("papers")}
@@ -559,16 +664,24 @@ export function Dashboard() {
               </button>
             </div>
 
+            <div className="sr-only" role="status" aria-live="polite">
+              {!tasksLoading && upcomingTasks.length === 0
+                ? "No upcoming tasks. You're all caught up."
+                : ""}
+            </div>
+
             <div className="space-y-3">
               {tasksLoading ? (
                 <ListSkeleton count={3} itemType="task" />
               ) : upcomingTasks.length === 0 ? (
-                <div
-                  className="p-4 text-center text-small font-serif italic text-text-tertiary"
-                  role="status"
-                  aria-live="polite"
-                >
-                  No upcoming tasks. You're all caught up.
+                <div className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary">
+                  <p className="mb-3">No upcoming tasks. You're all caught up.</p>
+                  <button
+                    onClick={() => navigateTo("tasks")}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-bg-surface border border-border-moderate rounded-sm text-small font-sans not-italic font-medium text-text-primary hover:border-border-strong transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+                  >
+                    <Plus className="w-4 h-4" aria-hidden="true" /> Add Task
+                  </button>
                 </div>
               ) : (
                 upcomingTasks.map((task) => (

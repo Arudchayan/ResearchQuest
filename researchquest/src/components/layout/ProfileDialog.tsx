@@ -19,7 +19,6 @@ interface ProfileDialogProps {
 }
 
 export function ProfileDialog({ open, onClose }: ProfileDialogProps) {
-  // ⚡ PERFORMANCE OPTIMIZATION:
   // Using a direct selector for a single property instead of subscribing to the entire store.
   // This prevents ProfileDialog from unnecessarily re-rendering on other state changes.
   const user = useAppStore((state) => state.user);
@@ -55,7 +54,7 @@ export function ProfileDialog({ open, onClose }: ProfileDialogProps) {
 
       data?.forEach((a: Achievement) => {
         earned.add(a.achievement_type);
-        dates[a.achievement_type] = a.created_at;
+        dates[a.achievement_type] = a.earned_at;
       });
 
       setEarnedAchievements(earned);

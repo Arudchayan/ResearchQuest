@@ -37,8 +37,18 @@ export function AuthScreen() {
         });
         if (error) throw error;
       }
-    } catch (error: any) {
-      setMessage(error.message || "An error occurred");
+    } catch (error: unknown) {
+      console.error("AuthScreen auth error:", error);
+      if (
+        error instanceof Error &&
+        isSignUp &&
+        error.message &&
+        error.message.toLowerCase().startsWith("password must")
+      ) {
+        setMessage(error.message);
+      } else {
+        setMessage("Authentication failed. Please check your credentials and try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -60,10 +70,8 @@ export function AuthScreen() {
 
       setMessage("Password reset link sent! Check your email to continue.");
     } catch (error: any) {
-      setMessage(
-        error.message ||
-          "Unable to send password reset email. Please try again.",
-      );
+      console.error("AuthScreen password reset error:", error);
+      setMessage("Unable to send password reset email. Please try again.");
     } finally {
       setResetting(false);
     }
@@ -90,7 +98,8 @@ export function AuthScreen() {
 
       if (error) throw error;
     } catch (error: any) {
-      setMessage(error.message || "An error occurred during test login");
+      console.error("AuthScreen test login error:", error);
+      setMessage("An error occurred during test login. Please try again.");
     } finally {
       setLoading(false);
     }
