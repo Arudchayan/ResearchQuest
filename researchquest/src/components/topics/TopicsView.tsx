@@ -57,22 +57,17 @@ export function TopicsView() {
       return topics || [];
     }
 
-    let resultTopics = topics || [];
+    const visibleTopics = [];
+    const query = searchQuery ? searchQuery.toLowerCase() : "";
 
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-
-      resultTopics = searchableTopics
-        .filter((st) => st.searchText.includes(query))
-        .map((st) => st.topic);
+    for (let i = 0; i < searchableTopics.length; i++) {
+      const st = searchableTopics[i];
+      if (query && !st.searchText.includes(query)) continue;
+      if (hiddenTopicIds.size > 0 && hiddenTopicIds.has(st.topic.id)) continue;
+      visibleTopics.push(st.topic);
     }
 
-    const visibleTopics =
-      hiddenTopicIds.size > 0
-        ? resultTopics.filter((topic) => !hiddenTopicIds.has(topic.id))
-        : resultTopics;
-
-    return [...visibleTopics].sort((a, b) => {
+    return visibleTopics.sort((a, b) => {
       switch (sortOption) {
         case "name_asc":
           return a.name.localeCompare(b.name);
