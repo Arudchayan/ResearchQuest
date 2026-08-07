@@ -129,6 +129,7 @@ export function TaskCard({
                 variant="outline"
                 size="sm"
                 onClick={() => onEdit(task)}
+                className="text-small"
               >
                 Edit
               </Button>
@@ -157,13 +158,13 @@ export function TaskCard({
           {/* Metadata */}
           <div className="flex flex-wrap items-center gap-2 pt-2">
             {/* Priority Badge */}
-            <Badge variant={getPriorityColor(task.priority)} className="capitalize">
+            <Badge variant={getPriorityColor(task.priority)} className="capitalize text-small">
               {task.priority}
             </Badge>
 
             {/* Category Badge */}
             {task.category && (
-              <Badge variant="neutral" className="font-medium">
+              <Badge variant="neutral" className="font-medium text-small">
                 {task.category}
               </Badge>
             )}
@@ -171,7 +172,7 @@ export function TaskCard({
             {/* Due Date */}
             {dueDate && (
               overdue ? (
-                <Badge variant="priority-overdue" className="font-medium">
+                <Badge variant="priority-overdue" className="font-medium text-small">
                   <AlertCircle className="h-3 w-3" aria-hidden="true" />
                   <span>
                     {dueDate.toLocaleDateString("en-US", {
