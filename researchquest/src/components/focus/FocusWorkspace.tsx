@@ -98,6 +98,10 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   const [sessionCount, setSessionCount] = useState(
     restoredSession?.sessionCount ?? 0,
   );
+  // State (not a ref): the award resolves asynchronously AFTER the colophon's
+  // first render (hasCompletedSession flips synchronously), so the colophon
+  // must re-render with the actually credited (boosted) amount once it lands.
+  const [awardedXp, setAwardedXp] = useState<number | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(() => {
     if (typeof window === "undefined") {
       return true;
@@ -177,7 +181,10 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
 
       if (xpEarned > 0) {
         awardXP(userId, xpEarned, "complete_focus_session")
-          .then((result) => notifyGamificationResult(result))
+          .then((result) => {
+            setAwardedXp(result?.xpEarned ?? null);
+            notifyGamificationResult(result);
+          })
           .catch((err) => logger.error("Failed to award XP", err));
         toast.success("Focus session complete!", {
           description: `You completed ${durationMinutes} minutes of focus.`,
@@ -426,6 +433,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
 
   const handleTargetSelection = (target: SelectedTarget) => {
     sessionAwardedRef.current = false;
+    setAwardedXp(null);
     setSelectedTarget(target);
     setHasCompletedSession(false);
     setIsRunning(false);
@@ -447,6 +455,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
       setSessionCount((count) => count + 1);
     }
     sessionAwardedRef.current = false;
+    setAwardedXp(null);
     warmupAudio();
     if (isNotificationEnabled) {
       requestNotificationPermission();
@@ -695,6 +704,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                     size="lg"
                     onClick={() => {
                       sessionAwardedRef.current = false;
+                      setAwardedXp(null);
                       setTimeLeft(sessionLength);
                       setIsRunning(false);
                       setStartedAt(null);
@@ -760,7 +770,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                     Colophon
                   </span>
                   <span className="font-mono text-caption font-semibold tabular-nums text-success">
-                    {durationMinutes} MIN · +{xpEarned} XP
+                    {durationMinutes} MIN · +{awardedXp ?? xpEarned} XP
                   </span>
                 </div>
               )}

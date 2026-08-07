@@ -357,7 +357,7 @@ describe("FocusWorkspace", () => {
     expect(next.getByText(/SESSION 02 · 25 MIN · NOTE/)).toBeInTheDocument();
   });
 
-  it("renders the completion colophon with the awarded XP", async () => {
+  it("renders the completion colophon with the estimated XP when the award fails", async () => {
     render(<FocusWorkspace userId={userId} />);
     fireEvent.click(screen.getByText("My Note"));
     fireEvent.click(screen.getByText("Start focus"));
@@ -368,5 +368,26 @@ describe("FocusWorkspace", () => {
 
     expect(screen.getByText("Colophon")).toBeInTheDocument();
     expect(screen.getByText(/25 MIN · \+50 XP/)).toBeInTheDocument();
+  });
+
+  it("renders the completion colophon with the actually awarded (boosted) XP", async () => {
+    vi.mocked(awardXP).mockResolvedValueOnce({
+      xpEarned: 75,
+      level: 5,
+      leveledUp: false,
+      streak: 6,
+      achievementsEarned: [],
+    });
+
+    render(<FocusWorkspace userId={userId} />);
+    fireEvent.click(screen.getByText("My Note"));
+    fireEvent.click(screen.getByText("Start focus"));
+
+    await act(async () => {
+      vi.advanceTimersByTime(25 * 60 * 1000 + 1000);
+    });
+
+    expect(screen.getByText("Colophon")).toBeInTheDocument();
+    expect(screen.getByText(/25 MIN · \+75 XP/)).toBeInTheDocument();
   });
 });
