@@ -254,6 +254,41 @@ describe("Dashboard Today deck", () => {
     expect(useAppStore.getState().currentView).toBe("ideas");
   });
 
+  it("renders skeleton rows instead of the empty-deck message while deck resources are loading", () => {
+    resetStore({
+      tasksLoading: true,
+      ideasLoading: true,
+      notesLoading: true,
+    });
+
+    render(<Dashboard />);
+
+    const deck = screen.getByRole("region", { name: "Today" });
+    expect(
+      within(deck).queryByText(/Nothing urgent — the field is clear/),
+    ).toBeNull();
+    expect(within(deck).getByRole("status")).toBeInTheDocument();
+  });
+
+  it("does not claim the field is clear when a deck resource failed to sync", () => {
+    resetStore({
+      dataSyncErrors: {
+        notes: null,
+        papers: null,
+        ideas: { resource: "ideas", message: "Ideas failed to load" },
+        tasks: null,
+        topics: null,
+      },
+    });
+
+    render(<Dashboard />);
+
+    const deck = screen.getByRole("region", { name: "Today" });
+    expect(
+      within(deck).queryByText(/Nothing urgent — the field is clear/),
+    ).toBeNull();
+  });
+
   it("deep-links to the entity view when a row is clicked", () => {
     const task = fakeTask({ id: "t-1", title: "Finish literature review", due_date: dateOffset(-2) });
     const idea = fakeIdea({

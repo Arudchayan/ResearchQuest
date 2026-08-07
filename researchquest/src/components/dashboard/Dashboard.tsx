@@ -379,6 +379,12 @@ export function Dashboard() {
   const tasksSyncError = dataSyncErrors?.tasks ?? null;
   const topicsSyncError = dataSyncErrors?.topics ?? null;
 
+  // The Today deck sources from tasks, ideas, and notes — only claim the
+  // field is clear once those resources have settled without errors.
+  const todayDeckLoading = tasksLoading || ideasLoading || notesLoading;
+  const todayDeckSyncError =
+    tasksSyncError || ideasSyncError || notesSyncError;
+
   if (!user) {
     return null;
   }
@@ -420,25 +426,29 @@ export function Dashboard() {
           </div>
 
           {todayItems.length === 0 ? (
-            <p className="text-small text-text-tertiary">
-              Nothing urgent — the field is clear.{" "}
-              <button
-                type="button"
-                onClick={handleFocusNavigation}
-                className="font-medium text-primary-600 underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
-              >
-                Start a focus session
-              </button>{" "}
-              or{" "}
-              <button
-                type="button"
-                onClick={handleIdeasNavigation}
-                className="font-medium text-primary-600 underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
-              >
-                review an idea
-              </button>
-              .
-            </p>
+            todayDeckLoading ? (
+              <ListSkeleton count={3} itemType="task" />
+            ) : todayDeckSyncError ? null : (
+              <p className="text-small text-text-tertiary">
+                Nothing urgent — the field is clear.{" "}
+                <button
+                  type="button"
+                  onClick={handleFocusNavigation}
+                  className="font-medium text-primary-600 underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+                >
+                  Start a focus session
+                </button>{" "}
+                or{" "}
+                <button
+                  type="button"
+                  onClick={handleIdeasNavigation}
+                  className="font-medium text-primary-600 underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+                >
+                  review an idea
+                </button>
+                .
+              </p>
+            )
           ) : (
             <ul className="space-y-2">
               {todayItems.map((item) => {

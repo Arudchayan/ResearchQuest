@@ -50,6 +50,9 @@ export function TaskManager() {
   const tasksSyncError = useAppStore(
     (state) => state.dataSyncErrors?.tasks ?? null,
   );
+  const selectedTaskId = useAppStore(
+    (state) => state.selectedTask?.id ?? null,
+  );
 
   const [filter, setFilter] = useState<TaskFilter>("all");
   const [categoryFilter, setCategoryFilter] = useState<"all" | TaskCategory>(
@@ -63,6 +66,15 @@ export function TaskManager() {
   const [compactView, setCompactView] = useState(false);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Scrolls the deep-linked (selected) task card into view whenever it is
+  // attached to the list — covers both initial navigation and re-appearing
+  // after a filter/search change. Stable callback: only fires on attach.
+  const handleSelectedCardRef = useCallback((el: HTMLDivElement | null) => {
+    if (el) {
+      el.scrollIntoView({ block: "nearest" });
+    }
+  }, []);
 
   // Form state
   const [formTitle, setFormTitle] = useState("");
@@ -515,17 +527,30 @@ export function TaskManager() {
           />
         ) : (
           <div className="space-y-3">
-            {sortedTasks.map((task) => (
-              <TaskCard
-                key={task.id}
-                task={task}
-                onToggleComplete={handleToggleComplete}
-                onEdit={handleEditClick}
-                onDelete={() => void handleDeleteWithUndo(task)}
-                compact={compactView}
-                highlightQuery={searchQuery}
-              />
-            ))}
+            {sortedTasks.map((task) => {
+              const isSelected =
+                selectedTaskId != null && task.id === selectedTaskId;
+              return (
+                <div
+                  key={task.id}
+                  ref={isSelected ? handleSelectedCardRef : undefined}
+                  className={
+                    isSelected
+                      ? "rounded-surface ring-2 ring-primary-500"
+                      : undefined
+                  }
+                >
+                  <TaskCard
+                    task={task}
+                    onToggleComplete={handleToggleComplete}
+                    onEdit={handleEditClick}
+                    onDelete={() => void handleDeleteWithUndo(task)}
+                    compact={compactView}
+                    highlightQuery={searchQuery}
+                  />
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
