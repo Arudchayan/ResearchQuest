@@ -95,6 +95,9 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   const [hasCompletedSession, setHasCompletedSession] = useState(
     restoredSession?.hasCompletedSession ?? false,
   );
+  const [sessionCount, setSessionCount] = useState(
+    restoredSession?.sessionCount ?? 0,
+  );
   const [showOnboarding, setShowOnboarding] = useState(() => {
     if (typeof window === "undefined") {
       return true;
@@ -243,6 +246,9 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     effectiveTimeLeft < sessionLength;
   const progress =
     sessionLength > 0 ? (sessionLength - effectiveTimeLeft) / sessionLength : 0;
+  const durationMinutes = Math.floor(sessionLength / 60);
+  const xpEarned = durationMinutes * XP_REWARDS.FOCUS_SESSION_MINUTE;
+  const sessionOrdinal = Math.max(1, sessionCount);
 
   useEffect(() => {
     const hasActiveSession =
@@ -263,6 +269,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
       startedAt: isRunning ? startedAt : null,
       timeLeft: effectiveTimeLeft,
       hasCompletedSession,
+      sessionCount,
     });
   }, [
     isRunning,
@@ -271,6 +278,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     selectedTarget,
     sessionLength,
     effectiveTimeLeft,
+    sessionCount,
   ]);
 
   const quickTargets = useMemo(() => {
@@ -435,6 +443,9 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
       setTimeLeft(sessionLength);
       setHasCompletedSession(false);
     }
+    if (!isPaused) {
+      setSessionCount((count) => count + 1);
+    }
     sessionAwardedRef.current = false;
     warmupAudio();
     if (isNotificationEnabled) {
@@ -560,36 +571,44 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
 
             <CardContent className="space-y-6 px-4 pb-4 pt-6 sm:px-6 sm:pb-6">
               <div className="flex flex-col items-center gap-6">
-                <div className="font-mono text-hero font-bold leading-none tabular-nums text-text-primary">
-                  {formatTime(effectiveTimeLeft)}
-                </div>
-
-                <div className="w-full space-y-2">
-                  <div className="flex items-center justify-between gap-4 text-caption text-text-tertiary">
-                    <span>Time remaining</span>
-                    <span className="font-mono tabular-nums">
-                      {Math.round(progress * 100)}% complete
-                    </span>
+                <div className="w-full rounded-control border border-border-subtle bg-bg-elevated bg-[repeating-linear-gradient(to_right,var(--border-subtle)_0_1px,transparent_1px_8px),repeating-linear-gradient(to_bottom,var(--border-subtle)_0_1px,transparent_1px_8px)] px-4 py-6 text-center sm:px-8 sm:py-8">
+                  <div className="font-mono text-hero font-bold leading-none tabular-nums text-text-primary">
+                    {formatTime(effectiveTimeLeft)}
                   </div>
-                  <div
-                    className="h-3 w-full overflow-hidden rounded-full border border-border-subtle bg-bg-elevated"
-                    role="progressbar"
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-valuenow={Math.min(
-                      100,
-                      Math.max(0, Math.round(progress * 100)),
-                    )}
-                    aria-label="Focus session progress"
-                  >
+
+                  <p className="mt-4 font-mono text-caption tabular-nums tracking-[0.14em] text-text-tertiary">
+                    SESSION {String(sessionOrdinal).padStart(2, "0")} ·{" "}
+                    {durationMinutes} MIN ·{" "}
+                    {selectedTarget ? selectedTarget.type.toUpperCase() : "FOCUS"}
+                  </p>
+
+                  <div className="mt-6 w-full space-y-2">
+                    <div className="flex items-center justify-between gap-4 text-caption text-text-tertiary">
+                      <span>Time remaining</span>
+                      <span className="font-mono tabular-nums">
+                        {Math.round(progress * 100)}% complete
+                      </span>
+                    </div>
                     <div
-                      className={`h-full ${
-                        hasCompletedSession ? "bg-success" : "bg-primary-500"
-                      }`}
-                      style={{
-                        width: `${Math.min(100, Math.max(0, progress * 100))}%`,
-                      }}
-                    />
+                      className="h-3 w-full overflow-hidden rounded-full border border-border-subtle bg-bg-elevated"
+                      role="progressbar"
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={Math.min(
+                        100,
+                        Math.max(0, Math.round(progress * 100)),
+                      )}
+                      aria-label="Focus session progress"
+                    >
+                      <div
+                        className={`h-full ${
+                          hasCompletedSession ? "bg-success" : "bg-primary-500"
+                        }`}
+                        style={{
+                          width: `${Math.min(100, Math.max(0, progress * 100))}%`,
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -734,6 +753,17 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                   </Button>
                 </div>
               </div>
+
+              {hasCompletedSession && (
+                <div className="flex w-full items-center justify-between gap-4 border-t-2 border-success pt-3">
+                  <span className="text-caption font-semibold uppercase tracking-[0.14em] text-success">
+                    Colophon
+                  </span>
+                  <span className="font-mono text-caption font-semibold tabular-nums text-success">
+                    {durationMinutes} MIN · +{xpEarned} XP
+                  </span>
+                </div>
+              )}
             </CardContent>
           </Card>
 
