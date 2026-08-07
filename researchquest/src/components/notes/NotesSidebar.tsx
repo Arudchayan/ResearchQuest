@@ -127,7 +127,7 @@ export function NotesSidebar({
     <aside ref={listRef} data-notes-list className={`min-h-0 min-w-0 w-full h-full flex-shrink-0 flex-col border-b border-border-subtle bg-bg-surface lg:flex lg:h-full lg:max-h-none lg:w-80 lg:flex-none lg:border-b-0 lg:border-r ${isMobileEditorOpen ? "hidden" : "flex"}`} aria-label="Notes list">
       <div className="space-y-4 border-b border-border-subtle p-4">
         <div className="flex items-center justify-between">
-          <h2 className="font-serif text-subtitle font-bold text-text-primary">Notes</h2>
+          <h1 className="font-serif text-subtitle font-bold text-text-primary">Notes</h1>
           <div className="flex items-center gap-2">
             <DropdownMenu.Root>
               <DropdownMenu.Trigger asChild>
@@ -162,7 +162,7 @@ export function NotesSidebar({
               <option value="updated_desc">Last updated (newest)</option><option value="updated_asc">Last updated (oldest)</option><option value="created_desc">Date created (newest)</option><option value="created_asc">Date created (oldest)</option><option value="title_asc">Title (A–Z)</option><option value="title_desc">Title (Z–A)</option>
             </select>
           </div>
-          {allTags.length > 0 && <div className="flex gap-2 overflow-x-auto pb-1">{allTags.map((tag) => <button key={tag} type="button" onClick={() => setSelectedTag((current) => current === tag ? null : tag)} className={`min-h-11 shrink-0 rounded-control border px-2 py-1 text-caption font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus md:min-h-0 ${selectedTag === tag ? "border-primary-500 bg-primary-50 text-text-primary" : "border-border-subtle bg-bg-elevated text-text-secondary hover:border-border-moderate hover:text-text-primary"}`} aria-label={`Filter notes by tag ${tag}`} aria-pressed={selectedTag === tag}>#{tag}</button>)}</div>}
+          {allTags.length > 0 && <div className="flex flex-wrap gap-2 pb-1">{allTags.map((tag) => <button key={tag} type="button" onClick={() => setSelectedTag((current) => current === tag ? null : tag)} className={`min-h-11 min-w-11 shrink-0 rounded-control border px-2 py-1 text-caption font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus md:min-h-0 ${selectedTag === tag ? "border-primary-500 bg-primary-50 text-text-primary" : "border-border-subtle bg-bg-elevated text-text-secondary hover:border-border-moderate hover:text-text-primary"}`} aria-label={`Filter notes by tag ${tag}`} aria-pressed={selectedTag === tag}>#{tag}</button>)}</div>}
         </div>
       </div>
 
@@ -181,5 +181,5 @@ function ExportOption({ icon: Icon, label, onSelect }: { readonly icon: typeof F
 }
 
 function NotesEmptyState({ searchQuery, isCreating, onCreateNote }: { readonly searchQuery: string; readonly isCreating: boolean; readonly onCreateNote: () => void }) {
-  return <div className="flex h-full min-h-64 flex-col items-center justify-center p-6 text-center" role="status" aria-live="polite"><div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-bg-elevated"><FileText className="h-6 w-6 text-text-tertiary" aria-hidden="true" /></div><h3 className="text-body-lg font-semibold text-text-primary">{searchQuery ? "No matches found" : "No notes yet"}</h3><p className="mt-1 max-w-xs text-small text-text-secondary">{searchQuery ? "Try a different keyword or clear your search." : "Create your first note to get started"}</p>{!searchQuery && <Button type="button" onClick={onCreateNote} disabled={isCreating} size="sm" className="mt-4"><Plus className="h-3.5 w-3.5" aria-hidden="true" />Create Note</Button>}</div>;
+  return <div className="flex h-full min-h-64 flex-col items-center justify-center p-6 text-center" role="status" aria-live="polite"><div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-bg-elevated"><FileText className="h-6 w-6 text-text-tertiary" aria-hidden="true" /></div><h2 className="text-body-lg font-semibold text-text-primary">{searchQuery ? "No matches found" : "No notes yet"}</h2><p className="mt-1 max-w-xs text-small text-text-secondary">{searchQuery ? "Try a different keyword or clear your search." : "Create your first note to get started"}</p>{!searchQuery && <Button type="button" onClick={onCreateNote} disabled={isCreating} size="sm" className="mt-4"><Plus className="h-3.5 w-3.5" aria-hidden="true" />Create Note</Button>}</div>;
 }
