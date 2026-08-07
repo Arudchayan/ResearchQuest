@@ -10,7 +10,6 @@ import { toast } from "sonner";
 import { convertTopicsToCSV, convertTopicsToJSON, convertTopicsToMarkdown, downloadFile } from "../../utils/export";
 import { logger } from "../../utils/logger";
 import { Button } from "../ui/button";
-import { EmptyState } from "../ui/EmptyState";
 import { InlineError } from "../ui/ErrorFallback";
 import { UNDO_WINDOW_MS } from "../../lib/constants";
 
@@ -427,12 +426,27 @@ export function TopicsView() {
             />
           </>
         ) : (
-          <EmptyState
-            className="h-full min-h-0"
-            icon={<Hash className="h-6 w-6" />}
-            title="Select a topic"
-            description="Choose a topic from the list to view its details, connected notes, papers, and ideas."
-          />
+          <div
+            role="status"
+            aria-live="polite"
+            className="flex h-full min-h-0 flex-col items-center justify-center gap-4 p-6 text-center"
+          >
+            <div
+              aria-hidden="true"
+              className="flex h-12 w-12 items-center justify-center rounded-control bg-bg-elevated text-text-tertiary"
+            >
+              <Hash className="h-6 w-6" />
+            </div>
+            <div className="flex flex-col gap-2">
+              <h3 className="font-serif text-body-lg font-semibold text-text-primary">
+                Select a topic
+              </h3>
+              <p className="text-body text-text-secondary">
+                Choose a topic from the list to view its details, connected
+                notes, papers, and ideas.
+              </p>
+            </div>
+          </div>
         )}
       </div>
     </div>
