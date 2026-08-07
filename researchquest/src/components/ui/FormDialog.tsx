@@ -1,8 +1,10 @@
 import { X } from "lucide-react";
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import type { ReactNode, FormEvent } from "react";
 
 import { Button } from "@/components/ui/button";
+import { acquireInertLock, releaseInertLock } from "@/lib/inertLock";
 
 export interface FormDialogProps {
   isOpen: boolean;
@@ -63,6 +65,18 @@ export function FormDialog({
 
   useEffect(() => {
     if (!isOpen) return;
+    const appShell = document.querySelector<HTMLElement>(
+      '[data-testid="app-shell"]',
+    );
+    if (!appShell) return;
+    acquireInertLock(appShell);
+    return () => {
+      releaseInertLock(appShell);
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
     const el = dialogRef.current;
     if (!el) return;
 
@@ -115,9 +129,9 @@ export function FormDialog({
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-modal flex items-center justify-center p-4 bg-overlay animate-in fade-in duration-fast"
+      className="fixed inset-0 z-modal-stacked flex items-center justify-center p-4 bg-overlay animate-in fade-in duration-fast"
       onClick={() => {
         if (!isLoading) onClose();
       }}
@@ -204,6 +218,7 @@ export function FormDialog({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

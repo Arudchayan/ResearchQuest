@@ -184,6 +184,7 @@ module.exports = {
 				dropdown: '40',
 				overlay: '50',
 				modal: '50',
+				'modal-stacked': '70',
 				tooltip: '60',
 				'skip-link': '100',
 			},

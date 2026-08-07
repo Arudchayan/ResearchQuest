@@ -105,7 +105,11 @@ export function AppShell({ children }: AppShellProps) {
     };
 
     document.addEventListener("keydown", handleDrawerKeyDown);
-    return () => document.removeEventListener("keydown", handleDrawerKeyDown);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", handleDrawerKeyDown);
+      document.body.style.overflow = "unset";
+    };
   }, [isMobileSidebarOpen, setIsMobileSidebarOpen]);
 
   return (
@@ -123,7 +127,10 @@ export function AppShell({ children }: AppShellProps) {
 
       {/* Desktop Sidebar */}
       {!isZenMode && (
-        <div className="hidden min-h-[100dvh] shrink-0 lg:block" inert={isMobileSidebarOpen ? "" : undefined}>
+        <div
+          className="hidden min-h-[100dvh] shrink-0 lg:block"
+          {...(isMobileSidebarOpen ? { inert: "" } : {})}
+        >
           <Sidebar />
         </div>
       )}
@@ -163,7 +170,7 @@ export function AppShell({ children }: AppShellProps) {
       <div
         data-testid="app-shell-content"
         className="flex min-w-0 flex-1 flex-col overflow-hidden"
-        inert={isMobileSidebarOpen ? "" : undefined}
+        {...(isMobileSidebarOpen ? { inert: "" } : {})}
       >
         {/* Mobile Header */}
         {!isZenMode && (
@@ -201,7 +208,7 @@ export function AppShell({ children }: AppShellProps) {
           data-testid="right-panel"
           aria-label="Context panel"
           className="hidden min-h-[100dvh] w-80 shrink-0 border-l border-border-subtle bg-bg-surface xl:flex"
-          inert={isMobileSidebarOpen ? "" : undefined}
+          {...(isMobileSidebarOpen ? { inert: "" } : {})}
         >
           <div className="h-full w-full min-w-0">
             <RightSidebar />

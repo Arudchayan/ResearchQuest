@@ -1,8 +1,10 @@
 import { AlertTriangle, X } from "lucide-react";
 import { useEffect, useRef, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { acquireInertLock, releaseInertLock } from "@/lib/inertLock";
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -61,6 +63,18 @@ export function ConfirmDialog({
       document.body.style.overflow = "unset";
     };
   }, [isOpen, variant]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const appShell = document.querySelector<HTMLElement>(
+      '[data-testid="app-shell"]',
+    );
+    if (!appShell) return;
+    acquireInertLock(appShell);
+    return () => {
+      releaseInertLock(appShell);
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -133,9 +147,9 @@ export function ConfirmDialog({
     }
   };
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-modal flex items-center justify-center p-4 bg-overlay animate-in fade-in duration-fast"
+      className="fixed inset-0 z-modal-stacked flex items-center justify-center p-4 bg-overlay animate-in fade-in duration-fast"
       onClick={() => {
         if (!isLoading) onClose();
       }}
@@ -219,7 +233,8 @@ export function ConfirmDialog({
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

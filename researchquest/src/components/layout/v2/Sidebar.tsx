@@ -170,7 +170,7 @@ export function Sidebar() {
               </span>
               <button
                 onClick={() => setShowXpGuide(true)}
-                className="text-text-tertiary hover:text-primary-500 rounded-sm focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500"
+                className="text-text-tertiary hover:text-primary-500 rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
                 aria-label="Learn about XP and Levels"
               >
                 <ActivityLogIcon className="w-3.5 h-3.5" aria-hidden="true" />
@@ -194,13 +194,13 @@ export function Sidebar() {
         <div className="flex items-center justify-between px-3 py-2">
           <button
             onClick={() => setShowProfile(true)}
-            className="flex items-center gap-2 hover:bg-bg-elevated rounded-sm p-1 -ml-1 transition-colors text-left focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500"
+            className="flex items-center gap-2 hover:bg-bg-elevated rounded-sm p-1 -ml-1 transition-colors text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
             aria-label="User profile"
           >
             <div className="w-8 h-8 rounded-full bg-bg-base border border-border-moderate text-text-primary flex items-center justify-center font-serif font-bold">
               {user?.username?.charAt(0).toUpperCase() || "U"}
             </div>
-            <div className="text-xs">
+            <div className="text-caption">
               <span className="block font-medium text-text-primary truncate max-w-[80px]">
                 User
               </span>
@@ -215,7 +215,7 @@ export function Sidebar() {
               <TooltipTrigger asChild>
                 <button
                   onClick={handleOpenShortcuts}
-                  className="p-1.5 text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-sm transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500"
+                  className="p-1.5 text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
                   aria-label="Keyboard Shortcuts"
                 >
                   <Keyboard className="w-4 h-4" aria-hidden="true" />
@@ -230,7 +230,7 @@ export function Sidebar() {
               <TooltipTrigger asChild>
                 <button
                   onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
-                  className="p-1.5 text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-sm transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500"
+                  className="p-1.5 text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
                   aria-label={
                     isRightSidebarOpen
                       ? "Close context panel"
@@ -249,7 +249,7 @@ export function Sidebar() {
               <TooltipTrigger asChild>
                 <button
                   onClick={() => setZenMode(true)}
-                  className="p-1.5 text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-sm transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500"
+                  className="p-1.5 text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
                   aria-label="Enter Zen Mode"
                 >
                   <Maximize2 className="w-4 h-4" aria-hidden="true" />
@@ -262,7 +262,7 @@ export function Sidebar() {
 
             <button
               onClick={toggleTheme}
-              className="p-1.5 text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-sm transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500"
+              className="p-1.5 text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
               aria-label={
                 effectiveTheme === "light"
                   ? "Switch to dark mode"
@@ -280,7 +280,7 @@ export function Sidebar() {
 
         <button
           onClick={() => setShowDataDialog(true)}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-sm text-small font-medium text-text-secondary hover:bg-bg-elevated hover:text-text-primary transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-sm text-small font-medium text-text-secondary hover:bg-bg-elevated hover:text-text-primary transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
         >
           <Database className="w-4 h-4" aria-hidden="true" />
           Data & Backup
@@ -288,7 +288,7 @@ export function Sidebar() {
 
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-sm text-small font-medium text-warning hover:bg-warning-bg hover:text-warning transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-sm text-small font-medium text-warning hover:bg-warning-bg hover:text-warning transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
         >
           <ExitIcon className="w-4 h-4" aria-hidden="true" />
           Sign Out
