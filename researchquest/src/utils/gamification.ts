@@ -202,9 +202,15 @@ export async function awardXP(
     } else if (daysDiff === 1) {
       // Consecutive day, increment streak
       newStreak = (profile.current_streak || 0) + 1;
-    } else if (daysDiff >= 2 && freezeTokens > 0) {
+    } else if (
+      daysDiff >= 2 &&
+      freezeTokens > 0 &&
+      (profile.current_streak || 0) > 0
+    ) {
       // Streak protection: client is the single authority — consume ONE
-      // freeze token and preserve the streak (matches server cron behavior)
+      // freeze token and preserve the streak (matches server cron behavior).
+      // Only preserves a NONZERO streak — a 0-streak (post-cron reset) must
+      // not burn a scarce token, it restarts for free like the no-token path.
       freezeTokens -= 1;
       newStreak = profile.current_streak || 1;
     }
@@ -283,13 +289,17 @@ export async function awardXP(
     updatedProfile.total_xp += achievementXp;
     updatedProfile.current_level = getLevelFromXP(updatedProfile.total_xp);
   }
+
+  // Level computed AFTER achievement XP is folded in, so result.level /
+  // leveledUp reflect the final totals (the hydrated profile's level)
+  const finalLevel = updatedProfile.current_level;
   useAppStore.getState().setUser(updatedProfile);
   useGamificationStore.getState().hydrateFromProfile(updatedProfile);
 
   return {
     xpEarned,
-    level: newLevel,
-    leveledUp: newLevel > (profile.current_level || 1),
+    level: finalLevel,
+    leveledUp: finalLevel > (profile.current_level || 1),
     streak: newStreak,
     achievementsEarned,
   };

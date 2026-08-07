@@ -214,6 +214,21 @@ describe("Gamification Award Pipeline (trust)", () => {
     expect(state.profileUpdates[0]?.streak_freeze_tokens).toBe(1);
   });
 
+  it("does not burn a freeze token to preserve a zero streak after a cron reset", async () => {
+    state.profile = makeProfile({
+      last_activity_date: daysAgo(3),
+      current_streak: 0,
+      longest_streak: 12,
+      streak_freeze_tokens: 1,
+    });
+
+    const result = await awardXP("user-a", 10, "create_note");
+
+    expect(result?.streak).toBe(1);
+    expect(state.profileUpdates[0]?.current_streak).toBe(1);
+    expect(state.profileUpdates[0]).not.toHaveProperty("streak_freeze_tokens");
+  });
+
   it("returns the result shape and reports level-ups", async () => {
     const result = await awardXP("user-a", 10, "create_note");
 
@@ -230,6 +245,24 @@ describe("Gamification Award Pipeline (trust)", () => {
     expect(leveled?.xpEarned).toBe(20);
     expect(leveled?.level).toBe(2);
     expect(leveled?.leveledUp).toBe(true);
+  });
+
+  it("reports the level when achievement XP lands exactly on a level boundary", async () => {
+    state.profile = makeProfile({
+      total_xp: 440,
+      current_level: 1,
+      papers_count: 0,
+    });
+
+    // 440 + 10 = 450 (still level 1) — only the +50 First Paper achievement
+    // crosses the 500 XP boundary
+    const result = await awardXP("user-a", 10, "create_paper");
+
+    expect(result?.achievementsEarned).toHaveLength(1);
+    expect(result?.level).toBe(2);
+    expect(result?.leveledUp).toBe(true);
+    expect(useAppStore.getState().user?.current_level).toBe(2);
+    expect(useAppStore.getState().user?.total_xp).toBe(500);
   });
 
   it("returns earned achievements in the result", async () => {
