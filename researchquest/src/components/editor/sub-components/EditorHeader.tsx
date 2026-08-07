@@ -14,7 +14,7 @@ export function EditorHeader({ title, setTitle, saveState, onBackToList }: Edito
 
   return (
     <div className="flex items-center gap-3 border-b border-border-subtle bg-bg-surface px-4 py-3 sm:px-6 sm:py-4">
-      {onBackToList && <button type="button" onClick={onBackToList} className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-control text-text-secondary transition-colors hover:bg-bg-elevated hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2 lg:hidden" aria-label="Back to notes list"><ArrowLeft className="h-4 w-4" /></button>}
+      {onBackToList && <button type="button" onClick={onBackToList} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-control text-text-secondary transition-colors hover:bg-bg-elevated hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2 lg:hidden" aria-label="Back to notes list"><ArrowLeft className="h-4 w-4" /></button>}
       <input
         type="text"
         value={title}

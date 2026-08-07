@@ -85,7 +85,7 @@ export function MarkdownEditor({ onBackToList }: MarkdownEditorProps) {
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-bg-base">
-       <EditorHeader title={title} setTitle={setTitle} saveState={saveState} onBackToList={onBackToList} />
+       <EditorHeader title={title} setTitle={setTitle} saveState={saveState} {...(onBackToList ? { onBackToList } : {})} />
 
       <EditorToolbar
         applyFormatting={applyFormatting}

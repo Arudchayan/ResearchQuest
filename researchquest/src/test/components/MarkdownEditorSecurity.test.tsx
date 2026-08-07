@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, act, fireEvent } from "@testing-library/react";
 import { MarkdownEditor } from "../../components/editor/MarkdownEditor";
 import { useAppStore } from "../../store/appStore";
 import { supabase } from "../../lib/supabase";
@@ -24,7 +24,17 @@ vi.mock("../../utils/gamification", () => ({
 
 // Mock CodeMirror to allow us to simulate changes
 vi.mock("@uiw/react-codemirror", () => ({
-  default: ({ value, onChange, basicSetup, onCreateEditor, ...props }: any) => {
+  default: ({ value, onChange, onCreateEditor, ...props }: any) => {
+    if (onCreateEditor) {
+      onCreateEditor({
+        state: {
+          selection: { main: { from: 0, to: value.length } },
+          sliceDoc: (from: number, to: number) => value.slice(from, to),
+        },
+        focus: vi.fn(),
+        dispatch: vi.fn(),
+      });
+    }
     return (
       <textarea
         data-testid="codemirror-mock"
@@ -41,6 +51,9 @@ vi.mock("@codemirror/lang-markdown", () => ({
   markdown: vi.fn(),
 }));
 
+// Capture keymap bindings so tests can invoke them directly
+const editorBindings = vi.hoisted(() => [] as Array<{ key: string; run: () => boolean }>);
+
 // Mock CodeMirror view
 vi.mock("@codemirror/view", () => ({
   EditorView: {
@@ -48,7 +61,11 @@ vi.mock("@codemirror/view", () => ({
     theme: vi.fn(),
   },
   keymap: {
-    of: vi.fn(),
+    of: (bindings: Array<{ key: string; run: () => boolean }>) => {
+      editorBindings.length = 0;
+      editorBindings.push(...bindings);
+      return [];
+    },
   },
 }));
 
@@ -127,8 +144,6 @@ describe("MarkdownEditor Security", () => {
     // Simulate CodeMirror change
     const textarea = await screen.findByTestId("codemirror-mock");
 
-    const { fireEvent, act } = await import("@testing-library/react");
-
     vi.useFakeTimers();
 
     await act(async () => {
@@ -144,5 +159,45 @@ describe("MarkdownEditor Security", () => {
     expect(mockUpdate).not.toHaveBeenCalled();
 
     vi.useRealTimers();
+  });
+
+  it("fix: Mod-k from inside the editor opens the link dialog with the current selection, and Escape closes it", async () => {
+    render(<MarkdownEditor />);
+
+    const binding = editorBindings.find((b) => b.key === "Mod-k");
+    expect(binding).toBeDefined();
+
+    await act(async () => {
+      binding!.run();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("dialog", { name: "Insert link" })).toBeInTheDocument();
+    });
+    expect(screen.getByLabelText("Link text")).toHaveValue("Initial content");
+    expect(screen.getByLabelText("URL")).toBeInTheDocument();
+
+    fireEvent.keyDown(screen.getByLabelText("Link text"), { key: "Escape" });
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: "Insert link" })).not.toBeInTheDocument();
+    });
+  });
+
+  it("registers editor shortcuts so view/zen commands stay reachable from inside the editor", () => {
+    render(<MarkdownEditor />);
+
+    const keys = editorBindings.map((b) => b.key);
+    expect(keys).toEqual(
+      expect.arrayContaining([
+        "Mod-b",
+        "Mod-i",
+        "Mod-k",
+        "Mod-Shift-e",
+        "Mod-Shift-s",
+        "Mod-Shift-p",
+        "Mod-Shift-f",
+      ]),
+    );
   });
 });

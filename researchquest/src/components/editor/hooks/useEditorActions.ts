@@ -135,14 +135,13 @@ export function useEditorActions({ content, title, previewRef, selectedNote, use
         ? [...new Set(tagMatches.map((tag) => tag.slice(1)))]
         : [];
 
+      const updates: Partial<Note> = { markdown_body: content, tags };
       const trimmedTitle = title.trim();
-      const persistedTitle = trimmedTitle || undefined;
+      if (trimmedTitle) {
+        updates.title = trimmedTitle;
+      }
 
-      const didSave = await updateNote(noteId, {
-        title: persistedTitle,
-        markdown_body: content,
-        tags,
-      });
+      const didSave = await updateNote(noteId, updates);
       if (useAppStore.getState().selectedNote?.id === noteId) {
         setSaveState(didSave ? "saved" : "error");
       }
