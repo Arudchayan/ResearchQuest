@@ -55,6 +55,20 @@ type SortOption =
 
 const MotionCard = motion.create(Card);
 
+const STAGE_EDGE_CLASS: Record<IdeaStage, string> = {
+  Seed: "border-t-2 border-t-stage-seed",
+  Developing: "border-t-2 border-t-stage-developing",
+  Supported: "border-t-2 border-t-stage-supported",
+  Mature: "border-t-2 border-t-stage-mature",
+};
+
+const STAGE_FILL_CLASS: Record<IdeaStage, string> = {
+  Seed: "bg-stage-seed",
+  Developing: "bg-stage-developing",
+  Supported: "bg-stage-supported",
+  Mature: "bg-stage-mature",
+};
+
 export function IdeasBoard() {
   // ⚡ PERFORMANCE OPTIMIZATION:
   // Using useShallow to prevent unnecessary re-renders of the entire IdeasBoard
@@ -466,19 +480,42 @@ export function IdeasBoard() {
           <div className="flex min-h-0 min-w-0 flex-1 gap-4 overflow-x-auto pb-2 sm:gap-6">
             {IDEA_STAGES.map((stage) => {
               const stageIdeas = stageBuckets[stage.id];
+              const share =
+                filteredIdeas.length > 0
+                  ? stageIdeas.length / filteredIdeas.length
+                  : 0;
 
               return (
                 <div
                   key={stage.id}
-                  className="flex min-h-64 w-80 shrink-0 flex-col overflow-hidden rounded-surface border border-border-subtle bg-bg-elevated lg:h-full"
+                  className={cn(
+                    "flex min-h-64 w-80 shrink-0 flex-col overflow-hidden rounded-surface border border-border-subtle bg-bg-elevated lg:h-full",
+                    STAGE_EDGE_CLASS[stage.id],
+                  )}
                 >
-                  <div className="sticky top-0 z-10 flex items-center justify-between rounded-t-surface border-b border-border-subtle bg-bg-surface p-4">
+                  <div className="sticky top-0 z-10 flex flex-col gap-3 rounded-t-surface border-b border-border-subtle bg-bg-surface p-4">
                     <h2 className="flex items-center gap-2">
                       <Badge variant={stage.badgeVariant}>{stage.label}</Badge>
                       <Badge variant="neutral" aria-label={`${stageIdeas.length} ideas`}>
                         <span className="font-mono">{stageIdeas.length}</span>
                       </Badge>
                     </h2>
+                    <div
+                      aria-hidden="true"
+                      className="h-0.5 w-full overflow-hidden rounded-full bg-border-subtle"
+                    >
+                      <div
+                        className={cn(
+                          "h-full w-full origin-left transition-transform duration-fast",
+                          STAGE_FILL_CLASS[stage.id],
+                        )}
+                        style={
+                          reduceMotion
+                            ? { width: `${share * 100}%` }
+                            : { transform: `scaleX(${share})` }
+                        }
+                      />
+                    </div>
                   </div>
 
                   <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
