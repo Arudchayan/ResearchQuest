@@ -111,7 +111,7 @@ export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
   return (
     <div className="bg-bg-surface border border-border-subtle rounded-lg p-4 space-y-3">
       <div role="status" aria-live="polite" className="sr-only">
-        {selectedIds.length === 0 ? "No topics linked yet." : ""}
+        {!loadingLinks && selectedIds.length === 0 ? "No topics linked yet." : ""}
       </div>
       <div className="flex items-center justify-between">
         <h3 className="text-small font-semibold text-text-primary">Topics</h3>
