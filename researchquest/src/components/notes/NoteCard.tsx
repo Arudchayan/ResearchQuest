@@ -26,39 +26,35 @@ export const NoteCard = React.memo(function NoteCard({
     onDelete(note.id);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.target !== e.currentTarget) return;
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      onSelect(note);
-    }
-  };
+  const title = note.title || "Untitled Note";
 
   return (
     <div
-      role="button"
-      tabIndex={0}
-      aria-label={`Select note: ${note.title || "Untitled Note"}`}
-      aria-current={isSelected ? "true" : undefined}
-      data-note-card={note.id}
-      onClick={() => onSelect(note)}
-      onKeyDown={handleKeyDown}
       className={cn(
-        "group min-w-0 cursor-pointer border-l-4 p-4 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-[-2px]",
+        "group min-w-0 border-l-4 p-4 transition-colors",
         isSelected
           ? "border-primary-500 bg-primary-50 hover:bg-primary-50"
           : "border-transparent hover:bg-bg-elevated",
       )}
     >
       <div className="mb-1 flex min-w-0 items-start justify-between gap-2">
-        <h3
-          className={cn(
-            "min-w-0 flex-1 truncate text-small font-medium",
-            !note.title ? "italic text-text-tertiary" : "text-text-primary",
-          )}
+        <button
+          type="button"
+          data-note-card={note.id}
+          aria-label={`Open note: ${title}`}
+          aria-current={isSelected ? "true" : undefined}
+          onClick={() => onSelect(note)}
+          className="min-w-0 flex-1 cursor-pointer rounded-sm text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-[-2px]"
         >
-          {note.title ? highlightMatch(note.title, highlightQuery) : "Untitled Note"}
-        </h3>
+          <h3
+            className={cn(
+              "truncate text-body font-medium",
+              !note.title ? "italic text-text-tertiary" : "text-text-primary",
+            )}
+          >
+            {note.title ? highlightMatch(note.title, highlightQuery) : "Untitled Note"}
+          </h3>
+        </button>
         <Tooltip>
           <TooltipTrigger asChild>
             <button

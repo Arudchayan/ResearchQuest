@@ -6,7 +6,6 @@ import { Trash2, Notebook, BookOpen, Lightbulb, Hash } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
 import type { TopicWithCounts } from "../../types/database";
 import { highlightMatch } from "../../utils/highlight";
-import { useCallback } from "react";
 
 interface TopicListProps {
   topics: TopicWithCounts[];
@@ -25,16 +24,6 @@ export function TopicList({
 }: TopicListProps) {
   const selectedTopic = useAppStore((state) => state.selectedTopic);
   const { confirm: confirmDialog, isOpen, config } = useConfirmDialog();
-
-  const handleKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLDivElement>, topic: TopicWithCounts) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        onSelectTopic(topic);
-      }
-    },
-    [onSelectTopic],
-  );
 
   if (loading) {
     return (
@@ -99,13 +88,7 @@ export function TopicList({
         return (
           <div
             key={topic.id}
-            role="button"
-            tabIndex={0}
-            aria-label={topic.name}
-            aria-pressed={isActive}
-            onClick={() => onSelectTopic(topic)}
-            onKeyDown={(event) => handleKeyDown(event, topic)}
-            className={`group w-full min-w-0 rounded-surface border px-4 py-3 text-left transition duration-fast focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2 ${
+            className={`group w-full min-w-0 rounded-surface border px-4 py-3 text-left transition duration-fast ${
               isActive
                 ? "border-primary-500 bg-primary-50 text-text-primary"
                 : "border-border-subtle bg-bg-surface hover:border-border-moderate hover:bg-bg-elevated"
@@ -113,9 +96,17 @@ export function TopicList({
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
-                <h3 className="truncate font-semibold text-small text-text-primary">
-                  {topic.name ? highlightMatch(topic.name, highlightQuery) : "Untitled"}
-                </h3>
+                <button
+                  type="button"
+                  aria-label={`Open topic: ${topic.name || "Untitled"}`}
+                  aria-pressed={isActive}
+                  onClick={() => onSelectTopic(topic)}
+                  className="block w-full min-w-0 cursor-pointer rounded-sm text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+                >
+                  <h2 className="truncate text-body font-semibold text-text-primary">
+                    {topic.name ? highlightMatch(topic.name, highlightQuery) : "Untitled"}
+                  </h2>
+                </button>
                 {topic.description && (
                   <p className="mt-1 line-clamp-2 break-words text-caption text-text-secondary">
                     {highlightMatch(topic.description, highlightQuery)}
