@@ -2,7 +2,7 @@
   max-width: 36rem;
   width: 100%;
   background: var(--bg-surface);
-  border-radius: 12px;
+  border-radius: 8px; /* xl / surface token */
   padding: 8px 0;
   font-family: var(--font-sans);
   box-shadow: 0 16px 70px rgb(0 0 0 / 20%);
@@ -12,7 +12,7 @@
 }
 
 [cmdk-dialog] {
-  z-index: 9999;
+  z-index: 60; /* matches zIndex.tooltip token */
   position: fixed;
   left: 50%;
   top: 50%;
@@ -22,11 +22,10 @@
 }
 
 [cmdk-overlay] {
-  z-index: 9998;
+  z-index: 50; /* matches zIndex.overlay/modal token */
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(2px);
+  background: rgba(17, 17, 17, 0.5); /* mirrors --overlay light value */
 }
 
 [cmdk-input] {
@@ -71,7 +70,7 @@
   content-visibility: auto;
   cursor: pointer;
   height: 48px;
-  border-radius: 8px;
+  border-radius: 6px; /* lg token */
   font-size: 14px;
   display: flex;
   align-items: center;
