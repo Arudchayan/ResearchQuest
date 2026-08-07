@@ -98,7 +98,7 @@ interface AppState {
 
 export const useAppStore = create<AppState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       // Theme
       theme: "auto",
       effectiveTheme: "light",
@@ -258,7 +258,7 @@ if (typeof window !== "undefined") {
   // Listen for system theme changes
   window
     .matchMedia("(prefers-color-scheme: dark)")
-    .addEventListener("change", (e) => {
+    .addEventListener("change", () => {
       const currentTheme = useAppStore.getState().theme;
       if (currentTheme === "auto") {
         useAppStore.getState().setTheme("auto");

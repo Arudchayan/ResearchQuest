@@ -1,4 +1,4 @@
-import { useRef, useCallback } from "react";
+import { useRef } from "react";
 import { Loader, Search, X, BookOpen, Plus, ExternalLink } from "lucide-react";
 import type { CrossrefPaper } from "../../../types/database";
 import { Tooltip, TooltipTrigger, TooltipContent } from "../../ui/tooltip";

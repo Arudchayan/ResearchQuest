@@ -1,6 +1,5 @@
 import { logger } from "./logger";
 import { supabase } from "../lib/supabase";
-import type { UserProfile } from "../types/database";
 
 // XP rewards for different actions
 export const XP_REWARDS = {

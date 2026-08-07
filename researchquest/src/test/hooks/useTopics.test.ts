@@ -96,12 +96,9 @@ describe("useTopics", () => {
   ) => {
     const builder = createBuilder({ data: null, error: null });
     builder.then = (
-      then: (
-        onFulfilled?: ((value: TopicsListResponse) => unknown) | null,
-        onRejected?: ((reason: unknown) => unknown) | null,
-      ) => Promise<unknown>;
-      ) =>
-      pending.then(onFulfilled, onRejected);
+      onFulfilled?: ((value: TopicsListResponse) => unknown) | null,
+      onRejected?: ((reason: unknown) => unknown) | null,
+    ) => pending.then(onFulfilled, onRejected);
     return builder;
   };
 

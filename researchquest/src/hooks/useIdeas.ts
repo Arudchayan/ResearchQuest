@@ -1,5 +1,5 @@
 import { logger } from "../utils/logger";
-import { useEffect, useState, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import { awardXP, XP_REWARDS } from "../utils/gamification";
 import { toast } from "sonner";

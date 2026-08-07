@@ -45,6 +45,6 @@
     "src/components/entities/IdeaList.tsx",
     "src/components/entities/PaperList.tsx",
     "src/strict-gate/fail.fixture.ts",
-    "src/store/appStore.bench.ts"
+    "src/**/*.bench.*"
   ]
 }
