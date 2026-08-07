@@ -10,7 +10,7 @@ export const mockSupabaseClient = {
       data: { user: null },
       error: null,
     }),
-    onAuthStateChange: vi.fn((callback) => {
+    onAuthStateChange: vi.fn((_callback) => {
       return {
         data: { subscription: { unsubscribe: vi.fn() } },
       };
@@ -48,7 +48,7 @@ export const mockSupabaseClient = {
     }) as any;
     return builder;
   }),
-  channel: vi.fn((channelName) => ({
+  channel: vi.fn((_channelName) => ({
     on: vi.fn().mockReturnThis(),
     subscribe: vi.fn((callback) => {
       if (typeof callback === "function") {
