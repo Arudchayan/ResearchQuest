@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import type { ReactNode, FormEvent } from "react";
 
 import { Button } from "@/components/ui/button";
+import { acquireInertLock, releaseInertLock } from "@/lib/inertLock";
 
 export interface FormDialogProps {
   isOpen: boolean;
@@ -68,9 +69,9 @@ export function FormDialog({
       '[data-testid="app-shell"]',
     );
     if (!appShell) return;
-    appShell.setAttribute("inert", "");
+    acquireInertLock(appShell);
     return () => {
-      appShell.removeAttribute("inert");
+      releaseInertLock(appShell);
     };
   }, [isOpen]);
 
@@ -130,7 +131,7 @@ export function FormDialog({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-modal flex items-center justify-center p-4 bg-overlay animate-in fade-in duration-fast"
+      className="fixed inset-0 z-modal-stacked flex items-center justify-center p-4 bg-overlay animate-in fade-in duration-fast"
       onClick={() => {
         if (!isLoading) onClose();
       }}

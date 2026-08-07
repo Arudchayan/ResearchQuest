@@ -141,4 +141,36 @@ describe("dialog focus management", () => {
 
     expect(screen.getByRole("alertdialog")).toBeInTheDocument();
   });
+
+  it("renders FormDialog at the stacked-modal z-index above Radix dialogs", async () => {
+    const user = userEvent.setup();
+    render(<FormDialogHarness />);
+
+    await user.click(screen.getByRole("button", { name: "Open form dialog" }));
+    const dialog = screen.getByRole("dialog");
+    const overlay = dialog.parentElement;
+
+    if (!(overlay instanceof HTMLElement)) {
+      throw new Error("FormDialog overlay is missing");
+    }
+
+    expect(overlay).toHaveClass("z-modal-stacked");
+    expect(overlay).not.toHaveClass("z-modal");
+  });
+
+  it("renders ConfirmDialog at the stacked-modal z-index above Radix dialogs", async () => {
+    const user = userEvent.setup();
+    render(<ConfirmDialogHarness />);
+
+    await user.click(screen.getByRole("button", { name: "Open confirm dialog" }));
+    const dialog = screen.getByRole("alertdialog");
+    const overlay = dialog.parentElement;
+
+    if (!(overlay instanceof HTMLElement)) {
+      throw new Error("ConfirmDialog overlay is missing");
+    }
+
+    expect(overlay).toHaveClass("z-modal-stacked");
+    expect(overlay).not.toHaveClass("z-modal");
+  });
 });

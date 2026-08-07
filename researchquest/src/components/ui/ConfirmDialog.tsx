@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { acquireInertLock, releaseInertLock } from "@/lib/inertLock";
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -69,9 +70,9 @@ export function ConfirmDialog({
       '[data-testid="app-shell"]',
     );
     if (!appShell) return;
-    appShell.setAttribute("inert", "");
+    acquireInertLock(appShell);
     return () => {
-      appShell.removeAttribute("inert");
+      releaseInertLock(appShell);
     };
   }, [isOpen]);
 
@@ -148,7 +149,7 @@ export function ConfirmDialog({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-modal flex items-center justify-center p-4 bg-overlay animate-in fade-in duration-fast"
+      className="fixed inset-0 z-modal-stacked flex items-center justify-center p-4 bg-overlay animate-in fade-in duration-fast"
       onClick={() => {
         if (!isLoading) onClose();
       }}
