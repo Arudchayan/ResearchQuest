@@ -1,7 +1,7 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { EditorView, keymap } from "@codemirror/view";
-import type { Extension } from "@codemirror/state";
+import { markdown } from "@codemirror/lang-markdown";
 import { githubLight, githubDark } from "@uiw/codemirror-theme-github";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -41,17 +41,9 @@ export default function EditorContent({
   setViewMode,
   toggleZenMode,
 }: EditorContentProps) {
-  const [markdownExt, setMarkdownExt] = useState<Extension | null>(null);
-
-  useEffect(() => {
-    void import("@codemirror/lang-markdown").then(({ markdown }) => {
-      setMarkdownExt(markdown());
-    });
-  }, []);
-
   const extensions = useMemo(
     () => [
-      ...(markdownExt ? [markdownExt] : []),
+      markdown(),
       EditorView.lineWrapping,
       keymap.of([
         { key: "Mod-b", run: () => { applyFormatting("bold"); return true; } },
@@ -67,7 +59,7 @@ export default function EditorContent({
         { key: "Mod-Shift-f", run: () => { toggleZenMode(); return true; } },
       ]),
     ],
-    [applyFormatting, openLinkDialog, setCitationPickerOpen, setViewMode, toggleZenMode, markdownExt],
+    [applyFormatting, openLinkDialog, setCitationPickerOpen, setViewMode, toggleZenMode],
   );
 
   return (

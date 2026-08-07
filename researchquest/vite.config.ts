@@ -40,6 +40,22 @@ export default defineConfig(({ mode, command }) => {
       alias: {
         "@": path.resolve(__dirname, "./src"),
       },
+      dedupe: [
+        '@codemirror/state',
+        '@codemirror/view',
+        '@codemirror/lang-markdown',
+        '@uiw/react-codemirror',
+        '@uiw/codemirror-extensions-basic-setup',
+      ],
+    },
+    optimizeDeps: {
+      include: [
+        '@codemirror/state',
+        '@codemirror/view',
+        '@codemirror/lang-markdown',
+        '@uiw/react-codemirror',
+        '@uiw/codemirror-extensions-basic-setup',
+      ],
     },
     preview: {
       port: 4173,
