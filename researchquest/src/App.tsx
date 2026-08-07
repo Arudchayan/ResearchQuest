@@ -110,10 +110,6 @@ function App() {
     setUser: setUserProfile,
     currentView,
     setCurrentView,
-    selectedPaper,
-    selectedIdea,
-    setSelectedIdea,
-    setSelectedPaper,
     notes,
     notesLoading,
     topics,
@@ -125,10 +121,6 @@ function App() {
       setUser: state.setUser,
       currentView: state.currentView,
       setCurrentView: state.setCurrentView,
-      selectedPaper: state.selectedPaper,
-      selectedIdea: state.selectedIdea,
-      setSelectedIdea: state.setSelectedIdea,
-      setSelectedPaper: state.setSelectedPaper,
       notes: state.notes,
       notesLoading: state.notesLoading,
       topics: state.topics,
@@ -195,30 +187,34 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (user) {
-      // Fetch user profile — profileLoading was already set to true
-      // in the auth effect, so this .finally() clears it.
-      supabase
-        .from("user_profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single()
-        .then(({ data }) => {
+    async function loadProfile() {
+      if (user) {
+        // Fetch user profile — profileLoading was already set to true
+        // in the auth effect, so the try/finally clears it.
+        try {
+          const { data } = await supabase
+            .from("user_profiles")
+            .select("*")
+            .eq("id", user.id)
+            .single();
           if (data) {
             setUserProfile(data);
             hydrateGamification(data);
           }
-        })
-        .finally(() => setProfileLoading(false));
-    } else {
-      setUserProfile(null);
-      hydrateGamification({
-        streak_freeze_tokens: 0,
-        rest_days: 0,
-        active_boost: null,
-      });
-      setProfileLoading(false);
+        } finally {
+          setProfileLoading(false);
+        }
+      } else {
+        setUserProfile(null);
+        hydrateGamification({
+          streak_freeze_tokens: 0,
+          rest_days: 0,
+          active_boost: null,
+        });
+        setProfileLoading(false);
+      }
     }
+    void loadProfile();
   }, [user, setUserProfile, hydrateGamification]);
 
   // -- Route error recovery state --

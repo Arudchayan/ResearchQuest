@@ -39,6 +39,7 @@ export function CommandPalette() {
     setSelectedPaper,
     setSelectedIdea,
     setSelectedTopic,
+    setSelectedTask,
     user,
     topics,
   } = useAppStore(
@@ -50,6 +51,7 @@ export function CommandPalette() {
       setSelectedPaper: state.setSelectedPaper,
       setSelectedIdea: state.setSelectedIdea,
       setSelectedTopic: state.setSelectedTopic,
+      setSelectedTask: state.setSelectedTask,
       user: state.user,
       topics: state.topics,
     }))
@@ -132,6 +134,7 @@ export function CommandPalette() {
 
   const handleSelectTask = (task: any) => {
     setCurrentView("tasks");
+    setSelectedTask(task);
     window.history.pushState(null, "", `/tasks`);
     window.dispatchEvent(new PopStateEvent("popstate"));
     setOpen(false);
