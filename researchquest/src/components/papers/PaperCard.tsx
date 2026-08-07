@@ -26,7 +26,8 @@ const readingStatusClassNames = {
 const firstAuthorSlug = (authors: string[] | undefined): string => {
   const first = authors?.[0];
   if (!first) return "ANON";
-  const lastWord = first.split(",")[0].trim().split(/\s+/).pop();
+  const namePart = first.split(",")[0] ?? "";
+  const lastWord = namePart.trim().split(/\s+/).pop();
   return lastWord ? lastWord.toUpperCase() : "ANON";
 };
 
