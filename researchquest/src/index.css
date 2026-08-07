@@ -14,6 +14,8 @@
   :root {
     color-scheme: light dark;
 
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
     /* Luxe Scholar - Light Mode */
     /* Deep rich blacks, off-whites, elegant contrast */
     --primary-50: #F4F4F0;
@@ -104,6 +106,8 @@
   }
 
   .dark {
+    color-scheme: dark;
+
     /* Luxe Scholar - Dark Mode */
     /* Deep blacks, soft cream text */
     --primary-50: #1F1F1E;
@@ -200,7 +204,7 @@
   }
   
   body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: var(--font-sans);
     background-color: var(--bg-base);
     color: var(--text-primary);
     -webkit-font-smoothing: antialiased;
@@ -253,37 +257,13 @@
     color: var(--bg-base);
   }
   
-  .dark ::selection {
-    background-color: var(--primary-500);
-    color: var(--bg-base);
-  }
-  
   /* Performance Optimizations */
   
   /* CSS Containment for sidebars and panels */
   aside {
     contain: layout style paint;
   }
-  
-  /* GPU acceleration for transforms */
-  .transform,
-  [class*="translate"],
-  [class*="scale"],
-  [class*="rotate"] {
-    will-change: transform;
-  }
-  
-  /* Remove will-change after animation */
-  .transform-none {
-    will-change: auto;
-  }
-  
-  /* Content visibility for off-screen content */
-  .off-screen {
-    content-visibility: auto;
-    contain-intrinsic-size: auto 500px;
-  }
-  
+
   /* Smooth scrolling with performance */
   .smooth-scroll {
     scroll-behavior: smooth;

@@ -26,6 +26,10 @@ module.exports = {
 			},
 		},
 		extend: {
+			screens: {
+				// DESIGN.md: 2xl container is 1440px — match breakpoint
+				'2xl': '1440px',
+			},
 			colors: {
 				// Luxe Scholar Brand Colors
 				primary: {
