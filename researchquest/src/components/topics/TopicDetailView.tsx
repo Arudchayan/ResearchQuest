@@ -5,7 +5,15 @@ import { toast } from "sonner";
 import { supabase } from "../../lib/supabase";
 import { useAppStore } from "../../store/appStore";
 import { useShallow } from "zustand/react/shallow";
-import type { TopicWithCounts, Note, Paper, Idea } from "../../types/database";
+import { useTopics } from "../../hooks/useTopics";
+import type {
+  TopicWithCounts,
+  Note,
+  Paper,
+  Idea,
+  TopicQuest,
+} from "../../types/database";
+import { Badge, type BadgeVariant } from "../ui/Badge";
 import { deriveTitleFromMarkdown } from "../../utils/text";
 import {
   Pencil,
@@ -80,6 +88,22 @@ export function TopicDetailView({
   const [associationErrors, setAssociationErrors] =
     useState<AssociationLoadErrors>(EMPTY_ASSOCIATION_ERRORS);
   const [userId, setUserId] = useState<string | null>(null);
+
+  const { quests, questsLoading, refreshQuests, advanceQuest } = useTopics(
+    userId ?? undefined,
+    { owner: false },
+  );
+
+  const topicQuests = useMemo(
+    () => quests.filter((quest) => quest.topic_id === topic.id),
+    [quests, topic.id],
+  );
+
+  const questStatusVariant: Record<TopicQuest["status"], BadgeVariant> = {
+    active: "neutral",
+    completed: "success",
+    expired: "warning",
+  };
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -321,9 +345,9 @@ export function TopicDetailView({
                 className="w-full rounded-control border border-border-subtle bg-bg-base px-3 py-2 text-subtitle font-semibold text-text-primary focus:outline-none focus:ring-2 focus:ring-focus"
               />
             ) : (
-              <h1 className="text-2xl font-bold text-text-primary">
+              <h2 className="text-2xl font-bold text-text-primary">
                 {topic.name}
-              </h1>
+              </h2>
             )}
             {isEditing ? (
               <textarea
@@ -449,9 +473,107 @@ export function TopicDetailView({
       <div className="bg-bg-surface border border-border-subtle rounded-xl shadow-sm">
         <div className="px-6 py-4 border-b border-border-subtle flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-text-primary">
+            <h3 className="text-lg font-semibold text-text-primary">
+              Topic Quests
+            </h3>
+            <p className="text-caption text-text-secondary">
+              Small challenges to keep this topic moving.
+            </p>
+          </div>
+          <button
+            onClick={() => void refreshQuests()}
+            disabled={questsLoading}
+            aria-label="Refresh topic quests"
+            className="inline-flex items-center gap-2 rounded-control bg-bg-elevated px-3 py-2 text-small text-text-secondary transition-colors hover:bg-bg-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {questsLoading ? "Refreshing…" : "Refresh"}
+          </button>
+        </div>
+        <div className="divide-y divide-border-subtle">
+          {questsLoading && topicQuests.length === 0 ? (
+            <div
+              className="space-y-2 px-6 py-4"
+              role="status"
+              aria-label="Loading quests"
+            >
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-1.5 w-full" />
+            </div>
+          ) : topicQuests.length === 0 ? (
+            <p className="px-6 py-4 text-caption text-text-tertiary">
+              No quests for this topic yet.
+            </p>
+          ) : (
+            topicQuests.map((quest) => {
+              const progressPercent =
+                quest.target_count > 0
+                  ? Math.min(
+                      100,
+                      Math.round(
+                        (quest.progress_count / quest.target_count) * 100,
+                      ),
+                    )
+                  : 0;
+              return (
+                <div key={quest.id} className="space-y-3 px-6 py-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0 space-y-1">
+                      <p className="text-body font-medium text-text-primary">
+                        {quest.objective}
+                      </p>
+                      <p className="text-small text-text-secondary">
+                        {quest.progress_count} of {quest.target_count}{" "}
+                        {quest.target_count === 1 ? "item" : "items"}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <Badge variant={questStatusVariant[quest.status]}>
+                        {quest.status.charAt(0).toUpperCase() +
+                          quest.status.slice(1)}
+                      </Badge>
+                      {quest.status === "active" && (
+                        <button
+                          type="button"
+                          onClick={() => void advanceQuest(topic.id)}
+                          disabled={questsLoading}
+                          className="inline-flex items-center gap-1 rounded-control bg-bg-elevated px-2.5 py-1.5 text-small font-medium text-text-secondary transition-colors hover:bg-bg-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          Mark progress
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div
+                    className="h-1.5 w-full overflow-hidden rounded-full bg-bg-elevated"
+                    role="progressbar"
+                    aria-label={`Progress for ${quest.objective}`}
+                    aria-valuemin={0}
+                    aria-valuemax={quest.target_count}
+                    aria-valuenow={quest.progress_count}
+                  >
+                    <div
+                      className="h-full bg-primary-500"
+                      style={{ width: `${progressPercent}%` }}
+                    />
+                  </div>
+                  {quest.due_date && (
+                    <p className="text-caption text-text-tertiary">
+                      Due {new Date(quest.due_date).toLocaleDateString()}
+                    </p>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      <div className="bg-bg-surface border border-border-subtle rounded-xl shadow-sm">
+        <div className="px-6 py-4 border-b border-border-subtle flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-text-primary">
               Connected work
-            </h2>
+            </h3>
             <p className="text-caption text-text-secondary">
               Jump back into the work linked to this topic.
             </p>
@@ -471,12 +593,12 @@ export function TopicDetailView({
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <Icon className="w-4 h-4 text-primary-500" aria-hidden="true" />
-                    <h3 className="text-small font-semibold text-text-primary">
+                    <h4 className="text-small font-semibold text-text-primary">
                       {label}{" "}
                       <span className="text-text-tertiary font-normal">
                         ({displayCount})
                       </span>
-                    </h3>
+                    </h4>
                   </div>
                   {items[0] && (
                     <button

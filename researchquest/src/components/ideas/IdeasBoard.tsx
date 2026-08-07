@@ -436,12 +436,12 @@ export function IdeasBoard() {
                   className="flex min-h-64 w-80 shrink-0 flex-col overflow-hidden rounded-surface border border-border-subtle bg-bg-elevated lg:h-full"
                 >
                   <div className="sticky top-0 z-10 flex items-center justify-between rounded-t-surface border-b border-border-subtle bg-bg-surface p-4">
-                    <div className="flex items-center gap-2">
+                    <h2 className="flex items-center gap-2">
                       <Badge variant={stage.badgeVariant}>{stage.label}</Badge>
                       <Badge variant="neutral" aria-label={`${stageIdeas.length} ideas`}>
                         <span className="font-mono">{stageIdeas.length}</span>
                       </Badge>
-                    </div>
+                    </h2>
                   </div>
 
                   <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
@@ -452,11 +452,11 @@ export function IdeasBoard() {
                         <AnimatePresence mode={reduceMotion ? "sync" : "popLayout"}>
                           {stageIdeas.map((idea) => (
                             <MotionCard
-                              layoutId={reduceMotion ? undefined : idea.id}
+                              {...(reduceMotion ? {} : { layoutId: idea.id })}
                               key={idea.id}
                               initial={reduceMotion ? false : { opacity: 0, y: 20 }}
                               animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
-                              exit={reduceMotion ? undefined : { opacity: 0, scale: 0.9 }}
+                              {...(reduceMotion ? {} : { exit: { opacity: 0, scale: 0.9 } })}
                               onClick={() => setSelectedIdea(idea)}
                               onKeyDown={(event: KeyboardEvent<HTMLDivElement>) => {
                                 if (event.target !== event.currentTarget) return;
@@ -469,9 +469,9 @@ export function IdeasBoard() {
                               className="group cursor-pointer p-4 transition duration-fast hover:border-border-strong hover:shadow-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
                             >
                               <div className="mb-2 flex items-start justify-between gap-2">
-                                <h4 className="min-w-0 line-clamp-2 font-medium leading-snug text-text-primary">
+                                <h3 className="min-w-0 line-clamp-2 font-medium leading-snug text-text-primary">
                                   {idea.title ? highlightMatch(idea.title, searchQuery) : "Untitled"}
-                                </h4>
+                                </h3>
                                 <Button
                                   type="button"
                                   variant="ghost"
@@ -506,7 +506,7 @@ export function IdeasBoard() {
                                   onKeyDown={(event) => event.stopPropagation()}
                                   disabled={updatingIdeaId === idea.id}
                                   aria-label={`Change stage for ${idea.title || "untitled idea"}`}
-                                  className={cn("min-h-11 min-w-0 flex-1 cursor-pointer rounded-control border px-2 py-1 text-caption font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-focus disabled:cursor-not-allowed disabled:opacity-60 md:min-h-0 md:flex-none", stage.selectClassName)}
+                                  className={cn("min-h-11 min-w-0 flex-1 cursor-pointer rounded-control border px-2 py-1 text-small font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-focus disabled:cursor-not-allowed disabled:opacity-60 md:min-h-0 md:flex-none", stage.selectClassName)}
                                 >
                                   {IDEA_STAGES.map((stageOption) => (
                                     <option key={stageOption.id} value={stageOption.id}>
