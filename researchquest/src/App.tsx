@@ -394,6 +394,7 @@ function App() {
         </Suspense>
 
         <Toaster
+          hotkey={[]}
           position="top-right"
           richColors
           expand={false}
