@@ -265,7 +265,7 @@ export function IdeasBoard() {
     try {
       const task = await createTask({
         title: idea.title,
-        description: idea.description?.slice(0, 1000),
+        ...(idea.description ? { description: idea.description.slice(0, 1000) } : {}),
         priority: "medium",
         category: "Research",
         completed: false,
