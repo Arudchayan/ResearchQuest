@@ -394,7 +394,8 @@ function App() {
         </Suspense>
 
         <Toaster
-          hotkey={[]}
+          // "KeyNone" is not a valid key; disables sonner's hotkey (empty array would match every keydown)
+          hotkey={["KeyNone"]}
           position="top-right"
           richColors
           expand={false}
