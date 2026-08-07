@@ -20,7 +20,7 @@ import { usePapers } from "../../hooks/usePapers";
 import { useTasks } from "../../hooks/useTasks";
 import { useAppStore } from "../../store/appStore";
 import type { Note, Paper, Task } from "../../types/database";
-import { awardXP, XP_REWARDS } from "../../utils/gamification";
+import { awardXP, notifyGamificationResult, XP_REWARDS } from "../../utils/gamification";
 import {
   playTimerCompleteSound,
   showTimerCompleteNotification,
@@ -173,7 +173,12 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
       const xpEarned = durationMinutes * XP_REWARDS.FOCUS_SESSION_MINUTE;
 
       if (xpEarned > 0) {
-        awardXP(userId, xpEarned, "complete_focus_session");
+        // skipXpToast: the toast below already announces the XP earned
+        awardXP(userId, xpEarned, "complete_focus_session")
+          .then((result) =>
+            notifyGamificationResult(result, { skipXpToast: true }),
+          )
+          .catch((err) => logger.error("Failed to award XP", err));
         toast.success("Focus session complete!", {
           description: `You earned ${xpEarned} XP for ${durationMinutes} minutes of focus.`,
         });

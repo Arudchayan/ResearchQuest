@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { supabase } from "../lib/supabase";
-import { awardXP, XP_REWARDS } from "../utils/gamification";
+import { awardXP, notifyGamificationResult, XP_REWARDS } from "../utils/gamification";
 import { sortByUpdatedAt } from "../utils/sort";
 import { isValidUrl } from "../utils/security";
 import { toast } from "sonner";
@@ -324,9 +324,10 @@ export function usePapers(userId: string | undefined) {
       // Optimistic update - get latest state to be safe
       setPapers(sortByUpdatedAt([data, ...useAppStore.getState().papers]));
 
-      awardXP(userId, XP_REWARDS.CREATE_PAPER, "create_paper").catch((e) =>
-        logger.error("Failed to award XP", e),
-      );
+      // Fire-and-forget; "Paper added successfully" toast doesn't mention XP
+      awardXP(userId, XP_REWARDS.CREATE_PAPER, "create_paper")
+        .then((result) => notifyGamificationResult(result))
+        .catch((e) => logger.error("Failed to award XP", e));
 
       void createReadingTaskForPaper(userId, data);
 
@@ -440,9 +441,9 @@ export function usePapers(userId: string | undefined) {
 
       // Award XP
       for (let i = 0; i < data.length; i++) {
-         awardXP(userId, XP_REWARDS.CREATE_PAPER, "create_paper").catch((e) =>
-          logger.error("Failed to award XP", e),
-        );
+         awardXP(userId, XP_REWARDS.CREATE_PAPER, "create_paper")
+          .then((result) => notifyGamificationResult(result))
+          .catch((e) => logger.error("Failed to award XP", e));
          void createReadingTaskForPaper(userId, data[i]);
       }
 
@@ -552,7 +553,9 @@ export function usePapers(userId: string | undefined) {
           userId,
           XP_REWARDS.UPDATE_PAPER_STATUS,
           "update_paper_status",
-        ).catch((e) => logger.error("Failed to award XP", e));
+        )
+          .then((result) => notifyGamificationResult(result))
+          .catch((e) => logger.error("Failed to award XP", e));
       }
 
       return true;

@@ -61,7 +61,8 @@ vi.mock("../../store/appStore", () => ({
 }));
 vi.mock("../../utils/gamification", () => ({
   XP_REWARDS: { FOCUS_SESSION_MINUTE: 2 },
-  awardXP: vi.fn(),
+  awardXP: vi.fn().mockResolvedValue(null),
+  notifyGamificationResult: vi.fn(),
 }));
 vi.mock("sonner", () => ({
   toast: {

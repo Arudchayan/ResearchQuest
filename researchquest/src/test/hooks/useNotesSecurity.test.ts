@@ -16,6 +16,7 @@ vi.mock("sonner", () => ({
 // Mock gamification utils
 vi.mock("../../utils/gamification", () => ({
   awardXP: vi.fn().mockResolvedValue(true),
+  notifyGamificationResult: vi.fn(),
   XP_REWARDS: {
     CREATE_NOTE: 10,
     UPDATE_NOTE: 5,
