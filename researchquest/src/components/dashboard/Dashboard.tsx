@@ -47,6 +47,17 @@ const taskPriorityBadgeVariants = {
 const formatCount = (count: number, singular: string) =>
   `${count} ${count === 1 ? singular : `${singular}s`}`;
 
+interface SectionIndexProps {
+  number: string;
+  label: string;
+}
+
+const SectionIndex = ({ number, label }: SectionIndexProps) => (
+  <span className="font-mono text-caption text-text-tertiary">
+    {number} · {label.toUpperCase()}
+  </span>
+);
+
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 const startOfLocalDay = (date: Date) =>
@@ -416,6 +427,7 @@ export function Dashboard() {
       {/* Today deck — decision-first: the work that's waiting for you */}
       <section aria-labelledby="today-heading">
         <Card className="p-5">
+          <SectionIndex number="01" label="Today" />
           <div className="mb-4 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-border-subtle pb-2">
             <h2 id="today-heading" className="font-serif text-body-lg font-bold text-text-primary">
               Today
@@ -552,6 +564,7 @@ export function Dashboard() {
         <div className="space-y-8">
           {/* Recent Notes */}
           <section>
+            <SectionIndex number="02" label="Recent Notes" />
             <div className="mb-4 flex items-center justify-between gap-4 border-b border-border-subtle pb-2">
               <h2 className="flex min-w-0 items-center gap-2 font-serif text-body-lg font-bold text-text-primary">
                 <FileText className="h-5 w-5 shrink-0 text-text-tertiary" aria-hidden="true" />
@@ -621,6 +634,7 @@ export function Dashboard() {
 
           {/* Active Ideas */}
           <section>
+            <SectionIndex number="03" label="Active Ideas" />
             <div className="mb-4 flex items-center justify-between gap-4 border-b border-border-subtle pb-2">
               <h2 className="flex min-w-0 items-center gap-2 font-serif text-body-lg font-bold text-text-primary">
                 <Lightbulb className="h-5 w-5 shrink-0 text-text-tertiary" aria-hidden="true" />
@@ -696,6 +710,7 @@ export function Dashboard() {
 
           {/* Active Topics */}
           <section>
+            <SectionIndex number="04" label="Active Topics" />
             <div className="mb-4 flex items-center justify-between gap-4 border-b border-border-subtle pb-2">
               <h2 className="flex min-w-0 items-center gap-2 font-serif text-body-lg font-bold text-text-primary">
                 <Hash className="h-5 w-5 shrink-0 text-text-tertiary" aria-hidden="true" />
@@ -770,6 +785,7 @@ export function Dashboard() {
         <div className="space-y-8">
           {/* Reading List */}
           <section>
+            <SectionIndex number="05" label="Up Next to Read" />
             <div className="mb-4 flex items-center justify-between gap-4 border-b border-border-subtle pb-2">
               <h2 className="flex min-w-0 items-center gap-2 font-serif text-body-lg font-bold text-text-primary">
                 <BookOpen className="h-5 w-5 shrink-0 text-text-tertiary" aria-hidden="true" />
@@ -839,6 +855,7 @@ export function Dashboard() {
 
           {/* Due Soon */}
           <section>
+            <SectionIndex number="06" label="Tasks Due Soon" />
             <div className="mb-4 flex items-center justify-between gap-4 border-b border-border-subtle pb-2">
               <h2 className="flex min-w-0 items-center gap-2 font-serif text-body-lg font-bold text-text-primary">
                 <CheckSquare className="h-5 w-5 shrink-0 text-text-tertiary" aria-hidden="true" />
@@ -920,6 +937,7 @@ export function Dashboard() {
 
       {stats && (
         <section aria-labelledby="progress-heading">
+          <SectionIndex number="07" label="Progress" />
           <div className="mb-4 flex items-center gap-3 border-b border-border-subtle pb-2">
             <ActivityLogIcon className="h-5 w-5 text-text-tertiary" aria-hidden="true" />
             <h2 id="progress-heading" className="font-serif text-subtitle font-bold text-text-primary">
