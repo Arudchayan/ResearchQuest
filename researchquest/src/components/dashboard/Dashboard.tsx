@@ -18,6 +18,8 @@ import {
 import { useAppStore } from "../../store/appStore";
 import { useShallow } from "zustand/react/shallow";
 import { getLevelTitle } from "../../utils/gamification";
+import { parseDateInput } from "../../utils/time";
+import { isOverdue } from "../tasks/TaskCard";
 import { ListSkeleton } from "../ui/Skeleton";
 import { InlineError } from "../ui/ErrorFallback";
 import { Badge, type BadgeVariant } from "../ui/Badge";
@@ -45,6 +47,46 @@ const taskPriorityBadgeVariants = {
 const formatCount = (count: number, singular: string) =>
   `${count} ${count === 1 ? singular : `${singular}s`}`;
 
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+const startOfLocalDay = (date: Date) =>
+  new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+/** Whole calendar days between an ISO/date-only string and now (local). */
+const daysBetween = (from: string, to: Date) =>
+  Math.floor(
+    (startOfLocalDay(to).getTime() -
+      startOfLocalDay(parseDateInput(from) ?? to).getTime()) /
+      MS_PER_DAY,
+  );
+
+/** TaskCard semantics: a due date settles at end-of-day, so "due today" is still today until midnight. */
+const isDueToday = (dueDate: string | undefined): boolean => {
+  const parsed = parseDateInput(dueDate);
+  if (!parsed) return false;
+  const now = new Date();
+  return (
+    parsed.getFullYear() === now.getFullYear() &&
+    parsed.getMonth() === now.getMonth() &&
+    parsed.getDate() === now.getDate()
+  );
+};
+
+const formatDueDate = (dueDate: string | undefined) => {
+  const parsed = parseDateInput(dueDate);
+  if (!parsed) return "";
+  return parsed.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+};
+
+type TodayItem =
+  | { kind: "task-overdue"; task: Task; daysOverdue: number }
+  | { kind: "task-today"; task: Task }
+  | { kind: "idea-stuck"; idea: Idea; daysInSeed: number }
+  | { kind: "note-untagged"; note: Note };
+
 export function Dashboard() {
   // ⚡ PERFORMANCE OPTIMIZATION:
   // Using useShallow to prevent unnecessary re-renders of the entire Dashboard
@@ -69,6 +111,7 @@ export function Dashboard() {
     setSelectedPaper,
     setSelectedIdea,
     setSelectedTopic,
+    setSelectedTask,
   } = useAppStore(
       useShallow((state) => ({
         user: state.user,
@@ -90,6 +133,7 @@ export function Dashboard() {
         setSelectedPaper: state.setSelectedPaper,
         setSelectedIdea: state.setSelectedIdea,
         setSelectedTopic: state.setSelectedTopic,
+        setSelectedTask: state.setSelectedTask,
       })),
     );
 
@@ -201,6 +245,58 @@ export function Dashboard() {
       .slice(0, 3);
   }, [tasks]);
 
+  // "Today" deck — decision-first: the work that's waiting right now.
+  // Sourced in priority order (overdue → due today → stuck ideas → untagged
+  // notes) and capped at 3 compact rows so the deck stays decision-first.
+  const todayItems = useMemo((): TodayItem[] => {
+    const now = new Date();
+
+    const overdueTasks = tasks
+      .filter((task) => !task.completed && isOverdue(task.due_date))
+      .sort((a, b) => {
+        if (!a.due_date) return 1;
+        if (!b.due_date) return -1;
+        return a.due_date > b.due_date ? 1 : a.due_date < b.due_date ? -1 : 0;
+      })
+      .slice(0, 3);
+
+    const dueTodayTasks = tasks
+      .filter((task) => !task.completed && isDueToday(task.due_date))
+      .sort((a, b) => {
+        if (!a.due_date) return 1;
+        if (!b.due_date) return -1;
+        return a.due_date > b.due_date ? 1 : a.due_date < b.due_date ? -1 : 0;
+      })
+      .slice(0, 3);
+
+    const stuckIdeas = ideas
+      .filter(
+        (idea) => idea.stage === "Seed" && daysBetween(idea.created_at, now) >= 14,
+      )
+      .sort((a, b) => (a.created_at > b.created_at ? 1 : a.created_at < b.created_at ? -1 : 0))
+      .slice(0, 2);
+
+    const untaggedNotes = notes
+      .filter((note) => note.tags.length === 0)
+      .sort((a, b) => (b.updated_at > a.updated_at ? 1 : b.updated_at < a.updated_at ? -1 : 0))
+      .slice(0, 2);
+
+    return [
+      ...overdueTasks.map((task) => ({
+        kind: "task-overdue" as const,
+        task,
+        daysOverdue: task.due_date ? daysBetween(task.due_date, now) : 0,
+      })),
+      ...dueTodayTasks.map((task) => ({ kind: "task-today" as const, task })),
+      ...stuckIdeas.map((idea) => ({
+        kind: "idea-stuck" as const,
+        idea,
+        daysInSeed: daysBetween(idea.created_at, now),
+      })),
+      ...untaggedNotes.map((note) => ({ kind: "note-untagged" as const, note })),
+    ].slice(0, 3);
+  }, [tasks, ideas, notes]);
+
   const navigateTo = useCallback(
     (view: DashboardView, path = `/${view}`) => {
       setCurrentView(view);
@@ -238,6 +334,14 @@ export function Dashboard() {
       navigateTo("ideas", `/ideas/${idea.id}`);
     },
     [navigateTo, setSelectedIdea],
+  );
+
+  const handleOpenTask = useCallback(
+    (task: Task) => {
+      setSelectedTask(task);
+      navigateTo("tasks", `/tasks/${task.id}`);
+    },
+    [navigateTo, setSelectedTask],
   );
 
   const handleOpenTopic = useCallback(
@@ -302,6 +406,125 @@ export function Dashboard() {
           </>
         }
       />
+
+      {/* Today deck — decision-first: the work that's waiting for you */}
+      <section aria-labelledby="today-heading">
+        <Card className="p-5">
+          <div className="mb-4 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-border-subtle pb-2">
+            <h2 id="today-heading" className="font-serif text-body-lg font-bold text-text-primary">
+              Today
+            </h2>
+            <p className="text-small text-text-secondary">
+              The work that&apos;s waiting for you
+            </p>
+          </div>
+
+          {todayItems.length === 0 ? (
+            <p className="text-small text-text-tertiary">
+              Nothing urgent — the field is clear.{" "}
+              <button
+                type="button"
+                onClick={handleFocusNavigation}
+                className="font-medium text-primary-600 underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+              >
+                Start a focus session
+              </button>{" "}
+              or{" "}
+              <button
+                type="button"
+                onClick={handleIdeasNavigation}
+                className="font-medium text-primary-600 underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+              >
+                review an idea
+              </button>
+              .
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {todayItems.map((item) => {
+                if (item.kind === "idea-stuck") {
+                  return (
+                    <li key={`idea-${item.idea.id}`}>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenIdea(item.idea)}
+                        aria-label={`Open idea: ${item.idea.title}`}
+                        className="flex w-full items-center justify-between gap-3 p-3 text-left transition-colors hover:bg-bg-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+                      >
+                        <span className="flex min-w-0 items-center gap-3">
+                          <span className="shrink-0 rounded-sm border border-border-moderate bg-bg-base p-2 text-text-primary">
+                            <Lightbulb className="h-4 w-4" aria-hidden="true" />
+                          </span>
+                          <span className="truncate text-small font-medium text-text-primary">
+                            {item.idea.title}
+                          </span>
+                        </span>
+                        <span className="shrink-0 font-mono text-caption text-text-tertiary">
+                          Seed {item.daysInSeed}d
+                        </span>
+                      </button>
+                    </li>
+                  );
+                }
+
+                if (item.kind === "note-untagged") {
+                  return (
+                    <li key={`note-${item.note.id}`}>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenNote(item.note)}
+                        aria-label={`Open note: ${item.note.title || "Untitled Note"}`}
+                        className="flex w-full items-center justify-between gap-3 p-3 text-left transition-colors hover:bg-bg-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+                      >
+                        <span className="flex min-w-0 items-center gap-3">
+                          <span className="shrink-0 rounded-sm border border-border-moderate bg-bg-base p-2 text-text-primary">
+                            <FileText className="h-4 w-4" aria-hidden="true" />
+                          </span>
+                          <span className="truncate text-small font-medium text-text-primary">
+                            {item.note.title || "Untitled Note"}
+                          </span>
+                        </span>
+                        <span className="shrink-0 font-mono text-caption text-text-tertiary">
+                          No tags
+                        </span>
+                      </button>
+                    </li>
+                  );
+                }
+
+                return (
+                  <li key={`task-${item.task.id}`}>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenTask(item.task)}
+                      aria-label={`Open task: ${item.task.title}`}
+                      className="flex w-full items-center justify-between gap-3 p-3 text-left transition-colors hover:bg-bg-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+                    >
+                      <span className="flex min-w-0 items-center gap-3">
+                        <span className="shrink-0 rounded-sm border border-border-moderate bg-bg-base p-2 text-text-primary">
+                          <CheckSquare className="h-4 w-4" aria-hidden="true" />
+                        </span>
+                        <span className="truncate text-small font-medium text-text-primary">
+                          {item.task.title}
+                        </span>
+                      </span>
+                      {item.kind === "task-overdue" ? (
+                        <Badge variant="destructive" className="shrink-0 font-mono">
+                          {formatCount(item.daysOverdue, "day")} overdue
+                        </Badge>
+                      ) : (
+                        <span className="shrink-0 font-mono text-caption text-text-tertiary">
+                          Due {formatDueDate(item.task.due_date)}
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Card>
+      </section>
 
       {/* RQ-M2-07 entity counts — source: store */}
       <Card
