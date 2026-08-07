@@ -372,7 +372,7 @@ export function TaskManager() {
                   variant={filter === f ? "default" : "secondary"}
                   onClick={() => setFilter(f)}
                   aria-pressed={filter === f}
-                  className="capitalize"
+                  className="min-w-11 text-small capitalize md:min-h-10"
                 >
                   {f}
                 </Button>
@@ -456,7 +456,7 @@ export function TaskManager() {
               </div>
 
               <div className="flex shrink-0 items-center gap-2">
-                <label htmlFor="task-sort" className="text-caption text-text-tertiary">
+                <label htmlFor="task-sort" className="text-small text-text-tertiary">
                   Sort by
                 </label>
                 <select
@@ -479,7 +479,7 @@ export function TaskManager() {
                 variant={compactView ? "secondary" : "outline"}
                 onClick={() => setCompactView((prev) => !prev)}
                 aria-pressed={compactView}
-                className="shrink-0"
+                className="shrink-0 text-small"
               >
                 {compactView ? "Comfortable view" : "Compact view"}
               </Button>
