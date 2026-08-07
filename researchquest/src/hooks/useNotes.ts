@@ -218,7 +218,9 @@ export function useNotes(userId: string | undefined) {
 
       if (userId) {
         awardXP(userId, XP_REWARDS.UPDATE_NOTE, "update_note")
-          .then((result) => notifyGamificationResult(result))
+          .then((result) =>
+            notifyGamificationResult(result, { skipXpToast: true }),
+          )
           .catch((err) => logger.error("Failed to award XP", err));
       }
 
