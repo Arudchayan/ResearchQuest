@@ -315,4 +315,79 @@ describe("FocusWorkspace", () => {
     expect(awardXP).toHaveBeenCalledTimes(1);
     expect(supabaseInsert).toHaveBeenCalledTimes(1);
   });
+
+  it("shows a printed session label and increments the ordinal on each fresh start", async () => {
+    const { unmount, getByText } = render(<FocusWorkspace userId={userId} />);
+    expect(getByText(/SESSION 01 · 25 MIN · FOCUS/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("My Note"));
+    fireEvent.click(screen.getByText("Start focus"));
+    expect(getByText(/SESSION 01 · 25 MIN · NOTE/)).toBeInTheDocument();
+
+    // Pausing and resuming does not count as a new session.
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
+    });
+    fireEvent.click(screen.getByText("Pause"));
+    expect(getByText("Resume")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Resume"));
+    expect(getByText(/SESSION 01 · 25 MIN · NOTE/)).toBeInTheDocument();
+
+    await act(async () => {
+      vi.advanceTimersByTime(25 * 60 * 1000 + 1000);
+    });
+
+    const storedAfterCompletion = JSON.parse(
+      window.localStorage.getItem(FOCUS_SESSION_STORAGE_KEY)!,
+    );
+    expect(storedAfterCompletion.sessionCount).toBe(1);
+
+    // A fresh start after completion is a new session.
+    fireEvent.click(screen.getByText("Start focus"));
+    expect(getByText(/SESSION 02 · 25 MIN · NOTE/)).toBeInTheDocument();
+
+    const storedAfterRestart = JSON.parse(
+      window.localStorage.getItem(FOCUS_SESSION_STORAGE_KEY)!,
+    );
+    expect(storedAfterRestart.sessionCount).toBe(2);
+
+    // The ordinal persists across remounts.
+    unmount();
+    const next = render(<FocusWorkspace userId={userId} />);
+    expect(next.getByText(/SESSION 02 · 25 MIN · NOTE/)).toBeInTheDocument();
+  });
+
+  it("renders the completion colophon with the estimated XP when the award fails", async () => {
+    render(<FocusWorkspace userId={userId} />);
+    fireEvent.click(screen.getByText("My Note"));
+    fireEvent.click(screen.getByText("Start focus"));
+
+    await act(async () => {
+      vi.advanceTimersByTime(25 * 60 * 1000 + 1000);
+    });
+
+    expect(screen.getByText("Colophon")).toBeInTheDocument();
+    expect(screen.getByText(/25 MIN · \+50 XP/)).toBeInTheDocument();
+  });
+
+  it("renders the completion colophon with the actually awarded (boosted) XP", async () => {
+    vi.mocked(awardXP).mockResolvedValueOnce({
+      xpEarned: 75,
+      level: 5,
+      leveledUp: false,
+      streak: 6,
+      achievementsEarned: [],
+    });
+
+    render(<FocusWorkspace userId={userId} />);
+    fireEvent.click(screen.getByText("My Note"));
+    fireEvent.click(screen.getByText("Start focus"));
+
+    await act(async () => {
+      vi.advanceTimersByTime(25 * 60 * 1000 + 1000);
+    });
+
+    expect(screen.getByText("Colophon")).toBeInTheDocument();
+    expect(screen.getByText(/25 MIN · \+75 XP/)).toBeInTheDocument();
+  });
 });

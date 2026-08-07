@@ -22,6 +22,7 @@ export interface FocusSessionSnapshot {
   startedAt: number | null;
   timeLeft: number;
   hasCompletedSession: boolean;
+  sessionCount?: number;
 }
 
 function isFocusSessionSnapshot(value: unknown): value is FocusSessionSnapshot {
@@ -36,9 +37,15 @@ function isFocusSessionSnapshot(value: unknown): value is FocusSessionSnapshot {
   }
   if (typeof snapshot["isRunning"] !== "boolean") return false;
   if (typeof snapshot["hasCompletedSession"] !== "boolean") return false;
+  if (typeof snapshot["timeLeft"] !== "number" || snapshot["timeLeft"] < 0) {
+    return false;
+  }
+  const sessionCount = snapshot["sessionCount"];
   if (
-    typeof snapshot["timeLeft"] !== "number" ||
-    snapshot["timeLeft"] < 0
+    sessionCount !== undefined &&
+    (typeof sessionCount !== "number" ||
+      !Number.isInteger(sessionCount) ||
+      sessionCount < 0)
   ) {
     return false;
   }
@@ -66,7 +73,8 @@ export function loadStoredFocusSession(): FocusSessionSnapshot | null {
     const raw = window.localStorage.getItem(FOCUS_SESSION_STORAGE_KEY);
     if (!raw) return null;
     const parsed: unknown = JSON.parse(raw);
-    return isFocusSessionSnapshot(parsed) ? parsed : null;
+    if (!isFocusSessionSnapshot(parsed)) return null;
+    return { ...parsed, sessionCount: parsed.sessionCount ?? 1 };
   } catch {
     return null;
   }
