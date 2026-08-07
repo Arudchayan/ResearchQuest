@@ -212,12 +212,12 @@ export function AuthScreen() {
   const isBusy = loading || resetting;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-bg-base transition-colors">
+    <main className="min-h-screen flex items-center justify-center bg-bg-base transition-colors">
       <div className="w-full max-w-md p-8 bg-bg-surface border border-border-subtle rounded-md shadow-lg relative overflow-hidden">
         {/* Subtle decorative top border */}
         <div className="absolute top-0 left-0 right-0 h-1 bg-primary-500" />
 
-        <div className="text-center mb-8">
+        <header className="text-center mb-8">
           <div className="w-16 h-16 bg-bg-elevated border border-border-subtle rounded-md mx-auto mb-4 flex items-center justify-center text-text-primary font-serif font-bold text-2xl shadow-sm">
             RQ
           </div>
@@ -227,7 +227,7 @@ export function AuthScreen() {
           <p className="text-small text-text-secondary mt-2 tracking-widest uppercase">
             Scholar Access
           </p>
-        </div>
+        </header>
 
         <form onSubmit={handleAuth} className="space-y-4" noValidate>
           {showTestLogin && (
@@ -316,7 +316,7 @@ export function AuthScreen() {
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 disabled={isBusy}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-primary transition-colors disabled:opacity-50"
+                className="absolute right-3 top-1/2 -translate-y-1/2 min-h-6 min-w-6 flex items-center justify-center text-text-tertiary hover:text-text-primary transition-colors disabled:opacity-50"
                 aria-label={showPassword ? "Hide password" : "Show password"}
               >
                 {showPassword ? (
@@ -404,6 +404,6 @@ export function AuthScreen() {
           </button>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

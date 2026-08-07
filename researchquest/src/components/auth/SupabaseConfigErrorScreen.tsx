@@ -6,7 +6,7 @@ export function SupabaseConfigErrorScreen() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-bg-base p-6">
+    <main className="min-h-screen flex items-center justify-center bg-bg-base p-6">
       <div className="w-full max-w-lg bg-bg-surface border border-border-subtle rounded-md shadow-lg p-8">
         <div className="w-14 h-14 bg-bg-elevated border border-border-subtle rounded-md mb-5 flex items-center justify-center text-text-primary font-serif font-bold text-xl">
           RQ
@@ -61,6 +61,6 @@ VITE_SUPABASE_ANON_KEY=your-anon-key`}
           Reload app
         </button>
       </div>
-    </div>
+    </main>
   );
 }

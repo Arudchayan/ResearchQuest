@@ -1,5 +1,6 @@
 import { AlertTriangle, X } from "lucide-react";
 import { useEffect, useRef, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -61,6 +62,18 @@ export function ConfirmDialog({
       document.body.style.overflow = "unset";
     };
   }, [isOpen, variant]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const appShell = document.querySelector<HTMLElement>(
+      '[data-testid="app-shell"]',
+    );
+    if (!appShell) return;
+    appShell.setAttribute("inert", "");
+    return () => {
+      appShell.removeAttribute("inert");
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -133,7 +146,7 @@ export function ConfirmDialog({
     }
   };
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-modal flex items-center justify-center p-4 bg-overlay animate-in fade-in duration-fast"
       onClick={() => {
@@ -219,7 +232,8 @@ export function ConfirmDialog({
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
