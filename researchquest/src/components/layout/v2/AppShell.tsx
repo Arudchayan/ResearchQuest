@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { useEffect, useRef } from "react";
 import { Sidebar } from "./Sidebar";
+import { MobileTabBar } from "./MobileTabBar";
 import { RightSidebar } from "../RightSidebar";
 import { HamburgerMenuIcon, Cross1Icon, DoubleArrowDownIcon, MagnifyingGlassIcon } from "@radix-ui/react-icons";
 import { useAppStore } from "../../../store/appStore";
@@ -197,9 +198,16 @@ export function AppShell({ children }: AppShellProps) {
         )}
 
         {/* Content Area */}
-          <main id="main-content" className="min-w-0 flex-1 overflow-auto" tabIndex={-1}>
+          <main
+            id="main-content"
+            className="min-w-0 flex-1 overflow-auto pb-20 lg:pb-0"
+            tabIndex={-1}
+          >
           {children}
         </main>
+
+        {/* Mobile Bottom Tab Bar */}
+        {!isZenMode && <MobileTabBar />}
       </div>
 
       {/* Right Sidebar (Context Panel) */}

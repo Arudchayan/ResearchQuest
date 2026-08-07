@@ -20,6 +20,11 @@ vi.mock("lucide-react", () => ({
   PanelRightClose: () => <svg data-testid="icon-panel-close" />,
   PanelRightOpen: () => <svg data-testid="icon-panel-open" />,
   Search: () => <svg data-testid="icon-search" />,
+  FileText: () => <svg data-testid="icon-file-text" />,
+  BookOpen: () => <svg data-testid="icon-book-open" />,
+  Lightbulb: () => <svg data-testid="icon-lightbulb" />,
+  CheckSquare: () => <svg data-testid="icon-check-square" />,
+  Plus: () => <svg data-testid="icon-plus" />,
 }));
 
 describe("AppShell Zen Mode", () => {
