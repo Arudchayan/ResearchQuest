@@ -10,7 +10,7 @@
  */
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../lib/supabase";
-import { awardXP, XP_REWARDS } from "../utils/gamification";
+import { awardXP, notifyGamificationResult, XP_REWARDS } from "../utils/gamification";
 import { toast } from "sonner";
 import { parseDateInput } from "../utils/time";
 import { logger } from "../utils/logger";
@@ -288,9 +288,9 @@ export function useTasks(
     updateCommittedTasks((prev) => sortTasksByDueDate([...(prev ?? []), data]));
 
     // Award XP (don't await to avoid blocking)
-    awardXP(userId, XP_REWARDS.CREATE_TASK, "create_task").catch((e) =>
-      logger.error("Failed to award XP", e),
-    );
+    awardXP(userId, XP_REWARDS.CREATE_TASK, "create_task")
+      .then((result) => notifyGamificationResult(result))
+      .catch((e) => logger.error("Failed to award XP", e));
 
     return data;
   }
@@ -396,10 +396,11 @@ export function useTasks(
     }
 
     // Award XP only when completing (not un-completing, don't await to avoid blocking)
+    // "Task completed! 🎉" doesn't announce XP, so full notify is fine
     if (newCompletedStatus && userId) {
-      awardXP(userId, XP_REWARDS.COMPLETE_TASK, "complete_task").catch((e) =>
-        logger.error("Failed to award XP", e),
-      );
+      awardXP(userId, XP_REWARDS.COMPLETE_TASK, "complete_task")
+        .then((result) => notifyGamificationResult(result))
+        .catch((e) => logger.error("Failed to award XP", e));
     }
 
     return true;

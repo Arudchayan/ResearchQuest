@@ -1,6 +1,11 @@
 import { useState, useCallback } from "react";
 import { supabase } from "../lib/supabase";
-import { awardXP, XP_REWARDS } from "../utils/gamification";
+import {
+  awardXP,
+  notifyGamificationResult,
+  XP_REWARDS,
+  type GamificationResult,
+} from "../utils/gamification";
 import { sortByUpdatedAt } from "../utils/sort";
 import { isValidUrl } from "../utils/security";
 import { toast } from "sonner";
@@ -324,9 +329,10 @@ export function usePapers(userId: string | undefined) {
       // Optimistic update - get latest state to be safe
       setPapers(sortByUpdatedAt([data, ...useAppStore.getState().papers]));
 
-      awardXP(userId, XP_REWARDS.CREATE_PAPER, "create_paper").catch((e) =>
-        logger.error("Failed to award XP", e),
-      );
+      // Fire-and-forget; "Paper added successfully" toast doesn't mention XP
+      awardXP(userId, XP_REWARDS.CREATE_PAPER, "create_paper")
+        .then((result) => notifyGamificationResult(result))
+        .catch((e) => logger.error("Failed to award XP", e));
 
       void createReadingTaskForPaper(userId, data);
 
@@ -438,13 +444,42 @@ export function usePapers(userId: string | undefined) {
       // Optimistic update
       setPapers(sortByUpdatedAt([...data, ...useAppStore.getState().papers]));
 
-      // Award XP
-      for (let i = 0; i < data.length; i++) {
-         awardXP(userId, XP_REWARDS.CREATE_PAPER, "create_paper").catch((e) =>
-          logger.error("Failed to award XP", e),
+      // Award XP: run per-paper awards concurrently, notify once with the
+      // aggregated result so bulk imports don't stack a toast per paper.
+      void Promise.all(
+        data.map(() =>
+          awardXP(userId, XP_REWARDS.CREATE_PAPER, "create_paper").catch(
+            (e) => {
+              logger.error("Failed to award XP", e);
+              return null;
+            },
+          ),
+        ),
+      ).then((results) => {
+        const aggregated = results.reduce<GamificationResult | null>(
+          (acc, result) => {
+            if (!result) return acc;
+            if (!acc) {
+              return { ...result };
+            }
+            return {
+              xpEarned: acc.xpEarned + result.xpEarned,
+              level: Math.max(acc.level, result.level),
+              leveledUp: acc.leveledUp || result.leveledUp,
+              streak: Math.max(acc.streak, result.streak),
+              achievementsEarned: [
+                ...acc.achievementsEarned,
+                ...result.achievementsEarned,
+              ],
+            };
+          },
+          null,
         );
-         void createReadingTaskForPaper(userId, data[i]);
-      }
+        notifyGamificationResult(aggregated);
+      });
+      void Promise.all(
+        data.map((paper) => createReadingTaskForPaper(userId, paper)),
+      );
 
       return data as Paper[];
     },
@@ -552,7 +587,9 @@ export function usePapers(userId: string | undefined) {
           userId,
           XP_REWARDS.UPDATE_PAPER_STATUS,
           "update_paper_status",
-        ).catch((e) => logger.error("Failed to award XP", e));
+        )
+          .then((result) => notifyGamificationResult(result))
+          .catch((e) => logger.error("Failed to award XP", e));
       }
 
       return true;

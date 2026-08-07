@@ -15,7 +15,7 @@ vi.mock("../../lib/supabase", () => ({
     }),
   },
 }));
-import { awardXP } from "../../utils/gamification";
+import { awardXP, notifyGamificationResult } from "../../utils/gamification";
 import { toast } from "sonner";
 import {
   playTimerCompleteSound,
@@ -61,7 +61,8 @@ vi.mock("../../store/appStore", () => ({
 }));
 vi.mock("../../utils/gamification", () => ({
   XP_REWARDS: { FOCUS_SESSION_MINUTE: 2 },
-  awardXP: vi.fn(),
+  awardXP: vi.fn().mockResolvedValue(null),
+  notifyGamificationResult: vi.fn(),
 }));
 vi.mock("sonner", () => ({
   toast: {
@@ -139,13 +140,16 @@ describe("FocusWorkspace", () => {
     // Expect awardXP to be called
     expect(awardXP).toHaveBeenCalledWith(userId, 50, "complete_focus_session"); // 25 min * 2 XP/min = 50 XP
 
-    // Expect toast to be shown
+    // Expect toast to be shown; the "+N XP" toast is notifyGamificationResult's
     expect(toast.success).toHaveBeenCalledWith(
       "Focus session complete!",
       expect.objectContaining({
-        description: expect.stringContaining("50 XP"),
+        description: expect.stringContaining("25 minutes"),
       }),
     );
+
+    // notifyGamificationResult is the single XP announcement (no skipXpToast)
+    expect(notifyGamificationResult).toHaveBeenCalledWith(null);
   });
 
   it("triggers sound and notification when timer completes", async () => {

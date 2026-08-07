@@ -1,7 +1,11 @@
 import { logger } from "../utils/logger";
 import { useState, useCallback } from "react";
 import { supabase } from "../lib/supabase";
-import { awardXP, XP_REWARDS } from "../utils/gamification";
+import {
+  awardXP,
+  notifyGamificationResult,
+  XP_REWARDS,
+} from "../utils/gamification";
 import { toast } from "sonner";
 import type { Idea, IdeaStage } from "../types/database";
 import { useAppStore } from "../store/appStore";
@@ -155,9 +159,10 @@ export function useIdeas(userId: string | undefined) {
       // Optimistic update
       setIdeas([createdIdea, ...useAppStore.getState().ideas]);
 
-      awardXP(userId, XP_REWARDS.CREATE_IDEA, "create_idea").catch(
-        (err) => logger.error("Failed to award XP", err),
-      );
+      // Fire-and-forget; "Idea created successfully" toast doesn't mention XP
+      awardXP(userId, XP_REWARDS.CREATE_IDEA, "create_idea")
+        .then((result) => notifyGamificationResult(result))
+        .catch((err) => logger.error("Failed to award XP", err));
 
       return createdIdea;
     },
@@ -339,7 +344,9 @@ export function useIdeas(userId: string | undefined) {
             userId,
             XP_REWARDS.ADVANCE_IDEA_STAGE,
             "advance_idea_stage",
-          ).catch((err) => logger.error("Failed to award XP", err));
+          )
+            .then((result) => notifyGamificationResult(result))
+            .catch((err) => logger.error("Failed to award XP", err));
         }
       }
 
