@@ -173,14 +173,11 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
       const xpEarned = durationMinutes * XP_REWARDS.FOCUS_SESSION_MINUTE;
 
       if (xpEarned > 0) {
-        // skipXpToast: the toast below already announces the XP earned
         awardXP(userId, xpEarned, "complete_focus_session")
-          .then((result) =>
-            notifyGamificationResult(result, { skipXpToast: true }),
-          )
+          .then((result) => notifyGamificationResult(result))
           .catch((err) => logger.error("Failed to award XP", err));
         toast.success("Focus session complete!", {
-          description: `You earned ${xpEarned} XP for ${durationMinutes} minutes of focus.`,
+          description: `You completed ${durationMinutes} minutes of focus.`,
         });
       }
 

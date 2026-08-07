@@ -92,19 +92,22 @@ export const useGamificationStore = create<GamificationState>((set, get) => {
       const activeBoost =
         (profile.active_boost as ActiveBoost | null | undefined) ?? null;
 
+      const previousExpiresAt = get().activeBoost?.expires_at ?? null;
+      const expiresAt = activeBoost?.expires_at ?? null;
+
       set({
         streakFreezeTokens: freezeTokens,
         restDays,
         activeBoost,
       });
 
-      const expiresAt = activeBoost?.expires_at ?? null;
-
-      if (expiresAt) {
-        startCountdown(expiresAt);
-      } else {
-        stopCountdown();
-        set({ boostCountdown: null });
+      if (expiresAt !== previousExpiresAt) {
+        if (expiresAt) {
+          startCountdown(expiresAt);
+        } else {
+          stopCountdown();
+          set({ boostCountdown: null });
+        }
       }
     },
     activateBoost: async (userId, config) => {
