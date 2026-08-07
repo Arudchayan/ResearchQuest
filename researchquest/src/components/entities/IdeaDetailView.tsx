@@ -185,7 +185,7 @@ export function IdeaDetailView({
     try {
       const task = await createTask({
         title: idea.title,
-        description: idea.description,
+        description: idea.description?.slice(0, 1000),
         priority: "medium",
         category: "Research",
         completed: false,
@@ -195,8 +195,6 @@ export function IdeaDetailView({
         toast.error("Failed to create task");
         return;
       }
-
-      toast.success(`Task created: ${idea.title}`);
 
       if (idea.stage !== "Mature") {
         const nextStage = getNextStage(idea.stage);

@@ -265,7 +265,7 @@ export function IdeasBoard() {
     try {
       const task = await createTask({
         title: idea.title,
-        description: idea.description,
+        description: idea.description?.slice(0, 1000),
         priority: "medium",
         category: "Research",
         completed: false,
@@ -275,8 +275,6 @@ export function IdeasBoard() {
         toast.error("Failed to create task");
         return;
       }
-
-      toast.success(`Task created: ${idea.title}`);
 
       if (idea.stage !== "Mature") {
         const currentIndex = IDEA_STAGES.findIndex(

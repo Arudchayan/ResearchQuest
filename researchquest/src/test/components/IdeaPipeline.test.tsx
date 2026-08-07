@@ -162,7 +162,7 @@ setStore(defaultStore);
 
 const promotePayload = {
   title: "Test Idea",
-  description: "Test idea description",
+  description: seedIdea.description.slice(0, 1000),
   priority: "medium",
   category: "Research",
   completed: false,
@@ -190,7 +190,7 @@ describe("Idea pipeline: promote to task (idea cards)", () => {
     window.history.replaceState(null, "", "/");
   });
 
-  it("creates a task, advances the idea one stage, and toasts", async () => {
+  it("creates a task and advances the idea one stage", async () => {
     render(<IdeasBoard />);
 
     fireEvent.click(
@@ -204,12 +204,35 @@ describe("Idea pipeline: promote to task (idea cards)", () => {
         { stage: "Developing" },
         "Seed",
       );
-      expect(toastSuccessMock).toHaveBeenCalledWith(
-        "Task created: Test Idea",
-      );
     });
 
     expect(setSelectedIdeaMock).not.toHaveBeenCalled();
+  });
+
+  it("truncates long descriptions to 1000 chars when promoting", async () => {
+    const longDescription = "x".repeat(1500);
+    const longIdea: Idea = {
+      ...seedIdea,
+      id: "idea-3",
+      title: "Long Idea",
+      description: longDescription,
+    };
+    setStore({ ...defaultStore, ideas: [longIdea] });
+    render(<IdeasBoard />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Promote to task" }),
+    );
+
+    await waitFor(() => {
+      expect(createTaskMock).toHaveBeenCalledWith({
+        title: "Long Idea",
+        description: longDescription.slice(0, 1000),
+        priority: "medium",
+        category: "Research",
+        completed: false,
+      });
+    });
   });
 
   it("does not advance the stage when task creation fails", async () => {
@@ -272,7 +295,7 @@ describe("Idea pipeline: IdeaDetailView actions", () => {
     window.history.replaceState(null, "", "/");
   });
 
-  it("promotes from the detail view (task + stage advance + toast)", async () => {
+  it("promotes from the detail view (task + stage advance)", async () => {
     render(
       <TooltipProvider delayDuration={0}>
         <IdeaDetailView idea={seedIdea} onUpdate={updateIdeaMock} />
@@ -289,9 +312,6 @@ describe("Idea pipeline: IdeaDetailView actions", () => {
         "idea-1",
         { stage: "Developing" },
         "Seed",
-      );
-      expect(toastSuccessMock).toHaveBeenCalledWith(
-        "Task created: Test Idea",
       );
     });
   });
