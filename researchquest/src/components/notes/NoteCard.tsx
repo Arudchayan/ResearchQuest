@@ -31,12 +31,16 @@ export const NoteCard = React.memo(function NoteCard({
   return (
     <div
       className={cn(
-        "group min-w-0 border-l-4 p-4 transition-colors",
+        "group relative min-w-0 border-l-4 p-4 transition-colors",
         isSelected
           ? "border-primary-500 bg-primary-50 hover:bg-primary-50"
           : "border-transparent hover:bg-bg-elevated",
       )}
     >
+      <span
+        aria-hidden="true"
+        className="absolute inset-y-1 left-0 w-0.5 origin-left scale-x-0 bg-primary-500 transition-transform duration-fast ease-out group-hover:scale-x-100 group-focus-within:scale-x-100"
+      />
       <div className="mb-1 flex min-w-0 items-start justify-between gap-2">
         <button
           type="button"
