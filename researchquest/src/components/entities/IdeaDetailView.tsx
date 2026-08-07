@@ -13,6 +13,8 @@ import {
   Download,
   Table,
   FileJson,
+  ListTodo,
+  PenLine,
 } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import type { Idea, IdeaStage } from "../../types/database";
@@ -20,7 +22,11 @@ import { toast } from "sonner";
 import { TopicSelector } from "../topics/TopicSelector";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
+import { Button } from "../ui/button";
 import { useNotes } from "../../hooks/useNotes";
+import { useTasks } from "../../hooks/useTasks";
+import { useIdeas } from "../../hooks/useIdeas";
+import { IDEA_STAGES } from "../ideas/ideaStages";
 import { useAppStore } from "../../store/appStore";
 import { performDeepResearch, type DeepResearchData } from "../../utils/deepResearch";
 import { logger } from "../../utils/logger";
@@ -63,6 +69,10 @@ export function IdeaDetailView({
 
   const userId = useAppStore((state) => state.user?.id);
   const { createNote } = useNotes(userId);
+  const { createTask } = useTasks(userId, { owner: false });
+  const { updateIdea } = useIdeas(userId);
+
+  const [pipelineBusy, setPipelineBusy] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -161,6 +171,82 @@ export function IdeaDetailView({
       useAppStore.getState().setCurrentView("notes");
       window.history.pushState(null, "", `/notes/${newNote.id}`);
       window.dispatchEvent(new PopStateEvent("popstate"));
+    }
+  };
+
+  const getNextStage = (stage: IdeaStage): IdeaStage | undefined => {
+    const currentIndex = IDEA_STAGES.findIndex(({ id }) => id === stage);
+    return IDEA_STAGES[currentIndex + 1]?.id;
+  };
+
+  const handlePromoteToTask = async () => {
+    if (pipelineBusy) return;
+    setPipelineBusy(true);
+    try {
+      const task = await createTask({
+        title: idea.title,
+        description: idea.description?.slice(0, 1000),
+        priority: "medium",
+        category: "Research",
+        completed: false,
+      });
+
+      if (!task) {
+        toast.error("Failed to create task");
+        return;
+      }
+
+      if (idea.stage !== "Mature") {
+        const nextStage = getNextStage(idea.stage);
+        if (nextStage) {
+          await updateIdea(idea.id, { stage: nextStage }, idea.stage);
+        }
+      }
+    } finally {
+      if (isMounted.current) {
+        setPipelineBusy(false);
+      }
+    }
+  };
+
+  const handleStartWriting = async () => {
+    if (pipelineBusy) return;
+    setPipelineBusy(true);
+    try {
+      const descriptionQuote = idea.description
+        ? `\n\n> ${idea.description}`
+        : "";
+      const newNote = await createNote({
+        title: idea.title,
+        markdown_body: `# ${idea.title}${descriptionQuote}\n`,
+        tags: ["draft"],
+      });
+
+      if (!newNote) {
+        toast.error("Failed to create draft note");
+        return;
+      }
+
+      const task = await createTask({
+        title: `Draft: ${idea.title}`,
+        priority: "medium",
+        category: "Writing",
+        completed: false,
+      });
+
+      if (!task) {
+        toast.error("Failed to create writing task");
+      }
+
+      useAppStore.getState().setSelectedNote(newNote);
+      useAppStore.getState().setSelectedIdea(null);
+      useAppStore.getState().setCurrentView("notes");
+      window.history.pushState(null, "", `/notes/${newNote.id}`);
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    } finally {
+      if (isMounted.current) {
+        setPipelineBusy(false);
+      }
     }
   };
 
@@ -315,7 +401,28 @@ export function IdeaDetailView({
                     </Tooltip>
                   </>
                 ) : (
-                  <div className="flex items-center gap-2 md:self-start">
+                  <div className="flex flex-wrap items-center gap-2 md:self-start">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void handlePromoteToTask()}
+                      disabled={pipelineBusy}
+                    >
+                      <ListTodo className="w-4 h-4" aria-hidden="true" />
+                      Promote to task
+                    </Button>
+                    {idea.stage === "Mature" && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => void handleStartWriting()}
+                        disabled={pipelineBusy}
+                      >
+                        <PenLine className="w-4 h-4" aria-hidden="true" />
+                        Start writing
+                      </Button>
+                    )}
                     <DropdownMenu.Root>
                       <Tooltip>
                         <TooltipTrigger asChild>

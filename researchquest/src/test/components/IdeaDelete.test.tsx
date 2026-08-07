@@ -21,6 +21,8 @@ vi.mock("lucide-react", () => ({
   FileText: () => <span>FileTextIcon</span>,
   Search: () => <span>SearchIcon</span>,
   Loader: () => <span>LoaderIcon</span>,
+  ListTodo: () => <span>ListTodoIcon</span>,
+  PenLine: () => <span>PenLineIcon</span>,
 }));
 
 // Mock sub-components
