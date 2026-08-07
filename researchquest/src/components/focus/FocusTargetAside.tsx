@@ -1,4 +1,4 @@
-import type { ComponentType } from "react";
+import type { LucideIcon } from "lucide-react";
 import { ChevronDown, ChevronRight, Sparkles } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
 import { Button } from "../ui/button";
@@ -22,7 +22,7 @@ interface QuickTargetGroup {
   type: FocusTargetType;
   title: string;
   description: string;
-  icon: ComponentType<{ className?: string }>;
+  icon: LucideIcon;
   items: QuickTargetItem[];
 }
 

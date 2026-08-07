@@ -72,6 +72,7 @@ describe("FocusWorkspace", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
+    window.localStorage.clear();
 
     const storeMock = (selector: any) => {
       return vi.fn();
@@ -164,5 +165,77 @@ describe("FocusWorkspace", () => {
       "Focus session complete!",
       expect.objectContaining({ body: expect.stringContaining("My Note") }),
     );
+  });
+
+  it("restores a running session with accurate elapsed time after remount", async () => {
+    const { unmount } = render(<FocusWorkspace userId={userId} />);
+    fireEvent.click(screen.getByText("My Note"));
+    fireEvent.click(screen.getByText("Start focus"));
+
+    await act(async () => {
+      vi.advanceTimersByTime(5 * 60 * 1000);
+    });
+    expect(screen.getByText("20:00")).toBeInTheDocument();
+
+    unmount();
+
+    // Timer keeps "running" (wall clock) while the component is unmounted.
+    await act(async () => {
+      vi.advanceTimersByTime(2 * 60 * 1000);
+    });
+
+    const { getByText } = render(<FocusWorkspace userId={userId} />);
+    expect(getByText("18:00")).toBeInTheDocument();
+
+    // The restored session is still running and ticks down.
+    await act(async () => {
+      vi.advanceTimersByTime(60 * 1000);
+    });
+    expect(getByText("17:00")).toBeInTheDocument();
+  });
+
+  it("completes a session that ended while away, awarding XP only once", async () => {
+    const { unmount } = render(<FocusWorkspace userId={userId} />);
+    fireEvent.click(screen.getByText("My Note"));
+    fireEvent.click(screen.getByText("Start focus"));
+
+    unmount();
+
+    await act(async () => {
+      vi.advanceTimersByTime(30 * 60 * 1000);
+    });
+
+    const { unmount: unmountAgain } = render(
+      <FocusWorkspace userId={userId} />,
+    );
+    expect(awardXP).toHaveBeenCalledTimes(1);
+    expect(awardXP).toHaveBeenCalledWith(userId, 50, "complete_focus_session");
+
+    // A further remount must not re-award XP for the same session.
+    unmountAgain();
+    render(<FocusWorkspace userId={userId} />);
+    expect(awardXP).toHaveBeenCalledTimes(1);
+  });
+
+  it("resets clear the persisted session", async () => {
+    const { unmount } = render(<FocusWorkspace userId={userId} />);
+    fireEvent.click(screen.getByText("My Note"));
+    fireEvent.click(screen.getByText("Start focus"));
+
+    unmount();
+    await act(async () => {
+      vi.advanceTimersByTime(5 * 60 * 1000);
+    });
+
+    const { getByText, unmount: unmountAgain } = render(
+      <FocusWorkspace userId={userId} />,
+    );
+    expect(getByText("20:00")).toBeInTheDocument();
+    fireEvent.click(getByText("Reset"));
+
+    unmountAgain();
+    const next = render(<FocusWorkspace userId={userId} />);
+    expect(next.getByText("25:00")).toBeInTheDocument();
+    expect(next.getByText("Start focus")).toBeInTheDocument();
   });
 });
