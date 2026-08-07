@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Clock,
   Play,
@@ -45,8 +45,13 @@ import {
   extractNotePreview,
   extractPaperPreview,
   extractTaskPreview,
+  loadStoredFocusSession,
+  saveFocusSession,
+  clearStoredFocusSession,
 } from "./focusUtils";
 import { FocusTargetAside } from "./FocusTargetAside";
+
+const DEFAULT_SESSION_LENGTH = 25 * 60;
 
 interface FocusWorkspaceProps {
   userId: string | undefined;
@@ -61,14 +66,35 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   const setSelectedNote = useAppStore((state) => state.setSelectedNote);
   const setSelectedPaper = useAppStore((state) => state.setSelectedPaper);
 
+  const [restoredSession] = useState(loadStoredFocusSession);
+
   const [selectedTarget, setSelectedTarget] = useState<SelectedTarget | null>(
-    null,
+    restoredSession?.selectedTarget ?? null,
   );
-  const [sessionLength, setSessionLength] = useState(25 * 60);
-  const [timeLeft, setTimeLeft] = useState(sessionLength);
-  const [isRunning, setIsRunning] = useState(false);
+  const [sessionLength, setSessionLength] = useState(
+    restoredSession?.sessionLength ?? DEFAULT_SESSION_LENGTH,
+  );
+  const [timeLeft, setTimeLeft] = useState(() => {
+    if (!restoredSession) return DEFAULT_SESSION_LENGTH;
+    if (restoredSession.isRunning && restoredSession.startedAt !== null) {
+      return Math.max(
+        0,
+        restoredSession.sessionLength -
+          Math.floor((Date.now() - restoredSession.startedAt) / 1000),
+      );
+    }
+    return restoredSession.timeLeft;
+  });
+  const [isRunning, setIsRunning] = useState(
+    restoredSession?.isRunning ?? false,
+  );
+  const [startedAt, setStartedAt] = useState<number | null>(
+    restoredSession?.startedAt ?? null,
+  );
   const [customMinutes, setCustomMinutes] = useState("");
-  const [hasCompletedSession, setHasCompletedSession] = useState(false);
+  const [hasCompletedSession, setHasCompletedSession] = useState(
+    restoredSession?.hasCompletedSession ?? false,
+  );
   const [showOnboarding, setShowOnboarding] = useState(() => {
     if (typeof window === "undefined") {
       return true;
@@ -107,10 +133,80 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   }, [notes, papers, tasks, selectedTarget]);
 
   useEffect(() => {
+    if (restoredSession) return;
     setTimeLeft(sessionLength);
     setIsRunning(false);
+    setStartedAt(null);
     setHasCompletedSession(false);
-  }, [sessionLength, selectedTarget?.id]);
+  }, [sessionLength, selectedTarget?.id, restoredSession]);
+
+  const sessionAwardedRef = useRef(false);
+
+  const completeSession = useCallback(() => {
+    if (sessionAwardedRef.current) return;
+    sessionAwardedRef.current = true;
+
+    setIsRunning(false);
+    setStartedAt(null);
+    setHasCompletedSession(true);
+
+    if (isSoundEnabled) {
+      playTimerCompleteSound();
+    }
+
+    if (isNotificationEnabled) {
+      const targetName = selectedItem
+        ? selectedTarget?.type === "note"
+          ? extractNoteSummary(selectedItem as Note)
+          : selectedTarget?.type === "paper"
+            ? (selectedItem as Paper).title
+            : (selectedItem as Task).title
+        : "Focus Session";
+
+      showTimerCompleteNotification("Focus session complete!", {
+        body: `You completed your session on ${targetName}.`,
+      });
+    }
+
+    if (userId) {
+      const durationMinutes = Math.floor(sessionLength / 60);
+      const xpEarned = durationMinutes * XP_REWARDS.FOCUS_SESSION_MINUTE;
+
+      if (xpEarned > 0) {
+        awardXP(userId, xpEarned, "complete_focus_session");
+        toast.success("Focus session complete!", {
+          description: `You earned ${xpEarned} XP for ${durationMinutes} minutes of focus.`,
+        });
+      }
+
+      void supabase
+        .from("focus_sessions")
+        .insert({
+          user_id: userId,
+          duration_seconds: sessionLength,
+          target_type: selectedTarget?.type ?? null,
+          target_id: selectedTarget?.id ?? null,
+        })
+        .then(({ error }) => {
+          if (error) {
+            logger.error("[RQ] focus_sessions insert failed", error);
+            return;
+          }
+          const { focusSessionSecondsToday, setFocusSessionSecondsToday } =
+            useAppStore.getState();
+          setFocusSessionSecondsToday(
+            focusSessionSecondsToday + sessionLength,
+          );
+        });
+    }
+  }, [
+    userId,
+    isSoundEnabled,
+    isNotificationEnabled,
+    selectedItem,
+    selectedTarget,
+    sessionLength,
+  ]);
 
   useEffect(() => {
     if (!isRunning) return;
@@ -119,59 +215,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           window.clearInterval(timer);
-          setIsRunning(false);
-          setHasCompletedSession(true);
-
-          if (isSoundEnabled) {
-            playTimerCompleteSound();
-          }
-
-          if (isNotificationEnabled) {
-            const targetName = selectedItem
-              ? selectedTarget?.type === "note"
-                ? extractNoteSummary(selectedItem as Note)
-                : selectedTarget?.type === "paper"
-                  ? (selectedItem as Paper).title
-                  : (selectedItem as Task).title
-              : "Focus Session";
-
-            showTimerCompleteNotification("Focus session complete!", {
-              body: `You completed your session on ${targetName}.`,
-            });
-          }
-
-          if (userId) {
-            const durationMinutes = Math.floor(sessionLength / 60);
-            const xpEarned = durationMinutes * XP_REWARDS.FOCUS_SESSION_MINUTE;
-
-            if (xpEarned > 0) {
-              awardXP(userId, xpEarned, "complete_focus_session");
-              toast.success("Focus session complete!", {
-                description: `You earned ${xpEarned} XP for ${durationMinutes} minutes of focus.`,
-              });
-            }
-
-            void supabase
-              .from("focus_sessions")
-              .insert({
-                user_id: userId,
-                duration_seconds: sessionLength,
-                target_type: selectedTarget?.type ?? null,
-                target_id: selectedTarget?.id ?? null,
-              })
-              .then(({ error }) => {
-                if (error) {
-                  logger.error("[RQ] focus_sessions insert failed", error);
-                  return;
-                }
-                const { focusSessionSecondsToday, setFocusSessionSecondsToday } =
-                  useAppStore.getState();
-                setFocusSessionSecondsToday(
-                  focusSessionSecondsToday + sessionLength,
-                );
-              });
-          }
-
+          completeSession();
           return 0;
         }
         return prev - 1;
@@ -179,15 +223,14 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     }, 1000);
 
     return () => window.clearInterval(timer);
-  }, [
-    isRunning,
-    sessionLength,
-    userId,
-    isSoundEnabled,
-    isNotificationEnabled,
-    selectedItem,
-    selectedTarget,
-  ]);
+  }, [isRunning, completeSession]);
+
+  useEffect(() => {
+    if (hasCompletedSession || !restoredSession?.isRunning || timeLeft > 0) {
+      return;
+    }
+    completeSession();
+  }, [hasCompletedSession, restoredSession, timeLeft, completeSession]);
 
   const isLoading = notesLoading || papersLoading || tasksLoading;
   const effectiveTimeLeft = Math.max(0, timeLeft);
@@ -198,6 +241,35 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     effectiveTimeLeft < sessionLength;
   const progress =
     sessionLength > 0 ? (sessionLength - effectiveTimeLeft) / sessionLength : 0;
+
+  useEffect(() => {
+    const hasActiveSession =
+      isRunning ||
+      hasCompletedSession ||
+      (selectedTarget !== null && effectiveTimeLeft < sessionLength);
+
+    if (!hasActiveSession) {
+      clearStoredFocusSession();
+      return;
+    }
+
+    saveFocusSession({
+      version: 1,
+      selectedTarget,
+      sessionLength,
+      isRunning,
+      startedAt: isRunning ? startedAt : null,
+      timeLeft: effectiveTimeLeft,
+      hasCompletedSession,
+    });
+  }, [
+    isRunning,
+    startedAt,
+    hasCompletedSession,
+    selectedTarget,
+    sessionLength,
+    effectiveTimeLeft,
+  ]);
 
   const quickTargets = useMemo(() => {
     return [
@@ -343,23 +415,31 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   };
 
   const handleTargetSelection = (target: SelectedTarget) => {
+    sessionAwardedRef.current = false;
     setSelectedTarget(target);
     setHasCompletedSession(false);
     setIsRunning(false);
+    setStartedAt(null);
     setTimeLeft(sessionLength);
   };
 
   const toggleTimer = () => {
-    setIsRunning((prev) => {
-      if (!prev) {
-        // Starting
-        warmupAudio();
-        if (isNotificationEnabled) {
-          requestNotificationPermission();
-        }
-      }
-      return !prev;
-    });
+    if (isRunning) {
+      setIsRunning(false);
+      setStartedAt(null);
+      return;
+    }
+    if (hasCompletedSession || timeLeft <= 0) {
+      setTimeLeft(sessionLength);
+      setHasCompletedSession(false);
+    }
+    sessionAwardedRef.current = false;
+    warmupAudio();
+    if (isNotificationEnabled) {
+      requestNotificationPermission();
+    }
+    setStartedAt(Date.now());
+    setIsRunning(true);
   };
 
   const handleOpenInWorkspace = () => {
@@ -420,7 +500,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
             </div>
           </div>
           <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-caption text-text-tertiary">
+            <p className="text-small text-text-tertiary">
               Reopen this guide from the session controls at any time.
             </p>
             <Button
@@ -593,8 +673,10 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                     variant="outline"
                     size="lg"
                     onClick={() => {
+                      sessionAwardedRef.current = false;
                       setTimeLeft(sessionLength);
                       setIsRunning(false);
+                      setStartedAt(null);
                       setHasCompletedSession(false);
                     }}
                   >
