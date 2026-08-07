@@ -399,9 +399,10 @@ export function RightSidebar() {
                   Loading...
                 </div>
               ) : backlinks.length === 0 ? (
-                <div className="text-caption text-text-tertiary">
-                  No items link to this yet. Link from notes or ideas to create
-                  connections.
+                <div className="text-center py-6 text-text-tertiary">
+                  <Link2 className="w-8 h-8 mx-auto mb-2 opacity-50" aria-hidden="true" />
+                  <p className="text-small font-semibold text-text-secondary">No backlinks yet</p>
+                  <p className="text-caption mt-1">Link from other items to create connections.</p>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -461,8 +462,10 @@ export function RightSidebar() {
                   Loading...
                 </div>
               ) : relatedItems.length === 0 ? (
-                <div className="text-caption text-text-tertiary">
-                  No related items found. Add topics to discover connections.
+                <div className="text-center py-6 text-text-tertiary">
+                  <Hash className="w-8 h-8 mx-auto mb-2 opacity-50" aria-hidden="true" />
+                  <p className="text-small font-semibold text-text-secondary">No related items</p>
+                  <p className="text-caption mt-1">Add topics to discover connections.</p>
                 </div>
               ) : (
                 <div className="space-y-2">
