@@ -55,6 +55,7 @@ describe("NoteCard Accessibility", () => {
 
     fireEvent.click(deleteButton);
     expect(onDelete).toHaveBeenCalledWith(mockNote.id);
+    expect(onSelect).not.toHaveBeenCalled();
   });
 
   it("is keyboard accessible and has correct role", () => {
@@ -70,18 +71,15 @@ describe("NoteCard Accessibility", () => {
       </TooltipProvider>,
     );
 
-    // Should fail if role="button" or aria-label is missing on the card container
+    // The title is the focusable trigger; the card container stays non-interactive
     const card = screen.getByRole("button", {
-      name: /Select note: Test Note/i,
+      name: /Open note: Test Note/i,
     });
     expect(card).toBeInTheDocument();
-    expect(card).toHaveAttribute("tabIndex", "0");
+    expect(card).toHaveAttribute("data-note-card", mockNote.id);
 
-    // Test Keyboard interaction
-    fireEvent.keyDown(card, { key: "Enter" });
-    expect(onSelect).toHaveBeenCalledWith(mockNote);
-
-    fireEvent.keyDown(card, { key: " " });
+    // Buttons activate with Enter/Space natively, which resolves to a click event
+    fireEvent.click(card);
     expect(onSelect).toHaveBeenCalledWith(mockNote);
   });
 

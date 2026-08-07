@@ -28,29 +28,10 @@ export const PaperCard = React.memo(function PaperCard({
   highlightQuery = "",
   onSelect,
 }: PaperCardProps) {
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.target !== e.currentTarget) return;
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      onSelect(paper);
-    }
-  };
-
-  const handleDoiClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    e.stopPropagation();
-  };
-
   const displayTitle = paper.title || "Untitled";
 
   return (
-    <Card
-      role="button"
-      tabIndex={0}
-      aria-label={`Select paper: ${displayTitle}`}
-      onClick={() => onSelect(paper)}
-      onKeyDown={handleKeyDown}
-      className="group min-w-0 cursor-pointer p-5 transition-colors hover:border-border-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
-    >
+    <Card className="group min-w-0 p-5 transition-colors hover:border-border-strong">
       <div className="mb-4 flex min-w-0 items-start justify-between gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-control border border-border-subtle bg-bg-elevated text-text-primary">
           <BookOpen className="h-5 w-5" aria-hidden="true" />
@@ -60,18 +41,24 @@ export const PaperCard = React.memo(function PaperCard({
             href={`https://doi.org/${paper.doi}`}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={handleDoiClick}
             aria-label={`Open DOI for ${displayTitle}`}
-            className="inline-flex min-h-11 shrink-0 items-center gap-1 text-caption text-text-tertiary transition-colors hover:text-primary-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+            className="inline-flex min-h-11 shrink-0 items-center gap-1 text-small text-text-tertiary transition-colors hover:text-primary-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
           >
             DOI <ExternalLink className="h-3 w-3" aria-hidden="true" />
           </a>
         )}
       </div>
 
-      <h3 className="mb-2 line-clamp-2 break-words font-semibold text-text-primary">
-        {paper.title ? highlightMatch(paper.title, highlightQuery) : displayTitle}
-      </h3>
+      <button
+        type="button"
+        aria-label={`Open paper: ${displayTitle}`}
+        onClick={() => onSelect(paper)}
+        className="mb-2 block min-w-0 cursor-pointer rounded-sm text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+      >
+        <h3 className="line-clamp-2 break-words text-body-lg font-semibold text-text-primary">
+          {paper.title ? highlightMatch(paper.title, highlightQuery) : displayTitle}
+        </h3>
+      </button>
 
       <p className="line-clamp-2 break-words text-small text-text-secondary">
         {paper.authors && paper.authors.length > 0
