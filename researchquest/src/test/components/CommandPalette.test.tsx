@@ -73,6 +73,19 @@ describe("CommandPalette", () => {
     });
   });
 
+  it("fix: does not open when Cmd+K is pressed while an editable target has focus", async () => {
+    render(<CommandPalette />);
+
+    fireEvent.keyDown(document.createElement("textarea"), {
+      key: "k",
+      metaKey: true,
+    });
+
+    expect(
+      screen.queryByPlaceholderText("Type a command or search..."),
+    ).not.toBeInTheDocument();
+  });
+
   it("keeps the palette within the 320px reflow width and exposes a visible focus ring", async () => {
     render(<CommandPalette />);
     fireEvent.keyDown(document, { key: "k", metaKey: true });

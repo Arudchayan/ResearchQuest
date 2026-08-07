@@ -67,17 +67,19 @@ export function CommandPalette() {
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isEditable =
+        !!target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable);
+
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
+        if (isEditable) return;
         e.preventDefault();
         setOpen((open) => !open);
       } else if (e.key === "/") {
-        const target = e.target as HTMLElement;
-        const isInput =
-          target.tagName === "INPUT" ||
-          target.tagName === "TEXTAREA" ||
-          target.isContentEditable;
-
-        if (!isInput) {
+        if (!isEditable) {
           e.preventDefault();
           setOpen((open) => !open);
         }
