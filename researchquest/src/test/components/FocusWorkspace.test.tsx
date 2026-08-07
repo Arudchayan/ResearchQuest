@@ -1,12 +1,17 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, act, fireEvent } from "@testing-library/react";
+import { StrictMode } from "react";
 import { FocusWorkspace } from "../../components/focus/FocusWorkspace";
 import { useAppStore } from "../../store/appStore";
+
+const { supabaseInsert } = vi.hoisted(() => ({
+  supabaseInsert: vi.fn().mockResolvedValue({ error: null }),
+}));
 
 vi.mock("../../lib/supabase", () => ({
   supabase: {
     from: () => ({
-      insert: vi.fn().mockResolvedValue({ error: null }),
+      insert: supabaseInsert,
     }),
   },
 }));
@@ -18,6 +23,10 @@ import {
   requestNotificationPermission,
   warmupAudio,
 } from "../../utils/alerts";
+import {
+  saveFocusSession,
+  FOCUS_SESSION_STORAGE_KEY,
+} from "../../components/focus/focusUtils";
 
 // Mock alerts
 vi.mock("../../utils/alerts", () => ({
@@ -210,11 +219,13 @@ describe("FocusWorkspace", () => {
     );
     expect(awardXP).toHaveBeenCalledTimes(1);
     expect(awardXP).toHaveBeenCalledWith(userId, 50, "complete_focus_session");
+    expect(supabaseInsert).toHaveBeenCalledTimes(1);
 
     // A further remount must not re-award XP for the same session.
     unmountAgain();
     render(<FocusWorkspace userId={userId} />);
     expect(awardXP).toHaveBeenCalledTimes(1);
+    expect(supabaseInsert).toHaveBeenCalledTimes(1);
   });
 
   it("resets clear the persisted session", async () => {
@@ -237,5 +248,67 @@ describe("FocusWorkspace", () => {
     const next = render(<FocusWorkspace userId={userId} />);
     expect(next.getByText("25:00")).toBeInTheDocument();
     expect(next.getByText("Start focus")).toBeInTheDocument();
+  });
+
+  it("StrictMode double-mount keeps a restored running session intact and awards XP exactly once", async () => {
+    // Seed a running session that started 5 minutes ago.
+    saveFocusSession({
+      version: 1,
+      selectedTarget: { type: "note", id: "note-1" },
+      sessionLength: 25 * 60,
+      isRunning: true,
+      startedAt: Date.now() - 5 * 60 * 1000,
+      timeLeft: 20 * 60,
+      hasCompletedSession: false,
+    });
+
+    const { unmount, getByText } = render(
+      <StrictMode>
+        <FocusWorkspace userId={userId} />
+      </StrictMode>,
+    );
+
+    // The second StrictMode setup must not wipe the restored session.
+    expect(getByText("20:00")).toBeInTheDocument();
+
+    // Storage must still hold the running session after the double-mount.
+    const stored = JSON.parse(
+      window.localStorage.getItem(FOCUS_SESSION_STORAGE_KEY)!,
+    );
+    expect(stored.isRunning).toBe(true);
+    expect(stored.timeLeft).toBe(20 * 60);
+
+    // The restored timer continues ticking.
+    await act(async () => {
+      vi.advanceTimersByTime(60 * 1000);
+    });
+    expect(getByText("19:00")).toBeInTheDocument();
+
+    // Complete the session while away, then remount in StrictMode.
+    unmount();
+    await act(async () => {
+      vi.advanceTimersByTime(30 * 60 * 1000);
+    });
+
+    const { unmount: unmountAgain } = render(
+      <StrictMode>
+        <FocusWorkspace userId={userId} />
+      </StrictMode>,
+    );
+
+    // StrictMode double-invokes effects, but XP + insert must fire exactly once.
+    expect(awardXP).toHaveBeenCalledTimes(1);
+    expect(awardXP).toHaveBeenCalledWith(userId, 50, "complete_focus_session");
+    expect(supabaseInsert).toHaveBeenCalledTimes(1);
+
+    // A further remount must not re-award the same completed session.
+    unmountAgain();
+    render(
+      <StrictMode>
+        <FocusWorkspace userId={userId} />
+      </StrictMode>,
+    );
+    expect(awardXP).toHaveBeenCalledTimes(1);
+    expect(supabaseInsert).toHaveBeenCalledTimes(1);
   });
 });

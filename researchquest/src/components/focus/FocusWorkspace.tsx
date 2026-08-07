@@ -132,20 +132,20 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     return null;
   }, [notes, papers, tasks, selectedTarget]);
 
-  const hasHydrated = useRef(false);
-
   useEffect(() => {
-    if (!hasHydrated.current) {
-      hasHydrated.current = true;
-      return;
-    }
+    if (restoredSession) return;
     setTimeLeft(sessionLength);
     setIsRunning(false);
     setStartedAt(null);
     setHasCompletedSession(false);
-  }, [sessionLength, selectedTarget?.id]);
+  }, [sessionLength, selectedTarget?.id, restoredSession]);
+
+  const sessionAwardedRef = useRef(false);
 
   const completeSession = useCallback(() => {
+    if (sessionAwardedRef.current) return;
+    sessionAwardedRef.current = true;
+
     setIsRunning(false);
     setStartedAt(null);
     setHasCompletedSession(true);
@@ -415,6 +415,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   };
 
   const handleTargetSelection = (target: SelectedTarget) => {
+    sessionAwardedRef.current = false;
     setSelectedTarget(target);
     setHasCompletedSession(false);
     setIsRunning(false);
@@ -432,6 +433,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
       setTimeLeft(sessionLength);
       setHasCompletedSession(false);
     }
+    sessionAwardedRef.current = false;
     warmupAudio();
     if (isNotificationEnabled) {
       requestNotificationPermission();
@@ -671,6 +673,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                     variant="outline"
                     size="lg"
                     onClick={() => {
+                      sessionAwardedRef.current = false;
                       setTimeLeft(sessionLength);
                       setIsRunning(false);
                       setStartedAt(null);
