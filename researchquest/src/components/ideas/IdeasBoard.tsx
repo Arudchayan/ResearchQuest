@@ -13,6 +13,7 @@ import {
   ArrowUpDown,
   ArrowLeft,
   ArrowRight,
+  ListTodo,
 } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
@@ -20,6 +21,7 @@ import { useAppStore } from "../../store/appStore";
 import { useShallow } from "zustand/react/shallow";
 import { highlightMatch } from "../../utils/highlight";
 import { useIdeas } from "../../hooks/useIdeas";
+import { useTasks } from "../../hooks/useTasks";
 import { IdeaDetailView } from "../entities/IdeaDetailView";
 import type { IdeaStage, Idea } from "../../types/database";
 import { cn } from "../../lib/utils";
@@ -75,10 +77,12 @@ export function IdeasBoard() {
     })),
   );
   const { createIdea, updateIdea, deleteIdea, restoreIdea } = useIdeas(userId);
+  const { createTask } = useTasks(userId, { owner: false });
   const reduceMotion = useReducedMotion() === true;
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [updatingIdeaId, setUpdatingIdeaId] = useState<string | null>(null);
+  const [promotingIdeaId, setPromotingIdeaId] = useState<string | null>(null);
   const [newIdeaTitle, setNewIdeaTitle] = useState("");
   const [newIdeaDesc, setNewIdeaDesc] = useState("");
   const [ideaToDelete, setIdeaToDelete] = useState<Idea | null>(null);
@@ -251,6 +255,41 @@ export function IdeasBoard() {
     const currentIndex = IDEA_STAGES.findIndex(({ id }) => id === idea.stage);
     const nextStage = IDEA_STAGES[currentIndex + 1]?.id;
     if (nextStage) await updateIdeaStage(idea, nextStage);
+  };
+
+  const handlePromoteToTask = async (event: React.MouseEvent, idea: Idea) => {
+    event.stopPropagation();
+    if (promotingIdeaId) return;
+
+    setPromotingIdeaId(idea.id);
+    try {
+      const task = await createTask({
+        title: idea.title,
+        description: idea.description,
+        priority: "medium",
+        category: "Research",
+        completed: false,
+      });
+
+      if (!task) {
+        toast.error("Failed to create task");
+        return;
+      }
+
+      toast.success(`Task created: ${idea.title}`);
+
+      if (idea.stage !== "Mature") {
+        const currentIndex = IDEA_STAGES.findIndex(
+          ({ id }) => id === idea.stage,
+        );
+        const nextStage = IDEA_STAGES[currentIndex + 1]?.id;
+        if (nextStage) {
+          await updateIdea(idea.id, { stage: nextStage }, idea.stage);
+        }
+      }
+    } finally {
+      setPromotingIdeaId(null);
+    }
   };
 
   const confirmDelete = async () => {
@@ -527,6 +566,17 @@ export function IdeasBoard() {
                                     Advance <ArrowRight aria-hidden="true" className="h-3 w-3" />
                                   </Button>
                                 )}
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={(event) => void handlePromoteToTask(event, idea)}
+                                  disabled={promotingIdeaId === idea.id}
+                                  className="shrink-0"
+                                >
+                                  <ListTodo aria-hidden="true" className="h-3 w-3" />
+                                  Promote to task
+                                </Button>
                               </div>
                             </MotionCard>
                           ))}
