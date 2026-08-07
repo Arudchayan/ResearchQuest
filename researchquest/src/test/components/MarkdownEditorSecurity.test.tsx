@@ -59,6 +59,7 @@ vi.mock("@codemirror/view", () => ({
   EditorView: {
     lineWrapping: {},
     theme: vi.fn(),
+    contentAttributes: { of: vi.fn(() => ({})) },
   },
   keymap: {
     of: (bindings: Array<{ key: string; run: () => boolean }>) => {

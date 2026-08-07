@@ -44,6 +44,7 @@ export default function EditorContent({
   const extensions = useMemo(
     () => [
       markdown(),
+      EditorView.contentAttributes.of({ "aria-label": "Note editor" }),
       EditorView.lineWrapping,
       keymap.of([
         { key: "Mod-b", run: () => { applyFormatting("bold"); return true; } },
@@ -91,7 +92,13 @@ export default function EditorContent({
 
       <div className={`${viewMode === "split" ? "lg:w-2/5" : "w-full"} ${viewMode === "edit" ? "hidden" : "block"} h-full min-h-0 overflow-auto bg-bg-base p-4 sm:p-6`}>
         <div ref={previewRef} className="prose prose-sm max-w-none dark:prose-invert">
-          <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS}>
+          <ReactMarkdown
+            remarkPlugins={REMARK_PLUGINS}
+            rehypePlugins={REHYPE_PLUGINS}
+            components={{
+              pre: (props) => <pre {...props} tabIndex={0} />,
+            }}
+          >
             {debouncedContent || "*Start typing to see preview...*"}
           </ReactMarkdown>
         </div>

@@ -150,6 +150,7 @@ export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
           </label>
           <div className="flex gap-2">
             <select
+              aria-label="Add an existing topic"
               className="flex-1 rounded-control border border-border-subtle bg-bg-base px-3 py-2 text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-focus"
               onChange={(event) => {
                 const topic = topicsMap.get(event.target.value);

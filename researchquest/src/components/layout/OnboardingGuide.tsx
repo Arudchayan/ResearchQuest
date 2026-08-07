@@ -78,9 +78,9 @@ export function OnboardingGuide({
               <p className="text-caption font-semibold uppercase tracking-wide text-primary-500">
                 Welcome to ResearchQuest
               </p>
-              <h2 className="text-body-lg font-semibold text-text-primary">
+              <p className="text-body-lg font-semibold text-text-primary">
                 {currentStep.title}
-              </h2>
+              </p>
             </div>
             <Button
               type="button"
