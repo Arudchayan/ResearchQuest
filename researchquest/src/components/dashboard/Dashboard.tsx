@@ -42,6 +42,9 @@ const taskPriorityBadgeVariants = {
   low: "priority-low",
 } satisfies Record<Task["priority"], BadgeVariant>;
 
+const formatCount = (count: number, singular: string) =>
+  `${count} ${count === 1 ? singular : `${singular}s`}`;
+
 export function Dashboard() {
   // ⚡ PERFORMANCE OPTIMIZATION:
   // Using useShallow to prevent unnecessary re-renders of the entire Dashboard
@@ -520,7 +523,7 @@ export function Dashboard() {
                         </span>
                       </div>
                       <span className="shrink-0 font-mono text-caption text-text-tertiary">
-                        {topic.note_count + topic.paper_count + topic.idea_count} items
+                        {formatCount(topic.note_count + topic.paper_count + topic.idea_count, "item")}
                       </span>
                     </button>
                   </Card>
@@ -590,7 +593,7 @@ export function Dashboard() {
                       </div>
                       <div className="min-w-0">
                         <h3 className="truncate font-medium text-text-primary">{paper.title}</h3>
-                        <p className="mt-0.5 truncate text-caption text-text-secondary">
+                        <p className="mt-0.5 truncate text-small text-text-secondary">
                           {paper.authors?.join(", ") || "Unknown Author"}
                         </p>
                       </div>
@@ -717,7 +720,9 @@ export function Dashboard() {
                   <Flame className="h-4 w-4" aria-hidden="true" />
                   <span className="text-caption uppercase tracking-widest">Day streak</span>
                 </div>
-                <p className="mb-1 font-mono text-subtitle font-bold text-text-primary">{stats.streak} days</p>
+                <p className="mb-1 font-mono text-subtitle font-bold text-text-primary">
+                  {formatCount(stats.streak, "day")}
+                </p>
                 <p className="text-small text-text-secondary">Keep it up to earn bonus XP.</p>
               </div>
             </Card>
@@ -730,7 +735,8 @@ export function Dashboard() {
                 <p className="mb-1 font-mono text-subtitle font-bold text-text-primary">{focusMinutesToday} min</p>
                 <p className="text-small text-text-secondary">
                   <span className="font-mono">{pendingTaskCount}</span> pending ·{" "}
-                  <span className="font-mono">{completedTaskCount}</span> completed tasks
+                  <span className="font-mono">{completedTaskCount}</span> completed{" "}
+                  {completedTaskCount === 1 ? "task" : "tasks"}
                 </p>
               </div>
             </Card>
