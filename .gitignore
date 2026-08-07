@@ -19,3 +19,5 @@ researchquest/.jules/
 # Generated audit reports from portfolio expert cron jobs
 researchquest/UI_UX_AUDIT.md
 *.audit-report.md
+
+node_modules/

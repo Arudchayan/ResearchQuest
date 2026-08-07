@@ -39,22 +39,22 @@ export const NoteCard = React.memo(function NoteCard({
       role="button"
       tabIndex={0}
       aria-label={`Select note: ${note.title || "Untitled Note"}`}
+      aria-current={isSelected ? "true" : undefined}
+      data-note-card={note.id}
       onClick={() => onSelect(note)}
       onKeyDown={handleKeyDown}
       className={cn(
-        "group p-4 cursor-pointer hover:bg-white dark:hover:bg-slate-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500",
+        "group min-w-0 cursor-pointer border-l-4 p-4 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-[-2px]",
         isSelected
-          ? "bg-white dark:bg-slate-800 border-l-4 border-blue-500"
-          : "border-l-4 border-transparent",
+          ? "border-primary-500 bg-primary-50 hover:bg-primary-50"
+          : "border-transparent hover:bg-bg-elevated",
       )}
     >
-      <div className="flex items-start justify-between mb-1">
+      <div className="mb-1 flex min-w-0 items-start justify-between gap-2">
         <h3
           className={cn(
-            "font-medium truncate pr-2",
-            !note.title
-              ? "text-slate-400 italic"
-              : "text-slate-900 dark:text-slate-100",
+            "min-w-0 flex-1 truncate text-small font-medium",
+            !note.title ? "italic text-text-tertiary" : "text-text-primary",
           )}
         >
           {note.title ? highlightMatch(note.title, highlightQuery) : "Untitled Note"}
@@ -64,9 +64,9 @@ export const NoteCard = React.memo(function NoteCard({
             <button
               onClick={handleDelete}
               aria-label="Delete note"
-              className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 text-slate-400 hover:text-red-500 transition-all focus:outline-none focus:ring-2 focus:ring-red-500 rounded"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-control p-1 text-text-tertiary transition-colors hover:bg-destructive-bg hover:text-destructive focus:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-destructive focus-visible:outline-offset-2 md:min-h-0 md:min-w-0 md:opacity-0 md:group-focus-within:opacity-100 md:group-hover:opacity-100"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="h-4 w-4" aria-hidden="true" />
             </button>
           </TooltipTrigger>
           <TooltipContent>
@@ -75,16 +75,16 @@ export const NoteCard = React.memo(function NoteCard({
         </Tooltip>
       </div>
 
-      <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mb-2 h-8">
+      <p className="mb-2 line-clamp-2 text-small text-text-secondary">
         {note.markdown_body ? highlightMatch(note.markdown_body, highlightQuery) : "No content..."}
       </p>
 
       {note.tags && note.tags.length > 0 && (
-        <div className="flex flex-wrap gap-1 mb-2">
+        <div className="mb-2 flex flex-wrap gap-1">
           {note.tags.map((tag) => (
             <span
               key={tag}
-              className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700"
+              className="rounded-control border border-border-subtle bg-bg-elevated px-2 py-0.5 text-caption font-medium text-text-secondary"
             >
               #{tag}
             </span>
@@ -92,8 +92,8 @@ export const NoteCard = React.memo(function NoteCard({
         </div>
       )}
 
-      <div className="flex items-center gap-2 text-[10px] text-slate-400">
-        <Clock className="w-3 h-3" />
+      <div className="flex items-center gap-2 text-caption text-text-tertiary">
+        <Clock className="h-3 w-3 shrink-0" aria-hidden="true" />
         <span>
           {formatDistanceToNow(new Date(note.updated_at), { addSuffix: true })}
         </span>

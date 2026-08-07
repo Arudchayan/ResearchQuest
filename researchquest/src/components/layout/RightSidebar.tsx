@@ -12,8 +12,7 @@ import {
   BookOpen,
 } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
-import { useState, useEffect, useMemo, useRef } from "react";
-import type { RealtimeChannel } from "@supabase/supabase-js";
+import { useMemo } from "react";
 import { supabase } from "../../lib/supabase";
 import { useGamificationStore } from "../../store/gamificationStore";
 import { logger } from "../../utils/logger";
@@ -53,13 +52,54 @@ export function RightSidebar() {
     (state) => state.streakFreezeTokens,
   );
   const restDays = useGamificationStore((state) => state.restDays);
-  const [todayXP, setTodayXP] = useState(0);
-  const [weeklyPapers, setWeeklyPapers] = useState(0);
-  const [activeIdeas, setActiveIdeas] = useState(0);
-  const [upcomingDeadlines, setUpcomingDeadlines] = useState<
-    { id: string; title: string; due_date: string }[]
-  >([]);
-  const realtimeChannelsRef = useRef<RealtimeChannel[]>([]);
+  const todayXP = useAppStore((state) => state.todayXP);
+  const storePapers = useAppStore((state) => state.papers);
+  const storeIdeas = useAppStore((state) => state.ideas);
+  const storeTasks = useAppStore((state) => state.tasks);
+
+  const weeklyPapers = useMemo(
+    () => {
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      return storePapers.filter(
+        (p) => new Date(p.created_at) >= weekAgo,
+      ).length;
+    },
+    [storePapers],
+  );
+
+  const activeIdeas = useMemo(
+    () =>
+      storeIdeas.filter((i) =>
+        ["Seed", "Growing", "Blooming"].includes(i.stage),
+      ).length,
+    [storeIdeas],
+  );
+
+  const upcomingDeadlines = useMemo(() => {
+    const now = new Date();
+    const horizon = new Date();
+    horizon.setDate(now.getDate() + 7);
+    return storeTasks
+      .filter((t) => {
+        if (!t.due_date) return false;
+        if ("completed" in t && t.completed) return false;
+        if ("status" in t && (t.status === "completed" || t.status === "done"))
+          return false;
+        const due = new Date(t.due_date);
+        return due >= now && due <= horizon;
+      })
+      .sort(
+        (a, b) =>
+          new Date(a.due_date!).getTime() - new Date(b.due_date!).getTime(),
+      )
+      .slice(0, 5)
+      .map((t) => ({
+        id: t.id,
+        title: t.title,
+        due_date: t.due_date as string,
+      }));
+  }, [storeTasks]);
 
   // Determine current entity
   const currentEntity = selectedNote || selectedPaper || selectedIdea;
@@ -86,233 +126,9 @@ export function RightSidebar() {
     { enabled: isRightSidebarOpen },
   );
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const clearRealtimeChannels = () => {
-      realtimeChannelsRef.current.forEach((channel) => {
-        try {
-          channel.unsubscribe();
-        } catch (error) {
-          logger.error("Failed to unsubscribe from Supabase channel", error);
-        }
-      });
-      realtimeChannelsRef.current = [];
-    };
-
-    const fetchTodayXp = async (userId: string) => {
-      const today = new Date().toISOString().split("T")[0];
-      const { data, error } = await supabase
-        .from("daily_logs")
-        .select("xp_earned")
-        .eq("user_id", userId)
-        .eq("date", today)
-        .maybeSingle();
-
-      if (!isMounted) {
-        return;
-      }
-
-      if (error) {
-        logger.error("Failed to fetch today's XP:", error);
-        return;
-      }
-
-      setTodayXP(data?.xp_earned ?? 0);
-    };
-
-    const fetchWeeklyPapers = async (userId: string) => {
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-
-      const { count, error } = await supabase
-        .from("papers")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", userId)
-        .gte("created_at", weekAgo.toISOString());
-
-      if (!isMounted) {
-        return;
-      }
-
-      if (error) {
-        logger.error("Failed to fetch weekly paper count:", error);
-        return;
-      }
-
-      setWeeklyPapers(count ?? 0);
-    };
-
-    const fetchActiveIdeas = async (userId: string) => {
-      const { count, error } = await supabase
-        .from("ideas")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", userId)
-        .in("stage", ["Seed", "Growing", "Blooming"]);
-
-      if (!isMounted) {
-        return;
-      }
-
-      if (error) {
-        logger.error("Failed to fetch active ideas count:", error);
-        return;
-      }
-
-      setActiveIdeas(count ?? 0);
-    };
-
-    const fetchUpcomingDeadlines = async (userId: string) => {
-      const now = new Date();
-      const horizon = new Date();
-      horizon.setDate(now.getDate() + 7);
-
-      const { data, error } = await supabase
-        .from("tasks")
-        .select("id, title, due_date, completed")
-        .eq("user_id", userId)
-        .eq("completed", false)
-        .not("due_date", "is", null)
-        .gte("due_date", now.toISOString())
-        .lte("due_date", horizon.toISOString())
-        .order("due_date", { ascending: true })
-        .limit(5);
-
-      if (!isMounted) {
-        return;
-      }
-
-      if (error) {
-        logger.error("Failed to load upcoming deadlines:", error);
-        return;
-      }
-
-      const tasks =
-        (data as
-          | { id: string; title: string; due_date: string | null }[]
-          | null) ?? [];
-      setUpcomingDeadlines(
-        tasks
-          .filter((item) => Boolean(item.due_date))
-          .map((item) => ({
-            id: item.id,
-            title: item.title,
-            due_date: item.due_date as string,
-          })),
-      );
-    };
-
-    const syncSnapshot = async (userId: string) => {
-      await Promise.all([
-        fetchTodayXp(userId),
-        fetchWeeklyPapers(userId),
-        fetchActiveIdeas(userId),
-        fetchUpcomingDeadlines(userId),
-      ]);
-    };
-
-    if (!user?.id) {
-      setTodayXP(0);
-      setWeeklyPapers(0);
-      setActiveIdeas(0);
-      setUpcomingDeadlines([]);
-      clearRealtimeChannels();
-      return () => {
-        isMounted = false;
-        clearRealtimeChannels();
-      };
-    }
-
-    // Optimization: Skip fetching and subscriptions if sidebar is closed
-    if (!isRightSidebarOpen) {
-      return () => {
-        isMounted = false;
-        clearRealtimeChannels();
-      };
-    }
-
-    const userId = user.id;
-
-    void syncSnapshot(userId);
-
-    clearRealtimeChannels();
-
-    const logsChannel = supabase
-      .channel("right_sidebar_daily_logs")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "daily_logs",
-          filter: `user_id=eq.${userId}`,
-        },
-        () => {
-          void fetchTodayXp(userId);
-        },
-      )
-      .subscribe();
-
-    const papersChannel = supabase
-      .channel("right_sidebar_papers")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "papers",
-          filter: `user_id=eq.${userId}`,
-        },
-        () => {
-          void fetchWeeklyPapers(userId);
-        },
-      )
-      .subscribe();
-
-    const ideasChannel = supabase
-      .channel("right_sidebar_ideas")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "ideas",
-          filter: `user_id=eq.${userId}`,
-        },
-        () => {
-          void fetchActiveIdeas(userId);
-        },
-      )
-      .subscribe();
-
-    const tasksChannel = supabase
-      .channel("right_sidebar_tasks")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "tasks",
-          filter: `user_id=eq.${userId}`,
-        },
-        () => {
-          void fetchUpcomingDeadlines(userId);
-        },
-      )
-      .subscribe();
-
-    realtimeChannelsRef.current = [
-      logsChannel,
-      papersChannel,
-      ideasChannel,
-      tasksChannel,
-    ];
-
-    return () => {
-      isMounted = false;
-      clearRealtimeChannels();
-    };
-  }, [user?.id, isRightSidebarOpen]);
+  // No realtime subscriptions here — all data is read from the Zustand store
+  // which is kept up to date by useDataSync (daily_logs, papers, ideas) and
+  // useTasks (tasks).
 
   const hasSelection = selectedNote || selectedPaper || selectedIdea;
   const nextDeadline = upcomingDeadlines[0];
@@ -425,7 +241,7 @@ export function RightSidebar() {
   })();
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-y-auto">
+    <div className="flex h-full min-w-0 flex-1 flex-col overflow-y-auto">
       <div className="p-4 space-y-4">
         {!hasSelection ? (
           <div className="text-center py-8 text-text-tertiary">

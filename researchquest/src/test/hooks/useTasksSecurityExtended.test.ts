@@ -82,6 +82,7 @@ describe("useTasks Security Extended", () => {
       expect(useAppStore.getState().tasks).toEqual([fetchedTask]);
       expect(useAppStore.getState().tasksLoading).toBe(false);
     });
+
   });
 
   describe("IDOR Prevention", () => {

@@ -188,25 +188,24 @@ export function useRelatedItems(
     const ideasMap = new Map(ideas.map((i) => [i.id, i]));
 
     for (const link of relatedLinks) {
-      let fullItem: any = null;
       let title = "";
       let updated_at = "";
 
       if (link.type === "note") {
-        fullItem = notesMap.get(link.id);
+        const fullItem = notesMap.get(link.id);
         if (fullItem) {
           title =
             fullItem.title || deriveTitleFromMarkdown(fullItem.markdown_body);
           updated_at = fullItem.updated_at;
         }
       } else if (link.type === "paper") {
-        fullItem = papersMap.get(link.id);
+        const fullItem = papersMap.get(link.id);
         if (fullItem) {
           title = fullItem.title;
           updated_at = fullItem.updated_at;
         }
       } else if (link.type === "idea") {
-        fullItem = ideasMap.get(link.id);
+        const fullItem = ideasMap.get(link.id);
         if (fullItem) {
           title = fullItem.title;
           updated_at = fullItem.updated_at;
@@ -214,7 +213,7 @@ export function useRelatedItems(
       }
 
       // Only include if found in store
-      if (fullItem) {
+      if (title) {
         results.push({
           id: link.id,
           title,

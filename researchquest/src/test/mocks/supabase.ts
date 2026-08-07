@@ -20,7 +20,7 @@ export const mockSupabaseClient = {
     signOut: vi.fn(),
   },
   from: vi.fn(() => {
-    const builder: any = { __count: null };
+    const builder: any = { __count: 0 };
     builder.select = vi
       .fn()
       .mockImplementation(

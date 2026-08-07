@@ -76,7 +76,7 @@ export function useIdeas(userId: string | undefined) {
         const lineSplit = trimmedTitle.split(/\n+/);
         if (lineSplit.length > 1) {
           const [firstLine, ...rest] = lineSplit;
-          if (firstLine.trim()) {
+          if (firstLine?.trim()) {
             inferredDescription = rest.join(" ").trim();
             normalizedTitle = firstLine.trim();
           }
@@ -89,7 +89,7 @@ export function useIdeas(userId: string | undefined) {
           if (trimmedTitle.includes(delimiter)) {
             const [maybeTitle, maybeDescription] =
               trimmedTitle.split(delimiter);
-            if (maybeTitle.trim() && maybeDescription.trim()) {
+            if (maybeTitle?.trim() && maybeDescription?.trim()) {
               normalizedTitle = maybeTitle.trim();
               inferredDescription = maybeDescription.trim();
               break;
@@ -192,7 +192,7 @@ export function useIdeas(userId: string | undefined) {
               ...idea,
               ...updates,
               title: (updates.title ?? idea.title).trim(),
-              description: mergedDescription,
+              ...(mergedDescription !== undefined ? { description: mergedDescription } : {}),
               stage: updates.stage ?? idea.stage,
               linked_note_ids:
                 updates.linked_note_ids ?? idea.linked_note_ids ?? [],

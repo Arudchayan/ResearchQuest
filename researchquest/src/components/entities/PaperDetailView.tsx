@@ -78,7 +78,7 @@ export function PaperDetailView({
         .split(",")
         .map((a) => a.trim())
         .filter(Boolean),
-      abstract: editedAbstract || undefined,
+      ...(editedAbstract ? { abstract: editedAbstract } : {}),
       status: editedStatus,
     };
 
@@ -95,6 +95,15 @@ export function PaperDetailView({
     setEditedAbstract(paper.abstract || "");
     setEditedStatus(paper.status);
     setIsEditing(false);
+  };
+
+  const handleStatusChange = async (status: ReadingStatus) => {
+    const success = await onUpdate(paper.id, { status });
+    if (success) {
+      toast.success(`Marked paper as ${status}`);
+    } else {
+      toast.error("Unable to update the paper status");
+    }
   };
 
   const handleDeleteClick = () => {
@@ -131,11 +140,11 @@ export function PaperDetailView({
   const getStatusColor = (status: ReadingStatus) => {
     switch (status) {
       case "Read":
-        return "bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-300 dark:border-green-700";
+        return "border-success bg-success-bg text-success";
       case "Reading":
-        return "bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-300 dark:border-blue-700";
+        return "border-primary-500 bg-primary-50 text-primary-500 dark:bg-primary-900/20";
       default:
-        return "bg-gray-100 dark:bg-gray-900/20 text-gray-700 dark:text-gray-400 border-gray-300 dark:border-gray-700";
+        return "border-border-moderate bg-bg-elevated text-text-secondary";
     }
   };
 
@@ -191,9 +200,9 @@ export function PaperDetailView({
 
       downloadFile(content, filename, format);
       toast.success(`Exported paper as ${format.toUpperCase()}`);
-    } catch (err: any) {
+    } catch (err) {
       logger.error("Export failed", err);
-      toast.error(err.message || "Failed to export paper");
+      toast.error(err instanceof Error ? err.message : "Failed to export paper");
     }
   };
 
@@ -232,7 +241,7 @@ export function PaperDetailView({
                       <TooltipTrigger asChild>
                         <button
                           onClick={handleSave}
-                          className="p-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors"
+                          className="rounded-control bg-primary-500 p-2 text-bg-base transition-colors hover:bg-primary-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
                           aria-label="Save changes"
                         >
                           <Save className="w-5 h-5" aria-hidden="true" />
@@ -346,7 +355,7 @@ export function PaperDetailView({
                         <TooltipTrigger asChild>
                           <button
                             onClick={handleDeleteClick}
-                            className="p-2 bg-bg-elevated text-red-600 dark:text-red-400 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                            className="rounded-control bg-bg-elevated p-2 text-destructive transition-colors hover:bg-destructive-bg focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
                             aria-label="Delete paper"
                           >
                             <Trash className="w-5 h-5" aria-hidden="true" />
@@ -395,44 +404,22 @@ export function PaperDetailView({
                   }
                   className={`px-4 py-2 rounded-md border text-sm font-medium ${getStatusColor(editedStatus)} focus:outline-none focus:ring-2 focus:ring-primary-500`}
                 >
-                  <option value="To Read">📚 To Read</option>
-                  <option value="Reading">📖 Reading</option>
-                  <option value="Read">✅ Read</option>
+                  <option value="To Read">To Read</option>
+                  <option value="Reading">Reading</option>
+                  <option value="Read">Read</option>
                 </select>
               ) : (
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={() => setIsEditing(true)}
-                        className={`inline-flex items-center px-4 py-2 rounded-md border text-sm font-medium transition-all ${getStatusColor(paper.status)} hover:ring-2 hover:ring-primary-500`}
-                        aria-label="Change status"
-                      >
-                        {paper.status === "To Read" && "📚"}
-                        {paper.status === "Reading" && "📖"}
-                        {paper.status === "Read" && "✅"}
-                        <span className="ml-2">{paper.status}</span>
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent>Click to change status</TooltipContent>
-                  </Tooltip>
-                  <button
-                    onClick={async () => {
-                      // Cycle through statuses
-                      const statusOrder: ReadingStatus[] = [
-                        "To Read",
-                        "Reading",
-                        "Read",
-                      ];
-                      const currentIndex = statusOrder.indexOf(paper.status);
-                      const nextStatus =
-                        statusOrder[(currentIndex + 1) % statusOrder.length];
-                      await onUpdate(paper.id, { status: nextStatus });
-                    }}
-                    className="px-3 py-2 text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 font-medium transition-colors"
+                  <select
+                    aria-label="Change reading status"
+                    className={`rounded-control border px-4 py-2 text-small font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-focus ${getStatusColor(paper.status)}`}
+                    onChange={(event) => void handleStatusChange(event.target.value as ReadingStatus)}
+                    value={paper.status}
                   >
-                    Next →
-                  </button>
+                    <option value="To Read">To Read</option>
+                    <option value="Reading">Reading</option>
+                    <option value="Read">Read</option>
+                  </select>
                 </div>
               )}
               <div className="mt-4 space-y-3">
@@ -442,8 +429,8 @@ export function PaperDetailView({
                 </div>
                 <div className="h-2 bg-bg-base rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-primary-500 via-primary-500 to-primary-600 transition-all"
-                    style={{ width: `${progressPercent}%` }}
+                    className="h-full w-full origin-left bg-primary-500 transition-transform"
+                    style={{ transform: `scaleX(${progressPercent / 100})` }}
                     aria-hidden
                   />
                 </div>
@@ -527,7 +514,7 @@ export function PaperDetailView({
                     href={`https://doi.org/${paper.doi}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors"
+                    className="inline-flex items-center gap-2 rounded-control bg-primary-500 px-4 py-2 text-bg-base transition-colors hover:bg-primary-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
                   >
                     <LinkIcon className="w-4 h-4" />
                     View DOI
@@ -538,23 +525,30 @@ export function PaperDetailView({
                     href={paper.source_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-bg-elevated text-text-primary border border-border-subtle rounded-md hover:bg-bg-base transition-colors"
+                    className="inline-flex items-center gap-2 rounded-control border border-border-subtle bg-bg-elevated px-4 py-2 text-text-primary transition-colors hover:bg-bg-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
                   >
                     <ExternalLink className="w-4 h-4" />
                     View Source
                   </a>
                 )}
+                <button
+                  onClick={() => setShowCitation(true)}
+                  className="inline-flex items-center gap-2 rounded-control border border-border-subtle bg-bg-elevated px-4 py-2 text-text-primary transition-colors hover:bg-bg-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+                >
+                  <Quote className="w-4 h-4" aria-hidden="true" />
+                  Cite paper
+                </button>
               </div>
             </div>
           </div>
         </div>
 
         {/* Tips Card */}
-        <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-lg">
-          <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-2">
-            💡 Pro Tip
+        <div className="mt-6 rounded-surface border border-border-subtle bg-primary-50 p-4 dark:bg-primary-900/20">
+          <h3 className="mb-2 text-small font-semibold text-text-primary">
+            Reading rhythm
           </h3>
-          <p className="text-sm text-blue-800 dark:text-blue-400">
+          <p className="text-small text-text-secondary">
             Update the reading status as you progress through the paper. This
             helps track your research progress and earns you XP!
           </p>

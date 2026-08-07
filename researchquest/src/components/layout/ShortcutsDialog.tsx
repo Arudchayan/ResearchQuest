@@ -146,7 +146,7 @@ export function ShortcutsDialog() {
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 animate-fade-in" />
         <Dialog.Content
-          className="fixed left-[50%] top-[50%] max-h-[85vh] w-[90vw] max-w-[600px] translate-x-[-50%] translate-y-[-50%] rounded-xl bg-bg-surface p-0 shadow-2xl focus:outline-none z-50 animate-slide-in border border-border-subtle overflow-hidden flex flex-col"
+          className="fixed left-[50%] top-[50%] z-50 flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-xl translate-x-[-50%] translate-y-[-50%] flex-col overflow-hidden rounded-surface border border-border-subtle bg-bg-surface p-0 shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus animate-slide-in"
           aria-describedby={undefined}
         >
           <div className="flex items-center justify-between p-4 border-b border-border-subtle bg-bg-elevated/50">
@@ -157,7 +157,7 @@ export function ShortcutsDialog() {
               </Dialog.Title>
             </div>
             <Dialog.Close
-              className="p-2 hover:bg-bg-elevated rounded-full transition-colors"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full transition-colors hover:bg-bg-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
               aria-label="Close dialog"
             >
               <X className="w-5 h-5 text-text-tertiary" aria-hidden="true" />

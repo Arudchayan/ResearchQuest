@@ -28,11 +28,15 @@ export function CitationPicker({
       // Parse "Last, First" or "First Last"
       // Simple heuristic: split by comma if exists, else space
       const author = paper.authors[0];
-      if (author.includes(",")) {
-        firstAuthor = author.split(",")[0].trim();
-      } else {
-        const parts = author.split(" ");
-        firstAuthor = parts[parts.length - 1]; // Assume last word is last name
+      if (author) {
+        if (author.includes(",")) {
+          const commaParts = author.split(",");
+          firstAuthor = commaParts[0] ? commaParts[0].trim() : "Anonymous";
+        } else {
+          const parts = author.split(" ");
+          const lastName = parts[parts.length - 1];
+          firstAuthor = lastName ?? "Anonymous";
+        }
       }
     }
 
@@ -80,7 +84,7 @@ export function CitationPicker({
               value={`${paper.title} ${paper.authors?.join(" ") || ""} ${extractYear(paper.publication_date)}`}
               onSelect={() => handleSelect(paper)}
             >
-              <BookOpen className="w-4 h-4 text-blue-500 flex-shrink-0" />
+              <BookOpen className="w-4 h-4 text-primary-500 flex-shrink-0" />
               <div className="flex flex-col overflow-hidden">
                 <span className="truncate font-medium">{paper.title}</span>
                 <span className="text-xs text-text-tertiary truncate">

@@ -1,5 +1,6 @@
 import { logger } from "../../utils/logger";
-import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { useFilteredList } from "../../hooks/useFilteredList";
 import {
   Plus,
   Search,
@@ -7,7 +8,6 @@ import {
   X,
   ArrowUpDown,
   ArrowLeft,
-  Users,
   Download,
   FileText,
   FileJson,
@@ -23,6 +23,10 @@ import { PaperCard } from "./PaperCard";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { InlineError } from "../ui/ErrorFallback";
 import { PaperCardSkeleton } from "../ui/Skeleton";
+import { EmptyState } from "../ui/EmptyState";
+import { PageHeader } from "../ui/PageHeader";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
 import { cn } from "../../lib/utils";
 import * as Dialog from "@radix-ui/react-dialog";
 import { OnboardingGuide } from "../layout/OnboardingGuide";
@@ -35,7 +39,7 @@ import {
   convertPapersToJSON,
   downloadFile,
 } from "../../utils/export";
-import { UNDO_WINDOW_MS } from "../../lib/constants";
+import { useUndoDelete } from "../../hooks/useUndoDelete";
 
 type SortOption =
   | "updated_desc"
@@ -82,9 +86,6 @@ export function PapersView() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
-
-  const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastDeletedRef = useRef<Paper | null>(null);
   const parentRef = useRef<HTMLDivElement>(null);
 
   const [columnCount, setColumnCount] = useState(1);
@@ -101,53 +102,20 @@ export function PapersView() {
     return () => window.removeEventListener("resize", updateColumns);
   }, []);
 
-  useEffect(() => {
-    return () => {
-      if (undoTimeoutRef.current) {
-        clearTimeout(undoTimeoutRef.current);
-      }
-    };
-  }, []);
+  const { handleDeleteWithUndo } = useUndoDelete(
+    (paper: Paper) => deletePaper(paper.id),
+    (paper: Paper) => restorePaper(paper),
+    { entityLabel: "Paper" },
+  );
 
-  const handleDeleteWithUndo = useCallback(
-    async (paperId: string) => {
+  const handlePaperDelete = useCallback(
+    async (paperId: string): Promise<boolean> => {
       const paper = papers.find((p) => p.id === paperId);
-      const success = await deletePaper(paperId);
-
-      if (success && paper) {
-        lastDeletedRef.current = paper;
-        if (undoTimeoutRef.current) {
-          clearTimeout(undoTimeoutRef.current);
-        }
-
-        const toastId = toast.success("Paper deleted", {
-          description: "Undo within 6 seconds to restore it.",
-          duration: UNDO_WINDOW_MS,
-          action: {
-            label: "Undo",
-            onClick: async () => {
-              if (lastDeletedRef.current) {
-                await restorePaper(lastDeletedRef.current);
-                lastDeletedRef.current = null;
-                if (undoTimeoutRef.current) {
-                  clearTimeout(undoTimeoutRef.current);
-                  undoTimeoutRef.current = null;
-                }
-                toast.dismiss(toastId);
-              }
-            },
-          },
-        });
-
-        undoTimeoutRef.current = setTimeout(() => {
-          lastDeletedRef.current = null;
-          toast.dismiss(toastId);
-          undoTimeoutRef.current = null;
-        }, UNDO_WINDOW_MS);
-      }
-      return success;
+      if (!paper) return false;
+      await handleDeleteWithUndo(paper);
+      return true;
     },
-    [deletePaper, restorePaper, papers],
+    [papers, handleDeleteWithUndo],
   );
 
   const handleSelectPaper = useCallback(
@@ -157,43 +125,11 @@ export function PapersView() {
     [setSelectedPaper],
   );
 
-  // ⚡ PERFORMANCE OPTIMIZATION: Pre-compute derived text fields for faster searching
-  const searchablePapers = useMemo(() => {
-    return (papers || []).map((paper) => ({
-      paper,
-      searchText: [paper.title || "", ...(paper.authors || [])]
-        .join(" ")
-        .toLowerCase(),
-    }));
-  }, [papers]);
-
-  // Memoize filtered papers to avoid expensive recalculation on every render
-  const filteredPapers = useMemo(() => {
-    // Optimization: Skip filtering if query is empty and sort order matches default
-    if (!searchQuery && sortOption === "updated_desc") {
-      return papers || [];
-    }
-
-    let filtered;
-
-    if (searchQuery) {
-      filtered = [];
-      const query = searchQuery?.toLowerCase() || "";
-      const safeSearchablePapers = searchablePapers || [];
-      for (let i = 0; i < safeSearchablePapers.length; i++) {
-        const sp = searchablePapers[i];
-        if (sp.searchText.includes(query)) {
-          filtered.push(sp.paper);
-        }
-      }
-    } else {
-      // Create a shallow copy if we need to sort but not filter
-      // (to avoid mutating the store)
-      filtered = [...(papers || [])];
-    }
-
-    return filtered.sort((a, b) => {
-      // Optimization: Use string comparison for ISO dates to avoid expensive Date object creation
+  const filteredPapers = useFilteredList(
+    papers,
+    searchQuery,
+    useCallback((paper: Paper) => [paper.title || "", ...(paper.authors || [])].join(" "), []),
+    useCallback((a: Paper, b: Paper) => {
       switch (sortOption) {
         case "updated_desc":
           return b.updated_at > a.updated_at ? 1 : -1;
@@ -218,7 +154,6 @@ export function PapersView() {
               ? -1
               : 0;
         case "year_desc": {
-          // Optimization: Parse year from string instead of full Date parsing
           const yearA = a.publication_date
             ? parseInt(a.publication_date.substring(0, 4)) || 0
             : 0;
@@ -239,15 +174,15 @@ export function PapersView() {
         default:
           return 0;
       }
-    });
-  }, [papers, searchQuery, sortOption]);
+    }, [sortOption]),
+  );
 
   const rowCount = Math.ceil(filteredPapers.length / columnCount);
 
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 220, // Estimated height of a PaperCard row
+    estimateSize: () => 240,
     overscan: 2,
   });
 
@@ -258,6 +193,7 @@ export function PapersView() {
     }
 
     const timestamp = new Date().toISOString().split("T")[0];
+    const exportScope = searchQuery.trim() ? "filtered" : "all";
     let content = "";
     let filename = "";
     let type = "";
@@ -266,29 +202,29 @@ export function PapersView() {
       switch (format) {
         case "markdown":
           content = convertPapersToMarkdown(filteredPapers);
-          filename = `research-library-${timestamp}.md`;
+          filename = `research-library-${exportScope}-${timestamp}.md`;
           type = "text/markdown";
           break;
         case "bibtex":
           content = convertPapersToBibTeX(filteredPapers);
-          filename = `research-library-${timestamp}.bib`;
+          filename = `research-library-${exportScope}-${timestamp}.bib`;
           type = "text/plain";
           break;
         case "csv":
           content = convertPapersToCSV(filteredPapers);
-          filename = `research-library-${timestamp}.csv`;
+          filename = `research-library-${exportScope}-${timestamp}.csv`;
           type = "text/csv";
           break;
         case "json":
           content = convertPapersToJSON(filteredPapers);
-          filename = `research-library-${timestamp}.json`;
+          filename = `research-library-${exportScope}-${timestamp}.json`;
           type = "application/json";
           break;
       }
 
       downloadFile(content, filename, type);
       toast.success(
-        `Exported ${filteredPapers.length} papers as ${format.toUpperCase()}`,
+        `Exported ${filteredPapers.length} ${exportScope} papers as ${format.toUpperCase()}`,
       );
     } catch (err) {
       logger.error("Export failed", err);
@@ -297,113 +233,114 @@ export function PapersView() {
   };
 
   return (
-    <div className="relative flex h-full bg-slate-50 dark:bg-slate-900 overflow-hidden">
+    <div className="relative flex h-full min-h-0 overflow-hidden bg-bg-base text-text-primary">
       {/* Main Content */}
       <div
         className={cn(
-          "flex-1 flex flex-col min-w-0",
+          "flex min-w-0 flex-1 flex-col",
           selectedPaper && "max-lg:hidden",
         )}
       >
-        <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="min-w-0">
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-              Research Library
-            </h1>
-            <p className="text-slate-500 dark:text-slate-400 text-sm">
-              Manage and organize your research papers
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <DropdownMenu.Root>
-              <DropdownMenu.Trigger asChild>
-                <button className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-2 font-medium">
-                  <Download className="w-5 h-5" />
-                  Export
-                </button>
-              </DropdownMenu.Trigger>
-              <DropdownMenu.Portal>
-                <DropdownMenu.Content
-                  className="min-w-[180px] bg-white dark:bg-slate-950 rounded-lg shadow-lg border border-slate-200 dark:border-slate-800 p-1 z-50 animate-in fade-in-0 zoom-in-95"
-                  align="end"
-                  sideOffset={5}
-                >
-                  <DropdownMenu.Item
-                    onSelect={() => handleExport("markdown")}
-                    className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md cursor-pointer outline-none"
+        <PageHeader
+          className="bg-bg-surface"
+          title="Research Library"
+          description="Manage and organize your research papers"
+          actions={
+            <>
+              <DropdownMenu.Root>
+                <DropdownMenu.Trigger asChild>
+                  <Button type="button" variant="outline">
+                    <Download aria-hidden="true" />
+                    Export
+                  </Button>
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Portal>
+                  <DropdownMenu.Content
+                    className="z-dropdown min-w-[220px] rounded-surface border border-border-subtle bg-bg-surface p-1 shadow-md animate-in fade-in-0 zoom-in-95"
+                    align="end"
+                    sideOffset={5}
                   >
-                    <FileText className="w-4 h-4" />
-                    Markdown (.md)
-                  </DropdownMenu.Item>
-                  <DropdownMenu.Item
-                    onSelect={() => handleExport("bibtex")}
-                    className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md cursor-pointer outline-none"
-                  >
-                    <FileText className="w-4 h-4" />
-                    BibTeX (.bib)
-                  </DropdownMenu.Item>
-                  <DropdownMenu.Item
-                    onSelect={() => handleExport("csv")}
-                    className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md cursor-pointer outline-none"
-                  >
-                    <Table className="w-4 h-4" />
-                    CSV (.csv)
-                  </DropdownMenu.Item>
-                  <DropdownMenu.Item
-                    onSelect={() => handleExport("json")}
-                    className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md cursor-pointer outline-none"
-                  >
-                    <FileJson className="w-4 h-4" />
-                    JSON (.json)
-                  </DropdownMenu.Item>
-                </DropdownMenu.Content>
-              </DropdownMenu.Portal>
-            </DropdownMenu.Root>
+                    <DropdownMenu.Item
+                      onSelect={() => handleExport("markdown")}
+                      className="flex cursor-pointer items-center gap-2 rounded-control px-3 py-2 text-small text-text-primary outline-none hover:bg-bg-elevated focus:bg-bg-elevated"
+                    >
+                      <FileText className="w-4 h-4" />
+                      Markdown (.md) — {searchQuery.trim() ? "filtered" : "all"} papers
+                    </DropdownMenu.Item>
+                    <DropdownMenu.Item
+                      onSelect={() => handleExport("bibtex")}
+                      className="flex cursor-pointer items-center gap-2 rounded-control px-3 py-2 text-small text-text-primary outline-none hover:bg-bg-elevated focus:bg-bg-elevated"
+                    >
+                      <FileText className="w-4 h-4" />
+                      BibTeX (.bib) — {searchQuery.trim() ? "filtered" : "all"} papers
+                    </DropdownMenu.Item>
+                    <DropdownMenu.Item
+                      onSelect={() => handleExport("csv")}
+                      className="flex cursor-pointer items-center gap-2 rounded-control px-3 py-2 text-small text-text-primary outline-none hover:bg-bg-elevated focus:bg-bg-elevated"
+                    >
+                      <Table className="w-4 h-4" />
+                      CSV (.csv) — {searchQuery.trim() ? "filtered" : "all"} papers
+                    </DropdownMenu.Item>
+                    <DropdownMenu.Item
+                      onSelect={() => handleExport("json")}
+                      className="flex cursor-pointer items-center gap-2 rounded-control px-3 py-2 text-small text-text-primary outline-none hover:bg-bg-elevated focus:bg-bg-elevated"
+                    >
+                      <FileJson className="w-4 h-4" />
+                      JSON (.json) — {searchQuery.trim() ? "filtered" : "all"} papers
+                    </DropdownMenu.Item>
+                  </DropdownMenu.Content>
+                </DropdownMenu.Portal>
+              </DropdownMenu.Root>
 
-            <button
-              onClick={() => setIsAddDialogOpen(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 font-medium"
-            >
-              <Plus className="w-5 h-5" />
-              Add Paper
-            </button>
-          </div>
-        </div>
+              <Button
+                type="button"
+                onClick={() => setIsAddDialogOpen(true)}
+                variant="default"
+              >
+                <Plus aria-hidden="true" />
+                Add Paper
+              </Button>
+            </>
+          }
+        />
 
-        <div className="p-4 bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1 sm:max-w-md">
+        <div className="flex flex-col gap-4 border-b border-border-subtle bg-bg-surface p-4 sm:flex-row sm:items-center">
+          <div className="relative min-w-0 flex-1 sm:max-w-md">
             <label htmlFor="papers-search-input" className="sr-only">Search library</label>
-            <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-            <input
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-tertiary" aria-hidden="true" />
+            <Input
               id="papers-search-input"
               ref={searchInputRef}
               type="text"
               placeholder="Search library..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-10 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="bg-bg-base pl-10 pr-12 text-small"
               aria-label="Search papers"
             />
             {searchQuery && (
-              <button
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
                 onClick={() => {
                   setSearchQuery("");
                   searchInputRef.current?.focus();
                 }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="absolute right-0 top-1/2 -translate-y-1/2 rounded-full text-text-tertiary hover:text-text-primary"
                 aria-label="Clear search"
               >
-                <X className="w-3 h-3" aria-hidden="true" />
-              </button>
+                <X className="h-4 w-4" aria-hidden="true" />
+              </Button>
             )}
           </div>
 
           <div className="flex items-center gap-2">
-            <ArrowUpDown className="w-4 h-4 text-slate-400" />
+            <ArrowUpDown className="h-4 w-4 text-text-tertiary" />
             <select
               value={sortOption}
               onChange={(e) => setSortOption(e.target.value as SortOption)}
-              className="px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer min-w-[180px]"
+              className="min-h-11 min-w-[180px] cursor-pointer rounded-control border border-border-moderate bg-bg-base px-3 py-2 text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-focus md:min-h-0"
               aria-label="Sort papers"
             >
               <option value="updated_desc">Last Updated (Newest)</option>
@@ -427,7 +364,7 @@ export function PapersView() {
             />
           ) : papersLoading ? (
             <div
-              className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"
+              className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3"
               role="status"
               aria-label="Loading papers..."
             >
@@ -436,27 +373,35 @@ export function PapersView() {
               ))}
             </div>
           ) : filteredPapers.length === 0 ? (
-            <div className="text-center py-20" role="status" aria-live="polite">
-              <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                <BookOpen className="w-8 h-8 text-slate-400 opacity-50" />
-              </div>
-              <h3 className="text-lg font-medium text-slate-900 dark:text-white">
-                {searchQuery ? "No matches found" : "No papers found"}
-              </h3>
-              <p className="text-slate-500 dark:text-slate-400 max-w-sm mx-auto mt-2">
-                {searchQuery
+            <EmptyState
+              className="py-20"
+              icon={<BookOpen className="h-6 w-6" />}
+              title={searchQuery.trim() ? "No matches found" : "No papers found"}
+              description={
+                searchQuery.trim()
                   ? "Try a different keyword or clear your search."
-                  : "Start building your library by adding your first research paper."}
-              </p>
-              {!searchQuery && (
-                <button
-                  onClick={() => setIsAddDialogOpen(true)}
-                  className="mt-4 text-blue-600 hover:text-blue-700 font-medium"
-                >
-                  Add a paper now &rarr;
-                </button>
-              )}
-            </div>
+                  : "Start building your library by adding your first research paper."
+              }
+              action={
+                searchQuery.trim() ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setSearchQuery("");
+                      searchInputRef.current?.focus();
+                    }}
+                  >
+                    Clear search
+                  </Button>
+                ) : (
+                  <Button type="button" onClick={() => setIsAddDialogOpen(true)}>
+                    <Plus aria-hidden="true" />
+                    Add Paper
+                  </Button>
+                )
+              }
+            />
           ) : (
             <div
               style={{
@@ -474,13 +419,14 @@ export function PapersView() {
 
                 return (
                   <div
-                    key={virtualRow.index}
+                    key={virtualRow.key}
+                    data-index={virtualRow.index}
+                    ref={rowVirtualizer.measureElement}
                     style={{
                       position: "absolute",
                       top: 0,
                       left: 0,
                       width: "100%",
-                      height: `${virtualRow.size}px`,
                       transform: `translateY(${virtualRow.start}px)`,
                       display: "grid",
                       gridTemplateColumns:
@@ -489,11 +435,11 @@ export function PapersView() {
                           : columnCount === 2
                             ? "repeat(2, minmax(0, 1fr))"
                             : "repeat(1, minmax(0, 1fr))",
-                      gap: "1.5rem", // matches gap-6
                     }}
+                    className="gap-6 pb-6"
                   >
                     {rowPapers.map((paper) => (
-                      <div key={paper.id}>
+                      <div key={paper.id} className="min-w-0">
                         <PaperCard
                           paper={paper}
                           highlightQuery={searchQuery}
@@ -511,33 +457,39 @@ export function PapersView() {
 
       {/* Detail Drawer (Sheet) */}
       {selectedPaper && (
-        <div className="absolute inset-0 w-full border-l-0 lg:border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col h-full shadow-2xl z-20 lg:relative lg:inset-auto lg:w-[500px]">
-          <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50 backdrop-blur-sm">
+        <div className="absolute inset-0 z-20 flex h-full min-h-0 w-full flex-col border-l-0 bg-bg-surface shadow-lg lg:relative lg:inset-auto lg:w-[500px] lg:border-l lg:border-border-subtle">
+          <div className="flex items-center justify-between border-b border-border-subtle bg-bg-elevated/70 p-4">
             <div className="flex items-center gap-3">
-              <button
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
                 onClick={() => setSelectedPaper(null)}
-                className="lg:hidden p-2 -ml-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"
+                className="-ml-2 rounded-full lg:hidden"
                 aria-label="Back to papers"
               >
-                <ArrowLeft className="w-5 h-5 text-slate-500" />
-              </button>
-              <h2 className="font-semibold text-slate-900 dark:text-white">
+                <ArrowLeft aria-hidden="true" />
+              </Button>
+              <h2 className="font-semibold text-text-primary">
                 Paper Details
               </h2>
             </div>
-            <button
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
               onClick={() => setSelectedPaper(null)}
               aria-label="Close details"
-              className="hidden lg:flex p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="hidden rounded-full lg:inline-flex"
             >
-              <X className="w-5 h-5 text-slate-500" />
-            </button>
+              <X aria-hidden="true" />
+            </Button>
           </div>
-          <div className="flex-1 overflow-y-auto overflow-x-hidden">
+          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
             <PaperDetailView
               paper={selectedPaper}
               onUpdate={updatePaper}
-              onDelete={handleDeleteWithUndo}
+              onDelete={handlePaperDelete}
             />
           </div>
         </div>
@@ -546,23 +498,22 @@ export function PapersView() {
       {/* Add Paper Dialog */}
       <Dialog.Root open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 animate-fade-in" />
+          <Dialog.Overlay className="fixed inset-0 z-50 bg-overlay backdrop-blur-sm animate-fade-in" />
           <Dialog.Content
             aria-describedby={undefined}
-            className="fixed left-[50%] top-[50%] max-h-[85vh] w-[90vw] max-w-[1000px] translate-x-[-50%] translate-y-[-50%] rounded-xl bg-white dark:bg-slate-950 p-0 shadow-2xl focus:outline-none z-50 overflow-hidden animate-slide-in border border-slate-200 dark:border-slate-800"
+            className="fixed left-[50%] top-[50%] z-50 max-h-[85vh] w-[90vw] max-w-[1000px] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-surface border border-border-subtle bg-bg-surface p-0 shadow-lg focus:outline-none animate-slide-in"
           >
-            <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800">
-              <Dialog.Title className="text-lg font-semibold px-2">
+            <div className="flex items-center justify-between border-b border-border-subtle p-4">
+              <Dialog.Title className="px-2 text-body-lg font-semibold text-text-primary">
                 Add New Paper
               </Dialog.Title>
-              <Dialog.Close
-                aria-label="Close"
-                className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full"
-              >
-                <X className="w-5 h-5" />
+              <Dialog.Close asChild>
+                <Button type="button" variant="ghost" size="icon" aria-label="Close">
+                  <X aria-hidden="true" />
+                </Button>
               </Dialog.Close>
             </div>
-            <div className="overflow-y-auto max-h-[calc(85vh-60px)]">
+            <div className="max-h-[calc(85vh-60px)] overflow-auto">
               <AddPaperView
                 onAdd={async (data) => {
                   const paper = await createPaper(data);

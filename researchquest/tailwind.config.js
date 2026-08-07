@@ -52,15 +52,87 @@ module.exports = {
 				success: {
 					DEFAULT: 'var(--success)',
 					bg: 'var(--success-bg)',
+					hover: 'var(--success-hover)',
+					foreground: 'var(--success-foreground)',
 				},
 				warning: {
 					DEFAULT: 'var(--warning)',
 					bg: 'var(--warning-bg)',
+					hover: 'var(--warning-hover)',
+					foreground: 'var(--warning-foreground)',
 				},
 				purple: {
 					DEFAULT: 'var(--purple)',
 					bg: 'var(--purple-bg)',
+					hover: 'var(--purple-hover)',
+					foreground: 'var(--purple-foreground)',
 				},
+				stage: {
+					seed: {
+						DEFAULT: 'var(--stage-seed)',
+						bg: 'var(--stage-seed-bg)',
+						hover: 'var(--stage-seed-hover)',
+						foreground: 'var(--stage-seed-foreground)',
+					},
+					developing: {
+						DEFAULT: 'var(--stage-developing)',
+						bg: 'var(--stage-developing-bg)',
+						hover: 'var(--stage-developing-hover)',
+						foreground: 'var(--stage-developing-foreground)',
+					},
+					supported: {
+						DEFAULT: 'var(--stage-supported)',
+						bg: 'var(--stage-supported-bg)',
+						hover: 'var(--stage-supported-hover)',
+						foreground: 'var(--stage-supported-foreground)',
+					},
+					mature: {
+						DEFAULT: 'var(--stage-mature)',
+						bg: 'var(--stage-mature-bg)',
+						hover: 'var(--stage-mature-hover)',
+						foreground: 'var(--stage-mature-foreground)',
+					},
+				},
+				priority: {
+					high: {
+						DEFAULT: 'var(--priority-high)',
+						bg: 'var(--priority-high-bg)',
+						hover: 'var(--priority-high-hover)',
+						foreground: 'var(--priority-high-foreground)',
+					},
+					medium: {
+						DEFAULT: 'var(--priority-medium)',
+						bg: 'var(--priority-medium-bg)',
+						hover: 'var(--priority-medium-hover)',
+						foreground: 'var(--priority-medium-foreground)',
+					},
+					low: {
+						DEFAULT: 'var(--priority-low)',
+						bg: 'var(--priority-low-bg)',
+						hover: 'var(--priority-low-hover)',
+						foreground: 'var(--priority-low-foreground)',
+					},
+					overdue: {
+						DEFAULT: 'var(--priority-overdue)',
+						bg: 'var(--priority-overdue-bg)',
+						hover: 'var(--priority-overdue-hover)',
+						foreground: 'var(--priority-overdue-foreground)',
+					},
+				},
+				destructive: {
+					DEFAULT: 'var(--destructive)',
+					bg: 'var(--destructive-bg)',
+					hover: 'var(--destructive-hover)',
+					foreground: 'var(--destructive-foreground)',
+				},
+				info: {
+					DEFAULT: 'var(--info)',
+					bg: 'var(--info-bg)',
+					hover: 'var(--info-hover)',
+					foreground: 'var(--info-foreground)',
+				},
+				focus: 'var(--focus)',
+				overlay: 'var(--overlay)',
 			},
 			fontFamily: {
 				sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
@@ -103,7 +175,17 @@ module.exports = {
 				md: '0.25rem',       // 4px
 				lg: '0.375rem',      // 6px
 				xl: '0.5rem',        // 8px
+				control: '0.25rem',
+				surface: '0.5rem',
 				full: '9999px',
+			},
+			zIndex: {
+				base: '0',
+				dropdown: '40',
+				overlay: '50',
+				modal: '50',
+				tooltip: '60',
+				'skip-link': '100',
 			},
 			boxShadow: {
 				sm: 'var(--shadow-sm)',
@@ -115,6 +197,13 @@ module.exports = {
 				'fade-in': 'fadeIn 200ms ease-out',
 				'slide-in': 'slideIn 300ms cubic-bezier(0.16, 1, 0.3, 1)',
 				'xp-gain': 'xpGain 600ms ease-in-out',
+			},
+			transitionDuration: {
+				fast: '200ms',
+				theme: '300ms',
+			},
+			transitionTimingFunction: {
+				'editorial-out': 'cubic-bezier(0.16, 1, 0.3, 1)',
 			},
 			keyframes: {
 				fadeIn: {

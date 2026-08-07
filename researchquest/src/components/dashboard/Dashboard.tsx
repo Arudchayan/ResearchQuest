@@ -1,9 +1,8 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import {
   FileText,
   Plus,
   Flame,
-  Award,
   Star,
   Sparkles,
   CheckSquare,
@@ -13,14 +12,35 @@ import {
 } from "lucide-react";
 import {
   ActivityLogIcon,
-  TargetIcon,
   ArrowRightIcon,
-  ClockIcon,
+  TargetIcon,
 } from "@radix-ui/react-icons";
 import { useAppStore } from "../../store/appStore";
 import { useShallow } from "zustand/react/shallow";
 import { getLevelTitle } from "../../utils/gamification";
 import { ListSkeleton } from "../ui/Skeleton";
+import { InlineError } from "../ui/ErrorFallback";
+import { Badge, type BadgeVariant } from "../ui/Badge";
+import { Button } from "../ui/button";
+import { Card } from "../ui/card";
+import { EmptyState } from "../ui/EmptyState";
+import { PageHeader } from "../ui/PageHeader";
+import type { Idea, Note, Paper, Task, TopicWithCounts } from "../../types/database";
+
+type DashboardView = "notes" | "papers" | "focus" | "tasks" | "ideas" | "topics";
+
+const ideaStageBadgeVariants = {
+  Seed: "stage-seed",
+  Developing: "stage-developing",
+  Supported: "stage-supported",
+  Mature: "stage-mature",
+} satisfies Record<Idea["stage"], BadgeVariant>;
+
+const taskPriorityBadgeVariants = {
+  high: "priority-high",
+  medium: "priority-medium",
+  low: "priority-low",
+} satisfies Record<Task["priority"], BadgeVariant>;
 
 export function Dashboard() {
   // ⚡ PERFORMANCE OPTIMIZATION:
@@ -39,32 +59,36 @@ export function Dashboard() {
     ideasLoading,
     tasksLoading,
     topicsLoading,
+    dataSyncErrors,
+    retryDataSync,
     setCurrentView,
     setSelectedNote,
     setSelectedPaper,
     setSelectedIdea,
     setSelectedTopic,
   } = useAppStore(
-    useShallow((state) => ({
-      user: state.user,
-      notes: state.notes,
-      papers: state.papers,
-      ideas: state.ideas,
-      tasks: state.tasks,
-      topics: state.topics,
-      focusSessionSecondsToday: state.focusSessionSecondsToday,
-      notesLoading: state.notesLoading,
-      papersLoading: state.papersLoading,
-      ideasLoading: state.ideasLoading,
-      tasksLoading: state.tasksLoading,
-      topicsLoading: state.topicsLoading,
-      setCurrentView: state.setCurrentView,
-      setSelectedNote: state.setSelectedNote,
-      setSelectedPaper: state.setSelectedPaper,
-      setSelectedIdea: state.setSelectedIdea,
-      setSelectedTopic: state.setSelectedTopic,
-    })),
-  );
+      useShallow((state) => ({
+        user: state.user,
+        notes: state.notes,
+        papers: state.papers,
+        ideas: state.ideas,
+        tasks: state.tasks,
+        topics: state.topics,
+        focusSessionSecondsToday: state.focusSessionSecondsToday,
+        notesLoading: state.notesLoading,
+        papersLoading: state.papersLoading,
+        ideasLoading: state.ideasLoading,
+        tasksLoading: state.tasksLoading,
+        topicsLoading: state.topicsLoading,
+        dataSyncErrors: state.dataSyncErrors,
+        retryDataSync: state.retryDataSync,
+        setCurrentView: state.setCurrentView,
+        setSelectedNote: state.setSelectedNote,
+        setSelectedPaper: state.setSelectedPaper,
+        setSelectedIdea: state.setSelectedIdea,
+        setSelectedTopic: state.setSelectedTopic,
+      })),
+    );
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -87,7 +111,10 @@ export function Dashboard() {
     };
   }, [user]);
 
-  const focusMinutesToday = Math.floor(focusSessionSecondsToday / 60);
+  const focusMinutesToday = useMemo(
+    () => Math.floor(focusSessionSecondsToday / 60),
+    [focusSessionSecondsToday],
+  );
 
   // ⚡ PERFORMANCE OPTIMIZATION:
   // Compute multiple aggregate statistics in a single O(N) pass inside useMemo.
@@ -96,8 +123,8 @@ export function Dashboard() {
   const { pendingTaskCount, completedTaskCount } = useMemo(() => {
     let pending = 0;
     let completed = 0;
-    for (let i = 0; i < tasks.length; i++) {
-      if (tasks[i].completed) {
+    for (const task of tasks) {
+      if (task.completed) {
         completed++;
       } else {
         pending++;
@@ -171,184 +198,186 @@ export function Dashboard() {
       .slice(0, 3);
   }, [tasks]);
 
-  const handleCreateNote = () => {
-    setCurrentView("notes");
-  };
+  const navigateTo = useCallback(
+    (view: DashboardView, path = `/${view}`) => {
+      setCurrentView(view);
+      window.history.pushState(null, "", path);
+    },
+    [setCurrentView],
+  );
 
-  const navigateTo = (view: "notes" | "papers" | "focus" | "tasks" | "ideas" | "topics") => {
-    setCurrentView(view);
-    window.history.pushState(null, "", `/${view}`);
-  };
+  const handleFocusNavigation = useCallback(() => navigateTo("focus"), [navigateTo]);
+  const handleNotesNavigation = useCallback(() => navigateTo("notes"), [navigateTo]);
+  const handlePapersNavigation = useCallback(() => navigateTo("papers"), [navigateTo]);
+  const handleIdeasNavigation = useCallback(() => navigateTo("ideas"), [navigateTo]);
+  const handleTasksNavigation = useCallback(() => navigateTo("tasks"), [navigateTo]);
+  const handleTopicsNavigation = useCallback(() => navigateTo("topics"), [navigateTo]);
+
+  const handleOpenNote = useCallback(
+    (note: Note) => {
+      setSelectedNote(note);
+      navigateTo("notes", `/notes/${note.id}`);
+    },
+    [navigateTo, setSelectedNote],
+  );
+
+  const handleOpenPaper = useCallback(
+    (paper: Paper) => {
+      setSelectedPaper(paper);
+      navigateTo("papers", `/papers/${paper.id}`);
+    },
+    [navigateTo, setSelectedPaper],
+  );
+
+  const handleOpenIdea = useCallback(
+    (idea: Idea) => {
+      setSelectedIdea(idea);
+      navigateTo("ideas", `/ideas/${idea.id}`);
+    },
+    [navigateTo, setSelectedIdea],
+  );
+
+  const handleOpenTopic = useCallback(
+    (topic: TopicWithCounts) => {
+      setSelectedTopic(topic);
+      navigateTo("topics", `/topics/${topic.id}`);
+    },
+    [navigateTo, setSelectedTopic],
+  );
+
+  const handleRetryNotes = useCallback(
+    () => retryDataSync("notes"),
+    [retryDataSync],
+  );
+  const handleRetryPapers = useCallback(
+    () => retryDataSync("papers"),
+    [retryDataSync],
+  );
+  const handleRetryIdeas = useCallback(
+    () => retryDataSync("ideas"),
+    [retryDataSync],
+  );
+  const handleRetryTasks = useCallback(
+    () => retryDataSync("tasks"),
+    [retryDataSync],
+  );
+  const handleRetryTopics = useCallback(
+    () => retryDataSync("topics"),
+    [retryDataSync],
+  );
+
+  const notesSyncError = dataSyncErrors?.notes ?? null;
+  const papersSyncError = dataSyncErrors?.papers ?? null;
+  const ideasSyncError = dataSyncErrors?.ideas ?? null;
+  const tasksSyncError = dataSyncErrors?.tasks ?? null;
+  const topicsSyncError = dataSyncErrors?.topics ?? null;
 
   if (!user) {
     return null;
   }
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-title font-serif font-bold text-text-primary flex items-center gap-2">
-            {greeting}, {user.username || "Scholar"}{" "}
-            <Sparkles className="w-6 h-6 text-warning" />
-          </h1>
-          <p className="text-small text-text-secondary mt-1 font-serif italic">
-            Ready to make some progress today?
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigateTo("focus")}
-            className="flex items-center gap-2 px-4 py-2 bg-text-primary text-bg-base rounded-sm font-medium hover:opacity-90 transition-opacity focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
-          >
-            <TargetIcon className="w-4 h-4" aria-hidden="true" />
-            Start Focus Session
-          </button>
-        </div>
-      </div>
+    <div className="mx-auto max-w-7xl space-y-8 p-4 animate-in fade-in sm:p-6 lg:space-y-10 lg:p-8">
+      <PageHeader
+        title={
+          <span className="flex min-w-0 flex-wrap items-center gap-2 break-words">
+            {greeting}, {user.username || "Scholar"}
+            <Sparkles className="h-6 w-6 shrink-0 text-warning" aria-hidden="true" />
+          </span>
+        }
+        description={<span className="font-serif italic">Ready to make some progress today?</span>}
+        actions={
+          <>
+            <Button type="button" variant="outline" onClick={handleTasksNavigation}>
+              <CheckSquare aria-hidden="true" />
+              Review {pendingTaskCount} {pendingTaskCount === 1 ? "task" : "tasks"}
+            </Button>
+            <Button type="button" onClick={handleFocusNavigation}>
+              <TargetIcon aria-hidden="true" />
+              Start Focus Session
+            </Button>
+          </>
+        }
+      />
 
       {/* RQ-M2-07 entity counts — source: store */}
-      <div
-        className="flex flex-wrap gap-x-6 gap-y-2 text-small text-text-secondary border border-border-subtle rounded-sm px-4 py-3 bg-bg-surface"
+      <Card
+        role="group"
         aria-label="Library counts"
+        className="grid grid-cols-2 gap-x-4 gap-y-2 p-4 text-small text-text-secondary sm:grid-cols-5"
       >
-        <span>Notes {notes.length}</span>
-        <span>Papers {papers.length}</span>
-        <span>Ideas {ideas.length}</span>
-        <span>Tasks {tasks.length}</span>
-        <span>Topics {Object.keys(topics).length}</span>
-      </div>
-
-      {stats && stats.progress !== undefined && (
-        /* Stats Grid */
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Level Card — source: user profile (gamification) */}
-          <div className="bg-bg-surface p-5 rounded-sm border border-border-moderate shadow-sm relative overflow-hidden group hover:border-primary-500 transition-colors">
-            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-              <Award className="w-24 h-24 text-text-primary" />
-            </div>
-            <div className="relative z-10">
-              <div className="flex items-center gap-2 text-primary-600 font-semibold mb-2">
-                <Star className="w-4 h-4" />
-                <span className="uppercase tracking-widest text-caption">
-                  Level {stats?.level}
-                </span>
-              </div>
-              <div className="text-2xl font-serif font-bold text-text-primary mb-1">
-                {stats?.title}
-              </div>
-              <div className="text-small text-text-secondary mb-3 font-serif italic">
-                {stats?.xp.toLocaleString()} XP Total
-              </div>
-              <div className="w-full bg-border-subtle h-1.5 rounded-none overflow-hidden">
-                <div
-                  className="bg-primary-500 h-full transition-all duration-1000 ease-out"
-                  style={{ width: `${stats?.progress}%` }}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Streak Card — source: user profile (gamification streak) */}
-          <div className="bg-bg-surface p-5 rounded-sm border border-border-moderate shadow-sm relative overflow-hidden group hover:border-warning transition-colors">
-            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-              <Flame className="w-24 h-24 text-warning" />
-            </div>
-            <div className="relative z-10">
-              <div className="flex items-center gap-2 text-warning font-semibold mb-2">
-                <Flame className="w-4 h-4" />
-                <span className="uppercase tracking-widest text-caption">
-                  Day Streak
-                </span>
-              </div>
-              <div className="text-2xl font-serif font-bold text-text-primary mb-1">
-                {stats?.streak} Days
-              </div>
-              <div className="text-small text-text-secondary font-serif italic">
-                Keep it up to earn bonus XP.
-              </div>
-            </div>
-          </div>
-
-          {/* Focus & tasks — source: store (focus_sessions aggregate + tasks array) */}
-          <div className="bg-bg-surface p-5 rounded-sm border border-border-moderate shadow-sm relative overflow-hidden group hover:border-purple transition-colors">
-            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-              <ClockIcon className="w-24 h-24 text-purple" />
-            </div>
-            <div className="relative z-10">
-              <div className="flex items-center gap-2 text-purple font-semibold mb-2">
-                <TargetIcon className="w-4 h-4" />
-                <span className="uppercase tracking-widest text-caption">
-                  {"Today's focus"}
-                </span>
-              </div>
-              <div className="text-2xl font-serif font-bold text-text-primary mb-1">
-                {focusMinutesToday} min
-              </div>
-              <div className="text-small text-text-secondary font-serif italic">
-                {pendingTaskCount} pending · {completedTaskCount} completed tasks
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <span>Notes <strong className="font-mono font-medium text-text-primary">{notes.length}</strong></span>
+        <span>Papers <strong className="font-mono font-medium text-text-primary">{papers.length}</strong></span>
+        <span>Ideas <strong className="font-mono font-medium text-text-primary">{ideas.length}</strong></span>
+        <span>Tasks <strong className="font-mono font-medium text-text-primary">{tasks.length}</strong></span>
+        <span>Topics <strong className="font-mono font-medium text-text-primary">{Object.keys(topics).length}</strong></span>
+      </Card>
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
         <div className="space-y-8">
           {/* Recent Notes */}
           <section>
-            <div className="flex items-center justify-between mb-4 border-b border-border-subtle pb-2">
-              <h2 className="font-serif text-lg font-bold text-text-primary flex items-center gap-2">
-                <FileText className="w-5 h-5 text-text-tertiary" />
+            <div className="mb-4 flex items-center justify-between gap-4 border-b border-border-subtle pb-2">
+              <h2 className="flex min-w-0 items-center gap-2 font-serif text-body-lg font-bold text-text-primary">
+                <FileText className="h-5 w-5 shrink-0 text-text-tertiary" aria-hidden="true" />
                 Recent Notes
               </h2>
-              <button
-                onClick={() => navigateTo("notes")}
-                className="text-small text-text-secondary hover:text-text-primary font-medium flex items-center gap-1 uppercase tracking-wider transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 rounded-sm"
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                onClick={handleNotesNavigation}
+                className="shrink-0 px-0 text-small uppercase tracking-wider"
               >
-                View all <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
-              </button>
+                View all <ArrowRightIcon aria-hidden="true" />
+              </Button>
             </div>
+
+            {notesSyncError && (
+              <InlineError
+                message={notesSyncError.message}
+                onRetry={handleRetryNotes}
+                className="mb-4"
+              />
+            )}
 
             <div className="space-y-3">
               {notesLoading ? (
                 <ListSkeleton count={3} itemType="note" />
               ) : recentNotes.length === 0 ? (
-                <div
-                  className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary"
-                  role="status"
-                  aria-live="polite"
-                >
-                  <p className="mb-3">No notes yet</p>
-                  <button
-                    onClick={() => navigateTo("notes")}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-bg-surface border border-border-moderate rounded-sm text-small font-sans not-italic font-medium text-text-primary hover:border-border-strong transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
-                  >
-                    <Plus className="w-4 h-4" aria-hidden="true" /> Create Note
-                  </button>
-                </div>
+                <EmptyState
+                  icon={<FileText className="h-5 w-5" />}
+                  title="No notes yet"
+                  description="Create a note to keep your latest thinking close at hand."
+                  className="rounded-surface border border-dashed border-border-strong bg-bg-elevated"
+                  action={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleNotesNavigation}
+                    >
+                      <Plus aria-hidden="true" /> Create note
+                    </Button>
+                  }
+                />
               ) : (
                 recentNotes.map((note) => (
-                  <button
-                    key={note.id}
-                    onClick={() => {
-                      setSelectedNote(note);
-                      navigateTo("notes");
-                      window.history.pushState(null, "", `/notes/${note.id}`);
-                    }}
-                    className="w-full text-left group p-4 bg-bg-surface border border-border-moderate rounded-sm hover:border-border-strong cursor-pointer transition-all shadow-sm"
-                  >
-                    <h3 className="font-semibold text-text-primary mb-1 truncate group-hover:underline decoration-border-strong underline-offset-2 transition-all">
-                      {note.title || "Untitled Note"}
-                    </h3>
-                    <p className="text-small text-text-secondary line-clamp-2">
-                      {note.markdown_body.slice(0, 150) || "No content"}
-                    </p>
-                    <div className="mt-3 text-caption text-text-tertiary">
-                      Updated {new Date(note.updated_at).toLocaleDateString()}
-                    </div>
-                  </button>
+                  <Card key={note.id} className="overflow-hidden transition-colors hover:border-border-strong">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenNote(note)}
+                      className="group block w-full p-4 text-left transition-colors hover:bg-bg-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+                    >
+                      <h3 className="mb-1 truncate font-semibold text-text-primary group-hover:underline group-hover:decoration-border-strong group-hover:underline-offset-2">
+                        {note.title || "Untitled Note"}
+                      </h3>
+                      <p className="line-clamp-2 text-small text-text-secondary">
+                        {note.markdown_body.slice(0, 150) || "No content"}
+                      </p>
+                      <div className="mt-3 text-caption text-text-tertiary">
+                        Updated {new Date(note.updated_at).toLocaleDateString()}
+                      </div>
+                    </button>
+                  </Card>
                 ))
               )}
             </div>
@@ -356,63 +385,74 @@ export function Dashboard() {
 
           {/* Active Ideas */}
           <section>
-            <div className="flex items-center justify-between mb-4 border-b border-border-subtle pb-2">
-              <h2 className="font-serif text-lg font-bold text-text-primary flex items-center gap-2">
-                <Lightbulb className="w-5 h-5 text-text-tertiary" />
+            <div className="mb-4 flex items-center justify-between gap-4 border-b border-border-subtle pb-2">
+              <h2 className="flex min-w-0 items-center gap-2 font-serif text-body-lg font-bold text-text-primary">
+                <Lightbulb className="h-5 w-5 shrink-0 text-text-tertiary" aria-hidden="true" />
                 Active Ideas
               </h2>
-              <button
-                onClick={() => navigateTo("ideas")}
-                className="text-small text-text-secondary hover:text-text-primary font-medium flex items-center gap-1 uppercase tracking-wider transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 rounded-sm"
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                onClick={handleIdeasNavigation}
+                className="shrink-0 px-0 text-small uppercase tracking-wider"
               >
-                View Board <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
-              </button>
+                View Board <ArrowRightIcon aria-hidden="true" />
+              </Button>
             </div>
+
+            {ideasSyncError && (
+              <InlineError
+                message={ideasSyncError.message}
+                onRetry={handleRetryIdeas}
+                className="mb-4"
+              />
+            )}
 
             <div className="space-y-3">
               {ideasLoading ? (
                 <ListSkeleton count={3} itemType="idea" />
               ) : activeIdeas.length === 0 ? (
-                <div
-                  className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary"
-                  role="status"
-                  aria-live="polite"
-                >
-                  <p className="mb-3">No active ideas.</p>
-                  <button
-                    onClick={() => navigateTo("ideas")}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-bg-surface border border-border-moderate rounded-sm text-small font-sans not-italic font-medium text-text-primary hover:border-border-strong transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
-                  >
-                    <Plus className="w-4 h-4" aria-hidden="true" /> Add Idea
-                  </button>
-                </div>
+                <EmptyState
+                  icon={<Lightbulb className="h-5 w-5" />}
+                  title="No active ideas"
+                  description="Add an idea to start developing your next line of inquiry."
+                  className="rounded-surface border border-dashed border-border-strong bg-bg-elevated"
+                  action={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleIdeasNavigation}
+                    >
+                      <Plus aria-hidden="true" /> Add idea
+                    </Button>
+                  }
+                />
               ) : (
                 activeIdeas.map((idea) => (
-                  <button
-                    key={idea.id}
-                    onClick={() => {
-                      setSelectedIdea(idea);
-                      navigateTo("ideas");
-                      window.history.pushState(null, "", `/ideas/${idea.id}`);
-                    }}
-                    className="w-full text-left group p-4 bg-bg-surface border border-border-moderate rounded-sm hover:border-border-strong cursor-pointer transition-all shadow-sm"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <h3 className="font-semibold text-text-primary mb-1 truncate group-hover:underline decoration-border-strong underline-offset-2 transition-all">
-                          {idea.title}
-                        </h3>
-                        {idea.description && (
-                          <p className="text-small text-text-secondary line-clamp-2 mt-1">
-                            {idea.description}
-                          </p>
-                        )}
+                  <Card key={idea.id} className="overflow-hidden transition-colors hover:border-border-strong">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenIdea(idea)}
+                      className="group block w-full p-4 text-left transition-colors hover:bg-bg-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <h3 className="mb-1 truncate font-semibold text-text-primary group-hover:underline group-hover:decoration-border-strong group-hover:underline-offset-2">
+                            {idea.title}
+                          </h3>
+                          {idea.description && (
+                            <p className="mt-1 line-clamp-2 text-small text-text-secondary">
+                              {idea.description}
+                            </p>
+                          )}
+                        </div>
+                        <Badge variant={ideaStageBadgeVariants[idea.stage]}>
+                          {idea.stage}
+                        </Badge>
                       </div>
-                      <span className="shrink-0 inline-block px-2 py-0.5 bg-bg-elevated text-text-secondary text-caption rounded border border-border-subtle">
-                        {idea.stage}
-                      </span>
-                    </div>
-                  </button>
+                    </button>
+                  </Card>
                 ))
               )}
             </div>
@@ -420,60 +460,70 @@ export function Dashboard() {
 
           {/* Active Topics */}
           <section>
-            <div className="flex items-center justify-between mb-4 border-b border-border-subtle pb-2">
-              <h2 className="font-serif text-lg font-bold text-text-primary flex items-center gap-2">
-                <Hash className="w-5 h-5 text-text-tertiary" />
+            <div className="mb-4 flex items-center justify-between gap-4 border-b border-border-subtle pb-2">
+              <h2 className="flex min-w-0 items-center gap-2 font-serif text-body-lg font-bold text-text-primary">
+                <Hash className="h-5 w-5 shrink-0 text-text-tertiary" aria-hidden="true" />
                 Active Topics
               </h2>
-              <button
-                onClick={() => navigateTo("topics")}
-                className="text-small text-text-secondary hover:text-text-primary font-medium flex items-center gap-1 uppercase tracking-wider transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 rounded-sm"
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                onClick={handleTopicsNavigation}
+                className="shrink-0 px-0 text-small uppercase tracking-wider"
               >
-                View Directory{" "}
-                <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
-              </button>
+                View Directory <ArrowRightIcon aria-hidden="true" />
+              </Button>
             </div>
+
+            {topicsSyncError && (
+              <InlineError
+                message={topicsSyncError.message}
+                onRetry={handleRetryTopics}
+                className="mb-4"
+              />
+            )}
 
             <div className="space-y-3">
               {topicsLoading ? (
                 <ListSkeleton count={3} itemType="note" />
               ) : activeTopics.length === 0 ? (
-                <div
-                  className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary"
-                  role="status"
-                  aria-live="polite"
-                >
-                  <p className="mb-3">No active topics.</p>
-                  <button
-                    onClick={() => navigateTo("topics")}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-bg-surface border border-border-moderate rounded-sm text-small font-sans not-italic font-medium text-text-primary hover:border-border-strong transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
-                  >
-                    <Plus className="w-4 h-4" aria-hidden="true" /> Add Topic
-                  </button>
-                </div>
+                <EmptyState
+                  icon={<Hash className="h-5 w-5" />}
+                  title="No active topics"
+                  description="Create a topic to organize related research."
+                  className="rounded-surface border border-dashed border-border-strong bg-bg-elevated"
+                  action={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleTopicsNavigation}
+                    >
+                      <Plus aria-hidden="true" /> Add topic
+                    </Button>
+                  }
+                />
               ) : (
                 activeTopics.map((topic) => (
-                  <button
-                    key={topic.id}
-                    onClick={() => {
-                      setSelectedTopic(topic);
-                      navigateTo("topics");
-                      window.history.pushState(null, "", `/topics/${topic.id}`);
-                    }}
-                    className="w-full text-left flex items-center justify-between p-3 bg-bg-surface border border-border-moderate rounded-sm hover:border-border-strong cursor-pointer transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="p-2 bg-bg-base border border-border-moderate text-text-primary rounded-sm shrink-0">
-                        <Hash className="w-4 h-4" />
+                  <Card key={topic.id} className="overflow-hidden transition-colors hover:border-border-strong">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenTopic(topic)}
+                      className="flex w-full items-center justify-between gap-3 p-3 text-left transition-colors hover:bg-bg-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="shrink-0 rounded-sm border border-border-moderate bg-bg-base p-2 text-text-primary">
+                          <Hash className="h-4 w-4" aria-hidden="true" />
+                        </div>
+                        <span className="truncate text-small font-medium text-text-primary">
+                          {topic.name}
+                        </span>
                       </div>
-                      <span className="text-small font-medium text-text-primary truncate">
-                        {topic.name}
+                      <span className="shrink-0 font-mono text-caption text-text-tertiary">
+                        {topic.note_count + topic.paper_count + topic.idea_count} items
                       </span>
-                    </div>
-                    <span className="text-caption font-serif italic text-text-tertiary shrink-0">
-                      {topic.note_count + topic.paper_count + topic.idea_count} items
-                    </span>
-                  </button>
+                    </button>
+                  </Card>
                 ))
               )}
             </div>
@@ -484,60 +534,68 @@ export function Dashboard() {
         <div className="space-y-8">
           {/* Reading List */}
           <section>
-            <div className="flex items-center justify-between mb-4 border-b border-border-subtle pb-2">
-              <h2 className="font-serif text-lg font-bold text-text-primary flex items-center gap-2">
-                <BookOpen className="w-5 h-5 text-text-tertiary" />
+            <div className="mb-4 flex items-center justify-between gap-4 border-b border-border-subtle pb-2">
+              <h2 className="flex min-w-0 items-center gap-2 font-serif text-body-lg font-bold text-text-primary">
+                <BookOpen className="h-5 w-5 shrink-0 text-text-tertiary" aria-hidden="true" />
                 Up Next to Read
               </h2>
-              <button
-                onClick={() => navigateTo("papers")}
-                className="text-small text-text-secondary hover:text-text-primary font-medium flex items-center gap-1 uppercase tracking-wider transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 rounded-sm"
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                onClick={handlePapersNavigation}
+                className="shrink-0 px-0 text-small uppercase tracking-wider"
               >
-                View Library{" "}
-                <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
-              </button>
+                View Library <ArrowRightIcon aria-hidden="true" />
+              </Button>
             </div>
+
+            {papersSyncError && (
+              <InlineError
+                message={papersSyncError.message}
+                onRetry={handleRetryPapers}
+                className="mb-4"
+              />
+            )}
 
             <div className="space-y-3">
               {papersLoading ? (
                 <ListSkeleton count={3} itemType="paper" />
               ) : readingList.length === 0 ? (
-                <div
-                  className="p-6 text-center border border-dashed border-border-strong rounded-sm bg-bg-elevated font-serif italic text-text-tertiary"
-                  role="status"
-                  aria-live="polite"
-                >
-                  <p className="mb-3">Your reading list is empty.</p>
-                  <button
-                    onClick={() => navigateTo("papers")}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-bg-surface border border-border-moderate rounded-sm text-small font-sans not-italic font-medium text-text-primary hover:border-border-strong transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
-                  >
-                    <Plus className="w-4 h-4" aria-hidden="true" /> Add Paper
-                  </button>
-                </div>
+                <EmptyState
+                  icon={<BookOpen className="h-5 w-5" />}
+                  title="Your reading list is empty"
+                  description="Add a paper to keep the next useful reference in view."
+                  className="rounded-surface border border-dashed border-border-strong bg-bg-elevated"
+                  action={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handlePapersNavigation}
+                    >
+                      <Plus aria-hidden="true" /> Add paper
+                    </Button>
+                  }
+                />
               ) : (
                 readingList.map((paper) => (
-                  <button
-                    key={paper.id}
-                    onClick={() => {
-                      setSelectedPaper(paper);
-                      navigateTo("papers");
-                      window.history.pushState(null, "", `/papers/${paper.id}`);
-                    }}
-                    className="w-full text-left flex items-start gap-3 p-3 bg-bg-surface border border-border-moderate rounded-sm hover:bg-bg-elevated hover:border-border-strong cursor-pointer transition-colors"
-                  >
-                    <div className="p-2 bg-bg-base border border-border-moderate text-text-primary rounded-sm shrink-0">
-                      <BookOpen className="w-4 h-4" />
-                    </div>
-                    <div className="min-w-0">
-                      <h4 className="font-medium text-text-primary truncate">
-                        {paper.title}
-                      </h4>
-                      <p className="text-caption text-text-secondary truncate mt-0.5 font-serif italic">
-                        {paper.authors?.join(", ") || "Unknown Author"}
-                      </p>
-                    </div>
-                  </button>
+                  <Card key={paper.id} className="overflow-hidden transition-colors hover:border-border-strong">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenPaper(paper)}
+                      className="flex w-full items-start gap-3 p-3 text-left transition-colors hover:bg-bg-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+                    >
+                      <div className="shrink-0 rounded-sm border border-border-moderate bg-bg-base p-2 text-text-primary">
+                        <BookOpen className="h-4 w-4" aria-hidden="true" />
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="truncate font-medium text-text-primary">{paper.title}</h3>
+                        <p className="mt-0.5 truncate text-caption text-text-secondary">
+                          {paper.authors?.join(", ") || "Unknown Author"}
+                        </p>
+                      </div>
+                    </button>
+                  </Card>
                 ))
               )}
             </div>
@@ -545,67 +603,140 @@ export function Dashboard() {
 
           {/* Due Soon */}
           <section>
-            <div className="flex items-center justify-between mb-4 border-b border-border-subtle pb-2">
-              <h2 className="font-serif text-lg font-bold text-text-primary flex items-center gap-2">
-                <CheckSquare className="w-5 h-5 text-text-tertiary" />
+            <div className="mb-4 flex items-center justify-between gap-4 border-b border-border-subtle pb-2">
+              <h2 className="flex min-w-0 items-center gap-2 font-serif text-body-lg font-bold text-text-primary">
+                <CheckSquare className="h-5 w-5 shrink-0 text-text-tertiary" aria-hidden="true" />
                 Tasks Due Soon
               </h2>
-              <button
-                onClick={() => navigateTo("tasks")}
-                className="text-small text-text-secondary hover:text-text-primary font-medium flex items-center gap-1 uppercase tracking-wider transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 rounded-sm"
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                onClick={handleTasksNavigation}
+                className="shrink-0 px-0 text-small uppercase tracking-wider"
               >
-                All Tasks{" "}
-                <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
-              </button>
+                All Tasks <ArrowRightIcon aria-hidden="true" />
+              </Button>
             </div>
+
+            {tasksSyncError && (
+              <InlineError
+                message={tasksSyncError.message}
+                onRetry={handleRetryTasks}
+                className="mb-4"
+              />
+            )}
 
             <div className="space-y-3">
               {tasksLoading ? (
                 <ListSkeleton count={3} itemType="task" />
               ) : upcomingTasks.length === 0 ? (
-                <div
-                  className="p-4 text-center text-small font-serif italic text-text-tertiary"
-                  role="status"
-                  aria-live="polite"
-                >
-                  No upcoming tasks. You're all caught up.
-                </div>
+                <EmptyState
+                  icon={<CheckSquare className="h-5 w-5" />}
+                  title="No upcoming tasks"
+                  description="You&apos;re all caught up for now."
+                  className="rounded-surface border border-dashed border-border-strong bg-bg-elevated"
+                  action={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleTasksNavigation}
+                    >
+                      <Plus aria-hidden="true" /> Add task
+                    </Button>
+                  }
+                />
               ) : (
                 upcomingTasks.map((task) => (
-                  <button
-                    key={task.id}
-                    onClick={() => navigateTo("tasks")}
-                    className="w-full text-left flex items-center justify-between p-3 bg-bg-surface border border-border-moderate rounded-sm hover:border-border-strong cursor-pointer transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div
-                        className={`w-2 h-2 rounded-none shrink-0 ${
-                          task.priority === "high"
-                            ? "bg-warning"
-                            : task.priority === "medium"
-                              ? "bg-primary-500"
-                              : "bg-success"
-                        }`}
-                      />
-                      <span className="text-small font-medium text-text-primary truncate">
+                  <Card key={task.id} className="overflow-hidden transition-colors hover:border-border-strong">
+                    <button
+                      type="button"
+                      onClick={handleTasksNavigation}
+                      className="flex w-full items-center justify-between gap-3 p-3 text-left transition-colors hover:bg-bg-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+                    >
+                      <span className="min-w-0 truncate text-small font-medium text-text-primary">
                         {task.title}
                       </span>
-                    </div>
-                    {task.due_date && (
-                      <span className="text-caption font-serif italic text-text-tertiary shrink-0">
-                        {new Date(task.due_date).toLocaleDateString(undefined, {
-                          month: "short",
-                          day: "numeric",
-                        })}
+                      <span className="flex shrink-0 items-center gap-2">
+                        <Badge
+                          variant={taskPriorityBadgeVariants[task.priority]}
+                          className="capitalize"
+                        >
+                          {task.priority}
+                        </Badge>
+                        {task.due_date && (
+                          <span className="font-mono text-caption text-text-tertiary">
+                            {new Date(task.due_date).toLocaleDateString(undefined, {
+                              month: "short",
+                              day: "numeric",
+                            })}
+                          </span>
+                        )}
                       </span>
-                    )}
-                  </button>
+                    </button>
+                  </Card>
                 ))
               )}
             </div>
           </section>
         </div>
       </div>
+
+      {stats && (
+        <section aria-labelledby="progress-heading">
+          <div className="mb-4 flex items-center gap-3 border-b border-border-subtle pb-2">
+            <ActivityLogIcon className="h-5 w-5 text-text-tertiary" aria-hidden="true" />
+            <h2 id="progress-heading" className="font-serif text-subtitle font-bold text-text-primary">
+              Progress
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <Card className="p-5 transition-colors hover:border-primary-500">
+              <div>
+                <div className="mb-2 flex items-center gap-2 font-semibold text-primary-600">
+                  <Star className="h-4 w-4" aria-hidden="true" />
+                  <span className="text-caption uppercase tracking-widest">Level {stats.level}</span>
+                </div>
+                <p className="mb-1 font-serif text-subtitle font-bold text-text-primary">{stats.title}</p>
+                <p className="mb-3 font-mono text-code text-text-secondary">{stats.xp.toLocaleString()} XP total</p>
+                <div
+                  className="h-1.5 w-full overflow-hidden rounded-full bg-bg-elevated"
+                  aria-label={`${stats.progress}% of this level complete`}
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={stats.progress}
+                >
+                  <div className="h-full bg-primary-500" style={{ width: `${stats.progress}%` }} />
+                </div>
+              </div>
+            </Card>
+            <Card className="p-5 transition-colors hover:border-warning">
+              <div>
+                <div className="mb-2 flex items-center gap-2 font-semibold text-warning">
+                  <Flame className="h-4 w-4" aria-hidden="true" />
+                  <span className="text-caption uppercase tracking-widest">Day streak</span>
+                </div>
+                <p className="mb-1 font-mono text-subtitle font-bold text-text-primary">{stats.streak} days</p>
+                <p className="text-small text-text-secondary">Keep it up to earn bonus XP.</p>
+              </div>
+            </Card>
+            <Card className="p-5 transition-colors hover:border-purple">
+              <div>
+                <div className="mb-2 flex items-center gap-2 font-semibold text-purple">
+                  <TargetIcon className="h-4 w-4" aria-hidden="true" />
+                  <span className="text-caption uppercase tracking-widest">Today&apos;s focus</span>
+                </div>
+                <p className="mb-1 font-mono text-subtitle font-bold text-text-primary">{focusMinutesToday} min</p>
+                <p className="text-small text-text-secondary">
+                  <span className="font-mono">{pendingTaskCount}</span> pending ·{" "}
+                  <span className="font-mono">{completedTaskCount}</span> completed tasks
+                </p>
+              </div>
+            </Card>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

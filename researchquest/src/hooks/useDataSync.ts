@@ -1,3 +1,15 @@
+/**
+ * OWNERSHIP: notes, papers, ideas, focus_sessions, daily_logs
+ *
+ * This hook is the sole realtime owner for the notes, papers, ideas,
+ * focus_sessions, and daily_logs tables. It loads the initial data,
+ * subscribes to Postgres changes, and pushes updates into the Zustand
+ * store (useAppStore).
+ *
+ * Do NOT add tasks here — useTasks is the sole task owner.
+ * daily_logs is consolidated here to eliminate duplicate subscriptions
+ * from RightSidebar and useSidebarData.
+ */
 import { useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { useAppStore } from "../store/appStore";
@@ -39,6 +51,7 @@ export function useDataSync(userId: string | undefined, currentView: string) {
     setSelectedPaper,
     setSelectedIdea,
     setFocusSessionSecondsToday,
+    setTodayXP,
   } = useAppStore(
     useShallow((state) => ({
       setNotes: state.setNotes,
@@ -54,6 +67,7 @@ export function useDataSync(userId: string | undefined, currentView: string) {
       setSelectedPaper: state.setSelectedPaper,
       setSelectedIdea: state.setSelectedIdea,
       setFocusSessionSecondsToday: state.setFocusSessionSecondsToday,
+      setTodayXP: state.setTodayXP,
     })),
   );
 
@@ -239,11 +253,27 @@ export function useDataSync(userId: string | undefined, currentView: string) {
       setFocusSessionSecondsToday(total);
     };
 
+    const fetchTodayXP = async () => {
+      // Always fetch — no shouldFetch guard since the sidebar always needs it
+      const today = new Date().toISOString().split("T")[0];
+      const { data, error } = await supabase
+        .from("daily_logs")
+        .select("xp_earned")
+        .eq("user_id", userId)
+        .eq("date", today)
+        .maybeSingle();
+
+      if (!error) {
+        setTodayXP(data?.xp_earned ?? 0);
+      }
+    };
+
     // Initial fetch (only what is needed for current view)
     void fetchNotes();
     void fetchPapers();
     void fetchIdeas();
     void fetchFocusSessionsToday();
+    void fetchTodayXP();
 
     // --- SUBSCRIPTIONS ---
     const channels: ReturnType<typeof supabase.channel>[] = [];
@@ -281,7 +311,10 @@ export function useDataSync(userId: string | undefined, currentView: string) {
             }
           } else if (payload.eventType === "DELETE") {
             const currentNotes = useAppStore.getState().notes;
-            setNotes(currentNotes.filter((n) => n.id !== payload.old.id));
+            const oldId = payload.old["id"];
+            if (typeof oldId === "string") {
+              setNotes(currentNotes.filter((n) => n.id !== oldId));
+            }
           }
         },
       )
@@ -322,11 +355,14 @@ export function useDataSync(userId: string | undefined, currentView: string) {
             }
           } else if (payload.eventType === "DELETE") {
             const currentPapers = useAppStore.getState().papers;
-            setPapers(currentPapers.filter((p) => p.id !== payload.old.id));
+            const oldId = payload.old["id"];
+            if (typeof oldId === "string") {
+              setPapers(currentPapers.filter((p) => p.id !== oldId));
 
-            const current = useAppStore.getState().selectedPaper;
-            if (current?.id === payload.old.id) {
-              setSelectedPaper(null);
+              const current = useAppStore.getState().selectedPaper;
+              if (current?.id === oldId) {
+                setSelectedPaper(null);
+              }
             }
           }
         },
@@ -371,11 +407,14 @@ export function useDataSync(userId: string | undefined, currentView: string) {
             }
           } else if (payload.eventType === "DELETE") {
             const currentIdeas = useAppStore.getState().ideas;
-            setIdeas(currentIdeas.filter((i) => i.id !== payload.old.id));
+            const oldId = payload.old["id"];
+            if (typeof oldId === "string") {
+              setIdeas(currentIdeas.filter((i) => i.id !== oldId));
 
-            const current = useAppStore.getState().selectedIdea;
-            if (current?.id === payload.old.id) {
-              setSelectedIdea(null);
+              const current = useAppStore.getState().selectedIdea;
+              if (current?.id === oldId) {
+                setSelectedIdea(null);
+              }
             }
           }
         },
@@ -400,7 +439,54 @@ export function useDataSync(userId: string | undefined, currentView: string) {
       .subscribe();
     channels.push(focusSessionsSub);
 
+    // daily_logs Subscription (consolidated — replaces RightSidebar + useSidebarData copies)
+    const dailyLogsSub = supabase
+      .channel(`daily_logs_sync_${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "daily_logs",
+          filter: `user_id=eq.${userId}`,
+        },
+        () => {
+          void fetchTodayXP();
+        },
+      )
+      .subscribe();
+    channels.push(dailyLogsSub);
+
+    // Retry signal: when retryDataSync bumps a per-resource counter, drop the
+    // fetched guard for that resource and refetch so the Dashboard retry
+    // buttons actually re-run the failed query.
+    const retryUnsub = useAppStore.subscribe((state, prevState) => {
+      if (!userId) return;
+      if (
+        state.dataSyncRetryCounters.notes !==
+        prevState.dataSyncRetryCounters.notes
+      ) {
+        fetchedRef.current.delete("notes");
+        void fetchNotes();
+      }
+      if (
+        state.dataSyncRetryCounters.papers !==
+        prevState.dataSyncRetryCounters.papers
+      ) {
+        fetchedRef.current.delete("papers");
+        void fetchPapers();
+      }
+      if (
+        state.dataSyncRetryCounters.ideas !==
+        prevState.dataSyncRetryCounters.ideas
+      ) {
+        fetchedRef.current.delete("ideas");
+        void fetchIdeas();
+      }
+    });
+
     return () => {
+      retryUnsub();
       channels.forEach((sub) => sub.unsubscribe());
     };
   }, [
@@ -417,6 +503,7 @@ export function useDataSync(userId: string | undefined, currentView: string) {
     setSelectedPaper,
     setSelectedIdea,
     setFocusSessionSecondsToday,
+    setTodayXP,
     currentView,
   ]);
 }

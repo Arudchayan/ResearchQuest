@@ -27,21 +27,22 @@ export function LinkDialog({
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (isOpen) {
-      lastFocusedRef.current = document.activeElement;
-      // Focus the URL input when dialog opens
-      const timer = setTimeout(() => {
-        if (inputRef.current) {
-          inputRef.current.focus();
-        }
-      }, 0);
-      return () => clearTimeout(timer);
-    } else {
+    if (!isOpen) {
       // Restore focus when dialog closes
       if (lastFocusedRef.current instanceof HTMLElement) {
         lastFocusedRef.current.focus();
       }
+      return;
     }
+
+    lastFocusedRef.current = document.activeElement;
+    // Focus the URL input when dialog opens
+    const timer = setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+      }
+    }, 0);
+    return () => clearTimeout(timer);
   }, [isOpen, inputRef]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

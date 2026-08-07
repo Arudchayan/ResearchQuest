@@ -1,9 +1,19 @@
+@import "@fontsource/inter/latin-400.css";
+@import "@fontsource/inter/latin-500.css";
+@import "@fontsource/inter/latin-600.css";
+@import "@fontsource/inter/latin-700.css";
+@import "@fontsource/jetbrains-mono/latin-400.css";
+@import "@fontsource/playfair-display/latin-400.css";
+@import "@fontsource/playfair-display/latin-700.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
+    color-scheme: light dark;
+
     /* Luxe Scholar - Light Mode */
     /* Deep rich blacks, off-whites, elegant contrast */
     --primary-50: #F4F4F0;
@@ -21,20 +31,70 @@
     /* Text - High contrast Charcoal/Black */
     --text-primary: #111111;
     --text-secondary: #4A4A46;
-    --text-tertiary: #8C8C85;
+     --text-tertiary: #6B6B63;
     
     /* Borders - Crisp, subtle lines */
-    --border-subtle: #E8E8E3;
-    --border-moderate: #D0D0C8;
-    --border-strong: #9A9A93;
+     --border-subtle: #8C8C84;
+     --border-moderate: #8C8C84;
+     --border-strong: #6B6B63;
     
     /* Semantic Colors - Muted, elegant */
     --success: #2E5C3E;
     --success-bg: #EEF4F0;
+    --success-hover: #234A31;
+    --success-foreground: #FFFFFF;
     --warning: #945A17;
     --warning-bg: #FDF8ED;
+    --warning-hover: #7D4C13;
+    --warning-foreground: #FFFFFF;
     --purple: #623D70;
     --purple-bg: #F8F5FA;
+    --purple-hover: #512F5D;
+    --purple-foreground: #FFFFFF;
+    --destructive: #A13F34;
+    --destructive-bg: #FDF1EF;
+    --destructive-hover: #873329;
+    --destructive-foreground: #FFFFFF;
+    --info: #1C1C1A;
+    --info-bg: #F4F4F0;
+    --info-hover: #141413;
+    --info-foreground: #FDFDFB;
+    --focus: #1C1C1A;
+    --overlay: rgba(17, 17, 17, 0.5);
+
+    --stage-seed: var(--warning);
+    --stage-seed-bg: var(--warning-bg);
+    --stage-seed-hover: var(--warning-hover);
+    --stage-seed-foreground: var(--warning-foreground);
+    --stage-developing: var(--primary-500);
+    --stage-developing-bg: var(--primary-50);
+    --stage-developing-hover: var(--primary-600);
+    --stage-developing-foreground: var(--bg-base);
+    --stage-supported: var(--success);
+    --stage-supported-bg: var(--success-bg);
+    --stage-supported-hover: var(--success-hover);
+    --stage-supported-foreground: var(--success-foreground);
+    --stage-mature: var(--purple);
+    --stage-mature-bg: var(--purple-bg);
+    --stage-mature-hover: var(--purple-hover);
+    --stage-mature-foreground: var(--purple-foreground);
+
+    --priority-high: var(--warning);
+    --priority-high-bg: var(--warning-bg);
+    --priority-high-hover: var(--warning-hover);
+    --priority-high-foreground: var(--warning-foreground);
+    --priority-medium: var(--primary-500);
+    --priority-medium-bg: var(--primary-50);
+    --priority-medium-hover: var(--primary-600);
+    --priority-medium-foreground: var(--bg-base);
+    --priority-low: var(--success);
+    --priority-low-bg: var(--success-bg);
+    --priority-low-hover: var(--success-hover);
+    --priority-low-foreground: var(--success-foreground);
+    --priority-overdue: var(--destructive);
+    --priority-overdue-bg: var(--destructive-bg);
+    --priority-overdue-hover: var(--destructive-hover);
+    --priority-overdue-foreground: var(--destructive-foreground);
     
     /* Shadows - Minimal, crisp, less diffuse */
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
@@ -61,20 +121,70 @@
     /* Text - Cream/Off-white */
     --text-primary: #F0F0E8;
     --text-secondary: #A0A09A;
-    --text-tertiary: #6E6E69;
+     --text-tertiary: #A8A89F;
     
     /* Borders - Extremely subtle in dark mode */
-    --border-subtle: rgba(255, 255, 255, 0.06);
-    --border-moderate: rgba(255, 255, 255, 0.12);
-    --border-strong: rgba(255, 255, 255, 0.24);
+     --border-subtle: rgba(255, 255, 255, 0.34);
+     --border-moderate: rgba(255, 255, 255, 0.34);
+     --border-strong: rgba(255, 255, 255, 0.48);
     
     /* Semantic Colors */
     --success: #679E7B;
     --success-bg: rgba(103, 158, 123, 0.1);
+    --success-hover: #78B78E;
+    --success-foreground: #080808;
     --warning: #D19C4C;
     --warning-bg: rgba(209, 156, 76, 0.1);
+    --warning-hover: #E0B464;
+    --warning-foreground: #121211;
     --purple: #A276B3;
     --purple-bg: rgba(162, 118, 179, 0.1);
+    --purple-hover: #B589C3;
+    --purple-foreground: #080808;
+    --destructive: #D9877E;
+    --destructive-bg: rgba(217, 135, 126, 0.12);
+    --destructive-hover: #E6A19A;
+    --destructive-foreground: #121211;
+    --info: #EDEDE4;
+    --info-bg: #2C2C2A;
+    --info-hover: #F4F4F0;
+    --info-foreground: #121211;
+    --focus: #EDEDE4;
+    --overlay: rgba(0, 0, 0, 0.6);
+
+    --stage-seed: var(--warning);
+    --stage-seed-bg: var(--warning-bg);
+    --stage-seed-hover: var(--warning-hover);
+    --stage-seed-foreground: var(--warning-foreground);
+    --stage-developing: var(--primary-500);
+    --stage-developing-bg: var(--primary-50);
+    --stage-developing-hover: var(--primary-600);
+    --stage-developing-foreground: var(--bg-base);
+    --stage-supported: var(--success);
+    --stage-supported-bg: var(--success-bg);
+    --stage-supported-hover: var(--success-hover);
+    --stage-supported-foreground: var(--success-foreground);
+    --stage-mature: var(--purple);
+    --stage-mature-bg: var(--purple-bg);
+    --stage-mature-hover: var(--purple-hover);
+    --stage-mature-foreground: var(--purple-foreground);
+
+    --priority-high: var(--warning);
+    --priority-high-bg: var(--warning-bg);
+    --priority-high-hover: var(--warning-hover);
+    --priority-high-foreground: var(--warning-foreground);
+    --priority-medium: var(--primary-500);
+    --priority-medium-bg: var(--primary-50);
+    --priority-medium-hover: var(--primary-600);
+    --priority-medium-foreground: var(--bg-base);
+    --priority-low: var(--success);
+    --priority-low-bg: var(--success-bg);
+    --priority-low-hover: var(--success-hover);
+    --priority-low-foreground: var(--success-foreground);
+    --priority-overdue: var(--destructive);
+    --priority-overdue-bg: var(--destructive-bg);
+    --priority-overdue-hover: var(--destructive-hover);
+    --priority-overdue-foreground: var(--destructive-foreground);
     
     /* Shadows - Sharp, elegant */
     --shadow-sm: 0 0 0 1px rgba(255, 255, 255, 0.04);

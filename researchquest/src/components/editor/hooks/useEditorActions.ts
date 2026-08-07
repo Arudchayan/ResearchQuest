@@ -1,17 +1,23 @@
 import { useCallback } from "react";
+import type { RefObject } from "react";
 import { toast } from "sonner";
 import DOMPurify from "dompurify";
 import { NOTE_BODY_MAX_LENGTH } from "../../../hooks/useNotes";
+import { useAppStore } from "../../../store/appStore";
+import type { Note } from "../../../types/database";
+import type { SaveState } from "./useMarkdownEditor";
 
-export function useEditorActions(
-  content: string,
-  title: string,
-  previewRef: React.RefObject<HTMLDivElement>,
-  selectedNote: any,
-  userId: string | undefined,
-  updateNote: any,
-  setSaving: (saving: boolean) => void,
-) {
+interface EditorActionOptions {
+  readonly content: string;
+  readonly title: string;
+  readonly previewRef: RefObject<HTMLDivElement>;
+  readonly selectedNote: Note | null;
+  readonly userId: string | undefined;
+  readonly updateNote: (noteId: string, updates: Partial<Note>) => Promise<boolean>;
+  readonly setSaveState: (saveState: SaveState) => void;
+}
+
+export function useEditorActions({ content, title, previewRef, selectedNote, userId, updateNote, setSaveState }: EditorActionOptions) {
   const handleCopyMarkdown = useCallback(() => {
     if (!content) return;
     navigator.clipboard.writeText(content).then(() => {
@@ -117,10 +123,12 @@ export function useEditorActions(
 
     if (content.length > NOTE_BODY_MAX_LENGTH) {
       toast.error(`Note content exceeds ${NOTE_BODY_MAX_LENGTH.toLocaleString()} characters`);
+      setSaveState("error");
       return;
     }
 
-    setSaving(true);
+    const noteId = selectedNote.id;
+    setSaveState("saving");
     try {
       const tagMatches = content.match(/#(\w+)/g);
       const tags = tagMatches
@@ -128,19 +136,22 @@ export function useEditorActions(
         : [];
 
       const trimmedTitle = title.trim();
-      const persistedTitle = trimmedTitle.length > 0 ? trimmedTitle : null;
+      const persistedTitle = trimmedTitle || undefined;
 
-      await updateNote(selectedNote.id, {
+      const didSave = await updateNote(noteId, {
         title: persistedTitle,
         markdown_body: content,
         tags,
       });
-    } catch (err) {
-      // Error handled by updateNote
-    } finally {
-      setSaving(false);
+      if (useAppStore.getState().selectedNote?.id === noteId) {
+        setSaveState(didSave ? "saved" : "error");
+      }
+    } catch {
+      if (useAppStore.getState().selectedNote?.id === noteId) {
+        setSaveState("error");
+      }
     }
-  }, [selectedNote, userId, content, title, updateNote, setSaving]);
+  }, [selectedNote, userId, content, title, updateNote, setSaveState]);
 
   return {
     handleCopyMarkdown,

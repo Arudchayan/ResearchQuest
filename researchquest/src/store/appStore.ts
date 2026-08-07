@@ -65,6 +65,9 @@ interface AppState {
   /** Sum of `duration_seconds` for the signed-in user's focus sessions completed today (local midnight). */
   focusSessionSecondsToday: number;
   setFocusSessionSecondsToday: (seconds: number) => void;
+  /** XP earned today from daily_logs (updated by useDataSync). */
+  todayXP: number;
+  setTodayXP: (xp: number) => void;
   setNotesLoading: (loading: boolean) => void;
   setPapersLoading: (loading: boolean) => void;
   setIdeasLoading: (loading: boolean) => void;
@@ -73,6 +76,9 @@ interface AppState {
   setDataSyncError: (resource: DataSyncResource, message: string) => void;
   clearDataSyncError: (resource: DataSyncResource) => void;
   clearDataSyncErrors: () => void;
+  /** Monotonic per-resource retry counters; incremented by retryDataSync so owner hooks refetch. */
+  dataSyncRetryCounters: Record<DataSyncResource, number>;
+  retryDataSync: (resource: DataSyncResource) => void;
 
   // Topics collection
   topics: Record<string, TopicWithCounts>;
@@ -139,6 +145,8 @@ export const useAppStore = create<AppState>()(
       focusSessionSecondsToday: 0,
       setFocusSessionSecondsToday: (focusSessionSecondsToday) =>
         set({ focusSessionSecondsToday }),
+      todayXP: 0,
+      setTodayXP: (todayXP) => set({ todayXP }),
       notesLoading: false,
       papersLoading: false,
       ideasLoading: false,
@@ -150,6 +158,13 @@ export const useAppStore = create<AppState>()(
         ideas: null,
         tasks: null,
         topics: null,
+      },
+      dataSyncRetryCounters: {
+        notes: 0,
+        papers: 0,
+        ideas: 0,
+        tasks: 0,
+        topics: 0,
       },
       setNotes: (notes) => set({ notes }),
       setPapers: (papers) => set({ papers }),
@@ -184,6 +199,17 @@ export const useAppStore = create<AppState>()(
             topics: null,
           },
         }),
+      retryDataSync: (resource) =>
+        set((state) => ({
+          dataSyncErrors: {
+            ...state.dataSyncErrors,
+            [resource]: null,
+          },
+          dataSyncRetryCounters: {
+            ...state.dataSyncRetryCounters,
+            [resource]: state.dataSyncRetryCounters[resource] + 1,
+          },
+        })),
 
       // Topics collection state
       topics: {},

@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { useDataSync } from "../../hooks/useDataSync";
 import { useAppStore } from "../../store/appStore";
@@ -10,6 +10,7 @@ function queryResult<T>(result: { data: T[] | null; error: { message: string } |
   builder.eq = vi.fn().mockReturnValue(builder);
   builder.gte = vi.fn().mockReturnValue(builder);
   builder.order = vi.fn().mockReturnValue(builder);
+  builder.maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
   builder.then = (onFulfilled?: (value: typeof result) => unknown) =>
     Promise.resolve(result).then(onFulfilled);
   return builder;
@@ -86,5 +87,49 @@ describe("useDataSync sync errors", () => {
         ideas: null,
       });
     });
+  });
+
+  test("retryDataSync clears the error and refetches the resource", async () => {
+    const recoveredNote = {
+      id: "note-1",
+      user_id: "user-1",
+      title: "Recovered",
+      markdown_body: "body",
+      tags: [],
+      linked_entity_ids: [],
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-02T00:00:00Z",
+    };
+
+    // First fetch fails for all resources
+    mockSupabaseClient.from.mockImplementation((table: string) =>
+      queryResult({
+        data: null,
+        error: { message: `${table} unavailable` },
+      }),
+    );
+
+    renderHook(() => useDataSync("user-1", "dashboard"));
+
+    await waitFor(() => {
+      expect(useAppStore.getState().dataSyncErrors.notes).not.toBeNull();
+    });
+
+    // Backend recovers; the retry signal must issue a fresh notes fetch
+    mockSupabaseClient.from.mockImplementation((table: string) =>
+      queryResult({
+        data: table === "notes" ? [recoveredNote] : [],
+        error: null,
+      }),
+    );
+
+    act(() => {
+      useAppStore.getState().retryDataSync("notes");
+    });
+
+    await waitFor(() => {
+      expect(useAppStore.getState().notes).toEqual([recoveredNote]);
+    });
+    expect(useAppStore.getState().dataSyncErrors.notes).toBeNull();
   });
 });

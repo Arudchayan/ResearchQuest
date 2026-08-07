@@ -11,7 +11,7 @@ export function Skeleton({ className, ...props }: SkeletonProps) {
   return (
     <div
       className={cn(
-        "animate-pulse rounded-md bg-gray-200 dark:bg-gray-700",
+        "animate-pulse rounded-control bg-bg-elevated",
         className,
       )}
       aria-label="Loading..."
@@ -201,16 +201,23 @@ export function ListSkeleton({
 /**
  * Skeleton for the app loading state
  */
-export function AppLoadingSkeleton() {
+interface AppLoadingSkeletonProps {
+  readonly className?: string;
+}
+
+export function AppLoadingSkeleton({ className }: AppLoadingSkeletonProps) {
   return (
     <div
-      className="min-h-screen flex flex-col items-center justify-center bg-bg-base"
+      className={cn(
+        "min-h-screen flex flex-col items-center justify-center bg-bg-base",
+        className,
+      )}
       role="status"
       aria-label="Loading application..."
     >
       <div className="text-center" aria-hidden="true">
         {/* Logo */}
-        <div className="w-16 h-16 bg-primary-500 rounded-lg mx-auto mb-6 flex items-center justify-center text-white font-bold text-2xl animate-pulse">
+        <div className="w-16 h-16 bg-primary-500 rounded-surface mx-auto mb-6 flex items-center justify-center text-bg-base font-bold text-2xl animate-pulse">
           RQ
         </div>
 

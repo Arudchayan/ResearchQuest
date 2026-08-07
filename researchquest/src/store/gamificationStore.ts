@@ -113,8 +113,8 @@ export const useGamificationStore = create<GamificationState>((set, get) => {
       ).toISOString();
       const payload: ActiveBoost = {
         type: config.type,
-        label: config.label,
-        multiplier: config.multiplier,
+        ...(config.label !== undefined && { label: config.label }),
+        ...(config.multiplier !== undefined && { multiplier: config.multiplier }),
         expires_at: expiresAt,
       };
 

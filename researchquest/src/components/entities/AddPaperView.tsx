@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import { BookOpen, CheckCircle2 } from "lucide-react";
+import { BookOpen, CheckCircle2, Info, LoaderCircle } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
 import type { CrossrefPaper, Paper, PaperDraft } from "../../types/database";
 import type { PaperSearchOptions } from "../../hooks/usePapers";
@@ -24,6 +24,13 @@ const TAB_LABELS: Record<"doi" | "search" | "import" | "manual", string> = {
   search: "Keyword Search",
   import: "Import BibTeX",
   manual: "Manual Entry",
+};
+
+const TAB_DESCRIPTIONS: Record<keyof typeof TAB_LABELS, string> = {
+  doi: "Look up a known DOI and review the Crossref record before adding it.",
+  search: "Search Crossref by title or keywords, then select the result you want to save.",
+  import: "Preview BibTeX entries before importing the selected records into your library.",
+  manual: "Create a record yourself when a DOI or Crossref result is unavailable.",
 };
 
 export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: AddPaperViewProps) {
@@ -73,6 +80,8 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
   const [manualUrl, setManualUrl] = useState("");
   const [manualLoading, setManualLoading] = useState(false);
   const [manualError, setManualError] = useState("");
+  const [hasSearchedDOI, setHasSearchedDOI] = useState(false);
+  const [hasSearchedQuery, setHasSearchedQuery] = useState(false);
 
   useEffect(() => {
     if (manualTitle.trim() && manualError === "Title is required") {
@@ -90,6 +99,7 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
   }, [setSelectedPaper]);
 
   const handleDOISearchAction = async (doi: string) => {
+    setHasSearchedDOI(true);
     await performDOISearch(doi);
   };
 
@@ -98,7 +108,7 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
     try {
       const created = await onAdd(buildPaperPayload(doiResult));
       if (created) {
-        showSuccess("Paper added successfully! ✨", created);
+        showSuccess("Paper added successfully", created);
         setDoiInput("");
         setDoiResult(null);
       }
@@ -108,6 +118,7 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
   };
 
   const handleQuerySearchAction = async (query: string) => {
+    setHasSearchedQuery(true);
     await performQuerySearch(query, {
       rows: parseInt(resultLimit),
       sort: sortField,
@@ -120,7 +131,7 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
     try {
       const created = await onAdd(buildPaperPayload(selectedResult));
       if (created) {
-        showSuccess("Paper added successfully! ✨", created);
+        showSuccess("Paper added successfully", created);
         setSearchQuery("");
         setSearchResults([]);
         setSelectedResult(null);
@@ -148,12 +159,12 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
       const paperData: PaperDraft = {
         title: manualTitle.trim(),
         authors: manualAuthors.split(",").map(a => a.trim()).filter(Boolean),
-        doi: manualDoi.trim() || undefined,
-        source_url: trimmedUrl || undefined,
+        ...(manualDoi.trim() ? { doi: manualDoi.trim() } : {}),
+        ...(trimmedUrl ? { source_url: trimmedUrl } : {}),
       };
       const created = await onAdd(paperData);
       if (created) {
-        showSuccess("Paper added successfully! ✨", created);
+        showSuccess("Paper added successfully", created);
         setManualTitle(""); setManualAuthors(""); setManualDoi(""); setManualUrl("");
       }
     } catch (err) {
@@ -165,8 +176,38 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
 
   const handleImportAction = async () => {
     const count = await handleImport();
-    if (count > 0) showSuccess(`Successfully imported ${count} papers!`);
+    if (count > 0) showSuccess(`Successfully imported ${count} papers`);
   };
+
+  const isSearchTab = activeTab === "doi" || activeTab === "search";
+  const isBusy =
+    (isSearchTab && searchLoading) ||
+    (activeTab === "manual" && manualLoading) ||
+    (activeTab === "import" && importLoading);
+  const emptyState =
+    activeTab === "doi" &&
+    hasSearchedDOI &&
+    !searchLoading &&
+    !doiResult &&
+    !searchError
+      ? "No paper matched that DOI. Try a keyword search or create the record manually."
+      : activeTab === "search" &&
+          hasSearchedQuery &&
+          !searchLoading &&
+          searchResults.length === 0 &&
+          !searchError
+        ? "No Crossref results matched those keywords. Try broader terms or add the paper manually."
+        : activeTab === "import" &&
+            !importLoading &&
+            !importError &&
+            parsedEntries.length === 0
+          ? "Upload a .bib file to preview its entries before importing."
+          : activeTab === "manual" &&
+              !manualLoading &&
+              !manualError &&
+              !manualTitle.trim()
+            ? "Add a title first; authors, DOI, and source URL are optional but help keep the record traceable."
+            : null;
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -183,10 +224,10 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
       {successMessage && (
         <div
           role="status"
-          className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3"
+          className="mb-6 flex items-center gap-3 rounded-surface border border-success bg-success-bg p-4"
         >
-          <CheckCircle2 className="w-5 h-5 text-green-600" />
-          <p className="text-green-800 font-medium">{successMessage}</p>
+          <CheckCircle2 className="h-5 w-5 text-success" />
+          <p className="font-medium text-success">{successMessage}</p>
         </div>
       )}
 
@@ -208,7 +249,7 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
               setImportError("");
               setActiveTab(tab);
             }}
-            className={`px-6 py-3 text-sm font-medium transition-all relative ${activeTab === tab ? "text-primary-600" : "text-text-secondary"}`}
+            className={`relative px-6 py-3 text-small font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2 ${activeTab === tab ? "text-primary-500" : "text-text-secondary hover:text-text-primary"}`}
           >
             {TAB_LABELS[tab]}
             {activeTab === tab && (
@@ -220,12 +261,27 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
 
       <div className="bg-bg-surface rounded-lg border border-border-subtle shadow-sm p-6">
         {searchError && (activeTab === "doi" || activeTab === "search") && (
-          <div
-            role="alert"
-            className="mb-4 p-3 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm"
-          >
+          <div role="alert" className="mb-4 rounded-control border border-destructive bg-destructive-bg p-3 text-small text-destructive">
             {searchError}
           </div>
+        )}
+        <div className="mb-6 flex items-start gap-3 rounded-control border border-border-subtle bg-bg-elevated p-3 text-small text-text-secondary">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary-500" aria-hidden="true" />
+          <p>{TAB_DESCRIPTIONS[activeTab]}</p>
+        </div>
+        {isBusy && (
+          <div className="mb-4 flex items-center gap-2 text-small text-text-secondary" role="status" aria-live="polite">
+            <LoaderCircle className="h-4 w-4 animate-spin text-primary-500" aria-hidden="true" />
+            {activeTab === "doi" && "Looking up this DOI in Crossref…"}
+            {activeTab === "search" && "Searching Crossref…"}
+            {activeTab === "import" && (importProgress ? `Importing ${importProgress.current} of ${importProgress.total} papers…` : "Reading your BibTeX file…")}
+            {activeTab === "manual" && "Adding your paper to the library…"}
+          </div>
+        )}
+        {emptyState && (
+          <p className="mb-4 rounded-control bg-primary-50 p-3 text-small text-text-secondary dark:bg-primary-900/20" aria-live="polite">
+            {emptyState}
+          </p>
         )}
         {activeTab === "doi" && (
           <div role="tabpanel" id="tabpanel-doi" aria-labelledby="tab-doi">

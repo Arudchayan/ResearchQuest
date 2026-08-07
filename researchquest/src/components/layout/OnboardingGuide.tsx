@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { Compass, NotebookPen, Target, X } from "lucide-react";
+import { Button } from "../ui/button";
 
 interface OnboardingGuideProps {
   storageKey?: string;
@@ -39,31 +40,34 @@ export function OnboardingGuide({
     return window.localStorage.getItem(storageKey) === "true";
   });
 
-  const currentStep = useMemo(() => STEPS[stepIndex], [stepIndex]);
+  const currentStep = STEPS[stepIndex];
+
+  const handleDismiss = useCallback(() => {
+    setDismissed(true);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(storageKey, "true");
+    }
+  }, [storageKey]);
+
+  const nextStep = useCallback(() => {
+    setStepIndex((prev) => (prev + 1) % STEPS.length);
+  }, []);
+
+  const previousStep = useCallback(() => {
+    setStepIndex((prev) => (prev - 1 + STEPS.length) % STEPS.length);
+  }, []);
+
+  if (!currentStep) return null;
 
   if (dismissed) {
     return null;
   }
 
-  const handleDismiss = () => {
-    setDismissed(true);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(storageKey, "true");
-    }
-  };
-
-  const nextStep = () => {
-    setStepIndex((prev) => (prev + 1) % STEPS.length);
-  };
-
-  const previousStep = () => {
-    setStepIndex((prev) => (prev - 1 + STEPS.length) % STEPS.length);
-  };
-
+  const isLastStep = stepIndex === STEPS.length - 1;
   const Icon = currentStep.icon;
 
   return (
-    <section className="mb-4 rounded-2xl border border-border-subtle bg-bg-surface shadow-sm">
+    <section className="mb-4 rounded-surface border border-border-moderate bg-bg-surface shadow-sm">
       <div className="flex items-start gap-4 p-5 sm:p-6">
         <div className="flex-shrink-0 rounded-xl bg-primary-500/10 p-3 text-primary-600">
           <Icon className="w-6 h-6" aria-hidden="true" />
@@ -71,53 +75,57 @@ export function OnboardingGuide({
         <div className="flex-1 space-y-2">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-primary-500">
+              <p className="text-caption font-semibold uppercase tracking-wide text-primary-500">
                 Welcome to ResearchQuest
               </p>
-              <h2 className="text-lg font-semibold text-text-primary">
+              <h2 className="text-body-lg font-semibold text-text-primary">
                 {currentStep.title}
               </h2>
             </div>
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="icon"
               onClick={handleDismiss}
-              className="rounded-full p-1.5 text-text-tertiary hover:text-text-primary hover:bg-bg-base"
+              className="shrink-0 rounded-full text-text-tertiary hover:bg-bg-base hover:text-text-primary"
               aria-label="Dismiss onboarding guide"
             >
               <X className="w-4 h-4" aria-hidden="true" />
-            </button>
+            </Button>
           </div>
-          <p className="text-sm text-text-secondary">
+          <p className="text-small text-text-secondary">
             {currentStep.description}
           </p>
           <div className="flex items-center justify-between pt-2">
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2">
               {STEPS.map((_, index) => (
                 <span
                   key={index}
-                  className={`h-2.5 w-2.5 rounded-full transition-colors ${
+                  className={`h-2 w-2 rounded-full transition-colors ${
                     index === stepIndex ? "bg-primary-500" : "bg-border-subtle"
                   }`}
                 />
               ))}
             </div>
             <div className="flex items-center gap-2">
-              <button
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={previousStep}
-                className="rounded-full border border-border-subtle px-3 py-1.5 text-xs font-medium text-text-secondary hover:text-text-primary"
+                disabled={stepIndex === 0}
                 aria-label="Previous onboarding tip"
               >
                 Back
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
-                onClick={nextStep}
-                className="rounded-full bg-primary-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary-600"
-                aria-label="Next onboarding tip"
+                size="sm"
+                onClick={isLastStep ? handleDismiss : nextStep}
+                aria-label={isLastStep ? "Complete onboarding" : "Next onboarding tip"}
               >
-                Next tip
-              </button>
+                {isLastStep ? "Done" : "Next tip"}
+              </Button>
             </div>
           </div>
         </div>

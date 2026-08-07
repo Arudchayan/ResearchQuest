@@ -39,10 +39,10 @@ export function extractYear(dateString?: string): string {
 function parseAuthor(fullName: string) {
   const parts = fullName.trim().split(/\s+/);
   if (parts.length === 0) return { last: "", first: "", middle: "" };
-  if (parts.length === 1) return { last: parts[0], first: "", middle: "" };
+  if (parts.length === 1) return { last: parts[0]!, first: "", middle: "" };
 
-  const last = parts[parts.length - 1];
-  const first = parts[0];
+  const last = parts[parts.length - 1]!;
+  const first = parts[0]!;
   const middle = parts.slice(1, parts.length - 1).join(" ");
   return { last, first, middle };
 }
@@ -56,19 +56,19 @@ function formatAuthorsAPA(authors: string[]): string {
 
   const formatted = authors.map((author) => {
     const { last, first, middle } = parseAuthor(author);
-    const firstInitial = first && first.length > 0 ? `${first[0]}.` : "";
-    const middleInitial = middle && middle.length > 0 ? ` ${middle[0]}.` : "";
+    const firstInitial = first && first.length > 0 ? `${first[0]!}.` : "";
+    const middleInitial = middle && middle.length > 0 ? ` ${middle[0]!}.` : "";
     const initials = `${firstInitial}${middleInitial}`;
     return initials ? `${last}, ${initials}` : last;
   });
 
-  if (formatted.length === 1) return formatted[0];
-  if (formatted.length === 2) return `${formatted[0]} & ${formatted[1]}`;
+  if (formatted.length === 1) return formatted[0]!;
+  if (formatted.length === 2) return `${formatted[0]!} & ${formatted[1]!}`;
   if (formatted.length <= 20) {
-    return `${formatted.slice(0, -1).join(", ")}, & ${formatted[formatted.length - 1]}`;
+    return `${formatted.slice(0, -1).join(", ")}, & ${formatted[formatted.length - 1]!}`;
   }
   // For > 20 authors (APA 7th), list first 19, ..., last author
-  return `${formatted.slice(0, 19).join(", ")} ... ${formatted[formatted.length - 1]}`;
+  return `${formatted.slice(0, 19).join(", ")} ... ${formatted[formatted.length - 1]!}`;
 }
 
 /**
@@ -81,7 +81,7 @@ function formatAuthorsAPA(authors: string[]): string {
 function formatAuthorsMLA(authors: string[]): string {
   if (!authors || authors.length === 0) return "Anonymous";
 
-  const firstAuthor = parseAuthor(authors[0]);
+  const firstAuthor = parseAuthor(authors[0]!);
   const firstRest = [firstAuthor.first, firstAuthor.middle]
     .filter(Boolean)
     .join(" ");
@@ -92,7 +92,7 @@ function formatAuthorsMLA(authors: string[]): string {
   if (authors.length === 1) return firstFormatted;
 
   if (authors.length === 2) {
-    return `${firstFormatted}, and ${authors[1]}`;
+    return `${firstFormatted}, and ${authors[1]!}`;
   }
 
   return `${firstFormatted}, et al.`;
@@ -108,7 +108,7 @@ function formatAuthorsMLA(authors: string[]): string {
 function formatAuthorsChicago(authors: string[]): string {
   if (!authors || authors.length === 0) return "Anonymous";
 
-  const firstAuthor = parseAuthor(authors[0]);
+  const firstAuthor = parseAuthor(authors[0]!);
   const firstRest = [firstAuthor.first, firstAuthor.middle]
     .filter(Boolean)
     .join(" ");
@@ -135,24 +135,24 @@ function formatAuthorsHarvard(authors: string[]): string {
 
   const formatted = authors.map((author) => {
     const { last, first, middle } = parseAuthor(author);
-    const firstInitial = first && first.length > 0 ? first[0] : "";
-    const middleInitial = middle && middle.length > 0 ? middle[0] : "";
+    const firstInitial = first && first.length > 0 ? first[0]! : "";
+    const middleInitial = middle && middle.length > 0 ? middle[0]! : "";
     const initials = `${firstInitial}${middleInitial}`;
     return initials ? `${last}, ${initials}` : last;
   });
 
-  if (formatted.length === 1) return formatted[0];
-  if (formatted.length === 2) return `${formatted[0]} and ${formatted[1]}`;
+  if (formatted.length === 1) return formatted[0]!;
+  if (formatted.length === 2) return `${formatted[0]!} and ${formatted[1]!}`;
 
   // Harvard style typically lists all up to a certain number, then et al.
   // Using simplified rule: > 3 => et al.
   if (formatted.length > 3) {
-    return `${formatted[0]} et al.`;
+    return `${formatted[0]!} et al.`;
   }
 
   return (
     formatted.slice(0, -1).join(", ") +
-    ` and ${formatted[formatted.length - 1]}`
+    ` and ${formatted[formatted.length - 1]!}`
   );
 }
 
@@ -166,7 +166,7 @@ export function generateBibTeX(paper: Paper): string {
 
   let firstAuthorLastName = "Anonymous";
   if (authors && authors.length > 0) {
-    const { last } = parseAuthor(authors[0]);
+    const { last } = parseAuthor(authors[0]!);
     firstAuthorLastName = last.replace(/[^a-zA-Z]/g, "");
   }
 
@@ -178,7 +178,7 @@ export function generateBibTeX(paper: Paper): string {
   if (title) {
     const words = title.trim().split(/\s+/);
     if (words.length > 0) {
-      titleWord = words[0].replace(/[^a-zA-Z]/g, "");
+      titleWord = words[0]!.replace(/[^a-zA-Z]/g, "");
     }
   }
 

@@ -18,8 +18,10 @@ import {
 } from "lucide-react";
 import type { ViewMode } from "../hooks/useMarkdownEditor";
 
+type FormattingOption = "bold" | "italic" | "code" | "list" | "heading";
+
 interface EditorToolbarProps {
-  applyFormatting: (format: any) => void;
+  applyFormatting: (format: FormattingOption) => void;
   handleCopyMarkdown: () => void;
   handleCopyRichText: () => void;
   openLinkDialog: () => void;
@@ -58,8 +60,8 @@ export function EditorToolbar({
   setViewMode,
 }: EditorToolbarProps) {
   return (
-    <div className="px-6 py-3 bg-bg-elevated border-b border-border-subtle flex flex-wrap items-center gap-3 justify-between">
-      <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle bg-bg-elevated px-4 py-3 sm:px-6">
+      <div className="flex min-w-0 items-center gap-1 overflow-x-auto">
         <ToolbarButton onClick={() => applyFormatting("bold")} icon={Bold} label="Bold" shortcut="Ctrl/Cmd+B" />
         <ToolbarButton onClick={() => applyFormatting("italic")} icon={Italic} label="Italic" shortcut="Ctrl/Cmd+I" />
         <ToolbarButton onClick={() => applyFormatting("heading")} icon={Heading} label="Toggle Heading" shortcut="Ctrl/Cmd+Shift+H" />
@@ -92,8 +94,8 @@ export function EditorToolbar({
               key={id}
               type="button"
               onClick={() => setViewMode(id)}
-              className={`flex items-center gap-2 px-3 py-2 text-small transition-colors ${
-                viewMode === id ? "bg-primary-500 text-white" : "text-text-secondary hover:text-text-primary hover:bg-bg-surface"
+              className={`flex items-center gap-2 px-3 py-2 text-small transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2 ${
+                viewMode === id ? "bg-primary-500 text-bg-base" : "text-text-secondary hover:bg-bg-surface hover:text-text-primary"
               }`}
               title={`${label} (${shortcut})`}
             >
@@ -107,16 +109,24 @@ export function EditorToolbar({
   );
 }
 
-function ToolbarButton({ onClick, icon: Icon, label, shortcut, active }: any) {
+interface ToolbarButtonProps {
+  readonly onClick: () => void;
+  readonly icon: typeof Bold;
+  readonly label: string;
+  readonly shortcut?: string;
+  readonly active?: boolean;
+}
+
+function ToolbarButton({ onClick, icon: Icon, label, shortcut, active }: ToolbarButtonProps) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`p-2 rounded-md transition-colors hover:bg-bg-surface ${active ? "bg-primary-500/10 text-primary-500" : ""}`}
+      className={`rounded-control p-2 text-text-secondary transition-colors hover:bg-bg-surface hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2 ${active ? "bg-primary-50 text-text-primary" : ""}`}
       aria-label={shortcut ? `${label} (${shortcut})` : label}
       title={shortcut ? `${label} (${shortcut})` : label}
     >
-      <Icon className="w-4 h-4 text-text-secondary" />
+      <Icon className="h-4 w-4" />
     </button>
   );
 }

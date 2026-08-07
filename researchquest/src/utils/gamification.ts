@@ -126,7 +126,7 @@ export async function awardXP(
     return;
   }
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = new Date().toISOString().split("T")[0]!;
 
   // Calculate new XP and Level
   const newTotalXP = profile.total_xp + xpAmount;
@@ -337,7 +337,7 @@ async function updateDailyLog(
   xpEarned: number,
   currentStreak: number,
 ): Promise<void> {
-  const today = new Date().toISOString().split("T")[0];
+  const today = new Date().toISOString().split("T")[0]!;
 
   // Optimization: Removed redundant profile fetching and updating.
   // Streak is now calculated in awardXP and passed down.

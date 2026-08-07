@@ -51,10 +51,16 @@ describe("importData", () => {
     // Setup mock responses
     const upsertMock = vi.fn().mockResolvedValue({ error: null });
 
-    // We need to setup the chain: from(table).upsert(data)
-    mockSupabaseClient.from.mockReturnValue({
-      upsert: upsertMock,
-    } as any);
+    // Build a proper mock builder chain: from(table).select("*", {...}).in("id", ids) => count, then from(table).upsert(...)
+    const builder: any = { __count: 0 };
+    builder.select = vi.fn().mockReturnValue(builder);
+    builder.in = vi.fn().mockReturnValue(builder);
+    builder.upsert = upsertMock;
+    builder.then = ((onFulfilled?: (value: any) => any) => {
+      return Promise.resolve({ data: null, error: null, count: builder.__count }).then(onFulfilled);
+    }) as any;
+
+    mockSupabaseClient.from.mockReturnValue(builder);
 
     const result = await importData(mockFile, userId);
 
@@ -125,9 +131,16 @@ describe("importData", () => {
     const upsertMock = vi
       .fn()
       .mockResolvedValue({ error: { message: "DB Error" } });
-    mockSupabaseClient.from.mockReturnValue({
-      upsert: upsertMock,
-    } as any);
+
+    const builder: any = { __count: 0 };
+    builder.select = vi.fn().mockReturnValue(builder);
+    builder.in = vi.fn().mockReturnValue(builder);
+    builder.upsert = upsertMock;
+    builder.then = ((onFulfilled?: (value: any) => any) => {
+      return Promise.resolve({ data: null, error: null, count: builder.__count }).then(onFulfilled);
+    }) as any;
+
+    mockSupabaseClient.from.mockReturnValue(builder);
 
     const result = await importData(mockFile, userId);
 
@@ -136,5 +149,26 @@ describe("importData", () => {
       error: "Failed to import data. Please check the file and try again.",
     });
     expect(toast.error.mock.calls[0][0]).toContain("Failed to import data");
+  });
+
+  it("should report skipped rows when duplicates exist", async () => {
+    const upsertMock = vi.fn().mockResolvedValue({ error: null });
+
+    // Simulate all 5 rows already existing in the DB
+    const builder: any = { __count: 1 };
+    builder.select = vi.fn().mockReturnValue(builder);
+    builder.in = vi.fn().mockReturnValue(builder);
+    builder.upsert = upsertMock;
+    builder.then = ((onFulfilled?: (value: any) => any) => {
+      return Promise.resolve({ data: null, error: null, count: builder.__count }).then(onFulfilled);
+    }) as any;
+
+    mockSupabaseClient.from.mockReturnValue(builder);
+
+    const result = await importData(mockFile, userId);
+
+    // Each table had exactly 1 row, and all 1 already existed => 0 imported, 5 skipped
+    expect(result).toEqual({ success: true, imported: 0, skipped: 5 });
+    expect(upsertMock).toHaveBeenCalledTimes(5);
   });
 });

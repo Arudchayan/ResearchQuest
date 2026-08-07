@@ -37,7 +37,7 @@ export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
     detachTopicFromEntity,
     getTopicIdsForEntity,
     createTopic,
-  } = useTopics(userId);
+  } = useTopics(userId, { owner: false });
 
   useEffect(() => {
     const fetchSelected = async () => {
@@ -126,7 +126,7 @@ export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
             return (
               <span
                 key={topic.id}
-                className="inline-flex items-center gap-2 bg-primary-500/10 text-primary-600 dark:text-primary-400 px-3 py-1 rounded-full text-caption"
+                className="inline-flex items-center gap-2 rounded-full bg-primary-50 px-3 py-1 text-caption text-primary-600"
               >
                 {topic.name}
                 <button
@@ -150,7 +150,7 @@ export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
           </label>
           <div className="flex gap-2">
             <select
-              className="flex-1 px-3 py-2 rounded-md border border-border-subtle bg-bg-base text-small"
+              className="flex-1 rounded-control border border-border-subtle bg-bg-base px-3 py-2 text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-focus"
               onChange={(event) => {
                 const topic = topicsMap.get(event.target.value);
                 if (topic) {
@@ -181,12 +181,12 @@ export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
             onChange={(event) => setNewTopicName(event.target.value)}
             placeholder="e.g. Literature Review"
             maxLength={50}
-            className="flex-1 px-3 py-2 rounded-md border border-border-subtle bg-bg-base text-small"
+            className="flex-1 rounded-control border border-border-subtle bg-bg-base px-3 py-2 text-small text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-focus"
           />
           <button
             onClick={() => void handleCreate()}
             disabled={creating || !newTopicName.trim()}
-            className="inline-flex items-center gap-2 px-3 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-control bg-primary-500 px-3 py-2 text-bg-base transition-colors hover:bg-primary-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {creating ? (
               <Loader2 className="w-4 h-4 animate-spin" />

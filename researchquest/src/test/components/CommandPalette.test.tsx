@@ -73,6 +73,16 @@ describe("CommandPalette", () => {
     });
   });
 
+  it("keeps the palette within the 320px reflow width and exposes a visible focus ring", async () => {
+    render(<CommandPalette />);
+    fireEvent.keyDown(document, { key: "k", metaKey: true });
+
+    await screen.findByRole("dialog", { name: "Command Menu" });
+    const palette = document.querySelector("[cmdk-root]");
+    expect(palette).toHaveClass("w-[calc(100vw-2rem)]", "max-w-xl");
+    expect(screen.getByPlaceholderText("Type a command or search...")).toHaveClass("focus-visible:outline-2");
+  });
+
   it("renders navigation commands", async () => {
     render(<CommandPalette />);
     fireEvent.keyDown(document, { key: "k", metaKey: true });

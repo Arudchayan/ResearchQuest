@@ -52,4 +52,17 @@ describe("ShortcutsDialog", () => {
       expect(screen.getByText("Keyboard Shortcuts")).toBeInTheDocument();
     });
   });
+
+  it("uses an accessible 320px dialog width and a 44px focused close target", async () => {
+    render(<ShortcutsDialog />);
+    fireEvent.keyDown(document, { key: "?", shiftKey: true });
+
+    const dialog = await screen.findByRole("dialog", { name: "Keyboard Shortcuts" });
+    expect(dialog).toHaveClass("w-[calc(100vw-2rem)]", "max-w-xl");
+    expect(screen.getByRole("button", { name: "Close dialog" })).toHaveClass(
+      "min-h-11",
+      "min-w-11",
+      "focus-visible:outline-2",
+    );
+  });
 });

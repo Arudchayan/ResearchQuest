@@ -7,20 +7,22 @@ import {
   AlertCircle,
   Trash2,
 } from "lucide-react";
+import { Badge, type BadgeVariant } from "../ui/Badge";
+import { Button } from "../ui/button";
+import { Card } from "../ui/card";
 import type { Task } from "../../types/database";
 import { parseDateInput } from "../../utils/time";
 import { highlightMatch } from "../../utils/highlight";
 import type { TaskPriority } from "./taskTypes";
 
-export function getPriorityColor(priority: TaskPriority): string {
-  switch (priority) {
-    case "high":
-      return "bg-red-500/15 text-red-700 border border-red-500/30 dark:bg-red-900/40 dark:text-red-200 dark:border-red-800";
-    case "medium":
-      return "bg-amber-400/20 text-amber-700 border border-amber-500/30 dark:bg-amber-900/40 dark:text-amber-200 dark:border-amber-800";
-    case "low":
-      return "bg-emerald-400/20 text-emerald-700 border border-emerald-500/30 dark:bg-emerald-900/40 dark:text-emerald-200 dark:border-emerald-800";
-  }
+const priorityBadgeVariants: Record<TaskPriority, BadgeVariant> = {
+  high: "priority-high",
+  medium: "priority-medium",
+  low: "priority-low",
+};
+
+export function getPriorityColor(priority: TaskPriority): BadgeVariant {
+  return priorityBadgeVariants[priority];
 }
 
 export function isOverdue(dueDate: string | undefined): boolean {
@@ -52,7 +54,7 @@ export function TaskCard({
 }: TaskCardProps) {
   const [isCompleting, setIsCompleting] = useState(false);
 
-  const overdue = isOverdue(task.due_date);
+  const overdue = !task.completed && isOverdue(task.due_date);
   const dueDate = task.due_date ? parseDateInput(task.due_date) : null;
 
   const handleToggle = async (e: MouseEvent) => {
@@ -70,22 +72,23 @@ export function TaskCard({
   };
 
   return (
-    <div
-      className={`relative rounded-lg border bg-bg-surface transition-all duration-300 ${
-        compact ? "p-3 sm:p-3.5" : "p-4"
-      } ${
+    <Card
+      className={`transition duration-fast ${
         task.completed
-          ? "border-border-subtle opacity-60"
+          ? "border-border-subtle bg-bg-elevated"
           : overdue
-            ? "border-red-200 dark:border-red-900"
-            : "border-border-subtle hover:border-border-moderate hover:shadow-sm"
-      } ${isCompleting ? "scale-95 opacity-50" : ""}`}
+            ? "border-destructive hover:border-destructive hover:shadow-sm"
+            : "hover:border-border-strong hover:shadow-sm"
+      } ${compact ? "p-3" : "p-4"} ${isCompleting ? "scale-95" : ""}`}
     >
-      <div className={`flex items-start ${compact ? "gap-2.5" : "gap-3"}`}>
+      <div className={`flex items-start ${compact ? "gap-2" : "gap-3"}`}>
         {/* Checkbox */}
-        <button
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
           onClick={handleToggle}
-          className={`flex-shrink-0 mt-0.5 transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 rounded-full ${
+          className={`mt-0.5 shrink-0 rounded-control transition-transform duration-fast ${
             isCompleting ? "scale-125" : ""
           }`}
           aria-label={
@@ -94,107 +97,107 @@ export function TaskCard({
         >
           {task.completed ? (
             <CheckCircle2
-              className="w-5 h-5 text-green-500 animate-in fade-in zoom-in duration-300"
+              className="h-5 w-5 text-success"
               aria-hidden="true"
             />
           ) : (
             <Circle
-              className="w-5 h-5 text-text-tertiary hover:text-primary-500"
+              className="h-5 w-5 text-text-tertiary"
               aria-hidden="true"
             />
           )}
-        </button>
+        </Button>
 
         {/* Content */}
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 flex-1">
           <div
-            className={`flex items-start justify-between gap-2 ${compact ? "mb-1.5" : "mb-2"}`}
+            className={`flex flex-wrap items-start justify-between gap-2 ${compact ? "mb-1" : "mb-2"}`}
           >
             <h4
-              className={`text-small font-semibold ${
+              className={`min-w-0 flex-1 break-words text-small font-semibold ${
                 task.completed
-                  ? "text-text-tertiary line-through"
+                  ? "text-text-secondary line-through"
                   : "text-text-primary"
               }`}
             >
               {highlightMatch(task.title, highlightQuery)}
             </h4>
 
-            <div className="flex items-center gap-1.5 flex-shrink-0">
-              <button
+            <div className="flex shrink-0 items-center gap-1">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
                 onClick={() => onEdit(task)}
-                className="px-2 py-1 rounded-md border text-caption font-medium transition-colors text-text-secondary border-border-subtle hover:border-primary-400 hover:text-primary-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
               >
                 Edit
-              </button>
-              <button
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
                 onClick={handleDelete}
-                className="p-1.5 rounded transition-colors text-text-tertiary hover:text-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+                className="text-text-tertiary hover:bg-destructive-bg hover:text-destructive"
                 title="Delete task"
                 aria-label="Delete task"
               >
-                <Trash2 className="w-4 h-4" aria-hidden="true" />
-              </button>
+                <Trash2 className="h-4 w-4" aria-hidden="true" />
+              </Button>
             </div>
           </div>
 
           {task.description && (
             <p
-              className={`${compact ? "text-caption mb-2" : "text-small mb-3"} text-text-secondary`}
+              className={`${compact ? "mb-2 text-caption" : "mb-3 text-small"} break-words ${task.completed ? "text-text-tertiary" : "text-text-secondary"}`}
             >
               {highlightMatch(task.description, highlightQuery)}
             </p>
           )}
 
           {/* Metadata */}
-          <div
-            className={`flex flex-wrap items-center ${compact ? "gap-1.5" : "gap-2"}`}
-          >
+          <div className="flex flex-wrap items-center gap-2 pt-2">
             {/* Priority Badge */}
-            <span
-              className={`px-2 py-0.5 rounded-full text-caption font-semibold capitalize ${getPriorityColor(task.priority)}`}
-            >
+            <Badge variant={getPriorityColor(task.priority)} className="capitalize">
               {task.priority}
-            </span>
+            </Badge>
 
             {/* Category Badge */}
             {task.category && (
-              <span
-                className={`px-2 py-0.5 rounded-full text-caption font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 ${compact ? "border border-blue-200/80 dark:border-blue-800/80" : ""}`}
-              >
+              <Badge variant="neutral" className="font-medium">
                 {task.category}
-              </span>
+              </Badge>
             )}
 
             {/* Due Date */}
             {dueDate && (
-              <div
-                className={`flex items-center gap-1 text-caption ${
-                  overdue && !task.completed
-                    ? "text-red-600 dark:text-red-400 font-semibold"
-                    : "text-text-tertiary"
-                }`}
-              >
-                {overdue && !task.completed ? (
-                  <AlertCircle className="w-3 h-3" aria-hidden="true" />
-                ) : (
-                  <Clock className="w-3 h-3" aria-hidden="true" />
-                )}
-                <span>
-                  {dueDate.toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
+              overdue ? (
+                <Badge variant="priority-overdue" className="font-medium">
+                  <AlertCircle className="h-3 w-3" aria-hidden="true" />
+                  <span>
+                    {dueDate.toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </span>
+                  <span>(Overdue)</span>
+                </Badge>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-caption text-text-tertiary">
+                  <Clock className="h-3 w-3" aria-hidden="true" />
+                  <span>
+                    {dueDate.toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </span>
                 </span>
-                {overdue && !task.completed && (
-                  <span className="font-semibold">(Overdue)</span>
-                )}
-              </div>
+              )
             )}
           </div>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }

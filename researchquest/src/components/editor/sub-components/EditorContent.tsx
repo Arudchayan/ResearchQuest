@@ -71,8 +71,8 @@ export default function EditorContent({
   );
 
   return (
-    <div className={`flex-1 flex overflow-hidden ${viewMode === "split" ? "flex-col lg:flex-row" : "flex-col"}`}>
-      <div className={`${viewMode === "split" ? "lg:w-3/5" : "w-full"} ${viewMode === "preview" ? "hidden" : "block"} h-full bg-bg-surface`}>
+    <div className={`flex min-h-0 flex-1 overflow-hidden ${viewMode === "split" ? "flex-col lg:flex-row" : "flex-col"}`}>
+      <div className={`${viewMode === "split" ? "lg:w-3/5" : "w-full"} ${viewMode === "preview" ? "hidden" : "block"} h-full min-h-0 bg-bg-surface`}>
         <div className="h-full overflow-auto">
           <CodeMirror
             value={content}
@@ -81,7 +81,7 @@ export default function EditorContent({
             extensions={extensions}
             onChange={setContent}
             className="h-full font-mono text-code"
-            onCreateEditor={(view) => { editorViewRef.current = view; }}
+            onCreateEditor={(view: EditorView) => { editorViewRef.current = view; }}
             basicSetup={{
               lineNumbers: true,
               foldGutter: true,
@@ -97,7 +97,7 @@ export default function EditorContent({
 
       {viewMode === "split" && <div className="hidden lg:block w-px bg-border-subtle flex-shrink-0" />}
 
-      <div className={`${viewMode === "split" ? "lg:w-2/5" : "w-full"} ${viewMode === "edit" ? "hidden" : "block"} h-full overflow-auto bg-bg-base p-6`}>
+      <div className={`${viewMode === "split" ? "lg:w-2/5" : "w-full"} ${viewMode === "edit" ? "hidden" : "block"} h-full min-h-0 overflow-auto bg-bg-base p-4 sm:p-6`}>
         <div ref={previewRef} className="prose prose-sm max-w-none dark:prose-invert">
           <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS}>
             {debouncedContent || "*Start typing to see preview...*"}

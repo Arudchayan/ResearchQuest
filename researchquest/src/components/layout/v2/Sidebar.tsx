@@ -116,7 +116,7 @@ export function Sidebar() {
 
         <button
           onClick={handleOpenSearch}
-          className="w-full flex items-center justify-between px-3 py-2 rounded-sm bg-bg-base border border-border-moderate text-small text-text-secondary hover:text-text-primary hover:border-border-strong transition-colors shadow-sm focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+          className="flex min-h-11 w-full items-center justify-between rounded-sm border border-border-moderate bg-bg-base px-3 py-2 text-small text-text-secondary shadow-sm transition-colors hover:border-border-strong hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
           aria-label="Search or type a command"
         >
           <div className="flex items-center gap-2">
@@ -150,7 +150,7 @@ export function Sidebar() {
               );
             }}
             className={cn(
-              "w-full flex items-center gap-3 px-3 py-2.5 rounded-sm text-small font-medium transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500 focus-visible:outline-offset-2",
+              "flex min-h-11 w-full items-center gap-3 rounded-sm px-3 py-2.5 text-small font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2",
               currentView === item.id
                 ? "bg-primary-50 text-text-primary font-semibold"
                 : "text-text-secondary hover:bg-bg-elevated hover:text-text-primary",

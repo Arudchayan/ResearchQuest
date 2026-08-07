@@ -1,6 +1,9 @@
 import { AlertTriangle, X } from "lucide-react";
 import { useEffect, useRef, useState, useCallback } from "react";
 
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
 interface ConfirmDialogProps {
   isOpen: boolean;
   onClose: () => void;
@@ -27,29 +30,36 @@ export function ConfirmDialog({
   const confirmButtonRef = useRef<HTMLButtonElement>(null);
   const cancelButtonRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
-    if (isOpen) {
-      const trigger = document.activeElement as HTMLElement;
-
-      // Focus cancel button for destructive/warning actions, confirm for others
-      if (variant === "danger" || variant === "warning") {
-        cancelButtonRef.current?.focus();
-      } else {
-        confirmButtonRef.current?.focus();
+    if (!isOpen) {
+      const trigger = triggerRef.current;
+      triggerRef.current = null;
+      if (trigger && document.body.contains(trigger)) {
+        trigger.focus();
       }
-
-      // Lock body scroll
-      document.body.style.overflow = "hidden";
-
-      return () => {
-        document.body.style.overflow = "unset";
-        // Restore focus
-        if (trigger && document.body.contains(trigger)) {
-          trigger.focus();
-        }
-      };
+      return;
     }
+
+    if (triggerRef.current === null) {
+      const activeElement = document.activeElement;
+      triggerRef.current = activeElement instanceof HTMLElement ? activeElement : null;
+    }
+
+    // Focus cancel button for destructive/warning actions, confirm for others
+    if (variant === "danger" || variant === "warning") {
+      cancelButtonRef.current?.focus();
+    } else {
+      confirmButtonRef.current?.focus();
+    }
+
+    // Lock body scroll
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = "unset";
+    };
   }, [isOpen, variant]);
 
   useEffect(() => {
@@ -57,15 +67,14 @@ export function ConfirmDialog({
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Tab") {
-        const focusableElements = dialogRef.current?.querySelectorAll(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        const focusableElements = dialogRef.current?.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
         );
         if (!focusableElements || focusableElements.length === 0) return;
 
-        const firstElement = focusableElements[0] as HTMLElement;
-        const lastElement = focusableElements[
-          focusableElements.length - 1
-        ] as HTMLElement;
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+        if (!firstElement || !lastElement) return;
 
         if (e.shiftKey) {
           if (document.activeElement === firstElement) {
@@ -95,23 +104,23 @@ export function ConfirmDialog({
     switch (variant) {
       case "danger":
         return {
-          icon: "text-red-600 dark:text-red-400",
-          iconBg: "bg-red-100 dark:bg-red-900/20",
+          icon: "text-destructive",
+          iconBg: "bg-destructive-bg",
           button:
-            "bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800",
+            "bg-destructive text-destructive-foreground hover:bg-destructive-hover",
         };
       case "warning":
         return {
-          icon: "text-orange-600 dark:text-orange-400",
-          iconBg: "bg-orange-100 dark:bg-orange-900/20",
+          icon: "text-warning",
+          iconBg: "bg-warning-bg",
           button:
-            "bg-orange-600 hover:bg-orange-700 dark:bg-orange-700 dark:hover:bg-orange-800",
+            "bg-warning text-warning-foreground hover:bg-warning-hover",
         };
       case "info":
         return {
-          icon: "text-primary-600 dark:text-primary-400",
-          iconBg: "bg-primary-100 dark:bg-primary-900/20",
-          button: "bg-primary-600 hover:bg-primary-700",
+          icon: "text-info",
+          iconBg: "bg-info-bg",
+          button: "bg-info text-info-foreground hover:bg-info-hover",
         };
     }
   };
@@ -126,29 +135,32 @@ export function ConfirmDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
-      onClick={onClose}
+      className="fixed inset-0 z-modal flex items-center justify-center p-4 bg-overlay animate-in fade-in duration-fast"
+      onClick={() => {
+        if (!isLoading) onClose();
+      }}
     >
       <div
         ref={dialogRef}
-        className="w-full max-w-md bg-bg-surface rounded-lg shadow-lg border border-border-subtle animate-in zoom-in-95 duration-200"
+         className="w-full max-w-md bg-bg-surface rounded-surface shadow-lg border border-border-moderate animate-in zoom-in-95 duration-fast"
         onClick={(e) => e.stopPropagation()}
         role="alertdialog"
+        aria-modal="true"
         aria-labelledby="dialog-title"
         aria-describedby="dialog-description"
       >
         {/* Header */}
         <div className="flex items-start gap-4 p-6 pb-4">
           <div
-            className={`w-12 h-12 rounded-full ${styles.iconBg} flex items-center justify-center flex-shrink-0`}
+            className={`w-12 h-12 rounded-control ${styles.iconBg} flex items-center justify-center flex-shrink-0`}
           >
-            <AlertTriangle className={`w-6 h-6 ${styles.icon}`} />
+            <AlertTriangle className={`w-6 h-6 ${styles.icon}`} aria-hidden="true" />
           </div>
 
           <div className="flex-1 min-w-0">
             <h3
               id="dialog-title"
-              className="text-lg font-semibold text-text-primary mb-2"
+              className="text-lg font-serif font-semibold text-text-primary mb-2"
             >
               {title}
             </h3>
@@ -160,44 +172,51 @@ export function ConfirmDialog({
             </p>
           </div>
 
-          <button
+          <Button
+            type="button"
             onClick={onClose}
             disabled={isLoading}
-            className="p-1 rounded-md text-text-tertiary hover:text-text-primary hover:bg-bg-elevated transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+            variant="ghost"
+            size="icon"
+            className="text-text-tertiary hover:text-text-primary"
             aria-label="Close dialog"
           >
             <X className="w-5 h-5" aria-hidden="true" />
-          </button>
+          </Button>
         </div>
 
         {/* Actions */}
         <div className="flex gap-3 px-6 py-4 bg-bg-elevated border-t border-border-subtle">
-          <button
+          <Button
             ref={cancelButtonRef}
+            type="button"
             onClick={onClose}
             disabled={isLoading}
-            className="flex-1 px-4 py-2 bg-bg-surface text-text-primary border border-border-subtle rounded-md hover:bg-bg-base transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+            variant="outline"
+            className="flex-1"
           >
             {cancelText}
-          </button>
+          </Button>
 
-          <button
+          <Button
             ref={confirmButtonRef}
+            type="button"
             onClick={handleConfirm}
             disabled={isLoading}
             aria-live="polite"
             aria-atomic="true"
-            className={`flex-1 px-4 py-2 text-white rounded-md transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 ${styles.button}`}
+            variant={variant === "danger" ? "destructive" : "default"}
+            className={cn("flex-1", styles.button)}
           >
             {isLoading ? (
               <span className="flex items-center justify-center gap-2">
-                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" aria-hidden="true" />
+                <span className="w-4 h-4 border-2 border-border-subtle border-t-current rounded-full animate-spin" aria-hidden="true" />
                 Loading...
               </span>
             ) : (
               confirmText
             )}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

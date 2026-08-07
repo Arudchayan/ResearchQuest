@@ -1,3 +1,13 @@
+/**
+ * OWNERSHIP: tasks (sole owner)
+ *
+ * This hook is the exclusive realtime owner for the tasks table. It manages
+ * all CRUD operations, the canonical Zustand task collection, optimistic
+ * updates, and the Postgres realtime subscription for tasks.
+ *
+ * No other hook should subscribe to "tasks" for data ownership purposes.
+ * Sidebar stats (right_sidebar_tasks) refresh deadline counts only.
+ */
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import { awardXP, XP_REWARDS } from "../utils/gamification";
@@ -9,9 +19,16 @@ import type { Task } from "../types/database";
 
 export type { Task } from "../types/database";
 
-export function useTasks(userId: string | undefined) {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
+export interface UseTasksOptions {
+  owner?: boolean;
+}
+
+export function useTasks(
+  userId: string | undefined,
+  { owner = true }: UseTasksOptions = {},
+) {
+  const tasks = useAppStore((state) => state.tasks);
+  const loading = useAppStore((state) => state.tasksLoading);
   const [error, setError] = useState<string | null>(null);
   const setGlobalTasks = useAppStore((state) => state.setTasks);
   const setGlobalTasksLoading = useAppStore((state) => state.setTasksLoading);
@@ -19,7 +36,6 @@ export function useTasks(userId: string | undefined) {
 
   const commitTasks = useCallback(
     (nextTasks: Task[]) => {
-      setTasks(nextTasks);
       setGlobalTasks(nextTasks);
     },
     [setGlobalTasks],
@@ -27,11 +43,7 @@ export function useTasks(userId: string | undefined) {
 
   const updateCommittedTasks = useCallback(
     (updater: (previousTasks: Task[]) => Task[]) => {
-      setTasks((previousTasks) => {
-        const nextTasks = updater(previousTasks);
-        setGlobalTasks(nextTasks);
-        return nextTasks;
-      });
+      setGlobalTasks(updater(useAppStore.getState().tasks));
     },
     [setGlobalTasks],
   );
@@ -66,7 +78,7 @@ export function useTasks(userId: string | undefined) {
   }, []);
 
   const fetchTasks = useCallback(async () => {
-    if (!userId) return;
+    if (!owner || !userId) return;
 
     setGlobalTasksLoading(true);
     setError(null);
@@ -89,20 +101,49 @@ export function useTasks(userId: string | undefined) {
       setError("Failed to fetch tasks");
       setDataSyncError("tasks", "Failed to fetch tasks");
     } finally {
-      setLoading(false);
       setGlobalTasksLoading(false);
     }
-  }, [userId, sortTasksByDueDate, commitTasks, setGlobalTasksLoading, setDataSyncError]);
+  }, [
+    commitTasks,
+    owner,
+    setDataSyncError,
+    setGlobalTasksLoading,
+    sortTasksByDueDate,
+    userId,
+  ]);
+
+  const refreshTasks = useCallback(async () => {
+    if (owner) {
+      await fetchTasks();
+      return;
+    }
+
+    if (userId) {
+      useAppStore.getState().retryDataSync("tasks");
+    }
+  }, [fetchTasks, owner, userId]);
 
   useEffect(() => {
+    if (!owner) return;
+
     if (!userId) {
       commitTasks([]);
-      setLoading(false);
       setGlobalTasksLoading(false);
       return;
     }
 
-    fetchTasks();
+    void fetchTasks();
+
+    // Retry signal: Dashboard may trigger a tasks retry without mounting this
+    // hook, so listen to the store-level counter and refetch when it bumps.
+    const retryUnsub = useAppStore.subscribe((state, prevState) => {
+      if (
+        state.dataSyncRetryCounters.tasks !==
+        prevState.dataSyncRetryCounters.tasks
+      ) {
+        void fetchTasks();
+      }
+    });
 
     // Subscribe to realtime updates
     const subscription = supabase
@@ -132,17 +173,21 @@ export function useTasks(userId: string | undefined) {
               }
               return sortTasksByDueDate([...(prev ?? []), payload.new as Task]);
             });
-          } else if (payload.eventType === "UPDATE") {
+          } else           if (payload.eventType === "UPDATE") {
+            const updated = payload.new as Task;
             updateCommittedTasks((prev) =>
               sortTasksByDueDate(
                 prev.map((task) =>
-                  task.id === payload.new.id ? (payload.new as Task) : task,
+                  task.id === updated.id ? updated : task,
                 ),
               ),
             );
           } else if (payload.eventType === "DELETE") {
+            const oldId = payload.old["id"];
             updateCommittedTasks((prev) =>
-              prev.filter((task) => task.id !== payload.old.id),
+              typeof oldId === "string"
+                ? prev.filter((task) => task.id !== oldId)
+                : prev,
             );
           }
         },
@@ -152,11 +197,13 @@ export function useTasks(userId: string | undefined) {
       });
 
     return () => {
+      retryUnsub();
       subscription.unsubscribe();
     };
   }, [
     commitTasks,
     fetchTasks,
+    owner,
     setGlobalTasksLoading,
     sortTasksByDueDate,
     updateCommittedTasks,
@@ -190,7 +237,10 @@ export function useTasks(userId: string | undefined) {
     }
 
     // Clean and prepare the data - only include defined fields
-    const cleanData: any = {
+    type TaskInsertPayload = Pick<Task, "user_id" | "title" | "completed" | "priority"> &
+      Partial<Pick<Task, "description" | "due_date" | "category" | "project_id">>;
+
+    const cleanData: TaskInsertPayload = {
       user_id: userId,
       title: taskData.title.trim(),
       completed: false,
@@ -234,7 +284,7 @@ export function useTasks(userId: string | undefined) {
     logger.log("Task created successfully:", data);
     toast.success("Task created successfully");
 
-    // Optimistic update - add to local state immediately
+    // Optimistic update - add to the canonical task collection immediately
     updateCommittedTasks((prev) => sortTasksByDueDate([...(prev ?? []), data]));
 
     // Award XP (don't await to avoid blocking)
@@ -297,7 +347,7 @@ export function useTasks(userId: string | undefined) {
       setError("Failed to update task. Please try again.");
       toast.error("Failed to update task. Please try again.");
       // Revert on error
-      fetchTasks();
+      void refreshTasks();
       return false;
     }
 
@@ -337,7 +387,7 @@ export function useTasks(userId: string | undefined) {
       setError("Failed to update task. Please try again.");
       toast.error("Failed to update task. Please try again.");
       // Revert on error
-      fetchTasks();
+      void refreshTasks();
       return false;
     }
 
@@ -425,6 +475,6 @@ export function useTasks(userId: string | undefined) {
     completeTask,
     deleteTask,
     restoreTask,
-    refreshTasks: fetchTasks,
+    refreshTasks,
   };
 }

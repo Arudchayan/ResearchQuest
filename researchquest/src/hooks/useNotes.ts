@@ -3,6 +3,7 @@ import { useState, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import { awardXP, XP_REWARDS } from "../utils/gamification";
 import { sortByUpdatedAt } from "../utils/sort";
+import { dedupeById } from "../utils/collections";
 import { toast } from "sonner";
 import type { Note } from "../types/database";
 import { useAppStore } from "../store/appStore";
@@ -69,7 +70,10 @@ export function useNotes(userId: string | undefined) {
         return null;
       }
 
-      const cleanData: any = {
+      type NoteInsertPayload = Pick<Note, "user_id" | "markdown_body" | "tags"> &
+        Partial<Pick<Note, "title" | "linked_entity_ids">>;
+
+      const cleanData: NoteInsertPayload = {
         user_id: userId,
         markdown_body: noteData.markdown_body,
         tags: Array.isArray(noteData.tags) ? noteData.tags : [],
@@ -248,10 +252,13 @@ export function useNotes(userId: string | undefined) {
         setError(`Failed to delete note: ${errorMessage}`);
         toast.error(`Failed to delete note: ${errorMessage}`);
 
-        // Revert on error
+        // Revert on error with dedup: if realtime re-inserted the note during the async gap,
+        // the store version (fresh) takes precedence over the stale snapshot.
         if (deletedNote) {
           setNotes(
-            sortByUpdatedAt([...useAppStore.getState().notes, deletedNote]),
+            sortByUpdatedAt(
+              dedupeById([deletedNote, ...useAppStore.getState().notes]),
+            ),
           );
         }
         return false;

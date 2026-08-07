@@ -61,7 +61,7 @@ export function CommandPalette() {
   const { notes } = useNotes(user?.id);
   const { papers } = usePapers(user?.id);
   const { ideas } = useIdeas(user?.id);
-  const { tasks } = useTasks(user?.id);
+  const { tasks } = useTasks(user?.id, { owner: false });
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -166,7 +166,7 @@ export function CommandPalette() {
       id: t.id,
       user_id: t.user_id,
       name: t.name,
-      description: t.description,
+      ...(t.description !== undefined ? { description: t.description } : {}),
       created_at: t.created_at,
       updated_at: t.updated_at,
     }));
@@ -204,13 +204,21 @@ export function CommandPalette() {
   }, [notes, papers, ideas, tasks, topicsArray]);
 
   return (
-    <Command.Dialog open={open} onOpenChange={setOpen} label="Command Menu">
+    <Command.Dialog
+      className="w-[calc(100vw-2rem)] max-w-xl"
+      open={open}
+      onOpenChange={setOpen}
+      label="Command Menu"
+    >
       <div
         className="flex items-center border-b border-border-subtle px-3"
         cmdk-input-wrapper=""
       >
         <Search className="w-5 h-5 text-text-tertiary mr-2" />
-        <Command.Input placeholder="Type a command or search..." />
+        <Command.Input
+          className="focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+          placeholder="Type a command or search..."
+        />
       </div>
 
       <Command.List>

@@ -27,6 +27,23 @@ import {
   convertTopicsToJSON,
   downloadFile,
 } from "../../utils/export";
+import { InlineError } from "../ui/ErrorFallback";
+import { Skeleton } from "../ui/Skeleton";
+
+type AssociationKind = "notes" | "papers" | "ideas";
+
+type AssociationLoadErrors = Record<AssociationKind, string | null>;
+
+const EMPTY_ASSOCIATION_ERRORS: AssociationLoadErrors = {
+  notes: null,
+  papers: null,
+  ideas: null,
+};
+
+interface AssociationLoadResult<T> {
+  readonly items: T[];
+  readonly error: string | null;
+}
 
 interface TopicDetailViewProps {
   topic: TopicWithCounts;
@@ -60,6 +77,8 @@ export function TopicDetailView({
   const [notes, setNotes] = useState<Note[]>([]);
   const [papers, setPapers] = useState<Paper[]>([]);
   const [ideas, setIdeas] = useState<Idea[]>([]);
+  const [associationErrors, setAssociationErrors] =
+    useState<AssociationLoadErrors>(EMPTY_ASSOCIATION_ERRORS);
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -79,16 +98,18 @@ export function TopicDetailView({
       setNotes([]);
       setPapers([]);
       setIdeas([]);
+      setAssociationErrors(EMPTY_ASSOCIATION_ERRORS);
       setLoadingAssociations(false);
       return;
     }
 
     setLoadingAssociations(true);
+    try {
 
-    const fetchIds = async <T extends string>(
+    const fetchIds = async (
       table: string,
       column: string,
-    ): Promise<T[]> => {
+    ): Promise<{ readonly ids: string[]; readonly error: string | null }> => {
       const { data, error } = await supabase
         .from(table)
         .select(column)
@@ -96,10 +117,16 @@ export function TopicDetailView({
 
       if (error) {
         logger.error(`Failed to load ${table}`, error);
-        return [];
+        return { ids: [], error: error.message };
       }
 
-      return (data || []).map((row) => row[column as keyof typeof row] as T);
+      return {
+        ids: (data || []).flatMap((row) => {
+          const value = row[column as keyof typeof row];
+          return typeof value === "string" ? [value] : [];
+        }),
+        error: null,
+      };
     };
 
     // ⚡ OPTIMIZATION: Combine ID fetching and row querying into independent, chained promises.
@@ -109,21 +136,22 @@ export function TopicDetailView({
       idTable: string,
       idColumn: string,
       rowTable: string,
-    ): Promise<T[]> => {
-      const ids = await fetchIds<string>(idTable, idColumn);
-      if (!ids.length) return [];
+    ): Promise<AssociationLoadResult<T>> => {
+      const idResult = await fetchIds(idTable, idColumn);
+      if (idResult.error) return { items: [], error: idResult.error };
+      if (!idResult.ids.length) return { items: [], error: null };
 
       const { data, error } = await supabase
         .from(rowTable)
         .select("*")
-        .in("id", ids);
+        .in("id", idResult.ids);
 
       if (error) {
         logger.error(`Failed to load ${rowTable}`, error);
-        return [];
+        return { items: [], error: error.message };
       }
 
-      return (data || []) as T[];
+      return { items: (data || []) as T[], error: null };
     };
 
     const [notesData, papersData, ideasData] = await Promise.all([
@@ -132,10 +160,24 @@ export function TopicDetailView({
       fetchAssociatedRows<Idea>("topic_ideas", "idea_id", "ideas"),
     ]);
 
-    setNotes(notesData);
-    setPapers(papersData);
-    setIdeas(ideasData);
-    setLoadingAssociations(false);
+    setNotes(notesData.items);
+    setPapers(papersData.items);
+    setIdeas(ideasData.items);
+    setAssociationErrors({
+      notes: notesData.error,
+      papers: papersData.error,
+      ideas: ideasData.error,
+    });
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to load linked work. Please try again.";
+      logger.error("Failed to load topic associations", error);
+      setAssociationErrors({ notes: message, papers: message, ideas: message });
+    } finally {
+      setLoadingAssociations(false);
+    }
   }, [topic.id, userId]);
 
   useEffect(() => {
@@ -204,9 +246,11 @@ export function TopicDetailView({
 
       downloadFile(content, filename, format);
       toast.success(`Exported topic as ${format.toUpperCase()}`);
-    } catch (err: any) {
-      logger.error("Export failed", err);
-      toast.error(err.message || "Failed to export topic");
+    } catch (error) {
+      logger.error("Export failed", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to export topic",
+      );
     }
   };
 
@@ -214,21 +258,27 @@ export function TopicDetailView({
     () => [
       {
         label: "Notes",
-        count: topic.note_count,
+        recordedCount: topic.note_count,
+        displayCount: associationErrors.notes ? topic.note_count : notes.length,
+        error: associationErrors.notes,
         items: notes,
         icon: FileText,
         view: "notes" as const,
       },
       {
         label: "Papers",
-        count: topic.paper_count,
+        recordedCount: topic.paper_count,
+        displayCount: associationErrors.papers ? topic.paper_count : papers.length,
+        error: associationErrors.papers,
         items: papers,
         icon: BookOpen,
         view: "papers" as const,
       },
       {
         label: "Ideas",
-        count: topic.idea_count,
+        recordedCount: topic.idea_count,
+        displayCount: associationErrors.ideas ? topic.idea_count : ideas.length,
+        error: associationErrors.ideas,
         items: ideas,
         icon: Lightbulb,
         view: "ideas" as const,
@@ -238,6 +288,7 @@ export function TopicDetailView({
       ideas,
       notes,
       papers,
+      associationErrors,
       topic.idea_count,
       topic.note_count,
       topic.paper_count,
@@ -250,11 +301,11 @@ export function TopicDetailView({
         isOpen={isOpen}
         title={config.title || "Confirm Action"}
         message={config.message || "Are you sure?"}
-        confirmText={config.confirmText}
-        cancelText={config.cancelText}
-        variant={config.variant}
-        onConfirm={config.onConfirm!}
-        onClose={config.onClose!}
+        {...(config.confirmText !== undefined ? { confirmText: config.confirmText } : {})}
+        {...(config.cancelText !== undefined ? { cancelText: config.cancelText } : {})}
+        {...(config.variant !== undefined ? { variant: config.variant } : {})}
+        onConfirm={config.onConfirm ?? (() => {})}
+        onClose={config.onClose ?? (() => {})}
       />
       <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-6">
       <div className="bg-bg-surface border border-border-subtle rounded-xl shadow-sm p-4 sm:p-6 space-y-4">
@@ -267,7 +318,7 @@ export function TopicDetailView({
                 maxLength={50}
                 placeholder="Topic name..."
                 aria-label="Topic name"
-                className="w-full px-3 py-2 text-xl font-semibold bg-bg-base border border-border-subtle rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                className="w-full rounded-control border border-border-subtle bg-bg-base px-3 py-2 text-subtitle font-semibold text-text-primary focus:outline-none focus:ring-2 focus:ring-focus"
               />
             ) : (
               <h1 className="text-2xl font-bold text-text-primary">
@@ -280,7 +331,7 @@ export function TopicDetailView({
                 onChange={(event) => setDescription(event.target.value)}
                 rows={4}
                 maxLength={500}
-                className="w-full px-3 py-2 text-small bg-bg-base border border-border-subtle rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                className="w-full rounded-control border border-border-subtle bg-bg-base px-3 py-2 text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-focus"
                 placeholder="Describe what belongs in this topic..."
                 aria-label="Topic description"
               />
@@ -296,7 +347,7 @@ export function TopicDetailView({
               <div className="flex gap-2">
                 <button
                   onClick={handleSave}
-                  className="inline-flex items-center gap-2 px-3 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors"
+                  className="inline-flex items-center gap-2 rounded-control bg-primary-500 px-3 py-2 text-bg-base transition-colors hover:bg-primary-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
                 >
                   <Save className="w-4 h-4" aria-hidden="true" />
                   Save
@@ -307,7 +358,7 @@ export function TopicDetailView({
                     setName(topic.name);
                     setDescription(topic.description || "");
                   }}
-                  className="inline-flex items-center gap-2 px-3 py-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
+                  className="inline-flex items-center gap-2 rounded-control bg-bg-elevated px-3 py-2 text-text-secondary transition-colors hover:bg-bg-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
                 >
                   <XCircle className="w-4 h-4" aria-hidden="true" />
                   Cancel
@@ -318,7 +369,7 @@ export function TopicDetailView({
                 <DropdownMenu.Root>
                   <DropdownMenu.Trigger asChild>
                     <button
-                      className="inline-flex items-center gap-2 px-3 py-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
+                      className="inline-flex items-center gap-2 rounded-control bg-bg-elevated px-3 py-2 text-text-secondary transition-colors hover:bg-bg-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
                       title="Export topic"
                       aria-label="Export topic"
                     >
@@ -328,25 +379,25 @@ export function TopicDetailView({
                   </DropdownMenu.Trigger>
                   <DropdownMenu.Portal>
                     <DropdownMenu.Content
-                      className="min-w-[160px] bg-bg-surface border border-border-subtle rounded-md shadow-md p-1 z-50 animate-in fade-in zoom-in-95"
+                      className="z-dropdown min-w-40 rounded-control border border-border-subtle bg-bg-surface p-1 shadow-md animate-in fade-in zoom-in-95"
                       align="end"
                     >
                       <DropdownMenu.Item
-                        className="flex items-center gap-2 px-2 py-1.5 text-sm text-text-primary hover:bg-bg-elevated rounded cursor-pointer outline-none"
+                        className="flex cursor-pointer items-center gap-2 rounded-control px-2 py-1.5 text-small text-text-primary outline-none hover:bg-bg-elevated focus-visible:bg-bg-elevated"
                         onSelect={() => handleExport("markdown")}
                       >
                         <FileText className="w-4 h-4 text-text-secondary" />
                         Markdown
                       </DropdownMenu.Item>
                       <DropdownMenu.Item
-                        className="flex items-center gap-2 px-2 py-1.5 text-sm text-text-primary hover:bg-bg-elevated rounded cursor-pointer outline-none"
+                        className="flex cursor-pointer items-center gap-2 rounded-control px-2 py-1.5 text-small text-text-primary outline-none hover:bg-bg-elevated focus-visible:bg-bg-elevated"
                         onSelect={() => handleExport("csv")}
                       >
                         <Table className="w-4 h-4 text-text-secondary" />
                         CSV
                       </DropdownMenu.Item>
                       <DropdownMenu.Item
-                        className="flex items-center gap-2 px-2 py-1.5 text-sm text-text-primary hover:bg-bg-elevated rounded cursor-pointer outline-none"
+                        className="flex cursor-pointer items-center gap-2 rounded-control px-2 py-1.5 text-small text-text-primary outline-none hover:bg-bg-elevated focus-visible:bg-bg-elevated"
                         onSelect={() => handleExport("json")}
                       >
                         <FileJson className="w-4 h-4 text-text-secondary" />
@@ -357,14 +408,14 @@ export function TopicDetailView({
                 </DropdownMenu.Root>
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="inline-flex items-center gap-2 px-3 py-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
+                  className="inline-flex items-center gap-2 rounded-control bg-bg-elevated px-3 py-2 text-text-secondary transition-colors hover:bg-bg-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
                 >
                   <Pencil className="w-4 h-4" />
                   Edit
                 </button>
                 <button
                   onClick={handleDelete}
-                  className="inline-flex items-center gap-2 px-3 py-2 bg-destructive/10 text-destructive rounded-md hover:bg-destructive/20 transition-colors"
+                  className="inline-flex items-center gap-2 rounded-control bg-destructive-bg px-3 py-2 text-destructive transition-colors hover:bg-destructive/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
                 >
                   <Trash2 className="w-4 h-4" />
                   Delete
@@ -407,14 +458,15 @@ export function TopicDetailView({
           </div>
           <button
             onClick={() => void loadAssociations()}
-            className="inline-flex items-center gap-2 px-3 py-2 text-small bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
+            disabled={loadingAssociations}
+            className="inline-flex items-center gap-2 rounded-control bg-bg-elevated px-3 py-2 text-small text-text-secondary transition-colors hover:bg-bg-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Refresh
+            {loadingAssociations ? "Refreshing…" : "Refresh"}
           </button>
         </div>
         <div className="divide-y divide-border-subtle">
           {associationSummary.map(
-            ({ label, count, items, icon: Icon, view }) => (
+            ({ label, recordedCount, displayCount, error, items, icon: Icon, view }) => (
               <div key={label} className="px-6 py-4">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
@@ -422,11 +474,11 @@ export function TopicDetailView({
                     <h3 className="text-small font-semibold text-text-primary">
                       {label}{" "}
                       <span className="text-text-tertiary font-normal">
-                        ({count})
+                        ({displayCount})
                       </span>
                     </h3>
                   </div>
-                  {count > 0 && (
+                  {items[0] && (
                     <button
                       onClick={() => {
                         if (items[0]) {
@@ -440,8 +492,16 @@ export function TopicDetailView({
                   )}
                 </div>
                 {loadingAssociations ? (
-                  <p className="text-caption text-text-tertiary">Loading...</p>
-                ) : count === 0 ? (
+                  <div className="space-y-2" role="status" aria-label={`Loading linked ${label.toLowerCase()}`}>
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-4/5" />
+                  </div>
+                ) : error ? (
+                  <InlineError
+                    message={`Could not load linked ${label.toLowerCase()}. ${error}`}
+                    onRetry={() => void loadAssociations()}
+                  />
+                ) : displayCount === 0 ? (
                   <p className="text-caption text-text-tertiary">
                     No {label.toLowerCase()} linked yet.
                   </p>
@@ -472,9 +532,14 @@ export function TopicDetailView({
                         </button>
                       </li>
                     ))}
-                    {count > 3 && (
+                    {recordedCount !== displayCount && (
                       <li className="text-caption text-text-tertiary">
-                        {count - 3} more {label.toLowerCase()} linked
+                        Showing {displayCount} available {label.toLowerCase()}; the stored count will reconcile on the next topic refresh.
+                      </li>
+                    )}
+                    {displayCount > 3 && (
+                      <li className="text-caption text-text-tertiary">
+                        {displayCount - 3} more {label.toLowerCase()} linked
                       </li>
                     )}
                   </ul>

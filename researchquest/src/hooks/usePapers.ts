@@ -5,6 +5,7 @@ import { sortByUpdatedAt } from "../utils/sort";
 import { isValidUrl } from "../utils/security";
 import { toast } from "sonner";
 import type { Paper, CrossrefPaper, PaperDraft } from "../types/database";
+import { extractFunctionErrorMessage } from "../utils/errors";
 import { logger } from "../utils/logger";
 import { useAppStore } from "../store/appStore";
 
@@ -23,20 +24,6 @@ interface FunctionErrorPayload<T> {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
-}
-
-function getMessage(value: unknown): string | null {
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    return trimmed || null;
-  }
-
-  if (isRecord(value) && typeof value.message === "string") {
-    const trimmed = value.message.trim();
-    return trimmed || null;
-  }
-
-  return null;
 }
 
 function getFunctionPayload<T>(value: unknown): FunctionErrorPayload<T> | null {
@@ -102,24 +89,6 @@ export interface PaperSearchOptions {
   rows?: number;
   sort?: "score" | "published" | "created" | "updated" | "indexed";
   order?: "asc" | "desc";
-}
-
-function extractFunctionErrorMessage(error: unknown, fallback: string): string {
-  if (!error) return fallback;
-
-  const topLevelMessage = getMessage(error);
-  if (topLevelMessage) {
-    return topLevelMessage;
-  }
-
-  if (isRecord(error) && isRecord(error.context) && isRecord(error.context.response)) {
-    const nestedMessage = getMessage(error.context.response.error);
-    if (nestedMessage) {
-      return nestedMessage;
-    }
-  }
-
-  return fallback;
 }
 
 export function usePapers(userId: string | undefined) {
