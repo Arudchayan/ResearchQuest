@@ -23,6 +23,13 @@ const readingStatusClassNames = {
   Read: "",
 } satisfies Record<ReadingStatus, string>;
 
+const firstAuthorSlug = (authors: string[] | undefined): string => {
+  const first = authors?.[0];
+  if (!first) return "ANON";
+  const lastWord = first.split(",")[0].trim().split(/\s+/).pop();
+  return lastWord ? lastWord.toUpperCase() : "ANON";
+};
+
 export const PaperCard = React.memo(function PaperCard({
   paper,
   highlightQuery = "",
@@ -31,7 +38,11 @@ export const PaperCard = React.memo(function PaperCard({
   const displayTitle = paper.title || "Untitled";
 
   return (
-    <Card className="group min-w-0 p-5 transition-colors hover:border-border-strong">
+    <Card className="group relative min-w-0 p-5 transition-colors hover:border-border-strong">
+      <span
+        aria-hidden="true"
+        className="absolute inset-y-1 left-0 w-0.5 origin-left scale-x-0 bg-primary-500 transition-transform duration-fast ease-out group-hover:scale-x-100 group-focus-within:scale-x-100"
+      />
       <div className="mb-4 flex min-w-0 items-start justify-between gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-control border border-border-subtle bg-bg-elevated text-text-primary">
           <BookOpen className="h-5 w-5" aria-hidden="true" />
@@ -70,7 +81,8 @@ export const PaperCard = React.memo(function PaperCard({
         <div className="flex items-center gap-1">
           <Calendar className="h-3.5 w-3.5 text-text-tertiary" aria-hidden="true" />
           {/* Optimization: Parse year from string instead of full Date parsing */}
-          <span className="text-caption text-text-tertiary">
+          <span className="font-mono text-caption text-text-tertiary">
+            {firstAuthorSlug(paper.authors)}{" "}
             {paper.publication_date
               ? parseInt(paper.publication_date.substring(0, 4)) || "N/A"
               : "N/A"}
