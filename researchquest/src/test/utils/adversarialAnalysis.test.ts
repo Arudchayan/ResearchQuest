@@ -144,7 +144,7 @@ describe("adversarialAnalysis", () => {
 
     expect(audit.score).toBeGreaterThanOrEqual(0);
     expect(audit.score).toBeLessThanOrEqual(100);
-    expect(audit.entityCounts).toEqual({ papers: 1, ideas: 1 });
+    expect(audit.entityCounts).toEqual({ papers: 1, ideas: 1, notes: 1, topics: 0 });
     expect(
       audit.severityCounts.high + audit.severityCounts.medium + audit.severityCounts.low,
     ).toBeGreaterThan(0);
@@ -162,6 +162,33 @@ describe("adversarialAnalysis", () => {
     expect(audit.findings.some((item) => item.entityType === "paper")).toBe(true);
     expect(audit.findings.some((item) => item.entityType === "idea")).toBe(true);
     expect(audit.severityCounts.high).toBeGreaterThan(0);
+  });
+
+  it("flags thin and unlinked notes", () => {
+    const audit = auditWorkspace(
+      [makeNote({ markdown_body: "tiny" })],
+      [],
+      [],
+      [],
+    );
+    expect(audit.findings.some((item) => item.entityType === "note")).toBe(true);
+    expect(audit.entityCounts.notes).toBe(1);
+  });
+
+  it("flags empty and single-item topics", () => {
+    const topic: TopicWithCounts = {
+      id: "topic-empty",
+      user_id: "user-test",
+      name: "Empty Topic",
+      created_at: now,
+      updated_at: now,
+      note_count: 0,
+      paper_count: 0,
+      idea_count: 0,
+    };
+    const audit = auditWorkspace([], [], [], [topic]);
+    expect(audit.findings.some((item) => item.entityType === "topic")).toBe(true);
+    expect(audit.entityCounts.topics).toBe(1);
   });
 
   it("scores well-connected entities with high confidence", () => {

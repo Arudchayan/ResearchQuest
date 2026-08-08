@@ -11,6 +11,7 @@ import type {
 } from "../types/database";
 import type { PostgrestError } from "@supabase/supabase-js";
 import { useShallow } from "zustand/react/shallow";
+import { recordSprintEvent } from "../store/sprintStore";
 
 interface TopicRow extends TopicWithCounts {
   topic_notes?: { count: number | null }[];
@@ -463,6 +464,7 @@ export function useTopics(userId: string | undefined) {
             XP_REWARDS.COMPLETE_TOPIC_QUEST,
             "complete_topic_quest",
           );
+          recordSprintEvent("quest", XP_REWARDS.COMPLETE_TOPIC_QUEST);
           toast.success("Topic quest completed!");
         }
       }

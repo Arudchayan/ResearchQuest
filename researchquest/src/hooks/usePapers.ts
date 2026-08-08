@@ -8,6 +8,7 @@ import type { Paper, CrossrefPaper, PaperDraft } from "../types/database";
 import { logger } from "../utils/logger";
 import { useAppStore } from "../store/appStore";
 import { recordDailyMissionEvent } from "../store/dailyMissionsStore";
+import { recordSprintEvent } from "../store/sprintStore";
 
 const PAPER_TITLE_MAX_LENGTH = 255;
 const PAPER_ABSTRACT_MAX_LENGTH = 5000;
@@ -353,6 +354,7 @@ export function usePapers(userId: string | undefined) {
 
       toast.success("Paper added successfully");
       recordDailyMissionEvent("paper");
+      recordSprintEvent("paper", XP_REWARDS.CREATE_PAPER);
 
       // Optimistic update - get latest state to be safe
       setPapers(sortByUpdatedAt([data, ...useAppStore.getState().papers]));
@@ -442,6 +444,7 @@ export function usePapers(userId: string | undefined) {
          void createReadingTaskForPaper(userId, data[i]);
       }
       recordDailyMissionEvent("paper", data.length);
+      recordSprintEvent("paper", XP_REWARDS.CREATE_PAPER * data.length);
 
       return data as Paper[];
     },

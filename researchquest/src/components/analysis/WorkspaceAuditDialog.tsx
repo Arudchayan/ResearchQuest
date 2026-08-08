@@ -184,6 +184,24 @@ export function WorkspaceAuditDialog({
                     <div className="text-caption text-blue-strong">Low</div>
                   </div>
                 </div>
+                <div className="grid w-full grid-cols-4 gap-2">
+                  <div className="rounded-lg bg-bg-elevated px-2 py-2">
+                    <div className="text-lg font-bold text-text-primary">{audit.entityCounts.papers}</div>
+                    <div className="text-caption text-text-tertiary">Papers</div>
+                  </div>
+                  <div className="rounded-lg bg-bg-elevated px-2 py-2">
+                    <div className="text-lg font-bold text-text-primary">{audit.entityCounts.ideas}</div>
+                    <div className="text-caption text-text-tertiary">Ideas</div>
+                  </div>
+                  <div className="rounded-lg bg-bg-elevated px-2 py-2">
+                    <div className="text-lg font-bold text-text-primary">{audit.entityCounts.notes}</div>
+                    <div className="text-caption text-text-tertiary">Notes</div>
+                  </div>
+                  <div className="rounded-lg bg-bg-elevated px-2 py-2">
+                    <div className="text-lg font-bold text-text-primary">{audit.entityCounts.topics}</div>
+                    <div className="text-caption text-text-tertiary">Topics</div>
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-5">

@@ -22,6 +22,7 @@ import {
   Inbox,
   Sparkles,
   ChevronRight,
+  ShieldCheck,
 } from "lucide-react";
 import { useAppStore } from "../../../store/appStore";
 import { cn } from "../../../lib/utils";
@@ -79,6 +80,7 @@ export function Sidebar() {
     { id: "topics", label: "Topics", icon: Hash },
     { id: "feeds", label: "Feeds", icon: Inbox },
     { id: "focus", label: "Focus Studio", icon: TargetIcon },
+    { id: "analysis", label: "Adversarial Analysis", icon: ShieldCheck },
   ] as const;
 
   const handleLogout = async () => {
