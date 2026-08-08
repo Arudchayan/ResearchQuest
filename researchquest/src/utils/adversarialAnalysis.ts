@@ -25,7 +25,7 @@ export interface AdversarialReview {
 
 export interface WorkspaceAuditFinding {
   id: string;
-  entityType: "paper" | "idea";
+  entityType: "paper" | "idea" | "note" | "topic";
   entityId: string;
   entityTitle: string;
   finding: AdversarialFinding;
@@ -37,6 +37,8 @@ export interface WorkspaceAudit {
   entityCounts: {
     papers: number;
     ideas: number;
+    notes: number;
+    topics: number;
   };
   severityCounts: Record<AdversarialFinding["severity"], number>;
   categoryCounts: Record<AdversarialCategory, number>;
@@ -487,8 +489,87 @@ export function auditWorkspace(
     });
   });
 
-  if (topics.length > 0) {
-    strengths.push("The workspace is organized into topics.");
+  notes.forEach((note) => {
+    const noteText = `${note.title ?? ""} ${note.markdown_body}`.trim();
+    const wordCount = noteText.split(/\s+/).filter(Boolean).length;
+    const linkedCount = (note.linked_entity_ids ?? []).length;
+
+    if (wordCount < 20) {
+      findings.push({
+        id: `${note.id}-note-thin`,
+        entityType: "note",
+        entityId: note.id,
+        entityTitle: note.title || "Untitled Note",
+        finding: makeFinding(
+          "medium",
+          "evidence_gap",
+          "Thin note content",
+          "The note contains very little content, so it does not yet contribute meaningfully to synthesis.",
+          "Expand the note with the source, claim, and why it matters.",
+        ),
+      });
+      severityCounts.medium++;
+      categoryCounts.evidence_gap++;
+    }
+
+    if (linkedCount === 0 && wordCount >= 20) {
+      findings.push({
+        id: `${note.id}-note-unlinked`,
+        entityType: "note",
+        entityId: note.id,
+        entityTitle: note.title || "Untitled Note",
+        finding: makeFinding(
+          "low",
+          "counterargument",
+          "Unlinked note",
+          "The note has substance but is not connected to papers or ideas.",
+          "Link it to the paper or idea it synthesizes.",
+        ),
+      });
+      severityCounts.low++;
+      categoryCounts.counterargument++;
+    }
+  });
+
+  topics.forEach((topic) => {
+    const totalItems = topic.note_count + topic.paper_count + topic.idea_count;
+    if (totalItems === 0) {
+      findings.push({
+        id: `${topic.id}-topic-empty`,
+        entityType: "topic",
+        entityId: topic.id,
+        entityTitle: topic.name,
+        finding: makeFinding(
+          "low",
+          "evidence_gap",
+          "Empty topic",
+          "The topic has no attached notes, papers, or ideas.",
+          "Attach at least one record or remove the topic to reduce clutter.",
+        ),
+      });
+      severityCounts.low++;
+      categoryCounts.evidence_gap++;
+    } else if (totalItems === 1) {
+      findings.push({
+        id: `${topic.id}-topic-single`,
+        entityType: "topic",
+        entityId: topic.id,
+        entityTitle: topic.name,
+        finding: makeFinding(
+          "medium",
+          "risk",
+          "Single-item topic",
+          "A topic with a single record can create false structure and hides thin coverage.",
+          "Add supporting records or merge the topic into a related one.",
+        ),
+      });
+      severityCounts.medium++;
+      categoryCounts.risk++;
+    }
+  });
+
+  if (papers.length > 0 && notes.length === 0) {
+    strengths.push("The library is populated; add notes to strengthen synthesis.");
   }
   if (papers.some((paper) => paper.status === "Reading" || paper.status === "Read")) {
     strengths.push("Reading progress is being tracked on the library.");
@@ -496,13 +577,16 @@ export function auditWorkspace(
   if (notes.length >= 5) {
     strengths.push("The note library is substantial enough to support synthesis.");
   }
+  if (topics.length > 0 && papers.length + ideas.length + notes.length > 0) {
+    strengths.push("The workspace is organized into topics.");
+  }
 
   findings.sort((a, b) => {
     const order = { high: 0, medium: 1, low: 2 };
     return order[a.finding.severity] - order[b.finding.severity];
   });
 
-  const totalEntities = papers.length + ideas.length;
+  const totalEntities = papers.length + ideas.length + notes.length + topics.length;
   const penalty =
     severityCounts.high * 12 + severityCounts.medium * 5 + severityCounts.low * 2;
   const score = Math.max(
@@ -528,7 +612,12 @@ export function auditWorkspace(
   return {
     score,
     summary,
-    entityCounts: { papers: papers.length, ideas: ideas.length },
+    entityCounts: {
+      papers: papers.length,
+      ideas: ideas.length,
+      notes: notes.length,
+      topics: topics.length,
+    },
     severityCounts,
     categoryCounts,
     findings: findings.slice(0, 12),

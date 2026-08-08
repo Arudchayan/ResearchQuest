@@ -19,7 +19,8 @@ export type AppView =
   | "tasks"
   | "focus"
   | "topics"
-  | "feeds";
+  | "feeds"
+  | "analysis";
 
 export interface DataSyncError {
   resource: DataSyncResource;

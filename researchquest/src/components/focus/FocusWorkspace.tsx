@@ -20,6 +20,7 @@ import { usePapers } from "../../hooks/usePapers";
 import { useTasks } from "../../hooks/useTasks";
 import { useAppStore } from "../../store/appStore";
 import { recordDailyMissionEvent } from "../../store/dailyMissionsStore";
+import { recordSprintEvent } from "../../store/sprintStore";
 import type { Note, Paper, Task } from "../../types/database";
 import { awardXP, XP_REWARDS } from "../../utils/gamification";
 import {
@@ -196,6 +197,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
             if (xpEarned > 0) {
               awardXP(userId, xpEarned, "complete_focus_session");
               recordDailyMissionEvent("focus_minute", durationMinutes);
+              recordSprintEvent("focus", xpEarned, durationMinutes);
               toast.success("Focus session complete!", {
                 description: `You earned ${xpEarned} XP for ${durationMinutes} minutes of focus.`,
               });

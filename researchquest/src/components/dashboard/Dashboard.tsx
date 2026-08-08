@@ -34,6 +34,7 @@ import {
 } from "../../store/dailyMissionsStore";
 import { auditWorkspace } from "../../utils/adversarialAnalysis";
 import { ResearchRadar } from "./ResearchRadar";
+import { SprintBoard } from "./SprintBoard";
 import { WorkspaceAuditDialog } from "../analysis/WorkspaceAuditDialog";
 import type { Note, Paper, Idea, TopicWithCounts, Task } from "../../types/database";
 
@@ -791,6 +792,11 @@ export function Dashboard() {
             </div>
           </div>
         </div>
+      </section>
+
+      {/* Sprint board */}
+      <section aria-label="Weekly sprint">
+        <SprintBoard />
       </section>
 
       {/* Gameplay band */}

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import type { Idea, IdeaStage } from "../types/database";
 import { useAppStore } from "../store/appStore";
 import { recordDailyMissionEvent } from "../store/dailyMissionsStore";
+import { recordSprintEvent } from "../store/sprintStore";
 
 const IDEA_TRANSACTION_RPC = "save_idea_with_links" as const;
 const IDEA_TITLE_MAX_LENGTH = 255;
@@ -342,6 +343,7 @@ export function useIdeas(userId: string | undefined) {
             "advance_idea_stage",
           ).catch((err) => logger.error("Failed to award XP", err));
           recordDailyMissionEvent("idea_advance");
+          recordSprintEvent("idea", XP_REWARDS.ADVANCE_IDEA_STAGE);
         }
       }
 

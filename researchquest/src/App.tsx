@@ -67,6 +67,12 @@ const FeedsView = lazy(() =>
   })),
 );
 
+const AnalysisView = lazy(() =>
+  import("./components/analysis/AnalysisView").then((module) => ({
+    default: module.AnalysisView,
+  })),
+);
+
 const OnboardingGuide = lazy(() =>
   import("./components/layout/OnboardingGuide").then((module) => ({
     default: module.OnboardingGuide,
@@ -251,7 +257,7 @@ function App() {
 
       // Validate view
       if (
-        ["dashboard", "notes", "papers", "ideas", "tasks", "topics", "focus", "feeds"].includes(
+        ["dashboard", "notes", "papers", "ideas", "tasks", "topics", "focus", "feeds", "analysis"].includes(
           view,
         )
       ) {
@@ -378,6 +384,10 @@ function App() {
       </div>
     ) : currentView === "feeds" ? (
       <FeedsView />
+    ) : currentView === "analysis" ? (
+      <div className="h-full overflow-auto">
+        <AnalysisView />
+      </div>
     ) : null;
 
   return (

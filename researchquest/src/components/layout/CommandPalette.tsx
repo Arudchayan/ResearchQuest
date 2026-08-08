@@ -16,6 +16,7 @@ import {
   LayoutDashboard,
   Hash,
   Inbox,
+  ShieldCheck,
 } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
 import type { AppView } from "../../store/appStore";
@@ -309,6 +310,10 @@ export function CommandPalette() {
           <Command.Item onSelect={() => handleNavigate("focus")}>
             <Target />
             <span>Go to Focus</span>
+          </Command.Item>
+          <Command.Item onSelect={() => handleNavigate("analysis")}>
+            <ShieldCheck />
+            <span>Go to Adversarial Analysis</span>
           </Command.Item>
         </Command.Group>
 
