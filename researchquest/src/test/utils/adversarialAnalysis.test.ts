@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   analyzeIdea,
   analyzePaper,
+  auditWorkspace,
   categoryLabel,
+  getIdeaConfidence,
+  getPaperConfidence,
 } from "../../utils/adversarialAnalysis";
-import type { Idea, Note, Paper } from "../../types/database";
+import type { Idea, Note, Paper, TopicWithCounts } from "../../types/database";
 
 const now = new Date().toISOString();
 
@@ -129,5 +132,99 @@ describe("adversarialAnalysis", () => {
     expect(categoryLabel("counterargument")).toBe("Counterargument");
     expect(categoryLabel("evidence_gap")).toBe("Evidence gap");
     expect(categoryLabel("risk")).toBe("Risk");
+  });
+
+  it("produces a workspace audit with severity and category counts", () => {
+    const audit = auditWorkspace(
+      [makeNote()],
+      [makePaper()],
+      [makeIdea()],
+      [],
+    );
+
+    expect(audit.score).toBeGreaterThanOrEqual(0);
+    expect(audit.score).toBeLessThanOrEqual(100);
+    expect(audit.entityCounts).toEqual({ papers: 1, ideas: 1 });
+    expect(
+      audit.severityCounts.high + audit.severityCounts.medium + audit.severityCounts.low,
+    ).toBeGreaterThan(0);
+    expect(audit.generatedAt).toBeTruthy();
+  });
+
+  it("aggregates findings across weak records", () => {
+    const audit = auditWorkspace(
+      [],
+      [makePaper({ abstract: "", doi: undefined, source_url: undefined })],
+      [makeIdea({ linked_note_ids: [], linked_paper_ids: [] })],
+      [],
+    );
+
+    expect(audit.findings.some((item) => item.entityType === "paper")).toBe(true);
+    expect(audit.findings.some((item) => item.entityType === "idea")).toBe(true);
+    expect(audit.severityCounts.high).toBeGreaterThan(0);
+  });
+
+  it("scores well-connected entities with high confidence", () => {
+    const paper = getPaperConfidence(
+      makePaper({
+        abstract:
+          "A detailed abstract that is long enough to describe the method, sample, and result clearly.",
+        status: "Read",
+        publication_date: "2025-01-01",
+      }),
+    );
+    expect(paper.score).toBeGreaterThanOrEqual(78);
+    expect(paper.label).toBe("Strong");
+
+    const idea = getIdeaConfidence(
+      makeIdea({
+        description:
+          "A detailed idea description with a clear population, method sketch, and expected outcome that spans multiple sentences.",
+        stage: "Mature",
+        linked_note_ids: ["note-a", "note-b"],
+        linked_paper_ids: ["paper-a", "paper-b"],
+      }),
+    );
+    expect(idea.score).toBeGreaterThanOrEqual(78);
+    expect(idea.label).toBe("Strong");
+  });
+
+  it("flags sparse entities with low confidence", () => {
+    const paper = getPaperConfidence(
+      makePaper({
+        abstract: "",
+        doi: undefined,
+        source_url: undefined,
+        authors: [],
+        status: "To Read",
+        publication_date: undefined,
+      }),
+    );
+    expect(paper.label).toBe("Needs work");
+
+    const idea = getIdeaConfidence(
+      makeIdea({
+        description: "",
+        stage: "Seed",
+        linked_note_ids: [],
+        linked_paper_ids: [],
+      }),
+    );
+    expect(idea.label).toBe("Needs work");
+  });
+
+  it("marks audit strengths when the workspace is organized", () => {
+    const topic: TopicWithCounts = {
+      id: "topic-test",
+      user_id: "user-test",
+      name: "Methods",
+      created_at: now,
+      updated_at: now,
+      note_count: 1,
+      paper_count: 1,
+      idea_count: 1,
+    };
+    const audit = auditWorkspace([], [makePaper()], [], [topic]);
+    expect(audit.strengths.some((strength) => strength.includes("topics"))).toBe(true);
   });
 });

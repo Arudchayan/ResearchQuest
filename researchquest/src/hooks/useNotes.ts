@@ -6,6 +6,7 @@ import { sortByUpdatedAt } from "../utils/sort";
 import { toast } from "sonner";
 import type { Note } from "../types/database";
 import { useAppStore } from "../store/appStore";
+import { recordDailyMissionEvent } from "../store/dailyMissionsStore";
 
 export const NOTE_TITLE_MAX_LENGTH = 255;
 export const NOTE_BODY_MAX_LENGTH = 100000;
@@ -106,6 +107,7 @@ export function useNotes(userId: string | undefined) {
       }
 
       toast.success("Note created successfully");
+      recordDailyMissionEvent("note");
 
       // Optimistic update
       setNotes(sortByUpdatedAt([data, ...useAppStore.getState().notes]));

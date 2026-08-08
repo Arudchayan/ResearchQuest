@@ -2,7 +2,7 @@ name: Hardened Security Workflow
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "main", "master" ]
   schedule:
     - cron: '0 0 * * 1'
 

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { parseDateInput } from "../utils/time";
 import { logger } from "../utils/logger";
 import { useAppStore } from "../store/appStore";
+import { recordDailyMissionEvent } from "../store/dailyMissionsStore";
 import type { Task } from "../types/database";
 
 export type { Task } from "../types/database";
@@ -395,6 +396,7 @@ export function useTasks(userId: string | undefined) {
 
     if (newCompletedStatus) {
       toast.success("Task completed! 🎉");
+      recordDailyMissionEvent("task_complete");
     }
 
     // Award XP only when completing (not un-completing, don't await to avoid blocking)

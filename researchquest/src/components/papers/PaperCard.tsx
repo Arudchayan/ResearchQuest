@@ -2,11 +2,18 @@ import React from "react";
 import { BookOpen, ExternalLink, Calendar } from "lucide-react";
 import type { Paper } from "../../types/database";
 import { highlightMatch } from "../../utils/highlight";
+import { getPaperConfidence } from "../../utils/adversarialAnalysis";
 
 const STATUS_STYLES: Record<string, string> = {
   "To Read": "bg-gold-soft text-gold-strong border border-gold/20",
   Reading: "bg-blue-soft text-blue-strong border border-blue/20",
   Read: "bg-success-bg text-success border border-success/20",
+};
+
+const CONFIDENCE_STYLES: Record<string, string> = {
+  success: "bg-success-bg text-success border border-success/20",
+  gold: "bg-gold-soft text-gold-strong border border-gold/20",
+  coral: "bg-coral-soft text-coral-strong border border-coral/20",
 };
 
 interface PaperCardProps {
@@ -31,6 +38,7 @@ export const PaperCard = React.memo(function PaperCard({
   const handleDoiClick = (e: React.MouseEvent) => {
     e.stopPropagation();
   };
+  const confidence = getPaperConfidence(paper);
 
   return (
     <div
@@ -78,13 +86,21 @@ export const PaperCard = React.memo(function PaperCard({
               : "N/A"}
           </span>
         </div>
-        <span
-          className={`status-chip shrink-0 ${
-            STATUS_STYLES[paper.status] ?? STATUS_STYLES["To Read"]
-          }`}
-        >
-          {paper.status}
-        </span>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <span
+            className={`status-chip shrink-0 ${CONFIDENCE_STYLES[confidence.tone]}`}
+            title={`Confidence score: ${confidence.score}/100 (${confidence.label})`}
+          >
+            {confidence.score}
+          </span>
+          <span
+            className={`status-chip shrink-0 ${
+              STATUS_STYLES[paper.status] ?? STATUS_STYLES["To Read"]
+            }`}
+          >
+            {paper.status}
+          </span>
+        </div>
       </div>
     </div>
   );

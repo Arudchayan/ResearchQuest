@@ -5,6 +5,7 @@ import { awardXP, XP_REWARDS } from "../utils/gamification";
 import { toast } from "sonner";
 import type { Idea, IdeaStage } from "../types/database";
 import { useAppStore } from "../store/appStore";
+import { recordDailyMissionEvent } from "../store/dailyMissionsStore";
 
 const IDEA_TRANSACTION_RPC = "save_idea_with_links" as const;
 const IDEA_TITLE_MAX_LENGTH = 255;
@@ -340,6 +341,7 @@ export function useIdeas(userId: string | undefined) {
             XP_REWARDS.ADVANCE_IDEA_STAGE,
             "advance_idea_stage",
           ).catch((err) => logger.error("Failed to award XP", err));
+          recordDailyMissionEvent("idea_advance");
         }
       }
 
