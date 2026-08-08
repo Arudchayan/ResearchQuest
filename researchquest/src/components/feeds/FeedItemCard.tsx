@@ -26,6 +26,20 @@ const TARGET_LABELS: Record<FeedPromoteTarget, string> = {
   note: "Note",
 };
 
+const TYPE_CHIP_STYLES: Record<FeedItemType, string> = {
+  paper: "bg-violet-soft text-violet-strong",
+  job: "bg-blue-soft text-blue-strong",
+  news: "bg-gold-soft text-gold-strong",
+  custom: "bg-accent-soft text-accent-strong",
+};
+
+const STATUS_CHIP_STYLES: Record<string, string> = {
+  new: "bg-accent-soft text-accent-strong",
+  triaged: "bg-blue-soft text-blue-strong",
+  archived: "bg-bg-elevated text-text-tertiary",
+  promoted: "bg-success-bg text-success",
+};
+
 function FeedTypeIcon({ type }: { type: FeedItemType }) {
   switch (type) {
     case "paper":
@@ -90,7 +104,7 @@ function FeedSourceLink({
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center gap-1 text-caption font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400"
+      className="inline-flex items-center gap-1 text-caption font-medium text-accent-strong hover:text-accent"
     >
       Open source
       <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
@@ -129,8 +143,7 @@ export function FeedItemCard({
   return (
     <article
       className={cn(
-        "rounded-lg border border-border-subtle bg-bg-surface p-4 shadow-sm transition-colors",
-        "hover:border-border-moderate",
+        "surface-card p-4",
         compact && "p-3",
         className,
       )}
@@ -138,11 +151,13 @@ export function FeedItemCard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1 rounded-full border border-border-subtle bg-bg-elevated px-2 py-0.5 text-caption font-medium text-text-secondary">
+            <span
+              className={`status-chip ${TYPE_CHIP_STYLES[item.type]}`}
+            >
               <FeedTypeIcon type={item.type} />
               {TYPE_LABELS[item.type]}
             </span>
-            <span className="rounded-full bg-primary-500/10 px-2 py-0.5 text-caption font-medium text-primary-600 dark:text-primary-400">
+            <span className={`status-chip ${STATUS_CHIP_STYLES[item.status] ?? STATUS_CHIP_STYLES.new}`}>
               {item.status}
             </span>
             {dateLabel && (
@@ -181,18 +196,18 @@ export function FeedItemCard({
         </div>
       </div>
 
-      <div
-        className={cn(
-          "mt-3 flex flex-wrap items-center gap-2 border-t border-border-subtle pt-3",
-          compact && "gap-1.5",
-        )}
+        <div
+          className={cn(
+            "mt-3 flex flex-wrap items-center gap-2 border-t border-border-subtle pt-3",
+            compact && "gap-1.5",
+          )}
       >
         {onArchive && !isArchived && (
           <button
             type="button"
             onClick={() => void onArchive(item.id)}
             disabled={isBusy}
-            className="inline-flex items-center gap-1 rounded-sm border border-border-subtle px-2 py-1 text-caption font-medium text-text-secondary transition-colors hover:border-border-moderate hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500"
+            className="inline-flex items-center gap-1 rounded-lg border border-border-moderate bg-bg-surface px-2.5 py-1 text-caption font-medium text-text-secondary shadow-sm transition-colors hover:border-border-strong hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
             aria-label={`Archive ${item.title}`}
           >
             <Archive className="h-3.5 w-3.5" aria-hidden="true" />
@@ -205,7 +220,7 @@ export function FeedItemCard({
             type="button"
             onClick={() => void onMarkTriaged(item.id)}
             disabled={isBusy}
-            className="inline-flex items-center gap-1 rounded-sm border border-border-subtle px-2 py-1 text-caption font-medium text-text-secondary transition-colors hover:border-border-moderate hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500"
+            className="inline-flex items-center gap-1 rounded-lg border border-border-moderate bg-bg-surface px-2.5 py-1 text-caption font-medium text-text-secondary shadow-sm transition-colors hover:border-border-strong hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
             aria-label={`Mark ${item.title} as triaged`}
           >
             <Check className="h-3.5 w-3.5" aria-hidden="true" />
@@ -221,7 +236,7 @@ export function FeedItemCard({
                 type="button"
                 onClick={() => void onPromote(item.id, target)}
                 disabled={isBusy}
-                className="inline-flex items-center gap-1 rounded-sm bg-primary-500 px-2 py-1 text-caption font-medium text-bg-base transition-colors hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+                className="inline-flex items-center gap-1 rounded-lg bg-text-primary px-2.5 py-1 text-caption font-medium text-bg-base shadow-sm transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
                 aria-label={`Promote ${item.title} to ${TARGET_LABELS[target]}`}
               >
                 <PromoteIcon target={target} />

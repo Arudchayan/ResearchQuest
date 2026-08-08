@@ -1,5 +1,6 @@
 import { useEffect, useCallback, useRef, useState, lazy, Suspense } from "react";
 import type { EditorView } from "@codemirror/view";
+import { FileText } from "lucide-react";
 import { CitationPicker } from "./CitationPicker";
 import { TopicSelector } from "../topics/TopicSelector";
 
@@ -19,12 +20,12 @@ const LazyEditorContent = lazy(() => import("./sub-components/EditorContent"));
 
 function EditorSkeleton() {
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-bg-surface animate-pulse p-4 space-y-3">
-      <div className="h-4 bg-bg-muted rounded w-3/4" />
-      <div className="h-4 bg-bg-muted rounded w-1/2" />
-      <div className="h-4 bg-bg-muted rounded w-5/6" />
-      <div className="h-4 bg-bg-muted rounded w-2/3" />
-      <div className="h-4 bg-bg-muted rounded w-3/4" />
+    <div className="flex-1 flex flex-col overflow-hidden bg-bg-surface animate-pulse p-6 space-y-3">
+      <div className="shimmer h-5 bg-bg-muted rounded-lg w-3/4" />
+      <div className="h-5 bg-bg-muted rounded-lg w-1/2" />
+      <div className="h-5 bg-bg-muted rounded-lg w-5/6" />
+      <div className="h-5 bg-bg-muted rounded-lg w-2/3" />
+      <div className="h-5 bg-bg-muted rounded-lg w-3/4" />
     </div>
   );
 }
@@ -85,8 +86,13 @@ export function MarkdownEditor() {
   if (!selectedNote) {
     return (
       <div className="h-screen-dynamic flex items-center justify-center bg-bg-base">
-        <div className="text-center text-text-tertiary">
-          <p className="text-body">Select a note or create a new one to start editing</p>
+        <div className="animate-rise surface-card flex flex-col items-center px-8 py-10 text-center">
+          <span className="icon-tile h-14 w-14 rounded-2xl bg-blue-soft text-blue-strong">
+            <FileText className="h-7 w-7" aria-hidden="true" />
+          </span>
+          <p className="mt-4 max-w-xs text-body text-text-secondary">
+            Select a note or create a new one to start editing
+          </p>
         </div>
       </div>
     );
@@ -110,7 +116,7 @@ export function MarkdownEditor() {
         setViewMode={setViewMode}
       />
 
-      <div className="px-6 py-4 border-b border-border-subtle bg-bg-surface">
+      <div className="border-b border-border-subtle bg-bg-surface px-6 py-4">
         <TopicSelector entityId={selectedNote.id} entityType="note" />
       </div>
 

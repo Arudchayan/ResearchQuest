@@ -68,6 +68,9 @@ export const mockSupabaseClient = {
 
 vi.mock("../../lib/supabase", () => ({
   supabase: mockSupabaseClient,
+  isDemoMode: false,
+  hasSupabaseConfig: true,
+  supabaseConfigErrorMessage: "Missing Supabase environment variables",
 }));
 
 export const mockPaper = {

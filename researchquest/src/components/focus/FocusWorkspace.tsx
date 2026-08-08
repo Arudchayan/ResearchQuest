@@ -47,6 +47,61 @@ interface FocusWorkspaceProps {
   userId: string | undefined;
 }
 
+function FocusTimerRing({
+  timeLeft,
+  progress,
+}: {
+  timeLeft: string;
+  progress: number;
+}) {
+  const size = 224;
+  const stroke = 10;
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset =
+    circumference - (Math.min(100, Math.max(0, progress * 100)) / 100) * circumference;
+
+  return (
+    <div
+      className="relative inline-flex items-center justify-center"
+      style={{ width: size, height: size }}
+    >
+      <svg width={size} height={size} className="-rotate-90">
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="var(--bg-elevated)"
+          strokeWidth={stroke}
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="var(--accent)"
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          className="transition-[stroke-dashoffset] duration-1000 ease-out"
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="text-center">
+          <div className="font-mono text-5xl font-bold text-text-primary md:text-6xl">
+            {timeLeft}
+          </div>
+          <div className="mt-1 text-caption font-semibold uppercase tracking-wider text-text-tertiary">
+            Time remaining
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   const { notes, loading: notesLoading } = useNotes(userId);
   const { papers, loading: papersLoading } = usePapers(userId);
@@ -390,24 +445,28 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
 
   return (
     <div className="p-4 sm:p-6 md:p-8 max-w-6xl mx-auto space-y-6">
-      <div className="flex flex-col gap-3">
-        <div className="inline-flex items-center gap-2 text-primary-500 text-sm font-semibold uppercase tracking-wide">
-          <Target className="w-4 h-4" />
-          Focus Studio
+      <header className="hero-ambient surface-panel relative overflow-hidden p-6 md:p-8">
+        <div className="relative z-10 flex flex-col gap-3">
+        <div className="inline-flex items-center gap-2">
+          <span className="icon-tile bg-accent-soft text-accent-strong">
+            <Target className="w-4 h-4" aria-hidden="true" />
+          </span>
+          <span className="section-kicker">Focus Studio</span>
         </div>
-        <h1 className="text-3xl font-bold text-text-primary">
+        <h1 className="font-serif text-3xl font-bold text-text-primary">
           Design an intentional deep work session
         </h1>
         <p className="text-text-secondary max-w-3xl">
           Choose one target, set a timer, and stay in flow. Your notes, papers,
           and tasks update automatically when the session ends.
         </p>
-      </div>
+        </div>
+      </header>
 
       {showOnboarding && (
-        <div className="bg-primary-500/10 border border-primary-200 dark:border-primary-500/40 rounded-2xl p-5 sm:p-6 flex flex-col gap-4">
+        <div className="surface-card p-5 sm:p-6 flex flex-col gap-4">
           <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary-500 text-white flex items-center justify-center shadow-inner">
+            <div className="icon-tile h-10 w-10 rounded-full bg-accent-soft text-accent-strong">
               <Info className="w-5 h-5" aria-hidden="true" />
             </div>
             <div className="space-y-2 text-sm sm:text-base">
@@ -437,7 +496,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
             <button
               type="button"
               onClick={dismissOnboarding}
-              className="self-start sm:self-auto inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 transition-colors"
+              className="self-start sm:self-auto inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-text-primary text-bg-base text-sm font-medium shadow-lift hover:opacity-95 transition-opacity"
             >
               Got it
             </button>
@@ -447,17 +506,17 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_1fr]">
         <div className="space-y-6">
-          <div className="bg-bg-surface border border-border-subtle rounded-2xl shadow-sm p-6 space-y-6">
+          <div className="surface-card p-6 space-y-6">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-primary-500/10 text-primary-600 flex items-center justify-center">
-                  <Clock className="w-6 h-6" />
+                <div className="icon-tile h-12 w-12 rounded-full bg-accent-soft text-accent-strong">
+                  <Clock className="w-6 h-6" aria-hidden="true" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-text-secondary">
+                  <p className="section-kicker mb-1">
                     Current session
                   </p>
-                  <p className="text-lg font-semibold text-text-primary">
+                  <p className="text-lg font-semibold text-text-primary line-clamp-2">
                     {selectedItem ? (
                       <>
                         {selectedTarget?.type === "note" && "Note review · "}
@@ -477,16 +536,17 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                 </div>
               </div>
               {hasCompletedSession && (
-                <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-success-bg text-success text-sm font-medium">
-                  <Sparkles className="w-4 h-4" /> Session complete!
+                <span className="status-chip bg-success-bg text-success">
+                  <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> Session complete!
                 </span>
               )}
             </div>
 
             <div className="flex flex-col items-center gap-5">
-              <div className="text-6xl md:text-7xl font-mono font-bold text-text-primary">
-                {formatTime(effectiveTimeLeft)}
-              </div>
+              <FocusTimerRing
+                timeLeft={formatTime(effectiveTimeLeft)}
+                progress={progress}
+              />
 
               <div className="w-full space-y-2">
                 <div className="flex items-center justify-between text-caption text-text-tertiary">
@@ -494,7 +554,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                   <span>{Math.round(progress * 100)}% complete</span>
                 </div>
                 <div
-                  className="w-full h-3 md:h-3.5 bg-bg-base rounded-full overflow-hidden shadow-inner"
+                  className="progress-track h-2 w-full"
                   role="progressbar"
                   aria-valuemin={0}
                   aria-valuemax={100}
@@ -505,7 +565,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                   aria-label="Focus session progress"
                 >
                   <div
-                    className="h-full bg-gradient-to-r from-primary-500 via-primary-500/90 to-primary-600 transition-all duration-500 ease-out"
+                    className="progress-fill"
                     style={{
                       width: `${Math.min(100, Math.max(0, progress * 100))}%`,
                     }}
@@ -522,10 +582,10 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                     key={preset.value}
                     type="button"
                     onClick={() => setSessionLength(preset.value)}
-                    className={`px-3 py-2 rounded-full text-sm font-medium border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 ${
+                    className={`px-3 py-2 rounded-lg text-sm font-medium border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${
                       sessionLength === preset.value
-                        ? "bg-primary-500 text-white border-primary-500 shadow-sm"
-                        : "border-border-subtle text-text-secondary hover:border-primary-400 hover:text-text-primary"
+                        ? "bg-accent-soft text-accent-strong border-accent shadow-sm"
+                        : "border-border-moderate bg-bg-surface text-text-secondary hover:border-border-strong hover:text-text-primary"
                     }`}
                   >
                     {preset.label}
@@ -534,7 +594,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
               </div>
 
               <form
-                className="flex flex-col sm:flex-row sm:items-center gap-2 w-full bg-bg-base border border-border-subtle rounded-xl px-4 py-3"
+                className="flex flex-col sm:flex-row sm:items-center gap-2 w-full bg-bg-elevated border border-border-subtle rounded-lg px-4 py-3"
                 onSubmit={(event) => {
                   event.preventDefault();
                   applyCustomDuration();
@@ -567,7 +627,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                   <span id="custom-duration-hint">minutes</span>
                   <button
                     type="submit"
-                    className="inline-flex items-center px-3 py-1.5 rounded-full bg-primary-500 text-white font-semibold disabled:opacity-50"
+                    className="inline-flex items-center px-3 py-1.5 rounded-lg bg-text-primary text-bg-base font-semibold shadow-sm hover:opacity-95 transition-opacity disabled:opacity-50"
                     disabled={!customMinutes}
                   >
                     Apply
@@ -579,13 +639,13 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                 <button
                   onClick={toggleTimer}
                   disabled={!selectedItem || sessionLength === 0}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary-500 text-white font-semibold hover:bg-primary-600 transition-colors disabled:opacity-50"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-text-primary text-bg-base font-semibold shadow-lift hover:opacity-95 transition-opacity disabled:opacity-50"
                   type="button"
                 >
                   {isRunning ? (
-                    <Pause className="w-5 h-5" />
+                    <Pause className="w-5 h-5" aria-hidden="true" />
                   ) : (
-                    <Play className="w-5 h-5" />
+                    <Play className="w-5 h-5" aria-hidden="true" />
                   )}
                   {isRunning ? "Pause" : isPaused ? "Resume" : "Start focus"}
                 </button>
@@ -595,10 +655,10 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                     setIsRunning(false);
                     setHasCompletedSession(false);
                   }}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-border-subtle text-text-secondary hover:border-primary-400 hover:text-primary-500 transition-colors"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border-moderate bg-bg-surface text-text-secondary shadow-sm hover:border-border-strong hover:text-text-primary transition-colors"
                   type="button"
                 >
-                  <RotateCcw className="w-4 h-4" /> Reset
+                  <RotateCcw className="w-4 h-4" aria-hidden="true" /> Reset
                 </button>
               </div>
 
@@ -608,7 +668,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                   onClick={() => setIsSoundEnabled(!isSoundEnabled)}
                   className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                     isSoundEnabled
-                      ? "text-text-primary bg-bg-base hover:bg-bg-elevated"
+                      ? "text-text-primary bg-bg-elevated hover:bg-bg-muted"
                       : "text-text-tertiary hover:text-text-secondary"
                   }`}
                   title={isSoundEnabled ? "Sound enabled" : "Sound disabled"}
@@ -630,7 +690,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                   }
                   className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                     isNotificationEnabled
-                      ? "text-text-primary bg-bg-base hover:bg-bg-elevated"
+                      ? "text-text-primary bg-bg-elevated hover:bg-bg-muted"
                       : "text-text-tertiary hover:text-text-secondary"
                   }`}
                   title={
@@ -656,7 +716,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                 <button
                   type="button"
                   onClick={() => setShowOnboarding(true)}
-                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-bg-base transition-colors"
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-bg-elevated transition-colors"
                 >
                   <Info className="w-4 h-4" />
                   <span>Tips</span>
@@ -665,13 +725,13 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
             </div>
           </div>
 
-          <div className="bg-bg-surface border border-border-subtle rounded-2xl shadow-sm p-6">
+          <div className="surface-card p-6">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="text-sm font-semibold text-text-secondary">
+                <p className="section-kicker mb-1">
                   Focus target
                 </p>
-                <h2 className="text-2xl font-semibold text-text-primary">
+                <h2 className="font-serif text-2xl font-semibold text-text-primary">
                   {selectedItem
                     ? selectedTarget?.type === "note"
                       ? extractNoteSummary(selectedItem as Note)
@@ -682,7 +742,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                 </h2>
               </div>
               {selectedTarget && (
-                <span className="px-3 py-1.5 rounded-full text-sm font-semibold bg-primary-500/10 text-primary-600">
+                <span className="status-chip bg-accent-soft text-accent-strong">
                   {selectedTarget.type === "note" && "Note"}
                   {selectedTarget.type === "paper" && "Paper"}
                   {selectedTarget.type === "task" && "Task"}
@@ -723,7 +783,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                   </div>
                   <button
                     onClick={handleOpenInWorkspace}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-500 text-white font-medium hover:bg-primary-600 transition-colors"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-text-primary text-bg-base font-medium shadow-lift hover:opacity-95 transition-opacity"
                     type="button"
                   >
                     Open in workspace

@@ -50,15 +50,16 @@ export function FeedsView() {
   return (
     <div className="min-h-full bg-bg-base px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto flex max-w-5xl flex-col gap-6">
-        <header className="rounded-xl border border-border-subtle bg-bg-surface p-5 shadow-sm">
+        <header className="surface-card p-5 sm:p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <div className="flex items-center gap-3 text-text-primary">
-                <div className="rounded-lg border border-border-subtle bg-bg-elevated p-2">
-                  <Inbox className="h-5 w-5 text-primary-500" aria-hidden="true" />
+                <div className="icon-tile bg-accent-soft text-accent-strong">
+                  <Inbox className="h-5 w-5" aria-hidden="true" />
                 </div>
                 <div>
-                  <h1 className="font-serif text-2xl font-bold tracking-tight">
+                  <p className="section-kicker mb-1">Research intelligence</p>
+                  <h1 className="font-serif text-2xl font-bold text-text-primary">
                     Feeds
                   </h1>
                   <p className="mt-1 text-small text-text-secondary">
@@ -71,7 +72,7 @@ export function FeedsView() {
             <button
               type="button"
               onClick={() => void refreshFeedItems()}
-              className="inline-flex items-center justify-center gap-2 rounded-sm border border-border-subtle px-3 py-2 text-small font-medium text-text-secondary transition-colors hover:border-border-moderate hover:text-text-primary focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500"
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-border-moderate bg-bg-surface px-3 py-2 text-small font-medium text-text-secondary shadow-sm transition-colors hover:border-border-strong hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
             >
               <RefreshCw className="h-4 w-4" aria-hidden="true" />
               Refresh
@@ -80,12 +81,12 @@ export function FeedsView() {
         </header>
 
         <section
-          className="rounded-xl border border-border-subtle bg-bg-surface p-4 shadow-sm"
+          className="surface-card p-4 sm:p-5"
           aria-label="Feed filters"
         >
           <div className="space-y-4">
             <div>
-              <h2 className="text-caption font-semibold uppercase tracking-wide text-text-tertiary">
+              <h2 className="section-kicker">
                 Type
               </h2>
               <div className="mt-2 flex flex-wrap gap-2">
@@ -95,10 +96,10 @@ export function FeedsView() {
                     type="button"
                     onClick={() => setType(filter)}
                     className={cn(
-                      "rounded-full border px-3 py-1.5 text-small font-medium transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500",
+                      "rounded-full border px-3 py-1.5 text-small font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent",
                       type === filter
-                        ? "border-primary-500 bg-primary-500 text-bg-base"
-                        : "border-border-subtle bg-bg-base text-text-secondary hover:border-border-moderate hover:text-text-primary",
+                        ? "border-accent bg-accent-soft text-accent-strong"
+                        : "border-border-subtle bg-bg-surface text-text-secondary hover:border-border-moderate hover:text-text-primary",
                     )}
                     aria-pressed={type === filter}
                   >
@@ -109,7 +110,7 @@ export function FeedsView() {
             </div>
 
             <div>
-              <h2 className="text-caption font-semibold uppercase tracking-wide text-text-tertiary">
+              <h2 className="section-kicker">
                 Status
               </h2>
               <div className="mt-2 flex flex-wrap gap-2">
@@ -120,10 +121,10 @@ export function FeedsView() {
                       type="button"
                       onClick={() => setStatus(filter)}
                       className={cn(
-                        "rounded-full border px-3 py-1.5 text-small font-medium transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500",
+                        "rounded-full border px-3 py-1.5 text-small font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent",
                         status === filter
-                          ? "border-primary-500 bg-primary-500 text-bg-base"
-                          : "border-border-subtle bg-bg-base text-text-secondary hover:border-border-moderate hover:text-text-primary",
+                          ? "border-accent bg-accent-soft text-accent-strong"
+                          : "border-border-subtle bg-bg-surface text-text-secondary hover:border-border-moderate hover:text-text-primary",
                       )}
                       aria-pressed={status === filter}
                     >
@@ -148,23 +149,25 @@ export function FeedsView() {
               {[0, 1, 2].map((index) => (
                 <div
                   key={index}
-                  className="h-44 animate-pulse rounded-xl border border-border-subtle bg-bg-surface"
+                  className="surface-card h-44 animate-pulse"
                 />
               ))}
               <span className="sr-only">Loading feeds</span>
             </div>
           ) : error ? (
-            <div className="rounded-xl border border-border-subtle bg-bg-surface p-6 text-text-secondary">
+            <div className="surface-card p-6 text-text-secondary">
               {error}
             </div>
           ) : items.length === 0 ? (
             <div
               role="status"
               aria-live="polite"
-              className="rounded-xl border border-dashed border-border-moderate bg-bg-surface p-10 text-center"
+              className="surface-card border-dashed p-10 text-center"
             >
-              <Inbox className="mx-auto h-8 w-8 text-text-tertiary" aria-hidden="true" />
-              <h2 className="mt-3 font-serif text-xl font-semibold text-text-primary">
+              <span className="icon-tile mx-auto bg-bg-elevated text-text-tertiary">
+                <Inbox className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <h2 className="mt-4 font-serif text-xl font-semibold text-text-primary">
                 Nothing to triage
               </h2>
               <p className="mx-auto mt-2 max-w-md text-small text-text-secondary">

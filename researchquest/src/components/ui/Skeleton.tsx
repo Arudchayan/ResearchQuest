@@ -11,7 +11,7 @@ export function Skeleton({ className, ...props }: SkeletonProps) {
   return (
     <div
       className={cn(
-        "animate-pulse rounded-md bg-gray-200 dark:bg-gray-700",
+        "shimmer rounded-lg bg-bg-elevated",
         className,
       )}
       aria-label="Loading..."
@@ -28,7 +28,7 @@ export function NoteCardSkeleton() {
   return (
     <div
       aria-hidden="true"
-      className="p-3 rounded-md border border-border-subtle bg-bg-surface space-y-2"
+      className="rounded-lg border border-border-subtle bg-bg-surface p-3 shadow-card space-y-2"
     >
       <div className="flex items-center gap-2">
         <Skeleton className="w-4 h-4 flex-shrink-0" />
@@ -51,7 +51,7 @@ export function PaperCardSkeleton() {
   return (
     <div
       aria-hidden="true"
-      className="p-3 rounded-md border border-border-subtle bg-bg-surface space-y-2"
+      className="rounded-lg border border-border-subtle bg-bg-surface p-3 shadow-card space-y-2"
     >
       <div className="flex items-center gap-2">
         <Skeleton className="w-4 h-4 flex-shrink-0" />
@@ -73,7 +73,7 @@ export function IdeaCardSkeleton() {
   return (
     <div
       aria-hidden="true"
-      className="p-3 rounded-md border border-border-subtle bg-bg-surface space-y-2"
+      className="rounded-lg border border-border-subtle bg-bg-surface p-3 shadow-card space-y-2"
     >
       <div className="flex items-center gap-2">
         <Skeleton className="w-4 h-4 flex-shrink-0" />
@@ -96,7 +96,7 @@ export function TaskCardSkeleton() {
   return (
     <div
       aria-hidden="true"
-      className="p-4 rounded-lg border border-border-subtle bg-bg-surface space-y-2"
+      className="rounded-lg border border-border-subtle bg-bg-surface p-4 shadow-card space-y-2"
     >
       <div className="flex items-start gap-3">
         <Skeleton className="w-5 h-5 rounded flex-shrink-0 mt-0.5" />

@@ -1,7 +1,7 @@
 import { logger } from "../../utils/logger";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Tabs from "@radix-ui/react-tabs";
-import { X, Copy, Check } from "lucide-react";
+import { X, Copy, Check, Quote } from "lucide-react";
 import { useState, useEffect } from "react";
 import type { Paper } from "../../types/database";
 import {
@@ -83,18 +83,26 @@ export function CitationDialog({
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 animate-fade-in" />
         <Dialog.Content
-          className="fixed left-[50%] top-[50%] max-h-[85vh] w-[90vw] max-w-[600px] translate-x-[-50%] translate-y-[-50%] rounded-xl bg-bg-surface shadow-2xl focus:outline-none z-50 animate-slide-in border border-border-subtle flex flex-col overflow-hidden"
+          className="fixed left-[50%] top-[50%] max-h-[85vh] w-[90vw] max-w-[600px] translate-x-[-50%] translate-y-[-50%] rounded-xl bg-bg-surface shadow-lift focus:outline-none z-50 animate-slide-in border border-border-moderate flex flex-col overflow-hidden"
           aria-describedby={undefined}
         >
           <div className="flex items-center justify-between p-6 pb-2">
-            <Dialog.Title className="text-lg font-semibold text-text-primary">
-              Cite Paper
-            </Dialog.Title>
+            <div className="flex items-center gap-3">
+              <span className="icon-tile bg-violet-soft text-violet-strong">
+                <Quote className="h-4 w-4" aria-hidden="true" />
+              </span>
+              <div>
+                <p className="section-kicker">Citation</p>
+                <Dialog.Title className="mt-1 font-serif text-lg font-semibold text-text-primary">
+                  Cite Paper
+                </Dialog.Title>
+              </div>
+            </div>
             <Dialog.Close
-              className="p-2 hover:bg-bg-elevated rounded-full transition-colors"
+              className="icon-btn"
               aria-label="Close dialog"
             >
-              <X className="w-5 h-5 text-text-tertiary" aria-hidden="true" />
+              <X className="h-4 w-4 text-text-tertiary" aria-hidden="true" />
             </Dialog.Close>
           </div>
 
@@ -109,7 +117,7 @@ export function CitationDialog({
                   <Tabs.Trigger
                     key={fmt}
                     value={fmt}
-                    className="pb-3 px-1 text-sm font-medium text-text-secondary data-[state=active]:text-primary-600 dark:data-[state=active]:text-primary-400 data-[state=active]:border-b-2 data-[state=active]:border-primary-600 dark:data-[state=active]:border-primary-400 transition-all outline-none capitalize whitespace-nowrap hover:text-text-primary"
+                    className="border-b-2 border-transparent px-1 pb-3 text-sm font-medium text-text-secondary capitalize whitespace-nowrap outline-none transition-all hover:text-text-primary data-[state=active]:border-accent data-[state=active]:text-accent-strong"
                   >
                     {fmt === "bibtex" ? "BibTeX" : fmt.toUpperCase()}
                   </Tabs.Trigger>
@@ -119,38 +127,37 @@ export function CitationDialog({
 
             <div className="p-6 pt-4 flex-1">
               <div className="relative">
-                <pre className="w-full p-4 bg-bg-elevated border border-border-subtle rounded-lg text-sm font-mono text-text-secondary overflow-x-auto whitespace-pre-wrap max-h-[400px]">
+                <pre className="w-full max-h-[400px] overflow-x-auto rounded-lg border border-border-subtle bg-bg-elevated p-4 text-sm font-mono text-text-secondary whitespace-pre-wrap">
                   {citation}
                 </pre>
                 <button
                   onClick={handleCopy}
-                  className="absolute top-2 right-2 p-2 bg-bg-surface border border-border-subtle rounded-md shadow-sm hover:bg-bg-base transition-colors"
+                  className="icon-btn absolute right-2 top-2 h-9 w-9 bg-bg-surface"
                   title="Copy to clipboard"
                   aria-label="Copy citation to clipboard"
-
                 >
                   {copied ? (
-                    <Check className="w-4 h-4 text-green-500" aria-hidden="true" />
+                    <Check className="h-4 w-4 text-success" aria-hidden="true" />
                   ) : (
-                    <Copy className="w-4 h-4 text-text-tertiary" aria-hidden="true" />
+                    <Copy className="h-4 w-4 text-text-tertiary" aria-hidden="true" />
                   )}
                 </button>
               </div>
             </div>
           </Tabs.Root>
 
-          <div className="flex justify-end gap-2 p-6 pt-0">
-            <Dialog.Close className="px-4 py-2 text-sm font-medium text-text-secondary hover:bg-bg-elevated rounded-lg transition-colors">
+          <div className="flex justify-end gap-2 border-t border-border-subtle p-6">
+            <Dialog.Close className="inline-flex h-10 items-center justify-center rounded-lg border border-border-moderate bg-bg-surface px-4 text-sm font-semibold text-text-secondary shadow-sm transition-all hover:-translate-y-0.5 hover:border-border-strong hover:bg-bg-elevated hover:text-text-primary hover:shadow-lift">
               Close
             </Dialog.Close>
             <button
               onClick={handleCopy}
-              className="px-4 py-2 text-sm font-medium text-white bg-primary-500 hover:bg-primary-600 rounded-lg transition-colors flex items-center gap-2"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-text-primary px-4 text-sm font-semibold text-bg-base shadow-lift transition-transform hover:-translate-y-0.5 hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
             >
               {copied ? (
-                <Check className="w-4 h-4" />
+                <Check className="h-4 w-4" aria-hidden="true" />
               ) : (
-                <Copy className="w-4 h-4" />
+                <Copy className="h-4 w-4" aria-hidden="true" />
               )}
               {copied
                 ? "Copied!"

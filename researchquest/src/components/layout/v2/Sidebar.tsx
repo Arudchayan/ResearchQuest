@@ -4,7 +4,6 @@ import {
   MagnifyingGlassIcon,
   TargetIcon,
   ExitIcon,
-  PersonIcon,
   ViewVerticalIcon,
   ActivityLogIcon,
 } from "@radix-ui/react-icons";
@@ -12,17 +11,17 @@ import {
   FileText,
   Lightbulb,
   CheckSquare,
-  Clock,
   Sun,
   Moon,
   Flame,
-  HelpCircle,
-  Database,
   Keyboard,
+  Database,
   Maximize2,
   Hash,
   BookOpen,
   Inbox,
+  Sparkles,
+  ChevronRight,
 } from "lucide-react";
 import { useAppStore } from "../../../store/appStore";
 import { cn } from "../../../lib/utils";
@@ -84,7 +83,6 @@ export function Sidebar() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    // State update handled by auth listener in App.tsx
   };
 
   const toggleTheme = () => {
@@ -105,125 +103,136 @@ export function Sidebar() {
   const xpInLevel = user ? user.total_xp % 500 : 0;
 
   return (
-    <aside className="w-64 bg-bg-surface border-r border-border-subtle flex flex-col h-full transition-colors duration-300 relative z-10">
-      <div className="p-6 pb-4">
-        <div className="flex items-center gap-3 text-text-primary mb-6">
-          <div className="w-8 h-8 bg-text-primary rounded-sm flex items-center justify-center text-bg-base font-serif font-bold text-lg">
+    <aside className="relative z-10 flex h-full w-full flex-col border-r border-border-subtle bg-bg-surface transition-colors duration-300">
+      <div className="px-5 pb-4 pt-6">
+        <div className="mb-6 flex items-center gap-3">
+          <div className="brand-gradient flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-white shadow-glow">
             RQ
           </div>
-          <span className="font-serif font-bold text-xl tracking-tight text-text-primary">
-            ResearchQuest
-          </span>
+          <div className="min-w-0">
+            <div className="truncate font-serif text-lg font-bold text-text-primary">
+              ResearchQuest
+            </div>
+            <div className="text-caption text-text-tertiary">Research cockpit</div>
+          </div>
         </div>
 
         <button
           onClick={handleOpenSearch}
-          className="w-full flex items-center justify-between px-3 py-2 rounded-sm bg-bg-base border border-border-moderate text-small text-text-secondary hover:text-text-primary hover:border-border-strong transition-colors shadow-sm focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+          className="group flex w-full items-center justify-between rounded-lg border border-border-moderate bg-bg-base px-3 py-2.5 text-small text-text-secondary shadow-sm transition-colors hover:border-accent hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
           aria-label="Search or type a command"
         >
-          <div className="flex items-center gap-2">
-            <MagnifyingGlassIcon className="w-4 h-4" />
+          <span className="flex items-center gap-2">
+            <MagnifyingGlassIcon className="h-4 w-4" aria-hidden="true" />
             <span>Search...</span>
-          </div>
-          <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-caption font-medium text-text-tertiary bg-bg-elevated rounded-sm border border-border-subtle">
-            <span className="mr-0.5">{navigator.platform.includes("Mac") ? "⌘" : "Ctrl+"}</span>K
+          </span>
+          <kbd className="hidden rounded-md border border-border-subtle bg-bg-surface px-1.5 py-0.5 text-caption font-medium text-text-tertiary sm:inline-block">
+            Ctrl K
           </kbd>
         </button>
       </div>
 
-      <nav className="flex-1 px-4 space-y-1">
-        {navItems.map((item) => (
-          <a
-            key={item.id}
-            href={item.id === "dashboard" ? "/" : `/${item.id}`}
-            onClick={(e) => {
-              // Allow default behavior (new tab) if modifier keys are pressed
-              if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
-                return;
-              }
-              e.preventDefault();
-              setCurrentView(item.id);
-              setIsMobileSidebarOpen(false);
-              // Update URL without reload
-              window.history.pushState(
-                null,
-                "",
-                item.id === "dashboard" ? "/" : `/${item.id}`,
-              );
-            }}
-            className={cn(
-              "w-full flex items-center gap-3 px-3 py-2.5 rounded-sm text-small font-medium transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500 focus-visible:outline-offset-2",
-              currentView === item.id
-                ? "bg-primary-50 text-text-primary font-semibold"
-                : "text-text-secondary hover:bg-bg-elevated hover:text-text-primary",
-            )}
-            aria-current={currentView === item.id ? "page" : undefined}
-          >
-            <item.icon className="w-5 h-5" aria-hidden="true" />
-            {item.label}
-          </a>
-        ))}
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3" aria-label="Primary navigation">
+        {navItems.map((item) => {
+          const active = currentView === item.id;
+          return (
+            <a
+              key={item.id}
+              href={item.id === "dashboard" ? "/" : `/${item.id}`}
+              onClick={(e) => {
+                if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
+                  return;
+                }
+                e.preventDefault();
+                setCurrentView(item.id);
+                setIsMobileSidebarOpen(false);
+                window.history.pushState(
+                  null,
+                  "",
+                  item.id === "dashboard" ? "/" : `/${item.id}`,
+                );
+              }}
+              className={cn(
+                "group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-small font-medium transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+                active
+                  ? "bg-accent-soft text-accent-strong shadow-sm"
+                  : "text-text-secondary hover:bg-bg-elevated hover:text-text-primary",
+              )}
+              aria-current={active ? "page" : undefined}
+            >
+              <item.icon
+                className={cn(
+                  "h-4 w-4 shrink-0",
+                  active ? "text-accent-strong" : "text-text-tertiary group-hover:text-text-secondary",
+                )}
+                aria-hidden="true"
+              />
+              <span className="flex-1">{item.label}</span>
+              {active && (
+                <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden="true" />
+              )}
+            </a>
+          );
+        })}
       </nav>
 
       {user && (
-        <div className="px-4 py-4 space-y-4">
-          {/* XP Card */}
-          <div className="p-3 bg-bg-base rounded-sm border border-border-subtle shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-caption font-serif font-bold text-text-primary tracking-wide uppercase">
+        <div className="px-3 py-4">
+          <div className="surface-card overflow-hidden p-3.5">
+            <div className="mb-2.5 flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-caption font-bold uppercase tracking-wider text-text-primary">
+                <Sparkles className="h-3.5 w-3.5 text-accent-strong" aria-hidden="true" />
                 Level {currentLevel}
               </span>
               <button
                 onClick={() => setShowXpGuide(true)}
-                className="text-text-tertiary hover:text-primary-500 rounded-sm focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500"
+                className="icon-btn -mr-1.5 -mt-1 h-7 w-7 text-text-tertiary"
                 aria-label="Learn about XP and Levels"
               >
-                <ActivityLogIcon className="w-3.5 h-3.5" aria-hidden="true" />
+                <ActivityLogIcon className="h-3.5 w-3.5" aria-hidden="true" />
               </button>
             </div>
-            <div className="h-1.5 w-full bg-border-subtle rounded-none overflow-hidden mb-1">
-              <div
-                className="h-full bg-primary-500 transition-all duration-1000 ease-out"
-                style={{ width: `${xpProgress}%` }}
-              />
+            <div className="progress-track h-2 w-full">
+              <div className="progress-fill" style={{ width: `${xpProgress}%` }} />
             </div>
-            <div className="flex justify-between text-caption text-text-tertiary">
+            <div className="mt-1.5 flex items-center justify-between text-caption text-text-tertiary">
               <span>{xpInLevel} XP</span>
-              <span>500 XP</span>
+              <span>500 XP to level {currentLevel + 1}</span>
             </div>
           </div>
         </div>
       )}
 
-      <div className="p-4 border-t border-border-subtle space-y-1">
-        <div className="flex items-center justify-between px-3 py-2">
+      <div className="space-y-1 border-t border-border-subtle px-3 py-3">
+        <div className="flex items-center justify-between px-1 pb-1">
           <button
             onClick={() => setShowProfile(true)}
-            className="flex items-center gap-2 hover:bg-bg-elevated rounded-sm p-1 -ml-1 transition-colors text-left focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500"
+            className="group flex min-w-0 flex-1 items-center gap-2.5 rounded-lg p-1.5 text-left transition-colors hover:bg-bg-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
             aria-label="User profile"
           >
-            <div className="w-8 h-8 rounded-full bg-bg-base border border-border-moderate text-text-primary flex items-center justify-center font-serif font-bold">
+            <span className="brand-gradient flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white shadow-sm">
               {user?.username?.charAt(0).toUpperCase() || "U"}
-            </div>
-            <div className="text-xs">
-              <span className="block font-medium text-text-primary truncate max-w-[80px]">
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-small font-semibold text-text-primary">
                 {user?.username || "User"}
               </span>
-              <span className="flex items-center gap-1 text-text-secondary">
-                <Flame className="w-3 h-3 text-warning" aria-hidden="true" />{" "}
-                {user?.current_streak || 0}
+              <span className="flex items-center gap-1 text-caption text-text-secondary">
+                <Flame className="h-3 w-3 text-gold" aria-hidden="true" />
+                {user?.current_streak || 0} day streak
               </span>
-            </div>
+            </span>
+            <ChevronRight className="h-4 w-4 shrink-0 text-text-tertiary" aria-hidden="true" />
           </button>
-          <div className="flex items-center gap-1">
+          <div className="flex shrink-0 items-center">
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
                   onClick={handleOpenShortcuts}
-                  className="p-1.5 text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-sm transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500"
+                  className="icon-btn"
                   aria-label="Keyboard Shortcuts"
                 >
-                  <Keyboard className="w-4 h-4" aria-hidden="true" />
+                  <Keyboard className="h-4 w-4" aria-hidden="true" />
                 </button>
               </TooltipTrigger>
               <TooltipContent>
@@ -235,14 +244,14 @@ export function Sidebar() {
               <TooltipTrigger asChild>
                 <button
                   onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
-                  className="p-1.5 text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-sm transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500"
+                  className="icon-btn"
                   aria-label={
                     isRightSidebarOpen
                       ? "Close context panel"
                       : "Open context panel"
                   }
                 >
-                  <ViewVerticalIcon className="w-4 h-4" aria-hidden="true" />
+                  <ViewVerticalIcon className="h-4 w-4" aria-hidden="true" />
                 </button>
               </TooltipTrigger>
               <TooltipContent>
@@ -254,10 +263,10 @@ export function Sidebar() {
               <TooltipTrigger asChild>
                 <button
                   onClick={() => setZenMode(true)}
-                  className="p-1.5 text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-sm transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500"
+                  className="icon-btn"
                   aria-label="Enter Zen Mode"
                 >
-                  <Maximize2 className="w-4 h-4" aria-hidden="true" />
+                  <Maximize2 className="h-4 w-4" aria-hidden="true" />
                 </button>
               </TooltipTrigger>
               <TooltipContent>
@@ -267,7 +276,7 @@ export function Sidebar() {
 
             <button
               onClick={toggleTheme}
-              className="p-1.5 text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-sm transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500"
+              className="icon-btn"
               aria-label={
                 effectiveTheme === "light"
                   ? "Switch to dark mode"
@@ -275,27 +284,29 @@ export function Sidebar() {
               }
             >
               {effectiveTheme === "light" ? (
-                <Moon className="w-4 h-4" aria-hidden="true" />
+                <Moon className="h-4 w-4" aria-hidden="true" />
               ) : (
-                <Sun className="w-4 h-4" aria-hidden="true" />
+                <Sun className="h-4 w-4" aria-hidden="true" />
               )}
             </button>
           </div>
         </div>
 
+        <div className="divider-hairline" aria-hidden="true" />
+
         <button
           onClick={() => setShowDataDialog(true)}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-sm text-small font-medium text-text-secondary hover:bg-bg-elevated hover:text-text-primary transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-small font-medium text-text-secondary transition-colors hover:bg-bg-elevated hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
         >
-          <Database className="w-4 h-4" aria-hidden="true" />
+          <Database className="h-4 w-4" aria-hidden="true" />
           Data & API
         </button>
 
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-sm text-small font-medium text-warning hover:bg-warning-bg hover:text-warning transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-small font-medium text-coral-strong transition-colors hover:bg-coral-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
         >
-          <ExitIcon className="w-4 h-4" aria-hidden="true" />
+          <ExitIcon className="h-4 w-4" aria-hidden="true" />
           Sign Out
         </button>
       </div>

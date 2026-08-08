@@ -61,6 +61,33 @@ module.exports = {
 					DEFAULT: 'var(--purple)',
 					bg: 'var(--purple-bg)',
 				},
+				accent: {
+					DEFAULT: 'var(--accent)',
+					strong: 'var(--accent-strong)',
+					soft: 'var(--accent-soft)',
+					contrast: 'var(--accent-contrast)',
+				},
+				gold: {
+					DEFAULT: 'var(--gold)',
+					strong: 'var(--gold-strong)',
+					soft: 'var(--gold-soft)',
+				},
+				coral: {
+					DEFAULT: 'var(--coral)',
+					strong: 'var(--coral-strong)',
+					soft: 'var(--coral-soft)',
+				},
+				violet: {
+					DEFAULT: 'var(--violet)',
+					strong: 'var(--violet-strong)',
+					soft: 'var(--violet-soft)',
+				},
+				blue: {
+					DEFAULT: 'var(--blue)',
+					strong: 'var(--blue-strong)',
+					soft: 'var(--blue-soft)',
+				},
+				'bg-muted': 'var(--bg-muted)',
 			},
 			fontFamily: {
 				sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
@@ -68,13 +95,13 @@ module.exports = {
 				serif: ['Playfair Display', 'Merriweather', 'Georgia', 'Times New Roman', 'serif'], // Added serif for Luxe Scholar
 			},
 			fontSize: {
-				hero: ['3.5rem', { lineHeight: '1.05', letterSpacing: '-0.03em' }],
-				title: ['2.25rem', { lineHeight: '1.15', letterSpacing: '-0.02em' }],
-				subtitle: ['1.5rem', { lineHeight: '1.3', letterSpacing: '-0.01em' }],
+				hero: ['3.5rem', { lineHeight: '1.05', letterSpacing: '0' }],
+				title: ['2.25rem', { lineHeight: '1.15', letterSpacing: '0' }],
+				subtitle: ['1.5rem', { lineHeight: '1.3', letterSpacing: '0' }],
 				'body-lg': ['1.125rem', { lineHeight: '1.65' }],
 				body: ['1rem', { lineHeight: '1.6' }],
-				small: ['0.875rem', { lineHeight: '1.5', letterSpacing: '0.01em' }],
-				caption: ['0.75rem', { lineHeight: '1.4', letterSpacing: '0.02em' }],
+				small: ['0.875rem', { lineHeight: '1.5', letterSpacing: '0' }],
+				caption: ['0.75rem', { lineHeight: '1.4', letterSpacing: '0' }],
 				code: ['0.875rem', { lineHeight: '1.4' }],
 			},
 			// 8-point spacing system
@@ -98,11 +125,11 @@ module.exports = {
 				'80': '20rem',     // 320px - right sidebar
 			},
 			borderRadius: {
-				// Sharper borders for editorial feel
-				sm: '0.125rem',      // 2px
-				md: '0.25rem',       // 4px
-				lg: '0.375rem',      // 6px
-				xl: '0.5rem',        // 8px
+				// Refined radii for the high-fidelity surface system
+				sm: '0.5rem',        // 8px
+				md: '0.625rem',      // 10px
+				lg: '0.75rem',       // 12px
+				xl: '1rem',          // 16px
 				full: '9999px',
 			},
 			boxShadow: {
@@ -110,6 +137,9 @@ module.exports = {
 				md: 'var(--shadow-md)',
 				lg: 'var(--shadow-lg)',
 				hover: 'var(--shadow-hover)',
+				card: 'var(--shadow-card)',
+				lift: 'var(--shadow-lift)',
+				glow: 'var(--shadow-glow)',
 			},
 			animation: {
 				'fade-in': 'fadeIn 200ms ease-out',

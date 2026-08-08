@@ -20,6 +20,7 @@ vi.mock("lucide-react", () => ({
   FileText: () => <span>FileTextIcon</span>,
   Search: () => <span>SearchIcon</span>,
   Loader: () => <span>LoaderIcon</span>,
+  ShieldAlert: () => <span>ShieldAlertIcon</span>,
 }));
 
 // Mock Tooltip to avoid TooltipProvider requirement

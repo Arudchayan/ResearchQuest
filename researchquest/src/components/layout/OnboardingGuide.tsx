@@ -63,15 +63,15 @@ export function OnboardingGuide({
   const Icon = currentStep.icon;
 
   return (
-    <section className="mb-4 rounded-2xl border border-border-subtle bg-bg-surface shadow-sm">
+    <section className="surface-card mb-4">
       <div className="flex items-start gap-4 p-5 sm:p-6">
-        <div className="flex-shrink-0 rounded-xl bg-primary-500/10 p-3 text-primary-600">
-          <Icon className="w-6 h-6" aria-hidden="true" />
+        <div className="icon-tile flex-shrink-0 bg-accent-soft text-accent-strong">
+          <Icon className="w-5 h-5" aria-hidden="true" />
         </div>
         <div className="flex-1 space-y-2">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-primary-500">
+              <p className="section-kicker mb-1">
                 Welcome to ResearchQuest
               </p>
               <h2 className="text-lg font-semibold text-text-primary">
@@ -81,7 +81,7 @@ export function OnboardingGuide({
             <button
               type="button"
               onClick={handleDismiss}
-              className="rounded-full p-1.5 text-text-tertiary hover:text-text-primary hover:bg-bg-base"
+              className="icon-btn"
               aria-label="Dismiss onboarding guide"
             >
               <X className="w-4 h-4" aria-hidden="true" />
@@ -96,7 +96,7 @@ export function OnboardingGuide({
                 <span
                   key={index}
                   className={`h-2.5 w-2.5 rounded-full transition-colors ${
-                    index === stepIndex ? "bg-primary-500" : "bg-border-subtle"
+                    index === stepIndex ? "bg-accent" : "bg-bg-elevated border border-border-subtle"
                   }`}
                 />
               ))}
@@ -105,7 +105,7 @@ export function OnboardingGuide({
               <button
                 type="button"
                 onClick={previousStep}
-                className="rounded-full border border-border-subtle px-3 py-1.5 text-xs font-medium text-text-secondary hover:text-text-primary"
+                className="rounded-lg border border-border-moderate bg-bg-surface px-3 py-1.5 text-xs font-medium text-text-secondary shadow-sm hover:border-border-strong hover:text-text-primary"
                 aria-label="Previous onboarding tip"
               >
                 Back
@@ -113,7 +113,7 @@ export function OnboardingGuide({
               <button
                 type="button"
                 onClick={nextStep}
-                className="rounded-full bg-primary-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary-600"
+                className="rounded-lg bg-text-primary px-3 py-1.5 text-xs font-semibold text-bg-base shadow-sm hover:opacity-95 transition-opacity"
                 aria-label="Next onboarding tip"
               >
                 Next tip

@@ -4,6 +4,9 @@ import { AuthScreen } from "../../components/auth/AuthScreen";
 
 // Mock Supabase to avoid errors during AuthScreen mount
 vi.mock("../../lib/supabase", () => ({
+  isDemoMode: false,
+  hasSupabaseConfig: true,
+  supabaseConfigErrorMessage: "Missing Supabase environment variables",
   supabase: {
     auth: {
       signInWithPassword: vi.fn(),

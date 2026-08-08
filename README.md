@@ -53,6 +53,23 @@ pnpm run dev
 # Opens at http://localhost:5173
 ```
 
+### Demo mode (no backend required)
+
+ResearchQuest ships with a fully local demo workspace. It seeds papers, notes,
+ideas, topics, tasks, feeds, focus sessions, XP, streaks, quests, and
+achievements into an in-memory Supabase-compatible client, so every view is
+interactive without a Supabase project.
+
+```bash
+cd researchquest
+cp .env.example .env
+# Set VITE_DEMO_MODE=1 in .env
+pnpm run dev
+```
+
+Sign in with any email and password, or use the **Use demo workspace** button on
+the auth screen.
+
 ### Without Supabase
 
 The app shows a config error screen and the Supabase auth UI — useful for testing auth flow. Set `PLAYWRIGHT_TEST_NO_SUPABASE=1` to force this mode.

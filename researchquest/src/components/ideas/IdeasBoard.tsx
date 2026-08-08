@@ -45,12 +45,19 @@ type SortOption =
   | "title_asc"
   | "title_desc";
 
-const STAGES: { id: IdeaStage; label: string; color: string }[] = [
-  { id: "Seed", label: "Seed", color: "bg-success" },
-  { id: "Developing", label: "Developing", color: "bg-primary-500" },
-  { id: "Supported", label: "Supported", color: "bg-purple" },
-  { id: "Mature", label: "Mature", color: "bg-warning" },
+const STAGES: { id: IdeaStage; label: string; color: string; tint: string }[] = [
+  { id: "Seed", label: "Seed", color: "bg-bg-elevated", tint: "from-bg-elevated" },
+  { id: "Developing", label: "Developing", color: "bg-gold-soft", tint: "from-gold-soft" },
+  { id: "Supported", label: "Supported", color: "bg-blue-soft", tint: "from-blue-soft" },
+  { id: "Mature", label: "Mature", color: "bg-violet-soft", tint: "from-violet-soft" },
 ];
+
+const STAGE_ICON_STYLES: Record<string, string> = {
+  Seed: "bg-bg-elevated text-text-secondary",
+  Developing: "bg-gold-soft text-gold-strong",
+  Supported: "bg-blue-soft text-blue-strong",
+  Mature: "bg-violet-soft text-violet-strong",
+};
 
 export function IdeasBoard() {
   // Using useShallow to prevent unnecessary re-renders of the entire IdeasBoard
@@ -309,14 +316,14 @@ export function IdeasBoard() {
             <h1 className="text-2xl font-serif font-bold text-text-primary">
               Idea Board
             </h1>
-            <p className="text-text-secondary text-sm">
+            <p className="text-text-secondary text-small mt-1">
               Track the evolution of your research concepts
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <DropdownMenu.Root>
               <DropdownMenu.Trigger asChild>
-                <button className="px-4 py-2 bg-bg-surface border border-border-moderate text-text-secondary rounded-lg hover:bg-bg-elevated hover:text-text-primary transition-colors flex items-center gap-2 font-medium">
+                <button className="inline-flex h-10 items-center gap-2 rounded-lg border border-border-moderate bg-bg-surface px-3.5 text-small font-medium text-text-secondary shadow-sm transition-all hover:-translate-y-0.5 hover:border-border-strong hover:bg-bg-elevated hover:text-text-primary hover:shadow-lift">
                   <Download className="w-5 h-5" />
                   Export
                 </button>
@@ -329,21 +336,21 @@ export function IdeasBoard() {
                 >
                   <DropdownMenu.Item
                     onSelect={() => handleExport("markdown")}
-                    className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-md cursor-pointer outline-none"
+                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-small text-text-secondary hover:bg-bg-elevated hover:text-text-primary cursor-pointer outline-none"
                   >
                     <FileText className="w-4 h-4" />
                     Markdown (.md)
                   </DropdownMenu.Item>
                   <DropdownMenu.Item
                     onSelect={() => handleExport("csv")}
-                    className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-md cursor-pointer outline-none"
+                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-small text-text-secondary hover:bg-bg-elevated hover:text-text-primary cursor-pointer outline-none"
                   >
                     <Table className="w-4 h-4" />
                     CSV (.csv)
                   </DropdownMenu.Item>
                   <DropdownMenu.Item
                     onSelect={() => handleExport("json")}
-                    className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-md cursor-pointer outline-none"
+                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-small text-text-secondary hover:bg-bg-elevated hover:text-text-primary cursor-pointer outline-none"
                   >
                     <FileJson className="w-4 h-4" />
                     JSON (.json)
@@ -353,7 +360,7 @@ export function IdeasBoard() {
             </DropdownMenu.Root>
             <button
               onClick={() => setIsCreateDialogOpen(true)}
-              className="px-4 py-2 bg-text-primary text-bg-base rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2 font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+              className="inline-flex h-10 items-center gap-2 rounded-lg bg-text-primary px-4 text-small font-semibold text-bg-base shadow-lift transition-all hover:-translate-y-0.5 hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
             >
               <Plus className="w-5 h-5" />
               New Idea
@@ -372,7 +379,7 @@ export function IdeasBoard() {
               placeholder="Search ideas..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-10 py-2 bg-bg-elevated border border-border-moderate rounded-lg text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="w-full h-10 rounded-lg border border-border-moderate bg-bg-elevated pl-9 pr-10 text-small text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-accent"
               aria-label="Search ideas"
             />
             {searchQuery && (
@@ -381,7 +388,7 @@ export function IdeasBoard() {
                   setSearchQuery("");
                   searchInputRef.current?.focus();
                 }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-tertiary hover:text-text-primary hover:bg-bg-elevated rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
+                className="icon-btn absolute right-1.5 top-1/2 h-8 w-8 -translate-y-1/2 rounded-full"
                 aria-label="Clear search"
               >
                 <X className="w-3 h-3" aria-hidden="true" />
@@ -394,7 +401,7 @@ export function IdeasBoard() {
             <select
               value={sortOption}
               onChange={(e) => setSortOption(e.target.value as SortOption)}
-              className="px-3 py-2 bg-bg-elevated border border-border-moderate rounded-lg text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer min-w-[180px]"
+              className="h-10 rounded-lg border border-border-moderate bg-bg-elevated px-3 text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer min-w-[180px]"
               aria-label="Sort ideas"
             >
               <option value="updated_desc">Last Updated (Newest)</option>
@@ -427,15 +434,15 @@ export function IdeasBoard() {
                   key={stage.id}
                   className="w-full lg:w-80 flex flex-col min-h-[280px] lg:h-full rounded-xl bg-bg-elevated border border-border-subtle"
                 >
-                  <div className="p-4 flex items-center justify-between border-b border-border-subtle bg-bg-surface rounded-t-xl sticky top-0 z-10">
+                  <div className={`p-4 flex items-center justify-between border-b border-border-subtle bg-gradient-to-r ${stage.tint} via-bg-surface to-bg-surface rounded-t-xl sticky top-0 z-10`}>
                     <div className="flex items-center gap-2">
                       <div
-                        className={cn("w-3 h-3 rounded-full", stage.color)}
+                        className={cn("h-2.5 w-2.5 rounded-full shadow-sm ring-2 ring-white/60 dark:ring-white/10", stage.color)}
                       />
                       <h3 className="font-semibold text-text-primary">
                         {stage.label}
                       </h3>
-                      <span className="px-2 py-0.5 bg-bg-elevated text-text-secondary text-xs rounded-full font-medium">
+                      <span className="rounded-full border border-border-subtle bg-bg-surface px-2 py-0.5 text-caption font-medium text-text-secondary shadow-sm">
                         {stageIdeas.length}
                       </span>
                     </div>
@@ -449,7 +456,7 @@ export function IdeasBoard() {
                           {stageIdeas.map((idea) => (
                             <div
                               key={idea.id}
-                              className="group bg-bg-surface p-4 rounded-lg border border-border-moderate shadow-sm hover:shadow-md cursor-pointer transition-all hover:border-border-strong focus:outline-none focus:ring-2 focus:ring-primary-500 animate-fade-slide-in"
+                              className="surface-card group cursor-pointer rounded-lg p-4 transition-all hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-accent animate-fade-slide-in"
                               style={{ viewTransitionName: `idea-${idea.id}` }}
                               onClick={() => setSelectedIdea(idea)}
                               onKeyDown={(e) => {
@@ -460,36 +467,47 @@ export function IdeasBoard() {
                               }}
                               tabIndex={0}
                             >
-                              <div className="flex items-start justify-between mb-2">
-                                <h4 className="font-medium text-text-primary line-clamp-2 leading-snug">
-                                  {idea.title ? highlightMatch(idea.title, searchQuery) : "Untitled"}
-                                </h4>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setIdeaToDelete(idea);
-                                  }}
-                                  aria-label={`Delete ${idea.title}`}
-                                  className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 p-1 text-text-tertiary hover:text-warning hover:bg-warning-bg transition-all rounded"
+                              <div className="flex items-start gap-3">
+                                <span
+                                  className={`icon-tile ${
+                                    STAGE_ICON_STYLES[idea.stage] ?? STAGE_ICON_STYLES.Seed
+                                  }`}
                                 >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
+                                  <Lightbulb className="h-4 w-4" aria-hidden="true" />
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <h4 className="min-w-0 font-semibold text-small text-text-primary line-clamp-2 leading-snug">
+                                      {idea.title ? highlightMatch(idea.title, searchQuery) : "Untitled"}
+                                    </h4>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setIdeaToDelete(idea);
+                                      }}
+                                      aria-label={`Delete ${idea.title}`}
+                                      className="icon-btn h-8 w-8 shrink-0 rounded-lg opacity-0 text-text-tertiary hover:text-warning hover:bg-warning-bg group-hover:opacity-100 group-focus-within:opacity-100"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </button>
+                                  </div>
+
+                                  <p className="mt-1 text-caption text-text-secondary line-clamp-3">
+                                    {idea.description
+                                      ? highlightMatch(idea.description, searchQuery)
+                                      : "No description provided..."}
+                                  </p>
+                                </div>
                               </div>
 
-                              <p className="text-sm text-text-secondary line-clamp-3 mb-3">
-                                {idea.description
-                                  ? highlightMatch(idea.description, searchQuery)
-                                  : "No description provided..."}
-                              </p>
-
                               {stage.id !== "Mature" && (
-                                <div className="flex justify-end pt-2 border-t border-border-subtle">
+                                <div className="mt-2.5 flex justify-end border-t border-border-subtle pt-2">
                                   <button
                                     onClick={(e) =>
                                       handleMoveStage(e, idea.id, idea.stage)
                                     }
                                     aria-label="Advance idea to next stage"
-                                    className="text-xs font-medium text-text-primary hover:underline flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity"
+                                    className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-caption font-medium text-text-secondary transition-colors hover:text-accent-strong opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
                                   >
                                     Advance <ArrowRight className="w-3 h-3" />
                                   </button>
@@ -507,11 +525,13 @@ export function IdeasBoard() {
                         </div>
 
                         {stageIdeas.length === 0 && (
-                          <div className="p-8 text-center border-2 border-dashed border-border-moderate rounded-lg text-text-tertiary">
-                            <Lightbulb className="w-8 h-8 mx-auto mb-2 opacity-50" aria-hidden="true" />
-                            <p className="text-sm font-medium mb-1">{searchQuery ? "No matches found" : "No ideas yet"}</p>
+                          <div className="p-8 text-center border-2 border-dashed border-border-moderate rounded-xl bg-bg-surface text-text-tertiary">
+                            <span className="icon-tile mx-auto mb-2 bg-bg-elevated text-text-tertiary">
+                              <Lightbulb className="h-5 w-5" aria-hidden="true" />
+                            </span>
+                            <p className="text-small font-medium mb-1 text-text-secondary">{searchQuery ? "No matches found" : "No ideas yet"}</p>
                             {searchQuery && (
-                              <p className="text-xs text-text-secondary">
+                              <p className="text-caption text-text-secondary">
                                 Try a different keyword or clear your search.
                               </p>
                             )}
@@ -534,19 +554,19 @@ export function IdeasBoard() {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setSelectedIdea(null)}
-                className="lg:hidden p-2 -ml-2 hover:bg-bg-elevated rounded-full transition-colors"
+                className="icon-btn lg:hidden -ml-2 rounded-full"
                 aria-label="Back to board"
               >
                 <ArrowLeft className="w-5 h-5 text-text-secondary" />
               </button>
-              <h2 className="font-semibold text-text-primary">
+              <h2 className="font-serif text-lg font-bold text-text-primary">
                 Idea Details
               </h2>
             </div>
             <button
               onClick={() => setSelectedIdea(null)}
               aria-label="Close details"
-              className="hidden lg:flex p-2 hover:bg-bg-elevated rounded-full"
+              className="icon-btn hidden rounded-full lg:flex"
             >
               <X className="w-5 h-5" />
             </button>
@@ -567,12 +587,12 @@ export function IdeasBoard() {
         onOpenChange={setIsCreateDialogOpen}
       >
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 animate-fade-in" />
+          <Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-md z-50 animate-fade-in" />
           <Dialog.Content
-            className="fixed left-[50%] top-[50%] max-h-[85vh] w-[90vw] max-w-[500px] translate-x-[-50%] translate-y-[-50%] rounded-xl bg-bg-surface p-6 shadow-2xl focus:outline-none z-50 animate-slide-in border border-border-moderate"
+            className="surface-panel fixed left-[50%] top-[50%] max-h-[85vh] w-[90vw] max-w-[500px] translate-x-[-50%] translate-y-[-50%] rounded-xl p-6 shadow-lift focus:outline-none z-50 animate-slide-in"
             aria-describedby={undefined}
           >
-            <Dialog.Title className="text-xl font-serif font-bold mb-4 text-text-primary">
+            <Dialog.Title className="font-serif text-xl font-bold mb-4 text-text-primary">
               Capture New Idea
             </Dialog.Title>
             <form onSubmit={(e) => { e.preventDefault(); void handleCreate(); }} className="space-y-4">
@@ -586,7 +606,7 @@ export function IdeasBoard() {
                 <input
                   id="create-idea-title"
                   autoFocus
-                  className="w-full px-4 py-2 bg-bg-elevated border border-border-moderate rounded-lg text-text-primary placeholder:text-text-tertiary focus:ring-2 focus:ring-primary-500 outline-none"
+                  className="w-full h-11 rounded-lg border border-border-moderate bg-bg-elevated px-4 text-body text-text-primary placeholder:text-text-tertiary focus:ring-2 focus:ring-accent outline-none"
                   placeholder="e.g. Quantum Entanglement in Biology"
                   value={newIdeaTitle}
                   onChange={(e) => setNewIdeaTitle(e.target.value)}
@@ -611,7 +631,7 @@ export function IdeasBoard() {
                 </label>
                 <textarea
                   id="create-idea-description"
-                  className="w-full px-4 py-2 bg-bg-elevated border border-border-moderate rounded-lg text-text-primary placeholder:text-text-tertiary focus:ring-2 focus:ring-primary-500 outline-none h-32 resize-none"
+                  className="w-full h-32 resize-none rounded-lg border border-border-moderate bg-bg-elevated px-4 py-2.5 text-body text-text-primary placeholder:text-text-tertiary focus:ring-2 focus:ring-accent outline-none"
                   placeholder="Briefly describe your hypothesis..."
                   value={newIdeaDesc}
                   onChange={(e) => setNewIdeaDesc(e.target.value)}
@@ -622,14 +642,14 @@ export function IdeasBoard() {
                 <button
                   type="button"
                   onClick={() => setIsCreateDialogOpen(false)}
-                  className="px-4 py-2 text-text-secondary hover:bg-bg-elevated rounded-lg font-medium"
+                  className="h-10 rounded-lg px-4 text-small font-medium text-text-secondary transition-colors hover:bg-bg-elevated"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={!newIdeaTitle.trim()}
-                  className="px-6 py-2 bg-text-primary text-bg-base rounded-lg hover:opacity-90 transition-opacity font-medium disabled:opacity-50"
+                  className="h-10 rounded-lg bg-text-primary px-6 text-small font-semibold text-bg-base shadow-lift transition-all hover:-translate-y-0.5 hover:opacity-95 disabled:translate-y-0 disabled:opacity-50"
                 >
                   Create Idea
                 </button>

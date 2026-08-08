@@ -90,12 +90,12 @@ export function FormDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div
         ref={dialogRef}
-        className="w-full max-w-md bg-bg-surface rounded-lg shadow-lg border border-border-subtle animate-in zoom-in-95 duration-200"
+        className="surface-panel w-full max-w-md shadow-lift animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -106,7 +106,7 @@ export function FormDialog({
           {/* Header */}
           <div className="flex items-start gap-4 p-6 pb-4">
             {icon && (
-              <div className="w-12 h-12 rounded-full bg-primary-100 dark:bg-primary-900/20 flex items-center justify-center flex-shrink-0">
+              <div className="icon-tile h-12 w-12 shrink-0 rounded-xl bg-accent-soft text-accent-strong">
                 {icon}
               </div>
             )}
@@ -114,7 +114,7 @@ export function FormDialog({
             <div className="flex-1 min-w-0 mt-1">
               <h3
                 id={titleId}
-                className="text-lg font-semibold text-text-primary mb-1"
+                className="font-serif text-lg font-bold text-text-primary mb-1"
               >
                 {title}
               </h3>
@@ -132,7 +132,7 @@ export function FormDialog({
               type="button"
               onClick={onClose}
               disabled={isLoading}
-              className="p-1 rounded-md text-text-tertiary hover:text-text-primary hover:bg-bg-elevated transition-colors disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+              className="icon-btn rounded-lg text-text-tertiary hover:text-text-primary disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
               aria-label="Close dialog"
             >
               <X className="w-5 h-5" aria-hidden="true" />
@@ -148,7 +148,7 @@ export function FormDialog({
               type="button"
               onClick={onClose}
               disabled={isLoading}
-              className="flex-1 px-4 py-2 bg-bg-surface text-text-primary border border-border-subtle rounded-md hover:bg-bg-base transition-colors font-medium disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+              className="flex-1 h-10 rounded-lg border border-border-moderate bg-bg-surface px-4 text-small font-medium text-text-primary shadow-sm transition-all hover:border-border-strong hover:bg-bg-base disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
             >
               {cancelText}
             </button>
@@ -158,7 +158,7 @@ export function FormDialog({
               disabled={isSubmitDisabled || isLoading}
               aria-live="polite"
               aria-atomic="true"
-              className="flex-1 px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+              className="flex-1 h-10 rounded-lg bg-accent-strong px-4 text-small font-semibold text-accent-contrast shadow-lift transition-all hover:-translate-y-0.5 hover:opacity-95 disabled:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
             >
               {isLoading ? (
                 <>

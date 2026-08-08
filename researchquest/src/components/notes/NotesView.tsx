@@ -315,45 +315,48 @@ export function NotesView() {
       >
         <div className="p-4 border-b border-border-subtle space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-serif font-semibold text-text-primary">
-              Notes
-            </h2>
-            <div className="flex items-center gap-2">
+            <div className="min-w-0">
+              <p className="section-kicker">Research Notes</p>
+              <h2 className="mt-1 truncate font-serif text-lg font-semibold text-text-primary">
+                Notes
+              </h2>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
               <DropdownMenu.Root>
                 <DropdownMenu.Trigger asChild>
                   <button
-                    className="p-2 text-text-secondary hover:text-text-primary hover:bg-bg-surface rounded-md transition-colors"
+                    className="icon-btn h-10 w-10"
                     title="Export notes"
                     aria-label="Export notes"
                   >
-                    <Download className="w-5 h-5" aria-hidden="true" />
+                    <Download className="h-4 w-4" aria-hidden="true" />
                   </button>
                 </DropdownMenu.Trigger>
                 <DropdownMenu.Portal>
                   <DropdownMenu.Content
-                    className="min-w-[180px] bg-bg-surface rounded-lg shadow-lg border border-border-moderate p-1 z-50 animate-in fade-in-0 zoom-in-95"
+                    className="min-w-[180px] bg-bg-surface rounded-lg shadow-lift border border-border-moderate p-1 z-50 animate-in fade-in-0 zoom-in-95"
                     align="start"
                     sideOffset={5}
                   >
                     <DropdownMenu.Item
                       onSelect={() => handleExport("markdown")}
-                      className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-md cursor-pointer outline-none"
+                      className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-text-secondary hover:bg-bg-elevated hover:text-text-primary cursor-pointer outline-none"
                     >
-                      <FileText className="w-4 h-4" />
+                      <FileText className="h-4 w-4" />
                       Markdown (.md)
                     </DropdownMenu.Item>
                     <DropdownMenu.Item
                       onSelect={() => handleExport("csv")}
-                      className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-md cursor-pointer outline-none"
+                      className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-text-secondary hover:bg-bg-elevated hover:text-text-primary cursor-pointer outline-none"
                     >
-                      <Table className="w-4 h-4" />
+                      <Table className="h-4 w-4" />
                       CSV (.csv)
                     </DropdownMenu.Item>
                     <DropdownMenu.Item
                       onSelect={() => handleExport("json")}
-                      className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-md cursor-pointer outline-none"
+                      className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-text-secondary hover:bg-bg-elevated hover:text-text-primary cursor-pointer outline-none"
                     >
-                      <FileJson className="w-4 h-4" />
+                      <FileJson className="h-4 w-4" />
                       JSON (.json)
                     </DropdownMenu.Item>
                   </DropdownMenu.Content>
@@ -363,13 +366,13 @@ export function NotesView() {
               <button
                 onClick={handleCreateNote}
                 disabled={isCreating}
-                className="p-2 bg-text-primary text-bg-base rounded-md hover:opacity-90 transition-opacity disabled:opacity-70 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-text-primary text-bg-base shadow-lift transition-transform hover:-translate-y-0.5 hover:opacity-95 disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
                 aria-label={isCreating ? "Creating note..." : "Create new note"}
               >
                 {isCreating ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <Plus className="w-5 h-5" />
+                  <Plus className="h-4 w-4" />
                 )}
               </button>
             </div>
@@ -378,7 +381,7 @@ export function NotesView() {
           <div className="flex flex-col gap-2">
             <div className="relative">
               <label htmlFor="notes-search-input" className="sr-only">Search notes</label>
-              <Search className="absolute left-3 top-2.5 w-4 h-4 text-text-tertiary" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-tertiary" />
               <input
                 id="notes-search-input"
                 ref={searchInputRef}
@@ -386,7 +389,7 @@ export function NotesView() {
                 placeholder="Search notes..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-10 py-2 bg-bg-surface border border-border-moderate rounded-md text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-primary-500"
+                className="w-full rounded-lg border border-border-moderate bg-bg-surface py-2.5 pl-9 pr-10 text-small text-text-primary shadow-sm placeholder:text-text-tertiary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
                 aria-label="Search notes"
               />
               {searchQuery && (
@@ -395,20 +398,20 @@ export function NotesView() {
                     setSearchQuery("");
                     searchInputRef.current?.focus();
                   }}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-tertiary hover:text-text-primary hover:bg-bg-elevated rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-text-tertiary transition-colors hover:bg-bg-elevated hover:text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/30"
                   aria-label="Clear search"
                 >
-                  <X className="w-3 h-3" aria-hidden="true" />
+                  <X className="h-3 w-3" aria-hidden="true" />
                 </button>
               )}
             </div>
 
             <div className="flex items-center gap-2">
-              <ArrowUpDown className="w-4 h-4 text-text-tertiary flex-shrink-0" />
+              <ArrowUpDown className="h-4 w-4 flex-shrink-0 text-text-tertiary" />
               <select
                 value={sortOption}
                 onChange={(e) => setSortOption(e.target.value as SortOption)}
-                className="w-full px-3 py-2 bg-bg-surface border border-border-moderate rounded-md text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer"
+                className="w-full cursor-pointer rounded-lg border border-border-moderate bg-bg-surface px-3 py-2.5 text-small text-text-primary shadow-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
                 aria-label="Sort notes"
               >
                 <option value="updated_desc">Last Updated (Newest)</option>
@@ -427,10 +430,10 @@ export function NotesView() {
                 <button
                   key={tag}
                   onClick={() => setSelectedTag((t) => (t === tag ? null : tag))}
-                  className={`px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap border transition-colors ${
+                  className={`rounded-full border px-2.5 py-1 text-xs font-medium whitespace-nowrap transition-colors ${
                     selectedTag === tag
-                      ? "bg-primary-100 text-text-primary border-border-strong"
-                      : "bg-bg-surface text-text-secondary border-border-subtle hover:bg-bg-elevated hover:text-text-primary"
+                      ? "border-accent/30 bg-accent-soft text-accent-strong"
+                      : "border-border-subtle bg-bg-surface text-text-secondary hover:bg-bg-elevated hover:text-text-primary"
                   }`}
                 >
                   #{tag}
@@ -455,15 +458,15 @@ export function NotesView() {
             </div>
           ) : filteredNotes.length === 0 ? (
             <div
-              className="flex flex-col items-center justify-center h-64 p-6 text-center animate-in fade-in duration-300"
+              className="animate-rise surface-card m-4 flex flex-col items-center justify-center px-6 py-10 text-center"
             >
-              <div className="w-12 h-12 bg-bg-surface border border-border-subtle rounded-full flex items-center justify-center mb-3">
-                <FileText className="w-6 h-6 text-text-tertiary opacity-50" />
-              </div>
-              <h3 className="text-sm font-semibold text-text-primary mb-1">
+              <span className="icon-tile h-12 w-12 bg-blue-soft text-blue-strong">
+                <FileText className="h-6 w-6" aria-hidden="true" />
+              </span>
+              <h3 className="mt-4 text-small font-semibold text-text-primary">
                 {searchQuery ? "No matches found" : "No notes yet"}
               </h3>
-              <p className="text-xs text-text-secondary mb-4 max-w-[200px]">
+              <p className="mt-1.5 max-w-[220px] text-caption text-text-secondary">
                 {searchQuery
                   ? "Try a different keyword or clear your search."
                   : "Create your first note to get started"}
@@ -472,9 +475,9 @@ export function NotesView() {
                 <button
                   onClick={handleCreateNote}
                   disabled={isCreating}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-text-primary text-bg-base text-xs font-medium rounded-md hover:opacity-90 transition-opacity disabled:opacity-70 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-bg-elevated"
+                  className="mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-text-primary px-4 text-sm font-semibold text-bg-base shadow-lift transition-transform hover:-translate-y-0.5 hover:opacity-95 disabled:opacity-70 disabled:hover:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
                 >
-                  <Plus className="w-3.5 h-3.5" />
+                  <Plus className="h-4 w-4" aria-hidden="true" />
                   Create Note
                 </button>
               )}
@@ -500,7 +503,7 @@ export function NotesView() {
                       height: `${virtualRow.size}px`,
                       transform: `translateY(${virtualRow.start}px)`,
                     }}
-                    className="border-b border-border-subtle last:border-b-0"
+                    className="p-2"
                   >
                     <NoteCard
                       note={note}
@@ -528,16 +531,16 @@ export function NotesView() {
       >
         {selectedNote ? (
           <>
-            <div className="lg:hidden p-3 border-b border-border-subtle bg-bg-surface">
+          <div className="lg:hidden p-3 border-b border-border-subtle bg-bg-surface">
               <button
                 onClick={() => {
                   setSelectedNote(null);
                   window.history.pushState(null, "", "/notes");
                 }}
-                className="inline-flex items-center gap-2 p-2 -ml-2 text-text-secondary hover:text-text-primary hover:bg-bg-elevated rounded-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
+                className="icon-btn -ml-2 inline-flex h-9 w-auto items-center gap-2 rounded-lg px-2 text-text-secondary transition-colors hover:bg-bg-elevated hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
                 aria-label="Back to notes"
               >
-                <ArrowLeft className="w-5 h-5" />
+                <ArrowLeft className="h-5 w-5" />
                 <span className="font-medium">Notes</span>
               </button>
             </div>
@@ -546,14 +549,14 @@ export function NotesView() {
             </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-text-tertiary p-8 text-center">
-            <div className="w-16 h-16 bg-bg-elevated border border-border-subtle rounded-full flex items-center justify-center mb-4">
-              <FileText className="w-8 h-8 text-text-tertiary" />
-            </div>
-            <h3 className="text-lg font-serif font-medium text-text-primary mb-2">
+          <div className="animate-rise flex flex-1 flex-col items-center justify-center p-8 text-center">
+            <span className="icon-tile h-16 w-16 rounded-2xl bg-blue-soft text-blue-strong">
+              <FileText className="h-8 w-8" aria-hidden="true" />
+            </span>
+            <h3 className="mt-4 font-serif text-lg font-medium text-text-primary">
               Select a note
             </h3>
-            <p className="max-w-xs text-sm">
+            <p className="mt-1.5 max-w-xs text-small text-text-secondary">
               Choose a note from the sidebar to start editing, or create a new
               one.
             </p>
