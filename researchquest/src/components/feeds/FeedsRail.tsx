@@ -43,17 +43,22 @@ export function FeedsRail() {
 
   return (
     <section className="space-y-4" aria-labelledby="feeds-rail-title">
-      <div className="rounded-lg border border-border-subtle bg-bg-elevated p-4">
+      <div className="surface-card p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <div className="flex items-center gap-2 text-text-primary">
-              <Inbox className="h-4 w-4 text-primary-500" aria-hidden="true" />
+            <div className="flex items-center gap-2">
+              <span className="icon-tile h-8 w-8 bg-accent-soft text-accent-strong">
+                <Inbox className="h-4 w-4" aria-hidden="true" />
+              </span>
+              <div>
+                <p className="section-kicker mb-1">Inbox</p>
               <h2
                 id="feeds-rail-title"
-                className="text-small font-semibold uppercase tracking-wide"
+                className="text-small font-semibold text-text-primary"
               >
                 Feeds
               </h2>
+              </div>
             </div>
             <p className="mt-1 text-caption text-text-secondary">
               Triage new papers, jobs, news, and custom leads.
@@ -62,7 +67,7 @@ export function FeedsRail() {
           <button
             type="button"
             onClick={navigateToFeeds}
-            className="rounded-sm border border-border-subtle px-2 py-1 text-caption font-medium text-text-secondary transition-colors hover:border-border-moderate hover:text-text-primary focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500"
+            className="rounded-lg border border-border-moderate bg-bg-surface px-2.5 py-1 text-caption font-medium text-text-secondary shadow-sm transition-colors hover:border-border-strong hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
           >
             View all
           </button>
@@ -75,10 +80,10 @@ export function FeedsRail() {
               type="button"
               onClick={() => setType(filter)}
               className={cn(
-                "rounded-full border px-2 py-1 text-caption font-medium transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500",
+                "rounded-full border px-2 py-1 text-caption font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent",
                 type === filter
-                  ? "border-primary-500 bg-primary-500 text-bg-base"
-                  : "border-border-subtle bg-bg-base text-text-secondary hover:border-border-moderate hover:text-text-primary",
+                  ? "border-accent bg-accent-soft text-accent-strong"
+                  : "border-border-subtle bg-bg-surface text-text-secondary hover:border-border-moderate hover:text-text-primary",
               )}
               aria-pressed={type === filter}
             >
@@ -93,19 +98,21 @@ export function FeedsRail() {
           {[0, 1, 2].map((index) => (
             <div
               key={index}
-              className="h-28 animate-pulse rounded-lg border border-border-subtle bg-bg-elevated"
+              className="surface-card h-28 animate-pulse"
             />
           ))}
           <span className="sr-only">Loading feeds</span>
         </div>
       ) : error ? (
-        <div className="rounded-lg border border-border-subtle bg-bg-elevated p-4 text-caption text-text-secondary">
+        <div className="surface-card p-4 text-caption text-text-secondary">
           {error}
         </div>
       ) : items.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border-moderate bg-bg-elevated p-4 text-center">
-          <Inbox className="mx-auto h-6 w-6 text-text-tertiary" aria-hidden="true" />
-          <p className="mt-2 text-small font-medium text-text-primary">
+        <div className="surface-card border-dashed p-4 text-center">
+          <span className="icon-tile mx-auto h-9 w-9 bg-bg-elevated text-text-tertiary">
+            <Inbox className="h-4 w-4" aria-hidden="true" />
+          </span>
+          <p className="mt-3 text-small font-medium text-text-primary">
             No new feed items
           </p>
           <p className="mt-1 text-caption text-text-secondary">

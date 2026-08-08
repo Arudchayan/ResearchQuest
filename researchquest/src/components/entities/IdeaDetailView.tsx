@@ -13,12 +13,14 @@ import {
   Download,
   Table,
   FileJson,
+  ShieldAlert,
 } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import type { Idea, IdeaStage } from "../../types/database";
 import { toast } from "sonner";
 import { TopicSelector } from "../topics/TopicSelector";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
+import { AdversarialReviewPanel } from "../analysis/AdversarialReviewPanel";
 import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
 import { useNotes } from "../../hooks/useNotes";
 import { useAppStore } from "../../store/appStore";
@@ -60,6 +62,7 @@ export function IdeaDetailView({
 
   // Deep research state
   const [isDeepResearching, setIsDeepResearching] = useState(false);
+  const [showAdversarial, setShowAdversarial] = useState(false);
 
   const userId = useAppStore((state) => state.user?.id);
   const { createNote } = useNotes(userId);
@@ -235,13 +238,13 @@ export function IdeaDetailView({
   const getStageColor = (stage: IdeaStage) => {
     switch (stage) {
       case "Seed":
-        return "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 border-yellow-300 dark:border-yellow-700";
+        return "bg-bg-elevated text-text-secondary border border-border-subtle";
       case "Developing":
-        return "bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-300 dark:border-blue-700";
+        return "bg-gold-soft text-gold-strong border border-gold/20";
       case "Supported":
-        return "bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 border-purple-300 dark:border-purple-700";
+        return "bg-blue-soft text-blue-strong border border-blue/20";
       case "Mature":
-        return "bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-300 dark:border-green-700";
+        return "bg-violet-soft text-violet-strong border border-violet/20";
     }
   };
 
@@ -261,25 +264,25 @@ export function IdeaDetailView({
   return (
     <>
       <div className="p-4 sm:p-6 max-w-4xl mx-auto">
-        <div className="bg-bg-surface rounded-lg border border-border-subtle shadow-sm">
+        <div className="surface-panel overflow-hidden">
           {/* Header */}
           <div className="p-4 sm:p-6 border-b border-border-subtle">
             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-4">
               <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 flex-1">
-                <div className="p-3 bg-bg-elevated rounded-lg">
-                  <Lightbulb className="w-6 h-6 text-primary-500" />
+                <div className="icon-tile h-11 w-11 rounded-xl bg-gold-soft text-gold-strong">
+                  <Lightbulb className="h-5 w-5" aria-hidden="true" />
                 </div>
                 {isEditing ? (
                   <input
                     type="text"
                     value={editedTitle}
                     onChange={(e) => setEditedTitle(e.target.value)}
-                    className="flex-1 text-2xl font-bold text-text-primary bg-bg-base border border-border-subtle rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="flex-1 min-w-0 h-12 rounded-lg border border-border-moderate bg-bg-base px-4 text-2xl font-bold text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
                     placeholder="Idea title..."
                     aria-label="Idea title"
                   />
                 ) : (
-                  <h1 className="text-2xl font-bold text-text-primary">
+                  <h1 className="min-w-0 truncate font-serif text-2xl font-bold text-text-primary">
                     {idea.title}
                   </h1>
                 )}
@@ -293,7 +296,7 @@ export function IdeaDetailView({
                         <button
                           onClick={handleSave}
                           disabled={saving}
-                          className="p-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-accent-strong text-accent-contrast shadow-lift transition-all hover:-translate-y-0.5 hover:opacity-95 disabled:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed"
                           aria-label="Save changes"
                         >
                           <Save className="w-5 h-5" aria-hidden="true" />
@@ -305,7 +308,7 @@ export function IdeaDetailView({
                       <TooltipTrigger asChild>
                         <button
                           onClick={handleCancel}
-                          className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-bg-elevated text-text-secondary transition-colors hover:bg-bg-base"
                           aria-label="Cancel"
                         >
                           <X className="w-5 h-5" aria-hidden="true" />
@@ -321,7 +324,7 @@ export function IdeaDetailView({
                         <TooltipTrigger asChild>
                           <DropdownMenu.Trigger asChild>
                             <button
-                              className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
+                              className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-bg-elevated text-text-secondary transition-colors hover:bg-bg-base"
                               aria-label="Export idea"
                             >
                               <Download className="w-5 h-5" aria-hidden="true" />
@@ -332,25 +335,25 @@ export function IdeaDetailView({
                       </Tooltip>
                       <DropdownMenu.Portal>
                         <DropdownMenu.Content
-                          className="min-w-[160px] bg-bg-surface border border-border-subtle rounded-md shadow-md p-1 z-50 animate-in fade-in zoom-in-95"
+                          className="min-w-[160px] bg-bg-surface border border-border-moderate rounded-lg shadow-lg p-1 z-50 animate-in fade-in zoom-in-95"
                           align="end"
                         >
                           <DropdownMenu.Item
-                            className="flex items-center gap-2 px-2 py-1.5 text-sm text-text-primary hover:bg-bg-elevated rounded cursor-pointer outline-none"
+                            className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-small text-text-primary hover:bg-bg-elevated cursor-pointer outline-none"
                             onSelect={() => handleExport("markdown")}
                           >
                             <FileText className="w-4 h-4 text-text-secondary" />
                             Markdown
                           </DropdownMenu.Item>
                           <DropdownMenu.Item
-                            className="flex items-center gap-2 px-2 py-1.5 text-sm text-text-primary hover:bg-bg-elevated rounded cursor-pointer outline-none"
+                            className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-small text-text-primary hover:bg-bg-elevated cursor-pointer outline-none"
                             onSelect={() => handleExport("csv")}
                           >
                             <Table className="w-4 h-4 text-text-secondary" />
                             CSV
                           </DropdownMenu.Item>
                           <DropdownMenu.Item
-                            className="flex items-center gap-2 px-2 py-1.5 text-sm text-text-primary hover:bg-bg-elevated rounded cursor-pointer outline-none"
+                            className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-small text-text-primary hover:bg-bg-elevated cursor-pointer outline-none"
                             onSelect={() => handleExport("json")}
                           >
                             <FileJson className="w-4 h-4 text-text-secondary" />
@@ -364,7 +367,7 @@ export function IdeaDetailView({
                         <button
                           onClick={handleDeepResearch}
                           disabled={isDeepResearching}
-                          className="p-2 bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 rounded-md hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors disabled:opacity-50"
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-blue-soft text-blue-strong shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lift disabled:translate-y-0 disabled:opacity-50"
                           aria-label="Deep Research AI Reasoning"
                         >
                           {isDeepResearching ? <Loader className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" aria-hidden="true" />}
@@ -375,8 +378,20 @@ export function IdeaDetailView({
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button
+                          onClick={() => setShowAdversarial(true)}
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-coral-soft text-coral-strong shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lift"
+                          aria-label="Adversarial review idea"
+                        >
+                          <ShieldAlert className="w-5 h-5" aria-hidden="true" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>Adversarial review</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
                           onClick={() => setIsEditing(true)}
-                          className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-bg-elevated text-text-secondary transition-colors hover:bg-bg-base"
                           aria-label="Edit idea"
                         >
                           <Edit2 className="w-5 h-5" aria-hidden="true" />
@@ -388,7 +403,7 @@ export function IdeaDetailView({
                       <TooltipTrigger asChild>
                         <button
                           onClick={handleCreateNote}
-                          className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-bg-elevated text-text-secondary transition-colors hover:bg-bg-base"
                           aria-label="Create linked note"
                         >
                           <FileText className="w-5 h-5" aria-hidden="true" />
@@ -401,7 +416,7 @@ export function IdeaDetailView({
                         <TooltipTrigger asChild>
                           <button
                             onClick={handleDeleteClick}
-                            className="p-2 bg-bg-elevated text-red-600 dark:text-red-400 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                            className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-coral-soft text-coral-strong shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lift"
                             aria-label="Delete idea"
                           >
                             <Trash className="w-5 h-5" aria-hidden="true" />
@@ -424,7 +439,7 @@ export function IdeaDetailView({
                 <select id={`idea-stage-select-${idea.id}`}
                   value={editedStage}
                   onChange={(e) => setEditedStage(e.target.value as IdeaStage)}
-                  className={`px-4 py-2 rounded-md border text-sm font-medium ${getStageColor(editedStage)} focus:outline-none focus:ring-2 focus:ring-primary-500`}
+                  className={`h-9 rounded-full border px-4 text-caption font-semibold uppercase tracking-wider ${getStageColor(editedStage)} focus:outline-none focus:ring-2 focus:ring-accent`}
                 >
                   <option value="Seed">🌱 Seed</option>
                   <option value="Developing">🌿 Developing</option>
@@ -434,7 +449,7 @@ export function IdeaDetailView({
               ) : (
                 <div>
                   <div
-                    className={`inline-flex items-center px-4 py-2 rounded-md border text-sm font-medium ${getStageColor(idea.stage)}`}
+                    className={`status-chip ${getStageColor(idea.stage)}`}
                   >
                     {idea.stage === "Seed" && "🌱"}
                     {idea.stage === "Developing" && "🌿"}
@@ -463,7 +478,7 @@ export function IdeaDetailView({
                 value={editedDescription}
                 onChange={(e) => setEditedDescription(e.target.value)}
                 rows={8}
-                className="w-full px-4 py-3 bg-bg-base border border-border-subtle rounded-md text-body text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+                className="w-full rounded-lg border border-border-moderate bg-bg-base px-4 py-3 text-body text-text-primary focus:outline-none focus:ring-2 focus:ring-accent resize-none"
                 placeholder="Describe your idea in detail..."
                 aria-label="Idea description"
               />
@@ -533,11 +548,11 @@ export function IdeaDetailView({
         </div>
 
         {/* Tips Card */}
-        <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-lg">
-          <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-2">
+        <div className="mt-6 rounded-lg border border-blue-soft bg-blue-soft p-4">
+          <h3 className="text-sm font-semibold text-blue-strong mb-2">
             💡 Tip: Develop Your Idea
           </h3>
-          <p className="text-sm text-blue-800 dark:text-blue-400">
+          <p className="text-sm text-text-secondary">
             Progress your idea through stages as you gather evidence and develop
             it further. Link related papers and notes to build a strong
             foundation for your research.
@@ -555,6 +570,21 @@ export function IdeaDetailView({
         cancelText="Cancel"
         isLoading={deleting}
       />
+
+      {showAdversarial && (
+        <AdversarialReviewPanel
+          open={showAdversarial}
+          onOpenChange={setShowAdversarial}
+          target={{
+            type: "idea",
+            title: idea.title,
+            description: idea.description,
+            stage: idea.stage,
+            linkedNoteIds: idea.linked_note_ids ?? [],
+            linkedPaperIds: idea.linked_paper_ids ?? [],
+          }}
+        />
+      )}
     </>
   );
 }

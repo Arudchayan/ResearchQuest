@@ -15,11 +15,11 @@ import type { TaskPriority } from "./taskTypes";
 export function getPriorityColor(priority: TaskPriority): string {
   switch (priority) {
     case "high":
-      return "bg-red-500/15 text-red-700 border border-red-500/30 dark:bg-red-900/40 dark:text-red-200 dark:border-red-800";
+      return "bg-coral-soft text-coral-strong border border-coral/25";
     case "medium":
-      return "bg-amber-400/20 text-amber-700 border border-amber-500/30 dark:bg-amber-900/40 dark:text-amber-200 dark:border-amber-800";
+      return "bg-gold-soft text-gold-strong border border-gold/25";
     case "low":
-      return "bg-emerald-400/20 text-emerald-700 border border-emerald-500/30 dark:bg-emerald-900/40 dark:text-emerald-200 dark:border-emerald-800";
+      return "bg-blue-soft text-blue-strong border border-blue/25";
   }
 }
 
@@ -71,21 +71,21 @@ export function TaskCard({
 
   return (
     <div
-      className={`relative rounded-lg border bg-bg-surface transition-all duration-300 ${
+      className={`surface-card relative transition-all duration-300 ${
         compact ? "p-3 sm:p-3.5" : "p-4"
       } ${
         task.completed
-          ? "border-border-subtle opacity-60"
+          ? "bg-success-bg opacity-70"
           : overdue
-            ? "border-red-200 dark:border-red-900"
-            : "border-border-subtle hover:border-border-moderate hover:shadow-sm"
+            ? "border-coral"
+            : ""
       } ${isCompleting ? "scale-95 opacity-50" : ""}`}
     >
       <div className={`flex items-start ${compact ? "gap-2.5" : "gap-3"}`}>
         {/* Checkbox */}
         <button
           onClick={handleToggle}
-          className={`flex-shrink-0 mt-0.5 transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 rounded-full ${
+          className={`flex-shrink-0 mt-0.5 transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 rounded-full ${
             isCompleting ? "scale-125" : ""
           }`}
           aria-label={
@@ -94,12 +94,12 @@ export function TaskCard({
         >
           {task.completed ? (
             <CheckCircle2
-              className="w-5 h-5 text-green-500 animate-in fade-in zoom-in duration-300"
+              className="w-5 h-5 text-success animate-in fade-in zoom-in duration-300"
               aria-hidden="true"
             />
           ) : (
             <Circle
-              className="w-5 h-5 text-text-tertiary hover:text-primary-500"
+              className="w-5 h-5 text-text-tertiary hover:text-accent"
               aria-hidden="true"
             />
           )}
@@ -123,13 +123,13 @@ export function TaskCard({
             <div className="flex items-center gap-1.5 flex-shrink-0">
               <button
                 onClick={() => onEdit(task)}
-                className="px-2 py-1 rounded-md border text-caption font-medium transition-colors text-text-secondary border-border-subtle hover:border-primary-400 hover:text-primary-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+                className="px-2 py-1 rounded-md border text-caption font-medium transition-colors text-text-secondary border-border-subtle hover:border-border-moderate hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
               >
                 Edit
               </button>
               <button
                 onClick={handleDelete}
-                className="p-1.5 rounded transition-colors text-text-tertiary hover:text-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+                className="p-1.5 rounded transition-colors text-text-tertiary hover:text-coral focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
                 title="Delete task"
                 aria-label="Delete task"
               >
@@ -152,7 +152,7 @@ export function TaskCard({
           >
             {/* Priority Badge */}
             <span
-              className={`px-2 py-0.5 rounded-full text-caption font-semibold capitalize ${getPriorityColor(task.priority)}`}
+              className={`status-chip capitalize ${getPriorityColor(task.priority)}`}
             >
               {task.priority}
             </span>
@@ -160,7 +160,7 @@ export function TaskCard({
             {/* Category Badge */}
             {task.category && (
               <span
-                className={`px-2 py-0.5 rounded-full text-caption font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 ${compact ? "border border-blue-200/80 dark:border-blue-800/80" : ""}`}
+                className="status-chip bg-bg-elevated text-text-secondary"
               >
                 {task.category}
               </span>
@@ -171,7 +171,7 @@ export function TaskCard({
               <div
                 className={`flex items-center gap-1 text-caption ${
                   overdue && !task.completed
-                    ? "text-red-600 dark:text-red-400 font-semibold"
+                    ? "text-coral-strong font-semibold"
                     : "text-text-tertiary"
                 }`}
               >

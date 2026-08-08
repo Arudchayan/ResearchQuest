@@ -19,6 +19,7 @@ import {
   Download,
   Table,
   FileJson,
+  Hash,
 } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
@@ -257,35 +258,40 @@ export function TopicDetailView({
         onClose={config.onClose!}
       />
       <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-6">
-      <div className="bg-bg-surface border border-border-subtle rounded-xl shadow-sm p-4 sm:p-6 space-y-4">
+      <div className="surface-panel p-4 sm:p-6 space-y-4">
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
           <div className="flex-1 space-y-2">
-            {isEditing ? (
-              <input
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                maxLength={50}
-                placeholder="Topic name..."
-                aria-label="Topic name"
-                className="w-full px-3 py-2 text-xl font-semibold bg-bg-base border border-border-subtle rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-            ) : (
-              <h1 className="text-2xl font-bold text-text-primary">
-                {topic.name}
-              </h1>
-            )}
+            <div className="flex items-center gap-3">
+              <span className="icon-tile bg-accent-soft text-accent-strong">
+                <Hash className="h-4 w-4" aria-hidden="true" />
+              </span>
+              {isEditing ? (
+                <input
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  maxLength={50}
+                  placeholder="Topic name..."
+                  aria-label="Topic name"
+                  className="w-full min-w-0 flex-1 h-10 rounded-lg border border-border-moderate bg-bg-base px-3 text-xl font-semibold text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+                />
+              ) : (
+                <h1 className="min-w-0 truncate font-serif text-2xl font-bold text-text-primary">
+                  {topic.name}
+                </h1>
+              )}
+            </div>
             {isEditing ? (
               <textarea
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
                 rows={4}
                 maxLength={500}
-                className="w-full px-3 py-2 text-small bg-bg-base border border-border-subtle rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                className="w-full rounded-lg border border-border-moderate bg-bg-base px-3 py-2.5 text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
                 placeholder="Describe what belongs in this topic..."
                 aria-label="Topic description"
               />
             ) : (
-              <p className="text-body text-text-secondary whitespace-pre-wrap">
+              <p className="ml-11 text-body text-text-secondary whitespace-pre-wrap">
                 {topic.description ||
                   "Add a description to guide your future self."}
               </p>
@@ -296,7 +302,7 @@ export function TopicDetailView({
               <div className="flex gap-2">
                 <button
                   onClick={handleSave}
-                  className="inline-flex items-center gap-2 px-3 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors"
+                  className="inline-flex h-10 items-center gap-2 rounded-lg bg-accent-strong px-3.5 text-small font-semibold text-accent-contrast shadow-lift transition-all hover:-translate-y-0.5 hover:opacity-95"
                 >
                   <Save className="w-4 h-4" aria-hidden="true" />
                   Save
@@ -307,7 +313,7 @@ export function TopicDetailView({
                     setName(topic.name);
                     setDescription(topic.description || "");
                   }}
-                  className="inline-flex items-center gap-2 px-3 py-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
+                  className="inline-flex h-10 items-center gap-2 rounded-lg bg-bg-elevated px-3.5 text-small font-medium text-text-secondary transition-colors hover:bg-bg-base"
                 >
                   <XCircle className="w-4 h-4" aria-hidden="true" />
                   Cancel
@@ -318,7 +324,7 @@ export function TopicDetailView({
                 <DropdownMenu.Root>
                   <DropdownMenu.Trigger asChild>
                     <button
-                      className="inline-flex items-center gap-2 px-3 py-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
+                      className="inline-flex h-10 items-center gap-2 rounded-lg bg-bg-elevated px-3.5 text-small font-medium text-text-secondary transition-colors hover:bg-bg-base"
                       title="Export topic"
                       aria-label="Export topic"
                     >
@@ -328,25 +334,25 @@ export function TopicDetailView({
                   </DropdownMenu.Trigger>
                   <DropdownMenu.Portal>
                     <DropdownMenu.Content
-                      className="min-w-[160px] bg-bg-surface border border-border-subtle rounded-md shadow-md p-1 z-50 animate-in fade-in zoom-in-95"
+                      className="min-w-[160px] bg-bg-surface border border-border-moderate rounded-lg shadow-lg p-1 z-50 animate-in fade-in zoom-in-95"
                       align="end"
                     >
                       <DropdownMenu.Item
-                        className="flex items-center gap-2 px-2 py-1.5 text-sm text-text-primary hover:bg-bg-elevated rounded cursor-pointer outline-none"
+                        className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-small text-text-primary hover:bg-bg-elevated cursor-pointer outline-none"
                         onSelect={() => handleExport("markdown")}
                       >
                         <FileText className="w-4 h-4 text-text-secondary" />
                         Markdown
                       </DropdownMenu.Item>
                       <DropdownMenu.Item
-                        className="flex items-center gap-2 px-2 py-1.5 text-sm text-text-primary hover:bg-bg-elevated rounded cursor-pointer outline-none"
+                        className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-small text-text-primary hover:bg-bg-elevated cursor-pointer outline-none"
                         onSelect={() => handleExport("csv")}
                       >
                         <Table className="w-4 h-4 text-text-secondary" />
                         CSV
                       </DropdownMenu.Item>
                       <DropdownMenu.Item
-                        className="flex items-center gap-2 px-2 py-1.5 text-sm text-text-primary hover:bg-bg-elevated rounded cursor-pointer outline-none"
+                        className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-small text-text-primary hover:bg-bg-elevated cursor-pointer outline-none"
                         onSelect={() => handleExport("json")}
                       >
                         <FileJson className="w-4 h-4 text-text-secondary" />
@@ -357,14 +363,14 @@ export function TopicDetailView({
                 </DropdownMenu.Root>
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="inline-flex items-center gap-2 px-3 py-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
+                  className="inline-flex h-10 items-center gap-2 rounded-lg bg-bg-elevated px-3.5 text-small font-medium text-text-secondary transition-colors hover:bg-bg-base"
                 >
                   <Pencil className="w-4 h-4" />
                   Edit
                 </button>
                 <button
                   onClick={handleDelete}
-                  className="inline-flex items-center gap-2 px-3 py-2 bg-destructive/10 text-destructive rounded-md hover:bg-destructive/20 transition-colors"
+                  className="inline-flex h-10 items-center gap-2 rounded-lg bg-coral-soft px-3.5 text-small font-semibold text-coral-strong transition-colors hover:opacity-90"
                 >
                   <Trash2 className="w-4 h-4" />
                   Delete
@@ -374,19 +380,19 @@ export function TopicDetailView({
           </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="p-3 bg-bg-elevated rounded-lg border border-border-subtle">
+          <div className="rounded-lg border border-border-subtle bg-bg-elevated p-3 shadow-sm">
             <p className="text-caption text-text-secondary">Created</p>
             <p className="text-small font-semibold text-text-primary">
               {new Date(topic.created_at).toLocaleDateString()}
             </p>
           </div>
-          <div className="p-3 bg-bg-elevated rounded-lg border border-border-subtle">
+          <div className="rounded-lg border border-border-subtle bg-bg-elevated p-3 shadow-sm">
             <p className="text-caption text-text-secondary">Last updated</p>
             <p className="text-small font-semibold text-text-primary">
               {new Date(topic.updated_at).toLocaleString()}
             </p>
           </div>
-          <div className="p-3 bg-bg-elevated rounded-lg border border-border-subtle">
+          <div className="rounded-lg border border-border-subtle bg-bg-elevated p-3 shadow-sm">
             <p className="text-caption text-text-secondary">Total links</p>
             <p className="text-small font-semibold text-text-primary">
               {topic.note_count + topic.paper_count + topic.idea_count}
@@ -395,7 +401,7 @@ export function TopicDetailView({
         </div>
       </div>
 
-      <div className="bg-bg-surface border border-border-subtle rounded-xl shadow-sm">
+      <div className="surface-panel">
         <div className="px-6 py-4 border-b border-border-subtle flex items-center justify-between">
           <div>
             <h2 className="text-lg font-semibold text-text-primary">
@@ -407,7 +413,7 @@ export function TopicDetailView({
           </div>
           <button
             onClick={() => void loadAssociations()}
-            className="inline-flex items-center gap-2 px-3 py-2 text-small bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
+            className="inline-flex h-10 items-center gap-2 rounded-lg bg-bg-elevated px-3.5 text-small font-medium text-text-secondary transition-colors hover:bg-bg-base"
           >
             Refresh
           </button>
@@ -418,7 +424,17 @@ export function TopicDetailView({
               <div key={label} className="px-6 py-4">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <Icon className="w-4 h-4 text-primary-500" aria-hidden="true" />
+                    <span
+                      className={`icon-tile h-8 w-8 ${
+                        label === "Notes"
+                          ? "bg-blue-soft text-blue-strong"
+                          : label === "Papers"
+                            ? "bg-violet-soft text-violet-strong"
+                            : "bg-gold-soft text-gold-strong"
+                      }`}
+                    >
+                      <Icon className="h-4 w-4" aria-hidden="true" />
+                    </span>
                     <h3 className="text-small font-semibold text-text-primary">
                       {label}{" "}
                       <span className="text-text-tertiary font-normal">
@@ -433,7 +449,7 @@ export function TopicDetailView({
                           handleNavigate(view, items[0]);
                         }
                       }}
-                      className="inline-flex items-center gap-1 text-caption text-primary-500 hover:text-primary-600"
+                      className="inline-flex items-center gap-1 text-caption font-medium text-accent-strong hover:text-accent"
                     >
                       Open latest <ArrowRight className="w-3.5 h-3.5" />
                     </button>
@@ -451,7 +467,7 @@ export function TopicDetailView({
                       <li key={item.id}>
                         <button
                           onClick={() => handleNavigate(view, item)}
-                          className="w-full text-left px-4 py-2 bg-bg-elevated hover:bg-primary-500/10 rounded-md transition-colors"
+                          className="w-full rounded-lg bg-bg-elevated px-4 py-2.5 text-left transition-colors hover:bg-accent-soft"
                         >
                           <p className="text-small font-medium text-text-primary line-clamp-1">
                             {"title" in item && item.title

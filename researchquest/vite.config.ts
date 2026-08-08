@@ -15,12 +15,14 @@ export default defineConfig(({ mode }) => {
   const supabaseAnonKey = forceNoSupabase
     ? ""
     : merged.VITE_SUPABASE_ANON_KEY || merged.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+  const demoMode = forceNoSupabase ? "" : merged.VITE_DEMO_MODE || ""
 
   return {
     envDir: repoRoot,
     define: {
       "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(supabaseUrl),
       "import.meta.env.VITE_SUPABASE_ANON_KEY": JSON.stringify(supabaseAnonKey),
+      "import.meta.env.VITE_DEMO_MODE": JSON.stringify(demoMode),
     },
     plugins: [
       react(), 

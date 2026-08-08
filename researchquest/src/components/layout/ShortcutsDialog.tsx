@@ -174,18 +174,20 @@ export function ShortcutsDialog() {
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 animate-fade-in" />
         <Dialog.Content
-          className="fixed left-[50%] top-[50%] max-h-[85vh] w-[90vw] max-w-[600px] translate-x-[-50%] translate-y-[-50%] rounded-xl bg-bg-surface p-0 shadow-2xl focus:outline-none z-50 animate-slide-in border border-border-subtle overflow-hidden flex flex-col"
+          className="fixed left-[50%] top-[50%] max-h-[85vh] w-[90vw] max-w-[600px] translate-x-[-50%] translate-y-[-50%] rounded-xl bg-bg-surface p-0 shadow-lg focus:outline-none z-50 animate-slide-in border border-border-subtle overflow-hidden flex flex-col"
           aria-describedby={undefined}
         >
-          <div className="flex items-center justify-between p-4 border-b border-border-subtle bg-bg-elevated/50">
+          <div className="flex items-center justify-between p-4 border-b border-border-subtle bg-bg-elevated">
             <div className="flex items-center gap-2">
-              <Keyboard className="w-5 h-5 text-primary-500" />
+              <span className="icon-tile bg-violet-soft text-violet-strong">
+                <Keyboard className="w-4 h-4" aria-hidden="true" />
+              </span>
               <Dialog.Title className="text-lg font-semibold text-text-primary">
                 Keyboard Shortcuts
               </Dialog.Title>
             </div>
             <Dialog.Close
-              className="p-2 hover:bg-bg-elevated rounded-full transition-colors"
+              className="icon-btn"
               aria-label="Close dialog"
             >
               <X className="w-5 h-5 text-text-tertiary" aria-hidden="true" />
@@ -195,7 +197,7 @@ export function ShortcutsDialog() {
           <div className="flex-1 overflow-y-auto p-6 space-y-8">
             {SHORTCUTS.map((section) => (
               <div key={section.title} className="space-y-4">
-                <h3 className="text-sm font-semibold text-text-secondary uppercase tracking-wider">
+                <h3 className="section-kicker">
                   {section.title}
                 </h3>
                 <div className="grid gap-3">
@@ -204,14 +206,14 @@ export function ShortcutsDialog() {
                       key={index}
                       className="flex items-center justify-between group"
                     >
-                      <span className="text-sm text-text-primary group-hover:text-primary-600 transition-colors">
+                      <span className="text-sm text-text-primary group-hover:text-accent-strong transition-colors">
                         {shortcut.description}
                       </span>
                       <div className="flex items-center gap-1.5">
                         {shortcut.keys.map((key, kIndex) => (
                           <kbd
                             key={kIndex}
-                            className="inline-flex items-center justify-center h-6 min-w-[24px] px-1.5 text-[11px] font-bold text-text-secondary bg-bg-elevated border border-border-subtle rounded shadow-sm font-mono"
+                            className="inline-flex items-center justify-center h-6 min-w-[24px] px-1.5 text-[11px] font-bold text-text-secondary bg-bg-elevated border border-border-moderate rounded-md shadow-sm font-mono"
                           >
                             {key === META_KEY ? (
                               <span className="text-xs">{META_SYMBOL}</span>
@@ -228,10 +230,10 @@ export function ShortcutsDialog() {
             ))}
           </div>
 
-          <div className="p-4 border-t border-border-subtle bg-bg-elevated/30 text-center">
+          <div className="p-4 border-t border-border-subtle bg-bg-elevated text-center">
             <p className="text-xs text-text-tertiary">
               Tip: Press{" "}
-              <kbd className="font-mono font-bold text-text-secondary">?</kbd>{" "}
+              <kbd className="inline-flex items-center justify-center h-6 min-w-[24px] px-1.5 text-[11px] font-bold text-text-secondary bg-bg-elevated border border-border-moderate rounded-md shadow-sm font-mono">?</kbd>{" "}
               anywhere to open this dialog.
             </p>
           </div>

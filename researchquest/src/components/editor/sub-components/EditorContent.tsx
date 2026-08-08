@@ -98,7 +98,10 @@ export default function EditorContent({
       {viewMode === "split" && <div className="hidden lg:block w-px bg-border-subtle flex-shrink-0" />}
 
       <div className={`${viewMode === "split" ? "lg:w-2/5" : "w-full"} ${viewMode === "edit" ? "hidden" : "block"} h-full overflow-auto bg-bg-base p-6`}>
-        <div ref={previewRef} className="prose prose-sm max-w-none dark:prose-invert">
+        <div
+          ref={previewRef}
+          className="prose prose-sm max-w-none dark:prose-invert prose-headings:font-serif prose-headings:font-bold prose-headings:text-text-primary prose-a:text-accent prose-a:no-underline hover:prose-a:underline prose-strong:text-text-primary prose-code:rounded prose-code:bg-bg-elevated prose-code:px-1 prose-code:py-0.5 prose-code:text-coral-strong prose-pre:bg-bg-surface prose-pre:border prose-pre:border-border-subtle"
+        >
           <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS}>
             {debouncedContent || "*Start typing to see preview...*"}
           </ReactMarkdown>

@@ -395,7 +395,7 @@ export function TaskManager() {
             <DropdownMenu.Root>
               <DropdownMenu.Trigger asChild>
                 <button
-                  className="px-4 py-2 bg-bg-surface border border-border-subtle text-text-secondary rounded-md hover:bg-bg-elevated hover:text-text-primary transition-colors flex items-center gap-2 font-medium text-small shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+                  className="px-4 py-2 bg-bg-surface border border-border-moderate text-text-secondary rounded-lg hover:bg-bg-elevated hover:text-text-primary transition-colors flex items-center gap-2 font-medium text-small shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
                   title="Export tasks"
                 >
                   <Download className="w-4 h-4" aria-hidden="true" />
@@ -404,27 +404,27 @@ export function TaskManager() {
               </DropdownMenu.Trigger>
               <DropdownMenu.Portal>
                 <DropdownMenu.Content
-                  className="min-w-[180px] bg-bg-surface rounded-lg shadow-lg border border-border-subtle p-1 z-50 animate-in fade-in-0 zoom-in-95"
+                  className="min-w-[180px] bg-bg-surface rounded-lg shadow-lift border border-border-subtle p-1 z-50 animate-in fade-in-0 zoom-in-95"
                   align="end"
                   sideOffset={5}
                 >
                   <DropdownMenu.Item
                     onSelect={() => handleExport("markdown")}
-                    className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-bg-base hover:text-text-primary rounded-md cursor-pointer outline-none transition-colors"
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-md cursor-pointer outline-none transition-colors"
                   >
                     <FileText className="w-4 h-4" aria-hidden="true" />
                     Markdown (.md)
                   </DropdownMenu.Item>
                   <DropdownMenu.Item
                     onSelect={() => handleExport("csv")}
-                    className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-bg-base hover:text-text-primary rounded-md cursor-pointer outline-none transition-colors"
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-md cursor-pointer outline-none transition-colors"
                   >
                     <Table className="w-4 h-4" aria-hidden="true" />
                     CSV (.csv)
                   </DropdownMenu.Item>
                   <DropdownMenu.Item
                     onSelect={() => handleExport("json")}
-                    className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-bg-base hover:text-text-primary rounded-md cursor-pointer outline-none transition-colors"
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-md cursor-pointer outline-none transition-colors"
                   >
                     <FileJson className="w-4 h-4" aria-hidden="true" />
                     JSON (.json)
@@ -434,7 +434,7 @@ export function TaskManager() {
             </DropdownMenu.Root>
             <button
               onClick={() => setShowAddModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors text-small font-medium shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+              className="flex items-center gap-2 px-4 py-2 bg-text-primary text-bg-base rounded-lg hover:opacity-95 transition-opacity text-small font-medium shadow-lift focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
             >
               <Plus className="w-4 h-4" aria-hidden="true" />
               New Task
@@ -446,16 +446,16 @@ export function TaskManager() {
         {totalCount > 0 && (
           <div className="mb-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-small text-text-secondary">
+              <span className="text-caption font-semibold uppercase tracking-wider text-text-secondary">
                 {completedCount} of {totalCount} tasks completed
               </span>
-              <span className="text-small font-semibold text-primary-500">
+              <span className="text-small font-semibold text-accent-strong">
                 {progressPercentage}%
               </span>
             </div>
-            <div className="h-2 bg-bg-elevated rounded-full overflow-hidden">
+            <div className="progress-track h-2 w-full">
               <div
-                className="h-full bg-primary-500 transition-all duration-500 ease-out"
+                className="progress-fill"
                 style={{ width: `${progressPercentage}%` }}
               />
             </div>
@@ -470,10 +470,10 @@ export function TaskManager() {
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
-                  className={`px-3 py-1.5 rounded-md text-caption font-medium transition-colors capitalize focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 ${
+                  className={`px-3 py-1.5 rounded-lg text-caption font-medium transition-colors capitalize focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 ${
                     filter === f
-                      ? "bg-primary-500 text-white"
-                      : "bg-bg-elevated text-text-secondary hover:text-text-primary"
+                      ? "bg-text-primary text-bg-base shadow-sm"
+                      : "bg-bg-elevated text-text-secondary hover:bg-bg-muted hover:text-text-primary"
                   }`}
                 >
                   {f}
@@ -492,7 +492,7 @@ export function TaskManager() {
               onChange={(e) =>
                 setCategoryFilter(e.target.value as "all" | TaskCategory)
               }
-              className="px-3 py-1.5 bg-bg-base border border-border-subtle rounded-md text-caption focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="px-3 py-1.5 bg-bg-surface border border-border-moderate rounded-lg text-caption text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
             >
               <option value="all">All categories</option>
               {CATEGORIES.map((c) => (
@@ -508,7 +508,7 @@ export function TaskManager() {
               id="task-filter-project"
               value={projectFilter}
               onChange={(e) => setProjectFilter(e.target.value)}
-              className="px-3 py-1.5 bg-bg-base border border-border-subtle rounded-md text-caption focus:outline-none focus:ring-2 focus:ring-primary-500 max-w-[14rem]"
+              className="px-3 py-1.5 bg-bg-surface border border-border-moderate rounded-lg text-caption text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent max-w-[14rem]"
             >
               <option value="all">All projects</option>
               {projectIdsInUse.map((id) => (
@@ -536,7 +536,7 @@ export function TaskManager() {
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder="Search tasks..."
                 aria-label="Search tasks"
-                className="w-full pl-9 pr-8 py-2 bg-bg-base border border-border-subtle rounded-md text-small focus:outline-none focus:ring-2 focus:ring-primary-500"
+                className="w-full pl-9 pr-8 py-2 bg-bg-surface border border-border-moderate rounded-lg text-small focus:outline-none focus:ring-2 focus:ring-accent"
               />
               {searchQuery && (
                 <button
@@ -545,7 +545,7 @@ export function TaskManager() {
                     setSearchQuery("");
                     searchInputRef.current?.focus();
                   }}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-tertiary hover:text-text-primary hover:bg-bg-elevated rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-tertiary hover:text-text-primary hover:bg-bg-elevated rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-accent"
                   aria-label="Clear search"
                   title="Clear search"
                 >
@@ -567,7 +567,7 @@ export function TaskManager() {
                 onChange={(event) =>
                   setSortOption(event.target.value as SortOption)
                 }
-                className="px-3 py-2 bg-bg-base border border-border-subtle rounded-md text-small focus:outline-none focus:ring-2 focus:ring-primary-500 capitalize"
+                className="px-3 py-2 bg-bg-surface border border-border-moderate rounded-lg text-small text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent capitalize"
               >
                 <option value="due_date">Due date</option>
                 <option value="priority">Priority</option>
@@ -579,10 +579,10 @@ export function TaskManager() {
               type="button"
               onClick={() => setCompactView((prev) => !prev)}
               aria-pressed={compactView}
-              className={`px-3 py-2 rounded-md border text-small font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 ${
+              className={`px-3 py-2 rounded-lg border text-small font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 ${
                 compactView
-                  ? "bg-primary-50 text-primary-600 border-primary-200 dark:bg-primary-500/20 dark:text-primary-200"
-                  : "bg-bg-base text-text-secondary border-border-subtle hover:text-text-primary"
+                  ? "bg-accent-soft text-accent-strong border-accent"
+                  : "bg-bg-surface text-text-secondary border-border-moderate hover:text-text-primary"
               }`}
             >
               {compactView ? "Comfortable view" : "Compact view"}
@@ -600,20 +600,19 @@ export function TaskManager() {
         {loading ? (
           <ListSkeleton count={6} itemType="task" />
         ) : sortedTasks.length === 0 ? (
-          <div className="text-center py-16">
-            <CheckCircle2
-              className="w-16 h-16 mx-auto mb-4 text-text-tertiary opacity-50"
-              aria-hidden="true"
-            />
-            <p className="text-body text-text-secondary mb-2">
+          <div className="surface-card mx-auto max-w-md p-8 text-center">
+            <span className="icon-tile mx-auto bg-bg-elevated text-text-tertiary">
+              <CheckCircle2 className="w-6 h-6" aria-hidden="true" />
+            </span>
+            <p className="font-serif text-lg font-semibold text-text-primary mt-4 mb-1">
               {searchQuery ? "No matches found" : "No tasks match your filters"}
             </p>
-            <p className="text-small text-text-tertiary mb-4">
+            <p className="text-small text-text-tertiary mb-5">
               {searchQuery ? "Try a different keyword or clear your search." : "Create a new task or adjust filters to see more items."}
             </p>
             <button
               onClick={() => setShowAddModal(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors text-small font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-text-primary text-bg-base rounded-lg hover:opacity-95 transition-opacity text-small font-medium shadow-lift focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
             >
               <Plus className="w-4 h-4" aria-hidden="true" />
               New Task
@@ -654,7 +653,7 @@ export function TaskManager() {
         title={editingTask ? "Edit Task" : "New Task"}
         icon={
           <CheckCircle2
-            className="w-6 h-6 text-primary-600 dark:text-primary-400"
+            className="w-6 h-6 text-accent-strong"
             aria-hidden="true"
           />
         }
@@ -675,7 +674,7 @@ export function TaskManager() {
               type="text"
               value={formTitle}
               onChange={(e) => setFormTitle(e.target.value)}
-              className="w-full px-3 py-2 bg-bg-base border border-border-subtle rounded-md text-small focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="w-full px-3 py-2 bg-bg-surface border border-border-moderate rounded-lg text-small focus:outline-none focus:ring-2 focus:ring-accent"
               placeholder="What needs to be done?"
               autoFocus
             />
@@ -693,7 +692,7 @@ export function TaskManager() {
               id="task-description"
               value={formDescription}
               onChange={(e) => setFormDescription(e.target.value)}
-              className="w-full px-3 py-2 bg-bg-base border border-border-subtle rounded-md text-small focus:outline-none focus:ring-2 focus:ring-primary-500 min-h-[80px] resize-y"
+              className="w-full px-3 py-2 bg-bg-surface border border-border-moderate rounded-lg text-small focus:outline-none focus:ring-2 focus:ring-accent min-h-[80px] resize-y"
               placeholder="Add more details..."
             />
           </div>
@@ -713,7 +712,7 @@ export function TaskManager() {
                 onChange={(e) =>
                   setFormPriority(e.target.value as TaskPriority)
                 }
-                className="w-full px-3 py-2 bg-bg-base border border-border-subtle rounded-md text-small focus:outline-none focus:ring-2 focus:ring-primary-500 capitalize"
+                className="w-full px-3 py-2 bg-bg-surface border border-border-moderate rounded-lg text-small text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent capitalize"
               >
                 {PRIORITIES.map((p) => (
                   <option key={p} value={p} className="capitalize">
@@ -737,7 +736,7 @@ export function TaskManager() {
                 onChange={(e) =>
                   setFormCategory(e.target.value as TaskCategory)
                 }
-                className="w-full px-3 py-2 bg-bg-base border border-border-subtle rounded-md text-small focus:outline-none focus:ring-2 focus:ring-primary-500"
+                className="w-full px-3 py-2 bg-bg-surface border border-border-moderate rounded-lg text-small text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
               >
                 {CATEGORIES.map((c) => (
                   <option key={c} value={c}>
@@ -761,7 +760,7 @@ export function TaskManager() {
               type="date"
               value={formDueDate}
               onChange={(e) => setFormDueDate(e.target.value)}
-              className="w-full px-3 py-2 bg-bg-base border border-border-subtle rounded-md text-small focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="w-full px-3 py-2 bg-bg-surface border border-border-moderate rounded-lg text-small focus:outline-none focus:ring-2 focus:ring-accent"
             />
           </div>
         </div>

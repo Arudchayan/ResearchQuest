@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useId } from "react";
-import { Plus, X, Loader2 } from "lucide-react";
+import { Plus, X, Loader2, Hash } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "../../lib/supabase";
 import { useTopics } from "../../hooks/useTopics";
@@ -109,12 +109,17 @@ export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
   };
 
   return (
-    <div className="bg-bg-surface border border-border-subtle rounded-lg p-4 space-y-3">
+    <div className="surface-card p-4 space-y-3">
       <div role="status" aria-live="polite" className="sr-only">
         {selectedIds.length === 0 ? "No topics linked yet." : ""}
       </div>
       <div className="flex items-center justify-between">
-        <h3 className="text-small font-semibold text-text-primary">Topics</h3>
+        <div className="flex items-center gap-2">
+          <span className="icon-tile h-7 w-7 bg-accent-soft text-accent-strong">
+            <Hash className="h-3.5 w-3.5" aria-hidden="true" />
+          </span>
+          <h3 className="text-small font-semibold text-text-primary">Topics</h3>
+        </div>
         {(loading || loadingLinks) && (
           <Loader2 className="w-4 h-4 animate-spin text-text-tertiary" />
         )}
@@ -130,14 +135,14 @@ export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
             return (
               <span
                 key={topic.id}
-                className="inline-flex items-center gap-2 bg-primary-500/10 text-primary-600 dark:text-primary-400 px-3 py-1 rounded-full text-caption"
+                className="inline-flex max-w-full items-center gap-2 rounded-full border border-accent bg-accent-soft px-3 py-1 text-caption font-medium text-accent-strong"
               >
-                {topic.name}
+                <span className="truncate">{topic.name}</span>
                 <button
                   type="button"
                   aria-label={`Remove ${topic.name}`}
                   onClick={() => void handleDetach(topic.id)}
-                  className="text-text-tertiary hover:text-destructive"
+                  className="shrink-0 rounded-full p-0.5 text-text-tertiary transition-colors hover:bg-bg-elevated hover:text-destructive"
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -158,7 +163,7 @@ export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
           <div className="flex gap-2">
             <select
               id={selectId}
-              className="flex-1 px-3 py-2 rounded-md border border-border-subtle bg-bg-base text-small"
+              className="flex-1 h-10 rounded-lg border border-border-moderate bg-bg-base px-3 text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
               onChange={(event) => {
                 const topic = topicsMap.get(event.target.value);
                 if (topic) {
@@ -192,12 +197,12 @@ export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
             onChange={(event) => setNewTopicName(event.target.value)}
             placeholder="e.g. Literature Review"
             maxLength={50}
-            className="flex-1 px-3 py-2 rounded-md border border-border-subtle bg-bg-base text-small"
+            className="flex-1 h-10 rounded-lg border border-border-moderate bg-bg-base px-3 text-small text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-accent"
           />
           <button
             onClick={() => void handleCreate()}
             disabled={creating || !newTopicName.trim()}
-            className="inline-flex items-center gap-2 px-3 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors disabled:opacity-60"
+            className="inline-flex h-10 items-center gap-2 rounded-lg bg-accent-strong px-3.5 text-small font-semibold text-accent-contrast shadow-lift transition-all hover:-translate-y-0.5 hover:opacity-95 disabled:translate-y-0 disabled:opacity-60"
           >
             {creating ? (
               <Loader2 className="w-4 h-4 animate-spin" />

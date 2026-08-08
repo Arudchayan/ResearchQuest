@@ -204,21 +204,26 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
         {successMessage}
       </div>
       <div className="mb-8 flex items-center gap-3">
-        <div className="p-3 bg-primary-100 dark:bg-primary-900/20 rounded-lg">
-          <BookOpen className="w-6 h-6 text-primary-600" />
-        </div>
-        <div>
-          <h1 className="text-3xl font-bold">Add Paper to Library</h1>
-          <p className="text-text-secondary">Search by DOI, keywords, import BibTeX, or add manually</p>
+        <span className="icon-tile h-12 w-12 bg-violet-soft text-violet-strong">
+          <BookOpen className="h-6 w-6" aria-hidden="true" />
+        </span>
+        <div className="min-w-0">
+          <p className="section-kicker">Library</p>
+          <h1 className="mt-1 font-serif text-2xl font-bold text-text-primary">
+            Add Paper to Library
+          </h1>
+          <p className="mt-1 text-small text-text-secondary">
+            Search by DOI, keywords, import BibTeX, or add manually
+          </p>
         </div>
       </div>
 
       {successMessage && (
         <div
-          className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3"
+          className="mb-6 flex items-center gap-3 rounded-lg border border-success/20 bg-success-bg p-4 text-success"
         >
-          <CheckCircle2 className="w-5 h-5 text-green-600" />
-          <p className="text-green-800 font-medium">{successMessage}</p>
+          <CheckCircle2 className="h-5 w-5 shrink-0" aria-hidden="true" />
+          <p className="text-small font-semibold">{successMessage}</p>
         </div>
       )}
 
@@ -238,21 +243,18 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
             tabIndex={activeTab === tab ? 0 : -1}
             onClick={() => selectTab(tab)}
             onKeyDown={handleTabKeyDown}
-            className={`px-6 py-3 text-sm font-medium transition-all relative ${activeTab === tab ? "text-primary-600" : "text-text-secondary"}`}
+            className={`relative rounded-lg px-5 py-2.5 text-sm font-semibold transition-all ${activeTab === tab ? "bg-accent-soft text-accent-strong" : "text-text-secondary hover:bg-bg-elevated hover:text-text-primary"}`}
           >
             {TAB_LABELS[tab]}
-            {activeTab === tab && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-500" />
-            )}
           </button>
         ))}
       </div>
 
-      <div className="bg-bg-surface rounded-lg border border-border-subtle shadow-sm p-6">
+      <div className="surface-panel p-6">
         {searchError && (activeTab === "doi" || activeTab === "search") && (
           <div
             role="alert"
-            className="mb-4 p-3 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm"
+            className="mb-4 rounded-lg border border-coral/20 bg-coral-soft p-3 text-sm text-coral-strong"
           >
             {searchError}
           </div>

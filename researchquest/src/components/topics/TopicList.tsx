@@ -1,10 +1,11 @@
 import { ConfirmDialog, useConfirmDialog } from "../ui/ConfirmDialog";
 import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
-import { Loader2, Trash2, Notebook, BookOpen, Lightbulb, Hash } from "lucide-react";
+import { Trash2, Hash } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
 import type { TopicWithCounts } from "../../types/database";
 import { highlightMatch } from "../../utils/highlight";
 import { useCallback } from "react";
+import { ListSkeleton } from "../ui/Skeleton";
 
 interface TopicListProps {
   topics: TopicWithCounts[];
@@ -45,17 +46,19 @@ export function TopicList({
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-12 text-text-tertiary">
-          <Loader2 className="w-5 h-5 animate-spin" />
-          <span className="ml-2 text-small">Loading topics...</span>
+        <div className="space-y-2" role="status" aria-label="Loading topics...">
+          <p className="sr-only">Loading topics...</p>
+          <ListSkeleton count={3} itemType="note" />
         </div>
       ) : !topics.length ? (
         highlightQuery ? (
           <div
-            className="text-center py-12 text-text-tertiary"
+            className="surface-card text-center p-8 text-text-tertiary"
             aria-hidden="true"
           >
-            <Hash className="w-12 h-12 mx-auto mb-3 opacity-50" />
+            <div className="icon-tile mx-auto mb-3 bg-bg-elevated text-text-tertiary">
+              <Hash className="h-5 w-5 opacity-70" />
+            </div>
             <p className="text-small font-semibold text-text-secondary">
               No matches found
             </p>
@@ -64,9 +67,11 @@ export function TopicList({
             </p>
           </div>
         ) : (
-          <div className="text-center py-12 text-text-tertiary" aria-hidden="true">
-            <Hash className="w-12 h-12 mx-auto mb-3 opacity-50" />
-            <p className="text-small">No topics yet</p>
+          <div className="surface-card text-center p-8 text-text-tertiary" aria-hidden="true">
+            <div className="icon-tile mx-auto mb-3 bg-bg-elevated text-text-tertiary">
+              <Hash className="h-5 w-5 opacity-70" />
+            </div>
+            <p className="text-small font-medium text-text-secondary">No topics yet</p>
             <p className="text-caption mt-1">Create a topic to start organizing your research</p>
           </div>
         )
@@ -93,48 +98,66 @@ export function TopicList({
                   aria-label={topic.name}
                   onClick={() => onSelectTopic(topic)}
                   onKeyDown={(event) => handleKeyDown(event, topic)}
-                  className={`w-full text-left px-4 py-3 rounded-md border transition-colors group focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                  className={`surface-card w-full text-left p-3.5 rounded-lg transition-all group focus:outline-none focus:ring-2 focus:ring-primary-500 ${
                     isActive
                       ? "border-primary-500 bg-primary-500/10 text-text-primary"
-                      : "border-border-subtle bg-bg-surface hover:border-primary-500/60 hover:bg-primary-500/5"
+                      : "hover:-translate-y-0.5"
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold text-small text-text-primary">
-                        {topic.name ? highlightMatch(topic.name, highlightQuery) : "Untitled"}
-                      </p>
-                      {topic.description && (
-                        <p className="text-caption text-text-secondary mt-1 line-clamp-2">
-                          {highlightMatch(topic.description, highlightQuery)}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button
-                            type="button"
-                            onClick={async (event) => {
-                              event.stopPropagation();
-                              const confirmed = await confirmDialog({
-                                title: "Delete topic",
-                                message: `Are you sure you want to delete "${topic.name}"? This will remove the topic from all linked notes, papers, and ideas.`,
-                                confirmText: "Delete",
-                                variant: "danger",
-                              });
-                              if (confirmed) {
-                                await onDeleteTopic(topic.id);
-                              }
-                            }}
-                            className="p-1.5 rounded-md text-text-tertiary hover:text-red-500 hover:bg-red-500/10 transition-colors"
-                            aria-label={`Delete ${topic.name}`}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>Delete topic</TooltipContent>
-                      </Tooltip>
+                  <div className="flex items-start gap-3">
+                    <span className="icon-tile mt-0.5 bg-accent-soft text-accent-strong">
+                      <Hash className="h-4 w-4" aria-hidden="true" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold text-small text-text-primary">
+                            {topic.name ? highlightMatch(topic.name, highlightQuery) : "Untitled"}
+                          </p>
+                          {topic.description && (
+                            <p className="text-caption text-text-secondary mt-1 line-clamp-2">
+                              {highlightMatch(topic.description, highlightQuery)}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                type="button"
+                                onClick={async (event) => {
+                                  event.stopPropagation();
+                                  const confirmed = await confirmDialog({
+                                    title: "Delete topic",
+                                    message: `Are you sure you want to delete "${topic.name}"? This will remove the topic from all linked notes, papers, and ideas.`,
+                                    confirmText: "Delete",
+                                    variant: "danger",
+                                  });
+                                  if (confirmed) {
+                                    await onDeleteTopic(topic.id);
+                                  }
+                                }}
+                                className="icon-btn h-8 w-8 rounded-lg text-text-tertiary hover:text-red-500 hover:bg-red-500/10"
+                                aria-label={`Delete ${topic.name}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent>Delete topic</TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        <span className="rounded-full bg-blue-soft px-2 py-0.5 text-caption font-medium text-blue-strong">
+                          {topic.note_count} notes
+                        </span>
+                        <span className="rounded-full bg-violet-soft px-2 py-0.5 text-caption font-medium text-violet-strong">
+                          {topic.paper_count} papers
+                        </span>
+                        <span className="rounded-full bg-gold-soft px-2 py-0.5 text-caption font-medium text-gold-strong">
+                          {topic.idea_count} ideas
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>

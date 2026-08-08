@@ -255,24 +255,28 @@ export function TopicsView() {
   }, [handleExport]);
 
   return (
-    <div className="h-full flex flex-col md:flex-row bg-white dark:bg-slate-950">
+    <div className="h-full flex flex-col md:flex-row bg-bg-base text-text-primary overflow-hidden">
       {/* List Panel */}
       <div
-        className={`w-full md:w-80 flex-shrink-0 border-r border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex flex-col transition-all duration-300 ${
+        className={`w-full md:w-80 flex-shrink-0 border-r border-border-subtle bg-bg-surface flex flex-col transition-all duration-300 ${
           selectedTopic ? "hidden md:flex" : "flex"
         }`}
       >
-        <div className="p-4 border-b border-slate-200 dark:border-slate-800 space-y-4">
+        <div className="p-4 border-b border-border-subtle space-y-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-xl font-bold flex items-center gap-2 text-slate-900 dark:text-slate-100">
-              <Hash className="w-5 h-5 text-blue-500" />
-              Topics
-            </h1>
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="icon-tile bg-accent-soft text-accent-strong">
+                <Hash className="h-4 w-4" aria-hidden="true" />
+              </span>
+              <h1 className="truncate font-serif text-xl font-bold text-text-primary">
+                Topics
+              </h1>
+            </div>
             <div className="flex items-center gap-2">
               <DropdownMenu.Root>
                 <DropdownMenu.Trigger asChild>
                   <button
-                    className="p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-md transition-colors"
+                    className="icon-btn rounded-lg"
                     title="Export topics"
                     aria-label="Export topics"
                   >
@@ -281,27 +285,27 @@ export function TopicsView() {
                 </DropdownMenu.Trigger>
                 <DropdownMenu.Portal>
                   <DropdownMenu.Content
-                    className="min-w-[180px] bg-white dark:bg-slate-950 rounded-lg shadow-lg border border-slate-200 dark:border-slate-800 p-1 z-50 animate-in fade-in-0 zoom-in-95"
+                    className="min-w-[180px] bg-bg-surface rounded-lg shadow-lg border border-border-moderate p-1 z-50 animate-in fade-in-0 zoom-in-95"
                     align="start"
                     sideOffset={5}
                   >
                     <DropdownMenu.Item
                       onSelect={() => handleExport("markdown")}
-                      className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md cursor-pointer outline-none"
+                      className="flex items-center gap-2 rounded-lg px-3 py-2 text-small text-text-secondary hover:bg-bg-elevated hover:text-text-primary cursor-pointer outline-none"
                     >
                       <FileText className="w-4 h-4" />
                       Markdown (.md)
                     </DropdownMenu.Item>
                     <DropdownMenu.Item
                       onSelect={() => handleExport("csv")}
-                      className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md cursor-pointer outline-none"
+                      className="flex items-center gap-2 rounded-lg px-3 py-2 text-small text-text-secondary hover:bg-bg-elevated hover:text-text-primary cursor-pointer outline-none"
                     >
                       <Table className="w-4 h-4" />
                       CSV (.csv)
                     </DropdownMenu.Item>
                     <DropdownMenu.Item
                       onSelect={() => handleExport("json")}
-                      className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md cursor-pointer outline-none"
+                      className="flex items-center gap-2 rounded-lg px-3 py-2 text-small text-text-secondary hover:bg-bg-elevated hover:text-text-primary cursor-pointer outline-none"
                     >
                       <FileJson className="w-4 h-4" />
                       JSON (.json)
@@ -312,7 +316,7 @@ export function TopicsView() {
 
               <button
                 onClick={() => setIsCreating(!isCreating)}
-                className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 rounded-md transition-colors"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-accent-soft text-accent-strong shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lift"
                 aria-label="New Topic"
               >
                 <Plus className="w-4 h-4" />
@@ -328,13 +332,13 @@ export function TopicsView() {
                 onChange={(e) => setNewTopicName(e.target.value)}
                 placeholder="Topic name..."
                 aria-label="Topic name"
-                className="flex-1 px-3 py-1.5 text-sm bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 h-10 rounded-lg border border-border-moderate bg-bg-base px-3 text-small text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-accent"
                 autoFocus
               />
               <button
                 type="submit"
                 disabled={!newTopicName.trim()}
-                className="px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                className="h-10 rounded-lg bg-accent-strong px-3.5 text-small font-semibold text-accent-contrast shadow-lift transition-all hover:-translate-y-0.5 hover:opacity-95 disabled:translate-y-0 disabled:opacity-50"
               >
                 Add
               </button>
@@ -343,7 +347,7 @@ export function TopicsView() {
           <div className="flex flex-col gap-2">
             <div className="relative">
               <label htmlFor="topics-search-input" className="sr-only">Search topics</label>
-              <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+              <Search className="absolute left-3 top-2.5 w-4 h-4 text-text-tertiary" />
               <input
                 id="topics-search-input"
                 ref={searchInputRef}
@@ -351,7 +355,7 @@ export function TopicsView() {
                 placeholder="Search topics..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-10 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full h-10 rounded-lg border border-border-moderate bg-bg-base pl-9 pr-10 text-small text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-accent"
                 aria-label="Search topics"
               />
               {searchQuery && (
@@ -360,7 +364,7 @@ export function TopicsView() {
                     setSearchQuery("");
                     searchInputRef.current?.focus();
                   }}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="icon-btn absolute right-1.5 top-1/2 h-8 w-8 -translate-y-1/2 rounded-full"
                   aria-label="Clear search"
                 >
                   <X className="w-3 h-3" aria-hidden="true" />
@@ -369,11 +373,11 @@ export function TopicsView() {
             </div>
 
             <div className="flex items-center gap-2">
-              <ArrowUpDown className="w-4 h-4 text-slate-400 flex-shrink-0" />
+              <ArrowUpDown className="w-4 h-4 text-text-tertiary flex-shrink-0" />
               <select
                 value={sortOption}
                 onChange={(e) => setSortOption(e.target.value as SortOption)}
-                className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                className="w-full h-10 rounded-lg border border-border-moderate bg-bg-base px-3 text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
                 aria-label="Sort topics"
               >
                 <option value="updated_desc">Last Updated (Newest)</option>
@@ -401,7 +405,7 @@ export function TopicsView() {
       </div>
 
       {/* Detail Panel */}
-      <div className="flex-1 min-w-0 bg-white dark:bg-slate-950 overflow-y-auto">
+      <div className="flex-1 min-w-0 bg-bg-surface overflow-y-auto">
         {selectedTopic ? (
           <TopicDetailView
             topic={selectedTopic}
@@ -409,14 +413,14 @@ export function TopicsView() {
             onDelete={handleDeleteWithUndo}
           />
         ) : (
-          <div className="h-full flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 space-y-4 p-8">
-            <div className="w-16 h-16 bg-slate-100 dark:bg-slate-900 rounded-2xl flex items-center justify-center mb-4">
-              <Hash className="w-8 h-8 text-slate-400 dark:text-slate-500" />
+          <div className="hero-ambient h-full flex flex-col items-center justify-center text-text-secondary space-y-4 p-8">
+            <div className="icon-tile h-16 w-16 rounded-xl bg-accent-soft text-accent-strong">
+              <Hash className="h-7 w-7" aria-hidden="true" />
             </div>
-            <p className="text-lg font-medium text-slate-900 dark:text-slate-100">
+            <p className="text-lg font-medium text-text-primary">
               Select a topic
             </p>
-            <p className="text-sm max-w-sm text-center">
+            <p className="text-small max-w-sm text-center">
               Choose a topic from the list to view its details, connected notes, papers, and ideas.
             </p>
           </div>

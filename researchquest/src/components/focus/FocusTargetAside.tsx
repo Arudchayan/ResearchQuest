@@ -40,6 +40,12 @@ interface FocusTargetAsideProps {
   focusInsights: FocusInsight[];
 }
 
+const GROUP_ICON_STYLES: Record<FocusTargetType, string> = {
+  note: "bg-blue-soft text-blue-strong",
+  paper: "bg-violet-soft text-violet-strong",
+  task: "bg-coral-soft text-coral-strong",
+};
+
 export function FocusTargetAside({
   isLoading,
   quickTargets,
@@ -64,10 +70,10 @@ export function FocusTargetAside({
           ].map(({ key, label }) => (
             <div
               key={key}
-              className="bg-bg-surface border border-border-subtle rounded-2xl shadow-sm p-5 space-y-4"
+              className="surface-card p-5 space-y-4"
             >
               <div className="flex items-center gap-2 text-sm font-semibold text-text-secondary">
-                <Skeleton className="w-4 h-4 rounded-full" />
+                <Skeleton className="h-8 w-8 rounded-lg" />
                 <span>{label}</span>
               </div>
               <ListSkeleton
@@ -91,7 +97,7 @@ export function FocusTargetAside({
           return (
             <div
               key={group.type}
-              className="bg-bg-surface border border-border-subtle rounded-2xl shadow-sm"
+              className="surface-card overflow-hidden"
             >
               <button
                 type="button"
@@ -101,11 +107,20 @@ export function FocusTargetAside({
                 aria-controls={`focus-group-${group.type}`}
               >
                 <div>
-                  <div className="flex items-center gap-2 text-sm font-semibold text-text-secondary">
-                    <Icon className="w-4 h-4 text-primary-500" />
-                    {group.title}
+                  <div className="flex items-center gap-2">
+                    <span className={`icon-tile h-8 w-8 ${GROUP_ICON_STYLES[group.type]}`}>
+                      <Icon className="w-4 h-4" aria-hidden="true" />
+                    </span>
+                    <div>
+                      <p className="text-sm font-semibold text-text-primary">
+                        {group.title}
+                      </p>
+                      <p className="text-caption text-text-tertiary mt-0.5">
+                        {items.length} suggested
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-caption text-text-tertiary mt-1">
+                  <p className="text-caption text-text-tertiary mt-1.5 ml-10">
                     {group.description}
                   </p>
                 </div>
@@ -152,10 +167,10 @@ export function FocusTargetAside({
                                   id: item.id,
                                 })
                               }
-                              className={`w-full text-left px-5 py-3 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 ${
+                              className={`w-full text-left px-5 py-3 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${
                                 isActive
-                                  ? "bg-primary-500/10 text-primary-600"
-                                  : "hover:bg-bg-base"
+                                  ? "bg-accent-soft text-accent-strong"
+                                  : "hover:bg-bg-elevated"
                               }`}
                               type="button"
                               aria-pressed={isActive}
@@ -185,11 +200,11 @@ export function FocusTargetAside({
                 </div>
               )}
               <div className="flex items-center justify-between px-5 py-3 border-t border-border-subtle/60 text-caption">
-                <span className="text-text-tertiary">
+                <span className="sr-only">
                   {items.length} suggested {group.title.toLowerCase()}
                 </span>
                 <button
-                  className="text-primary-500 hover:text-primary-600"
+                  className="ml-auto inline-flex items-center gap-1 text-accent-strong hover:text-accent font-medium"
                   onClick={() => {
                     const targetView =
                       group.type === "task"
@@ -216,16 +231,23 @@ export function FocusTargetAside({
         })
       )}
 
-      <div className="bg-bg-surface border border-border-subtle rounded-2xl shadow-sm">
+      <div className="surface-card overflow-hidden">
         <button
           type="button"
           onClick={() => togglePanel("suggestions")}
-          className="w-full flex items-center justify-between gap-2 p-5 text-sm font-semibold text-text-secondary hover:text-text-primary"
+          className="w-full flex items-center justify-between gap-2 p-5 text-sm font-semibold text-text-primary hover:bg-bg-elevated transition-colors"
           aria-expanded={!collapsedPanels.suggestions}
         >
           <span className="inline-flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-primary-500" />
-            Suggested moves
+            <span className="icon-tile h-8 w-8 bg-gold-soft text-gold-strong">
+              <Sparkles className="w-4 h-4" aria-hidden="true" />
+            </span>
+            <span>
+              <span className="block">Suggested moves</span>
+              <span className="block text-caption font-normal text-text-tertiary mt-0.5">
+                Focus intelligence
+              </span>
+            </span>
           </span>
           {collapsedPanels.suggestions ? (
             <ChevronRight className="w-4 h-4" aria-hidden="true" />
@@ -238,7 +260,7 @@ export function FocusTargetAside({
             {focusInsights.map((insight) => (
               <li
                 key={insight.title}
-                className="p-3 rounded-lg bg-bg-base/60 border border-border-subtle/60"
+                className="p-3 rounded-lg bg-bg-elevated border border-border-subtle"
               >
                 <p className="text-sm font-semibold text-text-primary">
                   {insight.title}

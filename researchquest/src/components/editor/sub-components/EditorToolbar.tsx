@@ -58,7 +58,7 @@ export function EditorToolbar({
   setViewMode,
 }: EditorToolbarProps) {
   return (
-    <div className="px-6 py-3 bg-bg-elevated border-b border-border-subtle flex flex-wrap items-center gap-3 justify-between">
+    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle bg-bg-elevated px-4 py-2.5">
       <div className="flex items-center gap-2">
         <ToolbarButton onClick={() => applyFormatting("bold")} icon={Bold} label="Bold" shortcut="Ctrl/Cmd+B" />
         <ToolbarButton onClick={() => applyFormatting("italic")} icon={Italic} label="Italic" shortcut="Ctrl/Cmd+I" />
@@ -86,18 +86,20 @@ export function EditorToolbar({
 
       <div className="flex items-center gap-2">
         <span className="text-caption text-text-tertiary hidden xl:inline">Layout</span>
-        <div className="inline-flex rounded-md border border-border-subtle overflow-hidden" role="radiogroup">
+        <div className="inline-flex overflow-hidden rounded-lg border border-border-moderate bg-bg-surface p-0.5 shadow-sm" role="radiogroup">
           {VIEW_OPTIONS.map(({ id, label, icon: Icon, shortcut }) => (
             <button
               key={id}
               type="button"
               onClick={() => setViewMode(id)}
               className={`flex items-center gap-2 px-3 py-2 text-small transition-colors ${
-                viewMode === id ? "bg-primary-500 text-white" : "text-text-secondary hover:text-text-primary hover:bg-bg-surface"
+                viewMode === id
+                  ? "bg-accent-soft text-accent-strong shadow-sm rounded-md"
+                  : "text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-md"
               }`}
               title={`${label} (${shortcut})`}
             >
-              <Icon className="w-4 h-4" />
+              <Icon className="h-4 w-4" aria-hidden="true" />
               <span className="hidden sm:inline">{label}</span>
             </button>
           ))}
@@ -112,15 +114,15 @@ function ToolbarButton({ onClick, icon: Icon, label, shortcut, active }: any) {
     <button
       type="button"
       onClick={onClick}
-      className={`p-2 rounded-md transition-colors hover:bg-bg-surface ${active ? "bg-primary-500/10 text-primary-500" : ""}`}
+      className={`icon-btn ${active ? "bg-accent-soft text-accent-strong hover:bg-accent/20" : ""}`}
       aria-label={shortcut ? `${label} (${shortcut})` : label}
       title={shortcut ? `${label} (${shortcut})` : label}
     >
-      <Icon className="w-4 h-4 text-text-secondary" />
+      <Icon className="h-4 w-4" aria-hidden="true" />
     </button>
   );
 }
 
 function Divider() {
-  return <div className="w-px h-6 bg-border-subtle mx-1" aria-hidden="true" />;
+  return <div className="mx-1 h-6 w-px bg-border-subtle" aria-hidden="true" />;
 }

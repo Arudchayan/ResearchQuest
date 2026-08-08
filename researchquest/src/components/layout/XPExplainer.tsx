@@ -53,13 +53,14 @@ export function XPExplainer({
     <Dialog.Root open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm animate-in fade-in duration-200" />
-        <Dialog.Content className="fixed left-[50%] top-[50%] z-[60] w-full max-w-3xl translate-x-[-50%] translate-y-[-50%] rounded-2xl bg-bg-surface shadow-2xl border border-border-subtle overflow-hidden outline-none animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+        <Dialog.Content className="fixed left-[50%] top-[50%] z-[60] w-full max-w-3xl translate-x-[-50%] translate-y-[-50%] rounded-xl bg-bg-surface shadow-lg border border-border-subtle overflow-hidden outline-none animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
           <div className="flex items-start justify-between gap-4 px-6 py-5 border-b border-border-subtle bg-bg-elevated sticky top-0 z-10">
-            <div className="space-y-1">
-              <p className="inline-flex items-center gap-2 text-sm font-semibold text-primary-500 uppercase tracking-wide">
+            <div className="flex items-start gap-3">
+              <span className="icon-tile bg-gold-soft text-gold-strong">
                 <Sparkles className="w-4 h-4" aria-hidden="true" />
-                Momentum guide
-              </p>
+              </span>
+              <div className="space-y-1">
+              <p className="section-kicker">Momentum guide</p>
               <Dialog.Title className="text-2xl font-semibold text-text-primary">
                 How XP levels and rewards work
               </Dialog.Title>
@@ -67,11 +68,12 @@ export function XPExplainer({
                 Track how close you are to your next level and discover the
                 fastest ways to earn streak-protecting XP.
               </Dialog.Description>
+              </div>
             </div>
             <Dialog.Close asChild>
               <button
                 type="button"
-                className="p-2 rounded-full text-text-secondary hover:text-text-primary hover:bg-bg-base transition-colors"
+                className="icon-btn"
                 aria-label="Close XP explanation"
               >
                 <X className="w-5 h-5" aria-hidden="true" />
@@ -81,7 +83,7 @@ export function XPExplainer({
 
           <div className="px-6 py-6 space-y-6">
             <section className="grid gap-4 md:grid-cols-2">
-              <div className="p-4 rounded-xl border border-border-subtle bg-bg-base">
+              <div className="surface-card p-4">
                 <h3 className="text-sm font-semibold text-text-primary mb-1">
                   Current level snapshot
                 </h3>
@@ -92,11 +94,19 @@ export function XPExplainer({
                     ? `${xpToNextLevel} XP to level ${currentLevel + 1}`
                     : "Level up reached — enjoy your boost!"}
                 </p>
+                <div className="mb-4">
+                  <div className="progress-track h-2 w-full">
+                    <div
+                      className="progress-fill"
+                      style={{ width: `${Math.min(100, (xpIntoCurrentLevel / 500) * 100)}%` }}
+                    />
+                  </div>
+                </div>
                 <ul className="space-y-2">
                   {upcomingLevels.map((snapshot) => (
                     <li
                       key={snapshot.level}
-                      className="flex items-center justify-between gap-3 rounded-lg bg-bg-surface px-3 py-2 border border-border-subtle/60"
+                      className="flex items-center justify-between gap-3 rounded-lg bg-bg-elevated px-3 py-2 border border-border-subtle"
                     >
                       <div>
                         <p className="text-sm font-semibold text-text-primary">
@@ -107,7 +117,7 @@ export function XPExplainer({
                         </p>
                       </div>
                       <Trophy
-                        className="w-5 h-5 text-primary-500"
+                        className="w-5 h-5 text-gold-strong"
                         aria-hidden="true"
                       />
                     </li>
@@ -115,7 +125,7 @@ export function XPExplainer({
                 </ul>
               </div>
 
-              <div className="p-4 rounded-xl border border-border-subtle bg-bg-base">
+              <div className="surface-card p-4">
                 <h3 className="text-sm font-semibold text-text-primary mb-2">
                   High-impact actions
                 </h3>
@@ -127,12 +137,12 @@ export function XPExplainer({
                   {rewards.map((reward) => (
                     <div
                       key={reward.key}
-                      className="rounded-lg border border-border-subtle/60 bg-bg-surface px-3 py-2"
+                      className="rounded-lg border border-border-subtle bg-bg-elevated px-3 py-2"
                     >
                       <p className="text-sm font-medium text-text-primary">
                         {formatRewardLabel(reward.key)}
                       </p>
-                      <p className="text-caption text-primary-500 font-semibold">
+                      <p className="text-caption text-accent-strong font-semibold">
                         +{reward.value} XP
                       </p>
                     </div>
@@ -141,7 +151,7 @@ export function XPExplainer({
               </div>
             </section>
 
-            <section className="p-4 rounded-xl border border-border-subtle bg-bg-base">
+            <section className="surface-card p-4">
               <h3 className="text-sm font-semibold text-text-primary mb-2">
                 Tips for steady gains
               </h3>

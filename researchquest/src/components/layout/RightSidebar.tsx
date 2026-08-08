@@ -381,16 +381,20 @@ export function RightSidebar() {
         ) : (
           <>
             {/* Backlinks Panel */}
-            <div className="bg-bg-elevated rounded-lg border border-border-subtle p-3">
-              <h3 className="text-small font-semibold text-text-primary mb-2 flex items-center gap-2">
-                <Link2 className="w-4 h-4" />
-                Backlinks
+            <div className="surface-card p-3.5">
+              <div className="mb-2 flex items-center gap-2">
+                <span className="icon-tile h-8 w-8 bg-violet-soft text-violet-strong">
+                  <Link2 className="w-4 h-4" aria-hidden="true" />
+                </span>
+                <h3 className="text-small font-semibold text-text-primary">
+                  Backlinks
+                </h3>
                 {backlinks.length > 0 && (
-                  <span className="ml-auto text-xs bg-primary-500/20 text-primary-600 dark:text-primary-400 px-2 py-0.5 rounded-full">
+                  <span className="status-chip ml-auto bg-violet-soft text-violet-strong">
                     {backlinks.length}
                   </span>
                 )}
-              </h3>
+              </div>
               <div className="sr-only" role="status" aria-live="polite">
                 {!backlinksLoading && backlinks.length === 0 ? "No items link to this yet. Link from notes or ideas to create connections." : ""}
               </div>
@@ -411,10 +415,10 @@ export function RightSidebar() {
                         <button
                           onClick={() => handleNavigateToItem(item.id, item.type)}
                           aria-label={`Navigate to ${item.type} ${item.title}`}
-                          className="w-full text-left p-2 rounded-md bg-bg-base hover:bg-primary-500/10 border border-border-subtle hover:border-primary-400 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
+                          className="w-full text-left p-2 rounded-lg bg-bg-elevated hover:bg-accent-soft border border-border-subtle hover:border-accent transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
                         >
                           <div className="flex items-start gap-2">
-                            <div className="text-text-tertiary mt-0.5">
+                            <div className="text-accent-strong mt-0.5">
                               {getItemIcon(item.type)}
                             </div>
                             <div className="flex-1 min-w-0">
@@ -443,16 +447,20 @@ export function RightSidebar() {
             </div>
 
             {/* Related Entities */}
-            <div className="bg-bg-elevated rounded-lg border border-border-subtle p-3">
-              <h3 className="text-small font-semibold text-text-primary mb-2 flex items-center gap-2">
-                <Hash className="w-4 h-4" />
-                Related
+            <div className="surface-card p-3.5">
+              <div className="mb-2 flex items-center gap-2">
+                <span className="icon-tile h-8 w-8 bg-blue-soft text-blue-strong">
+                  <Hash className="w-4 h-4" aria-hidden="true" />
+                </span>
+                <h3 className="text-small font-semibold text-text-primary">
+                  Related
+                </h3>
                 {relatedItems.length > 0 && (
-                  <span className="ml-auto text-xs bg-primary-500/20 text-primary-600 dark:text-primary-400 px-2 py-0.5 rounded-full">
+                  <span className="status-chip ml-auto bg-blue-soft text-blue-strong">
                     {relatedItems.length}
                   </span>
                 )}
-              </h3>
+              </div>
               <div className="sr-only" role="status" aria-live="polite">
                 {!relatedLoading && relatedItems.length === 0 ? "No related items found. Add topics to discover connections." : ""}
               </div>
@@ -472,10 +480,10 @@ export function RightSidebar() {
                         <button
                           onClick={() => handleNavigateToItem(item.id, item.type)}
                           aria-label={`Navigate to ${item.type} ${item.title}`}
-                          className="w-full text-left p-2 rounded-md bg-bg-base hover:bg-primary-500/10 border border-border-subtle hover:border-primary-400 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
+                          className="w-full text-left p-2 rounded-lg bg-bg-elevated hover:bg-accent-soft border border-border-subtle hover:border-accent transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
                         >
                           <div className="flex items-start gap-2">
-                            <div className="text-text-tertiary mt-0.5">
+                            <div className="text-accent-strong mt-0.5">
                               {getItemIcon(item.type)}
                             </div>
                             <div className="flex-1 min-w-0">
@@ -486,7 +494,7 @@ export function RightSidebar() {
                                 <span className="text-xs text-text-tertiary">
                                   {getItemTypeLabel(item.type)}
                                 </span>
-                                <span className="text-xs text-primary-600 dark:text-primary-400">
+                                <span className="text-xs text-accent-strong">
                                   {item.sharedTopics} topic
                                   {item.sharedTopics === 1 ? "" : "s"}
                                 </span>
@@ -512,20 +520,22 @@ export function RightSidebar() {
         )}
 
         <div className="pt-4 border-t border-border-subtle space-y-4">
-          <div className="p-4 bg-bg-elevated rounded-lg border border-border-subtle space-y-3">
-            <div className="flex items-center gap-2 text-text-primary">
-              <Sparkles className="w-4 h-4 text-primary-500" />
-              <h3 className="text-small font-semibold uppercase tracking-wide">
+          <div className="surface-card p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="icon-tile h-8 w-8 bg-gold-soft text-gold-strong">
+                <Sparkles className="w-4 h-4" aria-hidden="true" />
+              </span>
+              <h3 className="section-kicker">
                 Today's wins
               </h3>
             </div>
             <div className="space-y-2 text-caption text-text-secondary">
               <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-primary-500" />
+                <Sparkles className="w-4 h-4 text-accent-strong" aria-hidden="true" />
                 <span>+{todayXP} XP collected today</span>
               </div>
               <div className="flex items-center gap-2">
-                <Flame className="w-4 h-4 text-success" />
+                <Flame className="w-4 h-4 text-gold" aria-hidden="true" />
                 <span>
                   {user?.current_streak || 0} day streak · longest{" "}
                   {user?.longest_streak || 0} days
@@ -539,10 +549,12 @@ export function RightSidebar() {
             </div>
           </div>
 
-          <div className="p-4 bg-bg-elevated rounded-lg border border-border-subtle">
-            <div className="flex items-center gap-2 text-text-primary">
-              <CalendarCheck className="w-4 h-4 text-primary-500" />
-              <h3 className="text-small font-semibold uppercase tracking-wide">
+          <div className="surface-card p-4">
+            <div className="flex items-center gap-2">
+              <span className="icon-tile h-8 w-8 bg-coral-soft text-coral-strong">
+                <CalendarCheck className="w-4 h-4" aria-hidden="true" />
+              </span>
+              <h3 className="section-kicker">
                 Upcoming focus
               </h3>
             </div>
@@ -551,7 +563,7 @@ export function RightSidebar() {
                 {upcomingDeadlines.slice(0, 3).map((deadline) => (
                   <li
                     key={deadline.id}
-                    className="text-caption bg-bg-base/60 rounded-md p-2 border border-border-subtle/60"
+                    className="text-caption bg-bg-elevated rounded-lg p-2.5 border border-border-subtle"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-medium text-text-primary truncate">
@@ -576,16 +588,18 @@ export function RightSidebar() {
             )}
           </div>
 
-          <div className="p-4 bg-bg-elevated rounded-lg border border-border-subtle space-y-2">
-            <div className="flex items-center gap-2 text-text-primary">
-              <Snowflake className="w-4 h-4 text-primary-400" />
-              <h3 className="text-small font-semibold uppercase tracking-wide">
+          <div className="surface-card p-4 space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="icon-tile h-8 w-8 bg-blue-soft text-blue-strong">
+                <Snowflake className="w-4 h-4" aria-hidden="true" />
+              </span>
+              <h3 className="section-kicker">
                 Energy tools
               </h3>
             </div>
             <div className="text-caption text-text-secondary space-y-1">
               <div className="flex items-start gap-2">
-                <Sparkles className="w-4 h-4 text-primary-500 mt-0.5" />
+                <Sparkles className="w-4 h-4 text-accent-strong mt-0.5" aria-hidden="true" />
                 <span>
                   {activeBoost
                     ? `${activeBoost.label ?? "Focus boost"} active${boostCountdown ? ` • ${boostCountdown} remaining` : ""}`
@@ -603,11 +617,13 @@ export function RightSidebar() {
             </div>
           </div>
 
-          <div className="p-4 bg-bg-elevated rounded-lg border border-border-subtle">
-            <div className="flex items-start gap-3 text-text-primary">
-              <Heart className="w-5 h-5 text-primary-500 mt-0.5" />
+          <div className="surface-card p-4">
+            <div className="flex items-start gap-3">
+              <span className="icon-tile h-8 w-8 bg-coral-soft text-coral-strong">
+                <Heart className="w-4 h-4" aria-hidden="true" />
+              </span>
               <div>
-                <h3 className="text-small font-semibold uppercase tracking-wide">
+                <h3 className="section-kicker">
                   Gentle reminder
                 </h3>
                 <p className="mt-2 text-caption text-text-secondary leading-relaxed">

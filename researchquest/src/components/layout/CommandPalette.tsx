@@ -398,17 +398,17 @@ export function CommandPalette() {
               value={`${entry.type}: ${entry.label}`}
             >
               {entry.type === "note" && (
-                <FileText className="text-primary-500" />
+                <FileText className="text-blue-strong" />
               )}
-              {entry.type === "paper" && <BookOpen className="text-blue-500" />}
+              {entry.type === "paper" && <BookOpen className="text-violet-strong" />}
               {entry.type === "idea" && (
-                <Lightbulb className="text-yellow-500" />
+                <Lightbulb className="text-gold-strong" />
               )}
               {entry.type === "task" && (
-                <CheckSquare className="text-green-500" />
+                <CheckSquare className="text-coral-strong" />
               )}
               {entry.type === "topic" && (
-                <Hash className="text-purple-500" />
+                <Hash className="text-accent-strong" />
               )}
               <div className="flex flex-col">
                 <span>{entry.label}</span>
