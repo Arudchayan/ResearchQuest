@@ -77,37 +77,6 @@ export function AuthScreen() {
     }
   };
 
-  const handleTestLogin = async () => {
-    setLoading(true);
-    setMessage("");
-
-    const testEmail = import.meta.env.VITE_TEST_EMAIL;
-    const testPassword = import.meta.env.VITE_TEST_PASSWORD;
-
-    if (!testEmail || !testPassword) {
-      setMessage("Test credentials not configured");
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: testEmail,
-        password: testPassword,
-      });
-
-      if (error) throw error;
-    } catch (error: any) {
-      console.error("AuthScreen test login error:", error);
-      setMessage("An error occurred during test login. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const showTestLogin = !!(
-    import.meta.env.VITE_TEST_EMAIL && import.meta.env.VITE_TEST_PASSWORD
-  );
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-bg-base transition-colors">
@@ -128,30 +97,6 @@ export function AuthScreen() {
         </div>
 
         <form onSubmit={handleAuth} className="space-y-4" noValidate>
-          {showTestLogin && (
-            <div className="space-y-3">
-              <button
-                type="button"
-                onClick={handleTestLogin}
-                disabled={loading}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-dashed border-border-moderate rounded-sm text-text-secondary font-medium hover:text-text-primary transition-colors disabled:opacity-60"
-              >
-                🛠️ Use Test Login
-              </button>
-
-              <div className="flex items-center gap-3 text-small text-text-tertiary font-serif italic py-2">
-                <span
-                  className="h-px flex-1 bg-border-subtle"
-                  aria-hidden="true"
-                />
-                <span>or use email</span>
-                <span
-                  className="h-px flex-1 bg-border-subtle"
-                  aria-hidden="true"
-                />
-              </div>
-            </div>
-          )}
 
           <div>
             <label htmlFor="auth-email" className="block text-small font-medium text-text-primary mb-1.5 uppercase tracking-wide">
