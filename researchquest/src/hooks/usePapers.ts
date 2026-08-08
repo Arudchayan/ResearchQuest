@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import type { Paper, CrossrefPaper, PaperDraft } from "../types/database";
 import { logger } from "../utils/logger";
 import { useAppStore } from "../store/appStore";
+import { recordDailyMissionEvent } from "../store/dailyMissionsStore";
 
 const PAPER_TITLE_MAX_LENGTH = 255;
 const PAPER_ABSTRACT_MAX_LENGTH = 5000;
@@ -351,6 +352,7 @@ export function usePapers(userId: string | undefined) {
       }
 
       toast.success("Paper added successfully");
+      recordDailyMissionEvent("paper");
 
       // Optimistic update - get latest state to be safe
       setPapers(sortByUpdatedAt([data, ...useAppStore.getState().papers]));
@@ -439,6 +441,7 @@ export function usePapers(userId: string | undefined) {
         );
          void createReadingTaskForPaper(userId, data[i]);
       }
+      recordDailyMissionEvent("paper", data.length);
 
       return data as Paper[];
     },

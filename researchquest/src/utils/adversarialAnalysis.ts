@@ -23,6 +23,34 @@ export interface AdversarialReview {
   strengths: string[];
 }
 
+export interface WorkspaceAuditFinding {
+  id: string;
+  entityType: "paper" | "idea";
+  entityId: string;
+  entityTitle: string;
+  finding: AdversarialFinding;
+}
+
+export interface WorkspaceAudit {
+  score: number;
+  summary: string;
+  entityCounts: {
+    papers: number;
+    ideas: number;
+  };
+  severityCounts: Record<AdversarialFinding["severity"], number>;
+  categoryCounts: Record<AdversarialCategory, number>;
+  findings: WorkspaceAuditFinding[];
+  strengths: string[];
+  generatedAt: string;
+}
+
+export interface ConfidenceBadge {
+  score: number;
+  label: "Strong" | "Moderate" | "Needs work";
+  tone: "success" | "gold" | "coral";
+}
+
 export interface ReviewTarget {
   type: "idea" | "paper";
   title: string;
@@ -391,6 +419,161 @@ export function analyzeTarget(
   return base;
 }
 
+export function auditWorkspace(
+  notes: Note[],
+  papers: Paper[],
+  ideas: Idea[],
+  topics: TopicWithCounts[],
+): WorkspaceAudit {
+  const findings: WorkspaceAuditFinding[] = [];
+  const severityCounts: Record<AdversarialFinding["severity"], number> = {
+    high: 0,
+    medium: 0,
+    low: 0,
+  };
+  const categoryCounts: Record<AdversarialCategory, number> = {
+    assumption: 0,
+    counterargument: 0,
+    evidence_gap: 0,
+    risk: 0,
+  };
+  const strengths: string[] = [];
+
+  const seenFindings = new Set<string>();
+
+  papers.forEach((paper) => {
+    const review = analyzePaper(paper, notes, ideas, papers);
+    review.findings.forEach((finding) => {
+      const key = `${paper.id}:${finding.category}:${finding.title}`;
+      if (seenFindings.has(key)) return;
+      seenFindings.add(key);
+      findings.push({
+        id: `${paper.id}-${finding.id}`,
+        entityType: "paper",
+        entityId: paper.id,
+        entityTitle: paper.title,
+        finding,
+      });
+      severityCounts[finding.severity]++;
+      categoryCounts[finding.category]++;
+    });
+    review.strengths.forEach((strength) => {
+      if (!strengths.includes(`Paper: ${strength}`)) {
+        strengths.push(`Paper: ${strength}`);
+      }
+    });
+  });
+
+  ideas.forEach((idea) => {
+    const review = analyzeIdea(idea, notes, papers, ideas);
+    review.findings.forEach((finding) => {
+      const key = `${idea.id}:${finding.category}:${finding.title}`;
+      if (seenFindings.has(key)) return;
+      seenFindings.add(key);
+      findings.push({
+        id: `${idea.id}-${finding.id}`,
+        entityType: "idea",
+        entityId: idea.id,
+        entityTitle: idea.title,
+        finding,
+      });
+      severityCounts[finding.severity]++;
+      categoryCounts[finding.category]++;
+    });
+    review.strengths.forEach((strength) => {
+      if (!strengths.includes(`Idea: ${strength}`)) {
+        strengths.push(`Idea: ${strength}`);
+      }
+    });
+  });
+
+  if (topics.length > 0) {
+    strengths.push("The workspace is organized into topics.");
+  }
+  if (papers.some((paper) => paper.status === "Reading" || paper.status === "Read")) {
+    strengths.push("Reading progress is being tracked on the library.");
+  }
+  if (notes.length >= 5) {
+    strengths.push("The note library is substantial enough to support synthesis.");
+  }
+
+  findings.sort((a, b) => {
+    const order = { high: 0, medium: 1, low: 2 };
+    return order[a.finding.severity] - order[b.finding.severity];
+  });
+
+  const totalEntities = papers.length + ideas.length;
+  const penalty =
+    severityCounts.high * 12 + severityCounts.medium * 5 + severityCounts.low * 2;
+  const score = Math.max(
+    15,
+    Math.min(
+      98,
+      totalEntities === 0
+        ? 55
+        : 88 -
+            penalty +
+            Math.min(10, Math.round(papers.length * 0.4)) +
+            Math.min(8, Math.round(notes.length * 0.25)),
+    ),
+  );
+
+  let summary = "The workspace is in strong shape. Resolve the remaining low-severity notes before making major claims.";
+  if (score < 60) {
+    summary = "The workspace has material evidence gaps and unaddressed risks. Run focused reviews on the weakest records.";
+  } else if (score < 80) {
+    summary = "The workspace is generally healthy, but several records need evidence or counterargument work.";
+  }
+
+  return {
+    score,
+    summary,
+    entityCounts: { papers: papers.length, ideas: ideas.length },
+    severityCounts,
+    categoryCounts,
+    findings: findings.slice(0, 12),
+    strengths: strengths.slice(0, 5),
+    generatedAt: new Date().toISOString(),
+  };
+}
+
+export function auditToMarkdown(audit: WorkspaceAudit): string {
+  const lines = [
+    "# ResearchQuest Workspace Audit",
+    "",
+    `Generated: ${new Date(audit.generatedAt).toLocaleString()}`,
+    `Health score: ${audit.score}/100`,
+    "",
+    "## Summary",
+    "",
+    audit.summary,
+    "",
+    "## Severity",
+    "",
+    `- High: ${audit.severityCounts.high}`,
+    `- Medium: ${audit.severityCounts.medium}`,
+    `- Low: ${audit.severityCounts.low}`,
+    "",
+    "## Findings",
+    "",
+  ];
+  audit.findings.forEach((item, index) => {
+    lines.push(
+      `${index + 1}. **[${item.finding.severity.toUpperCase()}] ${item.entityType}: ${item.entityTitle}**`,
+      `   - ${item.finding.title}`,
+      `   - ${item.finding.detail}`,
+      `   - Suggestion: ${item.finding.suggestion}`,
+      "",
+    );
+  });
+  if (audit.strengths.length > 0) {
+    lines.push("## Strengths", "");
+    audit.strengths.forEach((strength) => lines.push(`- ${strength}`));
+    lines.push("");
+  }
+  return lines.join("\n");
+}
+
 function buildSummary(score: number, findingCount: number): string {
   if (score >= 85) {
     return "The record is well supported and internally consistent. Address the remaining low-severity notes before relying on it heavily.";
@@ -399,6 +582,43 @@ function buildSummary(score: number, findingCount: number): string {
     return "The record is usable but has material gaps that should be resolved before strong claims are made.";
   }
   return `${findingCount} adversarial issues need attention before this record can support confident conclusions.`;
+}
+
+export function getPaperConfidence(paper: Paper): ConfidenceBadge {
+  let score = 46;
+  if (paper.abstract && paper.abstract.trim().length >= 60) score += 16;
+  if (paper.authors && paper.authors.length > 0) score += 8;
+  if (paper.doi || paper.source_url) score += 12;
+  if (paper.status === "Reading" || paper.status === "Read") score += 8;
+  if (paper.publication_date) {
+    const year = Number(paper.publication_date.slice(0, 4));
+    if (Number.isFinite(year) && new Date().getFullYear() - year <= 5) score += 6;
+  }
+  const clamped = Math.max(10, Math.min(100, score));
+  if (clamped >= 78) {
+    return { score: clamped, label: "Strong", tone: "success" };
+  }
+  if (clamped >= 55) {
+    return { score: clamped, label: "Moderate", tone: "gold" };
+  }
+  return { score: clamped, label: "Needs work", tone: "coral" };
+}
+
+export function getIdeaConfidence(idea: Idea): ConfidenceBadge {
+  let score = 40;
+  if ((idea.description ?? "").trim().length >= 80) score += 14;
+  if ((idea.linked_paper_ids ?? []).length > 0) score += 10;
+  if ((idea.linked_note_ids ?? []).length > 0) score += 8;
+  if (idea.stage === "Supported" || idea.stage === "Mature") score += 12;
+  if (idea.stage === "Mature") score += 6;
+  const clamped = Math.max(10, Math.min(100, score));
+  if (clamped >= 78) {
+    return { score: clamped, label: "Strong", tone: "success" };
+  }
+  if (clamped >= 55) {
+    return { score: clamped, label: "Moderate", tone: "gold" };
+  }
+  return { score: clamped, label: "Needs work", tone: "coral" };
 }
 
 export { categoryLabel };

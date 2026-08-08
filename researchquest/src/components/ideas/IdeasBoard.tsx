@@ -28,6 +28,7 @@ import { InlineError } from "../ui/ErrorFallback";
 import { toast } from "sonner";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { ListSkeleton } from "../ui/Skeleton";
+import { getIdeaConfidence } from "../../utils/adversarialAnalysis";
 import {
   convertIdeasToCSV,
   convertIdeasToJSON,
@@ -500,8 +501,24 @@ export function IdeasBoard() {
                                 </div>
                               </div>
 
-                              {stage.id !== "Mature" && (
-                                <div className="mt-2.5 flex justify-end border-t border-border-subtle pt-2">
+                              <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-border-subtle pt-2">
+                                {(() => {
+                                  const confidence = getIdeaConfidence(idea);
+                                  const toneStyles = {
+                                    success: "bg-success-bg text-success border border-success/20",
+                                    gold: "bg-gold-soft text-gold-strong border border-gold/20",
+                                    coral: "bg-coral-soft text-coral-strong border border-coral/20",
+                                  }[confidence.tone];
+                                  return (
+                                    <span
+                                      className={`status-chip ${toneStyles}`}
+                                      title={`Confidence score: ${confidence.score}/100 (${confidence.label})`}
+                                    >
+                                      {confidence.score}
+                                    </span>
+                                  );
+                                })()}
+                                {stage.id !== "Mature" && (
                                   <button
                                     onClick={(e) =>
                                       handleMoveStage(e, idea.id, idea.stage)
@@ -511,8 +528,8 @@ export function IdeasBoard() {
                                   >
                                     Advance <ArrowRight className="w-3 h-3" />
                                   </button>
-                                </div>
-                              )}
+                                )}
+                              </div>
                             </div>
                           ))}
 

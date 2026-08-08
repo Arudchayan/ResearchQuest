@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   FileText,
   Plus,
@@ -17,6 +17,8 @@ import {
   Layers,
   Medal,
   TrendingUp,
+  Gauge,
+  ListChecks,
 } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
 import { useShallow } from "zustand/react/shallow";
@@ -26,6 +28,13 @@ import { getTopN } from "../../utils/collections";
 import { useTasks } from "../../hooks/useTasks";
 import { useTopics } from "../../hooks/useTopics";
 import { useGamificationDashboard } from "../../hooks/useGamificationDashboard";
+import {
+  DAILY_MISSIONS,
+  useDailyMissionsStore,
+} from "../../store/dailyMissionsStore";
+import { auditWorkspace } from "../../utils/adversarialAnalysis";
+import { ResearchRadar } from "./ResearchRadar";
+import { WorkspaceAuditDialog } from "../analysis/WorkspaceAuditDialog";
 import type { Note, Paper, Idea, TopicWithCounts, Task } from "../../types/database";
 
 const STAGE_STYLES: Record<string, string> = {
@@ -323,6 +332,22 @@ export function Dashboard() {
   const { activeQuest } = useTopics(user?.id);
   const { weekly, achievements, loading: gamificationLoading } =
     useGamificationDashboard(user?.id);
+  const missionProgress = useDailyMissionsStore((state) => state.progress);
+  const missionCompleted = useDailyMissionsStore((state) => state.completedToday);
+  const [showAudit, setShowAudit] = useState(false);
+
+  useEffect(() => {
+    useDailyMissionsStore.getState().resetIfNeeded();
+  }, []);
+
+  const healthAudit = useMemo(
+    () => auditWorkspace(notes, papers, ideas, Object.values(topics)),
+    [notes, papers, ideas, topics],
+  );
+  const missionPossibleXp = DAILY_MISSIONS.reduce((sum, mission) => sum + mission.xp, 0);
+  const missionEarnedXp = DAILY_MISSIONS.filter(
+    (mission) => (missionProgress[mission.id] ?? 0) >= mission.target,
+  ).reduce((sum, mission) => sum + mission.xp, 0);
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -631,6 +656,138 @@ export function Dashboard() {
             </div>
             <div className="text-caption text-text-tertiary">
               {completedTaskCount} completed tasks
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Research radar + health + missions */}
+      <section className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
+        <ResearchRadar
+          notes={notes}
+          papers={papers}
+          ideas={ideas}
+          topics={Object.values(topics)}
+        />
+
+        <div className="space-y-4">
+          <div className="surface-panel p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="font-serif text-lg font-bold text-text-primary">
+                  Workspace health
+                </h2>
+                <p className="mt-0.5 text-caption text-text-tertiary">
+                  Adversarial audit across {papers.length + ideas.length} records
+                </p>
+              </div>
+              <span className="icon-tile bg-accent-soft text-accent-strong">
+                <Gauge className="h-4 w-4" aria-hidden="true" />
+              </span>
+            </div>
+            <div className="flex items-center gap-5">
+              <ProgressRing
+                value={healthAudit.score}
+                size={84}
+                stroke={8}
+                label="Health"
+                tone={
+                  healthAudit.score >= 78
+                    ? "accent"
+                    : healthAudit.score >= 55
+                      ? "gold"
+                      : "coral"
+                }
+              />
+              <div className="min-w-0 flex-1 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-caption font-medium text-text-secondary">
+                    High severity
+                  </span>
+                  <span className="text-caption font-bold text-coral-strong">
+                    {healthAudit.severityCounts.high}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-caption font-medium text-text-secondary">
+                    Evidence gaps
+                  </span>
+                  <span className="text-caption font-bold text-gold-strong">
+                    {healthAudit.categoryCounts.evidence_gap}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-caption font-medium text-text-secondary">
+                    Risks
+                  </span>
+                  <span className="text-caption font-bold text-violet-strong">
+                    {healthAudit.categoryCounts.risk}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowAudit(true)}
+              className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-text-primary px-4 text-sm font-semibold text-bg-base shadow-lift transition-transform hover:-translate-y-0.5 hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
+            >
+              <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+              Open full audit
+            </button>
+          </div>
+
+          <div className="surface-panel p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="font-serif text-lg font-bold text-text-primary">
+                  Daily missions
+                </h2>
+                <p className="mt-0.5 text-caption text-text-tertiary">
+                  {missionCompleted}/{DAILY_MISSIONS.length} complete · {missionEarnedXp}/
+                  {missionPossibleXp} XP
+                </p>
+              </div>
+              <span className="icon-tile bg-gold-soft text-gold-strong">
+                <ListChecks className="h-4 w-4" aria-hidden="true" />
+              </span>
+            </div>
+            <div className="space-y-3">
+              {DAILY_MISSIONS.map((mission) => {
+                const progress = Math.min(mission.target, missionProgress[mission.id] ?? 0);
+                const done = progress >= mission.target;
+                return (
+                  <div key={mission.id} className="flex items-center gap-3">
+                    <span
+                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-caption font-bold ${
+                        done
+                          ? "border-success/30 bg-success-bg text-success"
+                          : "border-border-moderate bg-bg-elevated text-text-tertiary"
+                      }`}
+                    >
+                      {done ? "✓" : progress}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span
+                          className={`truncate text-small font-medium ${
+                            done ? "text-text-tertiary line-through" : "text-text-primary"
+                          }`}
+                        >
+                          {mission.label}
+                        </span>
+                        <span className="shrink-0 text-caption font-semibold text-text-secondary">
+                          +{mission.xp} XP
+                        </span>
+                      </div>
+                      <div className="progress-track mt-1.5 h-1.5 w-full">
+                        <div
+                          className={done ? "progress-fill bg-success" : "progress-fill"}
+                          style={{ width: `${(progress / mission.target) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -960,6 +1117,8 @@ export function Dashboard() {
           </section>
         </div>
       </div>
+
+      <WorkspaceAuditDialog open={showAudit} onOpenChange={setShowAudit} />
     </div>
   );
 }
