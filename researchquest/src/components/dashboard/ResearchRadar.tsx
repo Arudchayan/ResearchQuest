@@ -132,14 +132,24 @@ export function ResearchRadar({
 
   const links = useMemo(() => {
     const result: Array<[RadarNode, RadarNode]> = [];
-    const topicById = new Map(nodes.filter((node) => node.kind === "topic").map((node) => [node.id, node]));
-    nodes.forEach((node) => {
-      if (node.kind === "topic") return;
-      const connected = node.topicIds
-        .map((id) => topicById.get(id))
-        .filter((topic): topic is RadarNode => Boolean(topic));
-      connected.forEach((topic) => result.push([node, topic]));
-    });
+    const topicById = new Map<string, RadarNode>();
+    for (let i = 0; i < nodes.length; i++) {
+      if (nodes[i].kind === "topic") {
+        topicById.set(nodes[i].id, nodes[i]);
+      }
+    }
+
+    for (let i = 0; i < nodes.length; i++) {
+      const node = nodes[i];
+      if (node.kind === "topic") continue;
+
+      for (let j = 0; j < node.topicIds.length; j++) {
+        const topic = topicById.get(node.topicIds[j]);
+        if (topic) {
+          result.push([node, topic]);
+        }
+      }
+    }
     return result;
   }, [nodes]);
 
