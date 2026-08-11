@@ -54,10 +54,9 @@ export function TopicList({
         highlightQuery ? (
           <div
             className="surface-card text-center p-8 text-text-tertiary"
-            aria-hidden="true"
           >
             <div className="icon-tile mx-auto mb-3 bg-bg-elevated text-text-tertiary">
-              <Hash className="h-5 w-5 opacity-70" />
+              <Hash className="h-5 w-5 opacity-70" aria-hidden="true" />
             </div>
             <p className="text-small font-semibold text-text-secondary">
               No matches found
@@ -67,9 +66,9 @@ export function TopicList({
             </p>
           </div>
         ) : (
-          <div className="surface-card text-center p-8 text-text-tertiary" aria-hidden="true">
+          <div className="surface-card text-center p-8 text-text-tertiary">
             <div className="icon-tile mx-auto mb-3 bg-bg-elevated text-text-tertiary">
-              <Hash className="h-5 w-5 opacity-70" />
+              <Hash className="h-5 w-5 opacity-70" aria-hidden="true" />
             </div>
             <p className="text-small font-medium text-text-secondary">No topics yet</p>
             <p className="text-caption mt-1">Create a topic to start organizing your research</p>
