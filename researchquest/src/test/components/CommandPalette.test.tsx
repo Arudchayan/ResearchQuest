@@ -103,7 +103,55 @@ describe("CommandPalette", () => {
     });
   });
 
-  it("limits rendered search results to 50 matches", async () => {
+  it("handles 0 matches correctly", async () => {
+    render(<CommandPalette />);
+    fireEvent.keyDown(document, { key: "k", metaKey: true });
+
+    await waitFor(() => {
+      const input = screen.getByPlaceholderText("Type a command or search...");
+      fireEvent.change(input, { target: { value: "NonExistentItemXYZ" } });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("No results found.")).toBeInTheDocument();
+    });
+  });
+
+  it("handles exactly 1 match correctly", async () => {
+    render(<CommandPalette />);
+    fireEvent.keyDown(document, { key: "k", metaKey: true });
+
+    await waitFor(() => {
+      const input = screen.getByPlaceholderText("Type a command or search...");
+      fireEvent.change(input, { target: { value: "Test Note" } });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Test Note")).toBeInTheDocument();
+      expect(screen.queryByText("Test Paper")).not.toBeInTheDocument();
+    });
+  });
+
+  it("handles exactly 50 matches correctly", async () => {
+    mockNotes = Array.from({ length: 50 }, (_, index) => ({
+      id: `bulk-note-${index}`,
+      title: `Bulk Note ${index}`,
+      markdown_body: "",
+    }));
+    mockPapers = [];
+    mockIdeas = [];
+    useAppStore.setState({ tasks: [], topics: {} });
+
+    render(<CommandPalette />);
+    fireEvent.keyDown(document, { key: "k", metaKey: true });
+
+    await waitFor(() => {
+      expect(screen.getByText("Bulk Note 49")).toBeInTheDocument();
+      expect(screen.getAllByText(/Bulk Note/).length).toBe(50);
+    });
+  });
+
+  it("limits rendered search results to 50 matches when >50 matches exist", async () => {
     mockNotes = Array.from({ length: 60 }, (_, index) => ({
       id: `bulk-note-${index}`,
       title: `Bulk Note ${index}`,
@@ -122,6 +170,7 @@ describe("CommandPalette", () => {
     await waitFor(() => {
       expect(screen.getByText("Bulk Note 49")).toBeInTheDocument();
       expect(screen.queryByText("Bulk Note 50")).not.toBeInTheDocument();
+      expect(screen.getAllByText(/Bulk Note/).length).toBe(50);
     });
   });
 
