@@ -111,7 +111,7 @@ export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
   return (
     <div className="surface-card p-4 space-y-3">
       <div role="status" aria-live="polite" className="sr-only">
-        {selectedIds.length === 0 ? "No topics linked yet." : ""}
+        {!loading && !loadingLinks && selectedIds.length === 0 ? "No topics linked yet." : ""}
       </div>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -125,7 +125,7 @@ export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
         )}
       </div>
 
-      {selectedIds.length === 0 ? (
+      {!loading && !loadingLinks && selectedIds.length === 0 ? (
         <p className="text-caption text-text-tertiary">No topics linked yet.</p>
       ) : (
         <div className="flex flex-wrap gap-2">
