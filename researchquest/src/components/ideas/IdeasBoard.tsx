@@ -534,7 +534,7 @@ export function IdeasBoard() {
                           ))}
 
                         <div className="sr-only" role="status" aria-live="polite">
-                          {stageIdeas.length === 0 ? (
+                          {!ideasLoading && !ideasSyncError && stageIdeas.length === 0 ? (
                             searchQuery ? `No matches found in ${stage.label}. Try a different keyword or clear your search.` : `No ideas yet in ${stage.label}`
                           ) : (
                             ""
