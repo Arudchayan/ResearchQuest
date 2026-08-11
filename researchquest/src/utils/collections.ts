@@ -21,7 +21,7 @@ export function getTopN<T>(
   items: T[],
   limit: number,
   compareFn: (a: T, b: T) => number,
-  filterFn?: (item: T) => boolean
+  filterFn?: (item: T) => boolean,
 ): T[] {
   const top: T[] = [];
   for (let i = 0; i < items.length; i++) {
@@ -32,8 +32,12 @@ export function getTopN<T>(
       top.push(item);
       top.sort(compareFn);
     } else if (compareFn(item, top[limit - 1]) < 0) {
-      top[limit - 1] = item;
-      top.sort(compareFn);
+      let pos = limit - 2;
+      while (pos >= 0 && compareFn(item, top[pos]) < 0) {
+        top[pos + 1] = top[pos];
+        pos--;
+      }
+      top[pos + 1] = item;
     }
   }
   return top;
