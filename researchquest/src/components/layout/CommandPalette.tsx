@@ -250,12 +250,14 @@ export function CommandPalette() {
 
     const results = [];
     for (let i = 0; i < searchItems.length; i++) {
+      if (results.length === SEARCH_RESULTS_LIMIT) break;
       const entry = searchItems[i];
-      if (`${entry.type}: ${entry.label}`.toLowerCase().includes(normalizedSearch)) {
+      if (
+        `${entry.type}: ${entry.label}`
+          .toLowerCase()
+          .includes(normalizedSearch)
+      ) {
         results.push(entry);
-        if (results.length === SEARCH_RESULTS_LIMIT) {
-          break;
-        }
       }
     }
     return results;
