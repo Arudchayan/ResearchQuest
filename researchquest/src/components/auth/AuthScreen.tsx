@@ -79,34 +79,6 @@ export function AuthScreen() {
     }
   };
 
-  const handleTestLogin = async () => {
-    setLoading(true);
-    setMessage("");
-
-    const testEmail = import.meta.env.VITE_TEST_EMAIL;
-    const testPassword = import.meta.env.VITE_TEST_PASSWORD;
-
-    if (!testEmail || !testPassword) {
-      setMessage("Test credentials not configured");
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: testEmail,
-        password: testPassword,
-      });
-
-      if (error) throw error;
-    } catch (error: any) {
-      console.error("AuthScreen test login error:", error);
-      setMessage("An error occurred during test login. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleDemoLogin = async () => {
     setLoading(true);
     setMessage("");
@@ -123,10 +95,6 @@ export function AuthScreen() {
       setLoading(false);
     }
   };
-
-  const showTestLogin = !!(
-    import.meta.env.VITE_TEST_EMAIL && import.meta.env.VITE_TEST_PASSWORD
-  );
 
   const inputClasses =
     "w-full rounded-lg border border-border-moderate bg-bg-base px-4 py-2.5 text-body text-text-primary shadow-sm transition-all placeholder:text-text-tertiary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25";
@@ -203,7 +171,7 @@ export function AuthScreen() {
               </p>
             </div>
 
-            {(isDemoMode || showTestLogin) && (
+            {isDemoMode && (
               <div className="mb-6 space-y-3">
                 {isDemoMode && (
                   <button
@@ -217,17 +185,7 @@ export function AuthScreen() {
                     <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
                   </button>
                 )}
-                {showTestLogin && (
-                  <button
-                    type="button"
-                    onClick={handleTestLogin}
-                    disabled={loading}
-                    className="flex w-full items-center justify-center gap-2 rounded-lg border border-border-moderate bg-bg-surface px-4 py-2.5 text-small font-medium text-text-secondary transition-colors hover:text-text-primary disabled:opacity-60"
-                  >
-                    Use test login
-                  </button>
-                )}
-                {(isDemoMode || showTestLogin) && (
+                {isDemoMode && (
                   <div className="flex items-center gap-3 py-1 text-caption text-text-tertiary">
                     <span className="h-px flex-1 bg-border-subtle" aria-hidden="true" />
                     <span>or use email</span>
