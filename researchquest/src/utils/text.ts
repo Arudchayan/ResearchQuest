@@ -18,31 +18,16 @@ export function estimateReadingTime(text: string): string {
 }
 
 /**
- * Efficiently extracts a title from markdown content.
- * Finds the first non-empty line without splitting the entire string.
- * Strips leading '#' characters.
+ * Extracts a title from markdown content.
+ * Finds the first non-empty line and strips leading '#' characters.
  */
 export function deriveTitleFromMarkdown(markdownBody: string): string {
-  if (!markdownBody) return "Untitled Note";
-
-  // Find first non-empty line without splitting the whole string
-  let start = 0;
-  let end = markdownBody.indexOf("\n");
-
-  while (end !== -1) {
-    const line = markdownBody.slice(start, end).trim();
-    if (line) {
-      return line.replace(/^#+\s*/, "").trim() || "Untitled Note";
-    }
-    start = end + 1;
-    end = markdownBody.indexOf("\n", start);
-  }
-
-  // Handle the last line (or if no newlines)
-  const lastLine = markdownBody.slice(start).trim();
-  if (lastLine) {
-    return lastLine.replace(/^#+\s*/, "").trim() || "Untitled Note";
-  }
-
-  return "Untitled Note";
+  return (
+    markdownBody
+      .split("\n")
+      .map((l) => l.trim())
+      .find((l) => l)
+      ?.replace(/^#+\s*/, "")
+      .trim() || "Untitled Note"
+  );
 }

@@ -1,10 +1,26 @@
 import React from "react";
 import { Trash2, Clock } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
 import { cn } from "../../lib/utils";
 import type { Note } from "../../types/database";
 import { highlightMatch } from "../../utils/highlight";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+
+const relativeTime = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+
+function formatRelativeTime(date: Date): string {
+  const now = new Date();
+  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  const weeks = Math.floor(days / 7);
+
+  if (weeks > 0) return relativeTime.format(-weeks, "week");
+  if (days > 0) return relativeTime.format(-days, "day");
+  if (hours > 0) return relativeTime.format(-hours, "hour");
+  if (minutes > 0) return relativeTime.format(-minutes, "minute");
+  return relativeTime.format(0, "minute");
+}
 
 interface NoteCardProps {
   note: Note;
@@ -95,7 +111,7 @@ export const NoteCard = React.memo(function NoteCard({
       <div className="flex items-center gap-2 text-caption text-text-tertiary">
         <Clock className="h-3 w-3 shrink-0" aria-hidden="true" />
         <span>
-          {formatDistanceToNow(new Date(note.updated_at), { addSuffix: true })}
+          {formatRelativeTime(new Date(note.updated_at))}
         </span>
       </div>
     </div>

@@ -9,7 +9,6 @@ import type {
   TopicEntityType,
   TopicQuestWithTopic,
 } from "../types/database";
-import type { PostgrestError } from "@supabase/supabase-js";
 import { useShallow } from "zustand/react/shallow";
 
 interface TopicRow extends TopicWithCounts {
@@ -43,34 +42,12 @@ const ENTITY_COLUMN: Record<TopicEntityType, string> = {
 
 // Global caches to persist across hook instances/remounts
 const globalLinkCache = new Map<string, string[]>();
-const tableSupportCache = new Map<string, Promise<boolean>>();
 const fetchedUsers = new Set<string>();
 let importRefreshVersion = 0;
 
 export function resetTopicsCache() {
   fetchedUsers.clear();
   importRefreshVersion++;
-}
-
-function tableSupportsUserId(table: string): Promise<boolean> {
-  let promise = tableSupportCache.get(table);
-  if (!promise) {
-    promise = (async () => {
-      const { error } = await supabase.from(table).select("user_id").limit(1);
-
-      let supported = true;
-      if (error) {
-        const normalized =
-          `${error.message ?? ""} ${error.details ?? ""}`.toLowerCase();
-        if (normalized.includes("column") && normalized.includes("user_id")) {
-          supported = false;
-        }
-      }
-      return supported;
-    })();
-    tableSupportCache.set(table, promise);
-  }
-  return promise;
 }
 
 function coerceCount(value?: { count: number | null }[]): number {
@@ -192,7 +169,6 @@ export function useTopics(
   const [quests, setQuests] = useState<TopicQuestWithTopic[]>([]);
   const [questsLoading, setQuestsLoading] = useState(false);
 
-  const supportsCountsRef = useRef(true);
   const previousRetryVersion = useRef(topicsRetryVersion);
   // Stale-response guards: every list fetch bumps the generation; only the
   // latest generation for the current user may commit results, so late
@@ -200,22 +176,6 @@ export function useTopics(
   const topicFetchGeneration = useRef(0);
   const userIdRef = useRef(userId);
   userIdRef.current = userId;
-  const linkSupportsUserIdRef = useRef<Record<TopicEntityType, boolean>>({
-    note: false,
-    paper: true,
-    idea: true,
-  });
-
-  const isRelationshipError = useCallback((err: PostgrestError | null) => {
-    if (!err) return false;
-    const match = err.message
-      ?.toLowerCase()
-      .includes("could not find a relationship");
-    if (match) {
-      supportsCountsRef.current = false;
-    }
-    return Boolean(match);
-  }, []);
 
   const fetchTopics = useCallback(
     async (force = false) => {
@@ -249,22 +209,11 @@ export function useTopics(
 
       setLoading(true);
       setTopicsLoading(true);
-      const selectColumns = supportsCountsRef.current ? TOPIC_SELECT : "*";
-      let { data, error: fetchError } = await supabase
+      const { data, error: fetchError } = await supabase
         .from("topics")
-        .select(selectColumns)
+        .select(TOPIC_SELECT)
         .eq("user_id", userId)
         .order("updated_at", { ascending: false });
-
-      if (fetchError && isRelationshipError(fetchError)) {
-        const fallback = await supabase
-          .from("topics")
-          .select("*")
-          .eq("user_id", userId)
-          .order("updated_at", { ascending: false });
-        data = fallback.data;
-        fetchError = fallback.error;
-      }
 
       if (
         generation !== topicFetchGeneration.current ||
@@ -296,31 +245,19 @@ export function useTopics(
       setLoading(false);
       setTopicsLoading(false);
     },
-    [isRelationshipError, owner, setTopics, setTopicsLoading, setDataSyncError, userId],
+    [owner, setTopics, setTopicsLoading, setDataSyncError, userId],
   );
 
   const fetchTopicById = useCallback(
     async (topicId: string) => {
       if (!userId) return;
 
-      const selectColumns = supportsCountsRef.current ? TOPIC_SELECT : "*";
-      let { data, error: fetchError } = await supabase
+      const { data, error: fetchError } = await supabase
         .from("topics")
-        .select(selectColumns)
+        .select(TOPIC_SELECT)
         .eq("user_id", userId)
         .eq("id", topicId)
         .maybeSingle();
-
-      if (fetchError && isRelationshipError(fetchError)) {
-        const fallback = await supabase
-          .from("topics")
-          .select("*")
-          .eq("user_id", userId)
-          .eq("id", topicId)
-          .maybeSingle();
-        data = fallback.data;
-        fetchError = fallback.error;
-      }
 
       if (fetchError) {
         logger.error(
@@ -339,7 +276,7 @@ export function useTopics(
         }
       }
     },
-    [isRelationshipError, setSelectedTopic, upsertTopic, userId],
+    [setSelectedTopic, upsertTopic, userId],
   );
 
   const fetchQuests = useCallback(async () => {
@@ -405,45 +342,6 @@ export function useTopics(
       setQuests((prev) => [quest, ...prev]);
     }
   }, [quests, topics, userId]);
-
-  useEffect(() => {
-    if (!userId) {
-      linkSupportsUserIdRef.current = { note: false, paper: true, idea: true };
-      return;
-    }
-
-    let cancelled = false;
-
-    const detect = async () => {
-      const entries = await Promise.all(
-        (["note", "paper", "idea"] as const).map(async (type) => {
-          const table = ENTITY_TABLE[type];
-          try {
-            const supports = await tableSupportsUserId(table);
-            return { type, supports };
-          } catch (error) {
-            logger.error(
-              `Failed to detect user_id support for ${table}`,
-              (error as Error).message || error,
-            );
-            return { type, supports: linkSupportsUserIdRef.current[type] };
-          }
-        }),
-      );
-
-      if (cancelled) return;
-
-      entries.forEach(({ type, supports }) => {
-        linkSupportsUserIdRef.current[type] = supports;
-      });
-    };
-
-    void detect();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [userId]);
 
   // Refs to track if we need a force-refresh after cache reset
   const prevImportVersion = useRef(importRefreshVersion);
@@ -514,9 +412,7 @@ export function useTopics(
       toast.success("Topic created");
       await awardXP(userId, XP_REWARDS.CREATE_TOPIC, "create_topic");
       void ensureActiveQuest();
-      if (supportsCountsRef.current) {
-        void fetchTopicById(mapped.id);
-      }
+      void fetchTopicById(mapped.id);
       return mapped;
     },
     [ensureActiveQuest, fetchTopicById, setSelectedTopic, upsertTopic, userId],
@@ -706,26 +602,14 @@ export function useTopics(
       const payload: Record<string, unknown> = {
         topic_id: topicId,
         [column]: entityId,
+        user_id: userId,
       };
-
-      if (linkSupportsUserIdRef.current[entityType]) {
-        payload["user_id"] = userId;
-      }
 
       const { error: upsertError } = await supabase
         .from(table)
         .upsert(payload, { onConflict: `topic_id,${column}` });
 
       if (upsertError) {
-        const normalizedMessage =
-          `${upsertError.message ?? ""} ${upsertError.details ?? ""}`.toLowerCase();
-        const missingUserId =
-          normalizedMessage.includes("user_id") &&
-          normalizedMessage.includes("does not exist");
-        if (missingUserId && linkSupportsUserIdRef.current[entityType]) {
-          linkSupportsUserIdRef.current[entityType] = false;
-          return attachTopicToEntity(topicId, entityId, entityType);
-        }
         logger.error(
           "Failed to link topic:",
           upsertError.message || "Unknown error",
@@ -763,17 +647,12 @@ export function useTopics(
       const table = ENTITY_TABLE[entityType];
       const column = ENTITY_COLUMN[entityType];
 
-      let query = supabase
+      const { error: deleteError } = await supabase
         .from(table)
         .delete()
         .eq("topic_id", topicId)
-        .eq(column, entityId);
-
-      if (linkSupportsUserIdRef.current[entityType]) {
-        query = query.eq("user_id", userId);
-      }
-
-      const { error: deleteError } = await query;
+        .eq(column, entityId)
+        .eq("user_id", userId);
 
       if (deleteError) {
         logger.error(
@@ -812,13 +691,11 @@ export function useTopics(
 
       const table = ENTITY_TABLE[entityType];
       const column = ENTITY_COLUMN[entityType];
-      let query = supabase.from(table).select("topic_id").eq(column, entityId);
-
-      if (linkSupportsUserIdRef.current[entityType]) {
-        query = query.eq("user_id", userId);
-      }
-
-      const { data, error: fetchError } = await query;
+      const { data, error: fetchError } = await supabase
+        .from(table)
+        .select("topic_id")
+        .eq(column, entityId)
+        .eq("user_id", userId);
 
       if (fetchError) {
         logger.error(

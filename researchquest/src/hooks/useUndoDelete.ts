@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { UNDO_WINDOW_MS } from "../lib/constants";
+
+const UNDO_WINDOW_MS = 6000;
 
 /**
  * Shared hook for the "delete with undo" pattern used across TaskManager,

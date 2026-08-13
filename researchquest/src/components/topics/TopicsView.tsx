@@ -11,7 +11,8 @@ import { convertTopicsToCSV, convertTopicsToJSON, convertTopicsToMarkdown, downl
 import { logger } from "../../utils/logger";
 import { Button } from "../ui/button";
 import { InlineError } from "../ui/ErrorFallback";
-import { UNDO_WINDOW_MS } from "../../lib/constants";
+
+const UNDO_WINDOW_MS = 6000;
 
 type SortOption =
   | "name_asc"

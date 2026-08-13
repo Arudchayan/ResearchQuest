@@ -1,11 +1,11 @@
 import { describe, bench, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useNotes } from './useNotes';
-import { useAppStore } from '../store/appStore';
-import { supabase } from '../lib/supabase';
+import { useNotes } from '../../hooks/useNotes';
+import { useAppStore } from '../../store/appStore';
+import { supabase } from '../../lib/supabase';
 
 // Mock supabase
-vi.mock('../lib/supabase', () => ({
+vi.mock('../../lib/supabase', () => ({
   supabase: {
     from: vi.fn().mockReturnThis(),
     update: vi.fn().mockReturnThis(),

@@ -22,25 +22,61 @@ export function Skeleton({ className, ...props }: SkeletonProps) {
 }
 
 /**
+ * Shared chrome for the four entity-card skeletons; each variant differs
+ * only in bar widths.
+ */
+interface EntityCardSkeletonProps {
+  titleWidth: string;
+  lineWidths?: string[];
+  badgeWidth?: string;
+  chipWidths?: string[];
+  iconSize?: string;
+  padding?: string;
+}
+
+function EntityCardSkeleton({
+  titleWidth,
+  lineWidths = [],
+  badgeWidth,
+  chipWidths = [],
+  iconSize = "w-4 h-4 flex-shrink-0",
+  padding = "p-3",
+}: EntityCardSkeletonProps) {
+  return (
+    <div
+      aria-hidden="true"
+      className={cn(
+        padding,
+        "rounded-md border border-border-subtle bg-bg-surface space-y-2",
+      )}
+    >
+      <div className="flex items-center gap-2">
+        <Skeleton className={iconSize} />
+        <Skeleton className={cn("h-4", titleWidth)} />
+      </div>
+      {lineWidths.map((width) => (
+        <Skeleton key={width} className={cn("h-3", width)} />
+      ))}
+      <div className="flex gap-2 mt-2">
+        {badgeWidth && <Skeleton className={cn("h-6 rounded-md", badgeWidth)} />}
+        {chipWidths.map((width) => (
+          <Skeleton key={width} className={cn("h-3", width)} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
  * Skeleton for note cards in the sidebar
  */
 export function NoteCardSkeleton() {
   return (
-    <div
-      aria-hidden="true"
-      className="p-3 rounded-md border border-border-subtle bg-bg-surface space-y-2"
-    >
-      <div className="flex items-center gap-2">
-        <Skeleton className="w-4 h-4 flex-shrink-0" />
-        <Skeleton className="h-4 w-3/4" />
-      </div>
-      <Skeleton className="h-3 w-full" />
-      <Skeleton className="h-3 w-2/3" />
-      <div className="flex gap-3 mt-2">
-        <Skeleton className="h-3 w-12" />
-        <Skeleton className="h-3 w-16" />
-      </div>
-    </div>
+    <EntityCardSkeleton
+      titleWidth="w-3/4"
+      lineWidths={["w-full", "w-2/3"]}
+      chipWidths={["w-12", "w-16"]}
+    />
   );
 }
 
@@ -49,20 +85,12 @@ export function NoteCardSkeleton() {
  */
 export function PaperCardSkeleton() {
   return (
-    <div
-      aria-hidden="true"
-      className="p-3 rounded-md border border-border-subtle bg-bg-surface space-y-2"
-    >
-      <div className="flex items-center gap-2">
-        <Skeleton className="w-4 h-4 flex-shrink-0" />
-        <Skeleton className="h-4 w-4/5" />
-      </div>
-      <Skeleton className="h-3 w-3/5" />
-      <div className="flex gap-2 mt-2">
-        <Skeleton className="h-6 w-20 rounded-md" />
-        <Skeleton className="h-3 w-12" />
-      </div>
-    </div>
+    <EntityCardSkeleton
+      titleWidth="w-4/5"
+      lineWidths={["w-3/5"]}
+      badgeWidth="w-20"
+      chipWidths={["w-12"]}
+    />
   );
 }
 
@@ -71,21 +99,12 @@ export function PaperCardSkeleton() {
  */
 export function IdeaCardSkeleton() {
   return (
-    <div
-      aria-hidden="true"
-      className="p-3 rounded-md border border-border-subtle bg-bg-surface space-y-2"
-    >
-      <div className="flex items-center gap-2">
-        <Skeleton className="w-4 h-4 flex-shrink-0" />
-        <Skeleton className="h-4 w-4/5" />
-      </div>
-      <Skeleton className="h-3 w-full" />
-      <Skeleton className="h-3 w-3/4" />
-      <div className="flex gap-2 mt-2">
-        <Skeleton className="h-6 w-24 rounded-md" />
-        <Skeleton className="h-3 w-16" />
-      </div>
-    </div>
+    <EntityCardSkeleton
+      titleWidth="w-4/5"
+      lineWidths={["w-full", "w-3/4"]}
+      badgeWidth="w-24"
+      chipWidths={["w-16"]}
+    />
   );
 }
 
@@ -94,19 +113,13 @@ export function IdeaCardSkeleton() {
  */
 export function TaskCardSkeleton() {
   return (
-    <div
-      aria-hidden="true"
-      className="p-4 rounded-lg border border-border-subtle bg-bg-surface space-y-2"
-    >
-      <div className="flex items-start gap-3">
-        <Skeleton className="w-5 h-5 rounded flex-shrink-0 mt-0.5" />
-        <div className="flex-1 space-y-2">
-          <Skeleton className="h-4 w-4/5" />
-          <Skeleton className="h-3 w-2/3" />
-        </div>
-        <Skeleton className="h-6 w-16 rounded-md" />
-      </div>
-    </div>
+    <EntityCardSkeleton
+      titleWidth="w-4/5"
+      lineWidths={["w-2/3"]}
+      badgeWidth="w-16"
+      iconSize="w-5 h-5 rounded flex-shrink-0 mt-0.5"
+      padding="p-4"
+    />
   );
 }
 

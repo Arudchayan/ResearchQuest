@@ -7,17 +7,11 @@ export function extractYear(dateString?: string): string {
   if (!dateString) return "n.d.";
 
   // Fast path: check if the first 4 characters are digits
-  // Using charCodeAt is ~2x faster than substring+regex for early returns on ISO dates
-  if (
-    dateString.length >= 4 &&
-    dateString.charCodeAt(0) >= 48 && dateString.charCodeAt(0) <= 57 &&
-    dateString.charCodeAt(1) >= 48 && dateString.charCodeAt(1) <= 57 &&
-    dateString.charCodeAt(2) >= 48 && dateString.charCodeAt(2) <= 57 &&
-    dateString.charCodeAt(3) >= 48 && dateString.charCodeAt(3) <= 57
-  ) {
+  const candidate = dateString.slice(0, 4);
+  if (dateString.length >= 4 && /^\d{4}$/.test(candidate)) {
     // If it's exactly 4 characters, or the 5th character is a non-digit (like '-', 'T', ' '), we found our year
     if (dateString.length === 4 || dateString.charCodeAt(4) < 48 || dateString.charCodeAt(4) > 57) {
-        return dateString.substring(0, 4);
+        return candidate;
     }
   }
 

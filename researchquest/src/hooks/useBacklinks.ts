@@ -86,8 +86,5 @@ export function useBacklinks(
     backlinks,
     // Show loading only if the store is still initializing the collections
     loading: notesLoading || ideasLoading,
-    refresh: async () => {
-      // No-op: Data is reactive via store subscriptions
-    },
   };
 }

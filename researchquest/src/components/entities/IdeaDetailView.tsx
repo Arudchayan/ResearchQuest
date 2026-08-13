@@ -28,7 +28,7 @@ import { useTasks } from "../../hooks/useTasks";
 import { useIdeas } from "../../hooks/useIdeas";
 import { IDEA_STAGES } from "../ideas/ideaStages";
 import { useAppStore } from "../../store/appStore";
-import { performDeepResearch, type DeepResearchData } from "../../utils/deepResearch";
+import { supabase } from "../../lib/supabase";
 import { logger } from "../../utils/logger";
 import {
   convertIdeasToMarkdown,
@@ -36,6 +36,23 @@ import {
   convertIdeasToJSON,
   downloadFile,
 } from "../../utils/export";
+
+interface DeepResearchPaper {
+  title: string;
+  year: number | null;
+  citationCount: number | null;
+  authors: string[];
+  abstract: string | null;
+}
+
+interface DeepResearchData {
+  query: string;
+  reasoningSteps: string[];
+  summary: string;
+  suggestedKeywords: string[];
+  timestamp: string;
+  papers?: DeepResearchPaper[];
+}
 
 interface IdeaDetailViewProps {
   idea: Idea;
@@ -253,7 +270,14 @@ export function IdeaDetailView({
   const handleDeepResearch = async () => {
     setIsDeepResearching(true);
     try {
-      const result: DeepResearchData = await performDeepResearch(idea.title);
+      const { data, error } = await supabase.functions.invoke("deep-research", {
+        body: { query: idea.title },
+      });
+      if (error) {
+        logger.error("Deep research error", error);
+        throw error;
+      }
+      const result: DeepResearchData = data.data;
 
       const papersSection = result.papers && result.papers.length > 0
         ? `\n\n**Top Papers Found:**\n` +

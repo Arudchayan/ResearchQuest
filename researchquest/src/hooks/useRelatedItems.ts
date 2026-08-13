@@ -18,6 +18,14 @@ interface RelatedLink {
   topicCount: number;
 }
 
+const LINK_CONFIG = [
+  { type: "note", table: "topic_notes", idColumn: "note_id" },
+  { type: "paper", table: "topic_papers", idColumn: "paper_id" },
+  { type: "idea", table: "topic_ideas", idColumn: "idea_id" },
+] as const;
+
+const PLACEHOLDER_UUID = "00000000-0000-0000-0000-000000000000";
+
 export function useRelatedItems(
   entityId: string | null,
   entityType: "note" | "paper" | "idea" | null,
@@ -80,83 +88,29 @@ export function useRelatedItems(
       // This allows us to keep this effect independent of store updates.
       // Additionally, we use Promise.all to fetch related items concurrently.
 
-      const [notesResult, papersResult, ideasResult] = await Promise.all([
-        supabase
-          .from("topic_notes")
-          .select("note_id, topic_id")
-          .in("topic_id", topicIds)
-          .neq(
-            "note_id",
-            entityType === "note"
-              ? entityId
-              : "00000000-0000-0000-0000-000000000000",
-          ),
+      const results = await Promise.all(
+        LINK_CONFIG.map(({ type, table, idColumn }) =>
+          supabase
+            .from(table)
+            .select(`${idColumn}, topic_id`)
+            .in("topic_id", topicIds)
+            .neq(idColumn, entityType === type ? entityId : PLACEHOLDER_UUID),
+        ),
+      );
 
-        supabase
-          .from("topic_papers")
-          .select("paper_id, topic_id")
-          .in("topic_id", topicIds)
-          .neq(
-            "paper_id",
-            entityType === "paper"
-              ? entityId
-              : "00000000-0000-0000-0000-000000000000",
-          ),
+      for (let i = 0; i < LINK_CONFIG.length; i++) {
+        const { type, idColumn } = LINK_CONFIG[i]!;
+        const { data, error } = results[i]!;
 
-        supabase
-          .from("topic_ideas")
-          .select("idea_id, topic_id")
-          .in("topic_id", topicIds)
-          .neq(
-            "idea_id",
-            entityType === "idea"
-              ? entityId
-              : "00000000-0000-0000-0000-000000000000",
-          ),
-      ]);
-
-      // Find related notes
-      const { data: relatedNotes, error: notesError } = notesResult;
-
-      if (!notesError && relatedNotes) {
-        for (const link of relatedNotes) {
-          const key = `note-${link.note_id}`;
-          if (linkMap.has(key)) {
-            linkMap.get(key)!.topicCount++;
-          } else {
-            linkMap.set(key, { id: link.note_id, type: "note", topicCount: 1 });
-          }
-        }
-      }
-
-      // Find related papers
-      const { data: relatedPapers, error: papersError } = papersResult;
-
-      if (!papersError && relatedPapers) {
-        for (const link of relatedPapers) {
-          const key = `paper-${link.paper_id}`;
-          if (linkMap.has(key)) {
-            linkMap.get(key)!.topicCount++;
-          } else {
-            linkMap.set(key, {
-              id: link.paper_id,
-              type: "paper",
-              topicCount: 1,
-            });
-          }
-        }
-      }
-
-      // Find related ideas
-      const { data: relatedIdeas, error: ideasError } = ideasResult;
-
-      if (!ideasError && relatedIdeas) {
-        for (const link of relatedIdeas) {
-          const key = `idea-${link.idea_id}`;
-          if (linkMap.has(key)) {
-            linkMap.get(key)!.topicCount++;
-          } else {
-            linkMap.set(key, { id: link.idea_id, type: "idea", topicCount: 1 });
+        if (!error && data) {
+          // ponytail: rows are typed per-table by the dynamic select string; index by column name
+          for (const link of data as { [key: string]: string }[]) {
+            const key = `${type}-${link[idColumn]}`;
+            if (linkMap.has(key)) {
+              linkMap.get(key)!.topicCount++;
+            } else {
+              linkMap.set(key, { id: link[idColumn], type, topicCount: 1 });
+            }
           }
         }
       }

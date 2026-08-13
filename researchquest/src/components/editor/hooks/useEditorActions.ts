@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import DOMPurify from "dompurify";
 import { NOTE_BODY_MAX_LENGTH } from "../../../hooks/useNotes";
 import { useAppStore } from "../../../store/appStore";
+import { downloadFile } from "../../../utils/export";
 import type { Note } from "../../../types/database";
 import type { SaveState } from "./useMarkdownEditor";
 
@@ -65,15 +66,7 @@ export function useEditorActions({ content, title, previewRef, selectedNote, use
       .replace(/\s+/g, "_");
     const filename = `${safeTitle || "note"}.md`;
 
-    const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    downloadFile(content, filename, "text/markdown;charset=utf-8");
   }, [content, title]);
 
   const handlePrint = useCallback(() => {

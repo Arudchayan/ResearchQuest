@@ -1,11 +1,10 @@
-import { useMemo, useRef } from "react";
+import { useMemo } from "react";
 
 /**
  * A generic hook for filtering, searching, and sorting a list of items.
  *
- * Pre-computes searchable text from items so that fast keystroke filtering
- * doesn't rebuild strings on every render. Filters by text query first,
- * then applies an optional filter predicate, then sorts.
+ * Filters by text query first, then applies an optional filter predicate,
+ * then sorts.
  *
  * @param items - The list of items to filter (can be null/undefined).
  * @param searchQuery - The search query string.
@@ -21,45 +20,28 @@ export function useFilteredList<T>(
   sortFn?: (a: T, b: T) => number,
   filterFn?: (item: T) => boolean,
 ): T[] {
-  // Keep a ref to searchableFields so the pre-computation useMemo
-  // only depends on `items`, avoiding unnecessary recomputation
-  // when the callback reference changes.
-  const searchableFieldsRef = useRef(searchableFields);
-  searchableFieldsRef.current = searchableFields;
-
-  // ⚡ PERFORMANCE OPTIMIZATION: Pre-compute derived text fields for faster searching
-  const searchableItems = useMemo(() => {
-    const safeItems = items || [];
-    const fields = searchableFieldsRef.current;
-    return safeItems.map((item) => ({
-      item,
-      searchText: fields(item).toLowerCase(),
-    }));
-  }, [items]);
-
   return useMemo(() => {
     const normalizedQuery = searchQuery?.trim().toLowerCase() || "";
+    const source = items || [];
 
     // Optimization: Skip search iteration if no query and no extra filter
     if (!normalizedQuery && !filterFn) {
-      const allItems = searchableItems.map((si) => si.item);
+      const allItems = [...source];
       if (sortFn) {
         return allItems.sort(sortFn);
       }
       return allItems;
     }
 
-    // ⚡ PERFORMANCE OPTIMIZATION: Iterate the pre-computed searchableItems array
-    // directly instead of allocating intermediate arrays or sets.
     const results: T[] = [];
-    for (const si of searchableItems) {
-      if (filterFn && !filterFn(si.item)) {
+    for (const item of source) {
+      if (filterFn && !filterFn(item)) {
         continue;
       }
-      if (normalizedQuery && !si.searchText.includes(normalizedQuery)) {
+      if (normalizedQuery && !searchableFields(item).toLowerCase().includes(normalizedQuery)) {
         continue;
       }
-      results.push(si.item);
+      results.push(item);
     }
 
     if (sortFn) {
@@ -67,5 +49,5 @@ export function useFilteredList<T>(
     }
 
     return results;
-  }, [searchQuery, searchableItems, sortFn, filterFn]);
+  }, [items, searchQuery, searchableFields, sortFn, filterFn]);
 }

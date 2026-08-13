@@ -149,46 +149,6 @@ async function synthesiseWithOpenAI(
   }
 }
 
-async function synthesiseWithAnthropic(
-  query: string,
-  papers: SemanticPaper[],
-  apiKey: string,
-): Promise<AISynthesisResult | null> {
-  const prompt =
-    `Based on these papers for the query "${query}", write a concise 3-4 sentence research landscape summary covering the current state, key themes, and notable gaps. Also provide 6-8 specific search keywords.\n\nPapers:\n${buildPaperContext(papers)}` +
-    AI_PROMPT_SUFFIX;
-
-  try {
-    const response = await fetchWithTimeout(
-      "https://api.anthropic.com/v1/messages",
-      {
-        method: "POST",
-        headers: {
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "claude-haiku-4-5",
-          max_tokens: 600,
-          messages: [{ role: "user", content: prompt }],
-        }),
-      },
-      15000,
-    );
-    if (!response.ok) return null;
-    const data = await response.json();
-    const content = data?.content?.[0]?.text;
-    if (!content) {
-      console.error("[ERROR] Claude response missing content:", JSON.stringify(data));
-      return null;
-    }
-    return parseAIJson(content);
-  } catch {
-    return null;
-  }
-}
-
 function extractKeywords(query: string, papers: SemanticPaper[]): string[] {
   const seen = new Set<string>();
   const add = (w: string) => seen.add(w.toLowerCase());
@@ -310,20 +270,16 @@ Deno.serve(async (req) => {
     }
 
     const openaiKey = Deno.env.get("OPENAI_API_KEY");
-    const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
     let aiResult: AISynthesisResult | null = null;
 
     if (papers.length > 0 && openaiKey) {
       reasoningSteps.push("Synthesising research landscape with OpenAI");
       aiResult = await synthesiseWithOpenAI(trimmedQuery, papers, openaiKey);
-    } else if (papers.length > 0 && anthropicKey) {
-      reasoningSteps.push("Synthesising research landscape with Anthropic");
-      aiResult = await synthesiseWithAnthropic(trimmedQuery, papers, anthropicKey);
     }
 
     if (aiResult) {
       reasoningSteps.push("AI synthesis complete — summary and keywords generated from paper abstracts");
-    } else if (papers.length > 0 && (openaiKey || anthropicKey)) {
+    } else if (papers.length > 0 && openaiKey) {
       reasoningSteps.push("AI synthesis unavailable — using metadata-based synthesis");
     }
 

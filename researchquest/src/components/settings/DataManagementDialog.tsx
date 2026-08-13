@@ -1,7 +1,6 @@
 import { useRef, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Tabs from "@radix-ui/react-tabs";
-import { z } from "zod";
 import { AlertTriangle, Check, Database, Download, FileJson, Loader2, Trash2, Upload, X } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { toast } from "sonner";
@@ -19,18 +18,35 @@ type EntityKey = (typeof ENTITY_KEYS)[number];
 type Selection = Record<EntityKey, boolean>;
 type Counts = Record<EntityKey, number>;
 
-const backupSchema = z.object({
-  metadata: z.object({ appName: z.literal("ResearchQuest"), timestamp: z.string().optional() }),
-  notes: z.array(z.unknown()),
-  papers: z.array(z.unknown()),
-  ideas: z.array(z.unknown()),
-  tasks: z.array(z.unknown()),
-  topics: z.array(z.unknown()),
-  topicNotes: z.array(z.unknown()).optional(),
-  topicPapers: z.array(z.unknown()).optional(),
-  topicIdeas: z.array(z.unknown()).optional(),
-}).passthrough();
-type BackupData = z.infer<typeof backupSchema>;
+type BackupData = {
+  metadata: { appName: "ResearchQuest"; timestamp?: string };
+  notes: unknown[];
+  papers: unknown[];
+  ideas: unknown[];
+  tasks: unknown[];
+  topics: unknown[];
+  topicNotes?: unknown[];
+  topicPapers?: unknown[];
+  topicIdeas?: unknown[];
+  [key: string]: unknown;
+};
+
+function isBackupData(value: unknown): value is BackupData {
+  if (typeof value !== "object" || value === null) return false;
+  const obj = value as Record<string, unknown>;
+  if (
+    typeof obj.metadata !== "object" ||
+    obj.metadata === null ||
+    (obj.metadata as Record<string, unknown>).appName !== "ResearchQuest"
+  ) {
+    return false;
+  }
+  const arrays = ["notes", "papers", "ideas", "tasks", "topics"] as const;
+  for (const key of arrays) {
+    if (!Array.isArray(obj[key])) return false;
+  }
+  return true;
+}
 
 const EMPTY_COUNTS: Counts = { notes: 0, papers: 0, ideas: 0, tasks: 0, topics: 0 };
 const labels: Record<EntityKey, string> = { notes: "Notes", papers: "Papers", ideas: "Ideas", tasks: "Tasks", topics: "Topics" };
@@ -91,11 +107,11 @@ export function DataManagementDialog({ open, onClose }: DataManagementDialogProp
     const size = validateFileSize(file);
     if (!size.valid) { setError(new Error(size.message || "Backup file is too large")); return; }
     try {
-      const parsed = backupSchema.safeParse(JSON.parse(await file.text()));
-      if (!parsed.success) throw new Error("This is not a valid ResearchQuest backup.");
-      const selection = Object.fromEntries(ENTITY_KEYS.map((key) => [key, parsed.data[key].length > 0])) as Selection;
-      setImportFile(file); setBackup(parsed.data); setImportSelection(selection); setImportResult(null);
-      await previewConflicts(parsed.data, selection);
+      const parsed = JSON.parse(await file.text());
+      if (!isBackupData(parsed)) throw new Error("This is not a valid ResearchQuest backup.");
+      const selection = Object.fromEntries(ENTITY_KEYS.map((key) => [key, parsed[key].length > 0])) as Selection;
+      setImportFile(file); setBackup(parsed); setImportSelection(selection); setImportResult(null);
+      await previewConflicts(parsed, selection);
     } catch (caught) { resetImport(); setError(caught instanceof Error ? caught : new Error("Could not read the backup file.")); }
   };
 

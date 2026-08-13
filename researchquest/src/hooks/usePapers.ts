@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import {
   awardXP,
@@ -13,6 +13,12 @@ import type { Paper, CrossrefPaper, PaperDraft } from "../types/database";
 import { extractFunctionErrorMessage } from "../utils/errors";
 import { logger } from "../utils/logger";
 import { useAppStore } from "../store/appStore";
+import {
+  useEntityCrud,
+  awardXPAndNotify,
+  type AppStoreState,
+  type CrudError,
+} from "./useEntityCrud";
 
 const PAPER_TITLE_MAX_LENGTH = 255;
 const PAPER_ABSTRACT_MAX_LENGTH = 5000;
@@ -34,6 +40,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function getFunctionPayload<T>(value: unknown): FunctionErrorPayload<T> | null {
   return isRecord(value) ? (value as FunctionErrorPayload<T>) : null;
 }
+
+const selectPapers = (state: AppStoreState) => state.papers;
+const selectSetPapers = (state: AppStoreState) => state.setPapers;
+const selectPapersLoading = (state: AppStoreState) => state.papersLoading;
+const selectSelectedPaper = (state: AppStoreState) => state.selectedPaper;
+const selectSetSelectedPaper = (state: AppStoreState) => state.setSelectedPaper;
 
 // Helper function to create a reading task for a newly added paper
 async function createReadingTaskForPaper(
@@ -96,23 +108,161 @@ export interface PaperSearchOptions {
   order?: "asc" | "desc";
 }
 
-export function usePapers(userId: string | undefined) {
-  const papers = useAppStore((state) => state.papers);
-  const loading = useAppStore((state) => state.papersLoading);
-  const setPapers = useAppStore((state) => state.setPapers);
-  const setSelectedPaper = useAppStore((state) => state.setSelectedPaper);
-  const [error, setError] = useState<string | null>(null);
+// 🛡️ Security: Expose only the error message or code, not internal details/hints
+const paperErrorMessage = (error: CrudError | null): string =>
+  error?.message ||
+  (error?.code ? `Error ${error.code}` : "Unknown error occurred");
 
-  const syncSelectedPaper = useCallback(
-    (updated: Paper | null) => {
-      if (!updated) return;
-      const current = useAppStore.getState().selectedPaper;
-      if (current?.id === updated.id) {
-        setSelectedPaper(updated);
+function cleanPaperDraft(
+  paperData: PaperDraft,
+  userId: string,
+):
+  | { ok: true; payload: PaperInsertPayload }
+  | { ok: false; reason: "title-required" | "title-too-long" | "abstract-too-long" } {
+  if (!paperData.title || !paperData.title.trim()) {
+    return { ok: false, reason: "title-required" };
+  }
+  if (paperData.title.length > PAPER_TITLE_MAX_LENGTH) {
+    return { ok: false, reason: "title-too-long" };
+  }
+  if (
+    paperData.abstract &&
+    paperData.abstract.length > PAPER_ABSTRACT_MAX_LENGTH
+  ) {
+    return { ok: false, reason: "abstract-too-long" };
+  }
+
+  const cleanData: PaperInsertPayload = {
+    user_id: userId,
+    title: paperData.title.trim(),
+    authors: Array.isArray(paperData.authors) ? paperData.authors : [],
+    status: paperData.status || "To Read",
+  };
+
+  if (paperData.doi && paperData.doi.trim())
+    cleanData.doi = paperData.doi.trim();
+  if (paperData.source_url && paperData.source_url.trim()) {
+    const url = paperData.source_url.trim();
+    if (isValidUrl(url)) {
+      cleanData.source_url = url;
+    }
+  }
+  if (paperData.abstract && paperData.abstract.trim())
+    cleanData.abstract = paperData.abstract.trim();
+
+  if (
+    paperData.publication_date &&
+    paperData.publication_date.trim() &&
+    paperData.publication_date !== "null"
+  ) {
+    const pubDate = paperData.publication_date.trim();
+    if (/^\d{4}$/.test(pubDate)) {
+      cleanData.publication_date = `${pubDate}-01-01`;
+    } else {
+      cleanData.publication_date = pubDate;
+    }
+  }
+
+  if (
+    paperData.topic_ids &&
+    Array.isArray(paperData.topic_ids) &&
+    paperData.topic_ids.length > 0
+  ) {
+    cleanData.topic_ids = paperData.topic_ids;
+  }
+
+  return { ok: true, payload: cleanData };
+}
+
+const CREATE_FAIL_REASON_MESSAGE: Record<
+  "title-required" | "title-too-long" | "abstract-too-long",
+  string
+> = {
+  "title-required": "Paper title is required",
+  "title-too-long": `Paper title exceeds ${PAPER_TITLE_MAX_LENGTH} characters`,
+  "abstract-too-long": `Paper abstract exceeds ${PAPER_ABSTRACT_MAX_LENGTH} characters`,
+};
+
+export function usePapers(userId: string | undefined) {
+  const setSelectedPaper = useAppStore(selectSetSelectedPaper);
+
+  const crud = useEntityCrud<Paper, PaperDraft>({
+    userId,
+    items: selectPapers,
+    setItems: selectSetPapers,
+    loading: selectPapersLoading,
+    selected: selectSelectedPaper,
+    setSelected: selectSetSelectedPaper,
+    entityLabel: "Paper",
+    entityPlural: "papers",
+    createVerb: "add",
+    tableName: "papers",
+    updateReturnsData: true,
+    resyncSelectedOnDeleteRevert: true,
+    onError: (op, err, setError) => {
+      if (op === "create") {
+        const message = paperErrorMessage(err);
+        setError(`Failed to create paper: ${message}`);
+        toast.error(`Failed to add paper: ${message}`, { duration: 5000 });
+      } else if (op === "update") {
+        setError(err?.message ?? null);
+        toast.error("Failed to update paper");
+      } else if (op === "delete") {
+        setError(err?.message ?? null);
+        toast.error("Failed to delete paper");
       }
     },
-    [setSelectedPaper],
-  );
+    prepareCreate: (paperData, uid, fail) => {
+      const cleaned = cleanPaperDraft(paperData, uid);
+      if (!cleaned.ok) {
+        fail(CREATE_FAIL_REASON_MESSAGE[cleaned.reason]);
+        return null;
+      }
+      return cleaned.payload;
+    },
+    prepareUpdate: (_current, updates, fail) => {
+      if (updates.title && updates.title.length > PAPER_TITLE_MAX_LENGTH) {
+        fail(`Paper title exceeds ${PAPER_TITLE_MAX_LENGTH} characters`);
+        return null;
+      }
+
+      if (
+        updates.abstract &&
+        updates.abstract.length > PAPER_ABSTRACT_MAX_LENGTH
+      ) {
+        fail(`Paper abstract exceeds ${PAPER_ABSTRACT_MAX_LENGTH} characters`);
+        return null;
+      }
+
+      const sanitized: Partial<Paper> = { ...updates };
+      if (sanitized.source_url) {
+        const url = sanitized.source_url.trim();
+        if (isValidUrl(url)) {
+          sanitized.source_url = url;
+        } else {
+          delete sanitized.source_url;
+        }
+      }
+
+      return sanitized;
+    },
+    afterCreate: (uid, paper) => {
+      void createReadingTaskForPaper(uid, paper);
+    },
+    afterUpdateSuccess: (uid, payload) => {
+      if (payload.status) {
+        toast.success(`Paper marked as ${payload.status}`);
+        awardXPAndNotify(
+          uid,
+          XP_REWARDS.UPDATE_PAPER_STATUS,
+          "update_paper_status",
+        );
+      }
+    },
+    xpCreate: { reward: XP_REWARDS.CREATE_PAPER, action: "create_paper" },
+  });
+
+  const { error, setError, setItems } = crud;
 
   const fetchPapers = useCallback(async () => {
     if (!userId) return;
@@ -128,7 +278,7 @@ export function usePapers(userId: string | undefined) {
     } else {
       // Data is already sorted by updated_at desc from the DB query above
       const rows = data || [];
-      setPapers(rows);
+      setItems(rows);
       const selected = useAppStore.getState().selectedPaper;
       if (selected) {
         const fresh = rows.find((paper) => paper.id === selected.id);
@@ -137,7 +287,7 @@ export function usePapers(userId: string | undefined) {
         }
       }
     }
-  }, [userId, setPapers, setSelectedPaper]);
+  }, [userId, setError, setItems, setSelectedPaper]);
 
   const searchPaperByDOI = useCallback(
     async (doi: string): Promise<CrossrefPaper | null> => {
@@ -180,7 +330,7 @@ export function usePapers(userId: string | undefined) {
         return null;
       }
     },
-    [],
+    [setError],
   );
 
   const searchPapersByQuery = useCallback(
@@ -232,113 +382,7 @@ export function usePapers(userId: string | undefined) {
         return [];
       }
     },
-    [],
-  );
-
-  const createPaper = useCallback(
-    async (paperData: PaperDraft): Promise<Paper | null> => {
-      if (!userId) {
-        setError("User not authenticated");
-        toast.error("You must be logged in to add papers");
-        return null;
-      }
-
-      if (!paperData.title || !paperData.title.trim()) {
-        setError("Paper title is required");
-        toast.error("Paper title is required");
-        return null;
-      }
-
-      if (paperData.title.length > PAPER_TITLE_MAX_LENGTH) {
-        const msg = `Paper title exceeds ${PAPER_TITLE_MAX_LENGTH} characters`;
-        setError(msg);
-        toast.error(msg);
-        return null;
-      }
-
-      if (
-        paperData.abstract &&
-        paperData.abstract.length > PAPER_ABSTRACT_MAX_LENGTH
-      ) {
-        const msg = `Paper abstract exceeds ${PAPER_ABSTRACT_MAX_LENGTH} characters`;
-        setError(msg);
-        toast.error(msg);
-        return null;
-      }
-
-      const cleanData: PaperInsertPayload = {
-        user_id: userId,
-        title: paperData.title.trim(),
-        authors: Array.isArray(paperData.authors) ? paperData.authors : [],
-        status: paperData.status || "To Read",
-      };
-
-      if (paperData.doi && paperData.doi.trim())
-        cleanData.doi = paperData.doi.trim();
-      if (paperData.source_url && paperData.source_url.trim()) {
-        const url = paperData.source_url.trim();
-        if (isValidUrl(url)) {
-          cleanData.source_url = url;
-        }
-      }
-      if (paperData.abstract && paperData.abstract.trim())
-        cleanData.abstract = paperData.abstract.trim();
-
-      if (
-        paperData.publication_date &&
-        paperData.publication_date.trim() &&
-        paperData.publication_date !== "null"
-      ) {
-        const pubDate = paperData.publication_date.trim();
-        if (/^\d{4}$/.test(pubDate)) {
-          cleanData.publication_date = `${pubDate}-01-01`;
-        } else {
-          cleanData.publication_date = pubDate;
-        }
-      }
-
-      if (
-        paperData.topic_ids &&
-        Array.isArray(paperData.topic_ids) &&
-        paperData.topic_ids.length > 0
-      ) {
-        cleanData.topic_ids = paperData.topic_ids;
-      }
-
-      const { data, error: createError } = await supabase
-        .from("papers")
-        .insert(cleanData)
-        .select()
-        .single();
-
-      if (createError) {
-        // 🛡️ Security: Only expose the error message or code, not internal details/hints
-        const errorMessage =
-          createError.message ||
-          (createError.code
-            ? `Error ${createError.code}`
-            : "Unknown error occurred");
-
-        setError(`Failed to create paper: ${errorMessage}`);
-        toast.error(`Failed to add paper: ${errorMessage}`, { duration: 5000 });
-        return null;
-      }
-
-      toast.success("Paper added successfully");
-
-      // Optimistic update - get latest state to be safe
-      setPapers(sortByUpdatedAt([data, ...useAppStore.getState().papers]));
-
-      // Fire-and-forget; "Paper added successfully" toast doesn't mention XP
-      awardXP(userId, XP_REWARDS.CREATE_PAPER, "create_paper")
-        .then((result) => notifyGamificationResult(result))
-        .catch((e) => logger.error("Failed to award XP", e));
-
-      void createReadingTaskForPaper(userId, data);
-
-      return data;
-    },
-    [userId, setPapers],
+    [setError],
   );
 
   const createPapers = useCallback(
@@ -353,64 +397,12 @@ export function usePapers(userId: string | undefined) {
       let skippedCount = 0;
 
       for (const paperData of papersData) {
-        if (!paperData.title || !paperData.title.trim()) {
+        const cleaned = cleanPaperDraft(paperData, userId);
+        if (!cleaned.ok) {
           skippedCount++;
           continue;
         }
-
-        if (paperData.title.length > PAPER_TITLE_MAX_LENGTH) {
-          skippedCount++;
-          continue;
-        }
-
-        if (
-          paperData.abstract &&
-          paperData.abstract.length > PAPER_ABSTRACT_MAX_LENGTH
-        ) {
-          skippedCount++;
-          continue;
-        }
-
-        const cleanData: PaperInsertPayload = {
-          user_id: userId,
-          title: paperData.title.trim(),
-          authors: Array.isArray(paperData.authors) ? paperData.authors : [],
-          status: paperData.status || "To Read",
-        };
-
-        if (paperData.doi && paperData.doi.trim())
-          cleanData.doi = paperData.doi.trim();
-        if (paperData.source_url && paperData.source_url.trim()) {
-          const url = paperData.source_url.trim();
-          if (isValidUrl(url)) {
-            cleanData.source_url = url;
-          }
-        }
-        if (paperData.abstract && paperData.abstract.trim())
-          cleanData.abstract = paperData.abstract.trim();
-
-        if (
-          paperData.publication_date &&
-          paperData.publication_date.trim() &&
-          paperData.publication_date !== "null"
-        ) {
-          const pubDate = paperData.publication_date.trim();
-          if (/^\d{4}$/.test(pubDate)) {
-            cleanData.publication_date = `${pubDate}-01-01`;
-          } else {
-            cleanData.publication_date = pubDate;
-          }
-        }
-
-        if (
-          paperData.topic_ids &&
-          Array.isArray(paperData.topic_ids) &&
-          paperData.topic_ids.length > 0
-        ) {
-          cleanData.topic_ids = paperData.topic_ids;
-        }
-
-        validPapers.push(cleanData);
+        validPapers.push(cleaned.payload);
       }
 
       if (validPapers.length === 0) {
@@ -442,7 +434,7 @@ export function usePapers(userId: string | undefined) {
       }
 
       // Optimistic update
-      setPapers(sortByUpdatedAt([...data, ...useAppStore.getState().papers]));
+      setItems(sortByUpdatedAt([...data, ...useAppStore.getState().papers]));
 
       // Award XP: run per-paper awards concurrently, notify once with the
       // aggregated result so bulk imports don't stack a toast per paper.
@@ -483,214 +475,20 @@ export function usePapers(userId: string | undefined) {
 
       return data as Paper[];
     },
-    [userId, setPapers],
-  );
-
-  const updatePaper = useCallback(
-    async (paperId: string, updates: Partial<Paper>): Promise<boolean> => {
-      if (!userId) {
-        setError("User not authenticated");
-        toast.error("You must be logged in to update papers");
-        return false;
-      }
-
-      if (updates.title && updates.title.length > PAPER_TITLE_MAX_LENGTH) {
-        const msg = `Paper title exceeds ${PAPER_TITLE_MAX_LENGTH} characters`;
-        setError(msg);
-        toast.error(msg);
-        return false;
-      }
-
-      if (
-        updates.abstract &&
-        updates.abstract.length > PAPER_ABSTRACT_MAX_LENGTH
-      ) {
-        const msg = `Paper abstract exceeds ${PAPER_ABSTRACT_MAX_LENGTH} characters`;
-        setError(msg);
-        toast.error(msg);
-        return false;
-      }
-
-      if (updates.source_url) {
-        const url = updates.source_url.trim();
-        if (isValidUrl(url)) {
-          updates.source_url = url;
-        } else {
-          delete updates.source_url;
-        }
-      }
-
-      let optimisticSnapshot: Paper | null = null;
-      const papers = useAppStore.getState().papers; // Get fresh state
-
-      setPapers(
-        sortByUpdatedAt(
-          papers.map((paper) => {
-            if (paper.id === paperId) {
-              optimisticSnapshot = paper;
-              const optimistic: Paper = {
-                ...paper,
-                ...updates,
-                updated_at: new Date().toISOString(),
-              };
-              syncSelectedPaper(optimistic);
-              return optimistic;
-            }
-            return paper;
-          }),
-        ),
-      );
-
-      const { data, error: updateError } = await supabase
-        .from("papers")
-        .update(updates)
-        .eq("id", paperId)
-        .eq("user_id", userId)
-        .select()
-        .single();
-
-      if (updateError) {
-        setError(updateError.message);
-        toast.error("Failed to update paper");
-        if (optimisticSnapshot) {
-          // Revert safely by using current state
-          const currentPapers = useAppStore.getState().papers;
-          setPapers(
-            sortByUpdatedAt(
-              currentPapers.map((p) =>
-                p.id === paperId ? (optimisticSnapshot as Paper) : p,
-              ),
-            ),
-          );
-          syncSelectedPaper(optimisticSnapshot);
-        }
-        return false;
-      }
-
-      if (data) {
-        // Update with confirmed data safely
-        const currentPapers = useAppStore.getState().papers;
-        setPapers(
-          sortByUpdatedAt(
-            currentPapers.map((paper) => (paper.id === data.id ? data : paper)),
-          ),
-        );
-        syncSelectedPaper(data as Paper);
-      }
-
-      if (updates.status) {
-        toast.success(`Paper marked as ${updates.status}`);
-      }
-
-      if (updates.status && userId) {
-        awardXP(
-          userId,
-          XP_REWARDS.UPDATE_PAPER_STATUS,
-          "update_paper_status",
-        )
-          .then((result) => notifyGamificationResult(result))
-          .catch((e) => logger.error("Failed to award XP", e));
-      }
-
-      return true;
-    },
-    [userId, setPapers, syncSelectedPaper],
-  );
-
-  const deletePaper = useCallback(
-    async (paperId: string): Promise<boolean> => {
-      if (!userId) {
-        setError("User not authenticated");
-        toast.error("You must be logged in to delete papers");
-        return false;
-      }
-
-      const papers = useAppStore.getState().papers; // Get fresh state
-      const deletedPaper = papers.find((p) => p.id === paperId);
-
-      setPapers(papers.filter((paper) => paper.id !== paperId));
-      const current = useAppStore.getState().selectedPaper;
-      if (current?.id === paperId) {
-        setSelectedPaper(null);
-      }
-
-      const { error: deleteError } = await supabase
-        .from("papers")
-        .delete()
-        .eq("id", paperId)
-        .eq("user_id", userId);
-
-      if (deleteError) {
-        setError(deleteError.message);
-        toast.error("Failed to delete paper");
-        // Revert on error safely
-        if (deletedPaper) {
-          const currentPapers = useAppStore.getState().papers;
-          setPapers(sortByUpdatedAt([...currentPapers, deletedPaper]));
-          syncSelectedPaper(deletedPaper);
-        }
-        return false;
-      }
-
-      return true;
-    },
-    [userId, setPapers, setSelectedPaper, syncSelectedPaper],
-  );
-
-  const restorePaper = useCallback(
-    async (paper: Paper): Promise<Paper | null> => {
-      if (!userId) {
-        setError("User not authenticated");
-        toast.error("You must be logged in to restore papers");
-        return null;
-      }
-
-      const payload = {
-        ...paper,
-        user_id: userId,
-        updated_at: new Date().toISOString(),
-      };
-
-      const { data, error: restoreError } = await supabase
-        .from("papers")
-        .upsert(payload, { onConflict: "id" })
-        .select()
-        .single();
-
-      if (restoreError) {
-        const errorMessage = restoreError.message || "Unknown error occurred";
-        toast.error(`Failed to restore paper: ${errorMessage}`);
-        return null;
-      }
-
-      const restoredPaper = data as Paper;
-      const currentPapers = useAppStore.getState().papers;
-      setPapers(
-        sortByUpdatedAt([
-          restoredPaper,
-          ...currentPapers.filter(
-            (existing) => existing.id !== restoredPaper.id,
-          ),
-        ]),
-      );
-
-      toast.success("Paper restored");
-      return restoredPaper;
-    },
-    [userId, setPapers],
+    [userId, setError, setItems],
   );
 
   return {
-    papers,
-    loading,
+    papers: crud.items,
+    loading: crud.loading,
     error,
     searchPaperByDOI,
     searchPapersByQuery,
-    createPaper,
+    createPaper: crud.create,
     createPapers,
-    updatePaper,
-    deletePaper,
-    restorePaper,
+    updatePaper: crud.update,
+    deletePaper: crud.delete,
+    restorePaper: crud.restore,
     refreshPapers: fetchPapers,
   };
 }

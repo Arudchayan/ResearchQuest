@@ -15,7 +15,6 @@ import {
   ArrowRight,
   ListTodo,
 } from "lucide-react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useAppStore } from "../../store/appStore";
 import { useShallow } from "zustand/react/shallow";
@@ -42,8 +41,9 @@ import {
   downloadFile,
 } from "../../utils/export";
 import { logger } from "../../utils/logger";
-import { UNDO_WINDOW_MS } from "../../lib/constants";
 import { IDEA_STAGES } from "./ideaStages";
+
+const UNDO_WINDOW_MS = 6000;
 
 type SortOption =
   | "updated_desc"
@@ -52,8 +52,6 @@ type SortOption =
   | "created_asc"
   | "title_asc"
   | "title_desc";
-
-const MotionCard = motion.create(Card);
 
 const STAGE_EDGE_CLASS: Record<IdeaStage, string> = {
   Seed: "border-t-2 border-t-stage-seed",
@@ -92,7 +90,6 @@ export function IdeasBoard() {
   );
   const { createIdea, updateIdea, deleteIdea, restoreIdea } = useIdeas(userId);
   const { createTask } = useTasks(userId, { owner: false });
-  const reduceMotion = useReducedMotion() === true;
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [updatingIdeaId, setUpdatingIdeaId] = useState<string | null>(null);
@@ -509,11 +506,7 @@ export function IdeasBoard() {
                           "h-full w-full origin-left transition-transform duration-fast",
                           STAGE_FILL_CLASS[stage.id],
                         )}
-                        style={
-                          reduceMotion
-                            ? { width: `${share * 100}%` }
-                            : { transform: `scaleX(${share})` }
-                        }
+                        style={{ transform: `scaleX(${share})` }}
                       />
                     </div>
                   </div>
@@ -523,14 +516,9 @@ export function IdeasBoard() {
                       <ListSkeleton count={3} itemType="idea" />
                     ) : (
                       <>
-                        <AnimatePresence mode={reduceMotion ? "sync" : "popLayout"}>
                           {stageIdeas.map((idea) => (
-                            <MotionCard
-                              {...(reduceMotion ? {} : { layoutId: idea.id })}
+                            <Card
                               key={idea.id}
-                              initial={reduceMotion ? false : { opacity: 0, y: 20 }}
-                              animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
-                              {...(reduceMotion ? {} : { exit: { opacity: 0, scale: 0.9 } })}
                               onClick={() => setSelectedIdea(idea)}
                               onKeyDown={(event: KeyboardEvent<HTMLDivElement>) => {
                                 if (event.target !== event.currentTarget) return;
@@ -613,9 +601,8 @@ export function IdeasBoard() {
                                   Promote to task
                                 </Button>
                               </div>
-                            </MotionCard>
+                            </Card>
                           ))}
-                        </AnimatePresence>
 
                         {stageIdeas.length === 0 && (
                           <EmptyState

@@ -1,5 +1,5 @@
 import { describe, bench } from "vitest";
-import { useAppStore } from "./appStore";
+import { useAppStore } from "../../store/appStore";
 
 describe("appStore upsertTopic", () => {
   const store = useAppStore.getState();
