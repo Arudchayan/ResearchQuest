@@ -152,6 +152,18 @@ export interface PaperSearchOptions {
   order?: "asc" | "desc";
 }
 
+function mergePapersDeduplicated(existing: Paper[], added: Paper[]): Paper[] {
+  const seen = new Set<string>();
+  const merged: Paper[] = [];
+  for (const paper of [...added, ...existing]) {
+    if (!seen.has(paper.id)) {
+      seen.add(paper.id);
+      merged.push(paper);
+    }
+  }
+  return sortByUpdatedAt(merged);
+}
+
 function extractFunctionErrorMessage(error: unknown, fallback: string): string {
   if (!error) return fallback;
 
@@ -357,7 +369,9 @@ export function usePapers(userId: string | undefined) {
       recordSprintEvent("paper", XP_REWARDS.CREATE_PAPER);
 
       // Optimistic update - get latest state to be safe
-      setPapers(sortByUpdatedAt([data, ...useAppStore.getState().papers]));
+      setPapers(
+        mergePapersDeduplicated(useAppStore.getState().papers, [data]),
+      );
 
       awardXP(userId, XP_REWARDS.CREATE_PAPER, "create_paper").catch((e) =>
         logger.error("Failed to award XP", e),
@@ -434,7 +448,12 @@ export function usePapers(userId: string | undefined) {
       }
 
       // Optimistic update
-      setPapers(sortByUpdatedAt([...data, ...useAppStore.getState().papers]));
+      setPapers(
+        mergePapersDeduplicated(
+          useAppStore.getState().papers,
+          data as Paper[],
+        ),
+      );
 
       // Award XP
       for (let i = 0; i < data.length; i++) {

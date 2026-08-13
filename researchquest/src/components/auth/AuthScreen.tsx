@@ -12,12 +12,33 @@ export function AuthScreen() {
   const [loading, setLoading] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState<{
+    text: string;
+    type: "success" | "error";
+  } | null>(null);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setMessage("");
+    setMessage(null);
+
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail && !password) {
+      setMessage({ text: "Please fill in both fields", type: "error" });
+      setLoading(false);
+      return;
+    }
+    if (!trimmedEmail) {
+      setMessage({ text: "Email is required", type: "error" });
+      setLoading(false);
+      return;
+    }
+    if (!password) {
+      setMessage({ text: "Password is required", type: "error" });
+      setLoading(false);
+      return;
+    }
 
     try {
       if (isSignUp) {
@@ -27,14 +48,17 @@ export function AuthScreen() {
         }
 
         const { error } = await supabase.auth.signUp({
-          email,
+          email: trimmedEmail,
           password,
         });
         if (error) throw error;
-        setMessage("Check your email for the confirmation link!");
+        setMessage({
+          text: "Check your email for the confirmation link!",
+          type: "success",
+        });
       } else {
         const { error } = await supabase.auth.signInWithPassword({
-          email,
+          email: trimmedEmail,
           password,
         });
         if (error) throw error;
@@ -47,9 +71,12 @@ export function AuthScreen() {
         error.message &&
         error.message.toLowerCase().startsWith("password must")
       ) {
-        setMessage(error.message);
+        setMessage({ text: error.message, type: "error" });
       } else {
-        setMessage("Authentication failed. Please check your credentials and try again.");
+        setMessage({
+          text: "Authentication failed. Please check your credentials and try again.",
+          type: "error",
+        });
       }
     } finally {
       setLoading(false);
@@ -58,22 +85,31 @@ export function AuthScreen() {
 
   const handlePasswordReset = async () => {
     if (!email) {
-      setMessage("Enter your email address to receive a reset link.");
+      setMessage({
+        text: "Enter your email address to receive a reset link.",
+        type: "error",
+      });
       return;
     }
 
     setResetting(true);
-    setMessage("");
+    setMessage(null);
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email);
 
       if (error) throw error;
 
-      setMessage("Password reset link sent! Check your email to continue.");
+      setMessage({
+        text: "Password reset link sent! Check your email to continue.",
+        type: "success",
+      });
     } catch (error: any) {
       console.error("AuthScreen password reset error:", error);
-      setMessage("Unable to send password reset email. Please try again.");
+      setMessage({
+        text: "Unable to send password reset email. Please try again.",
+        type: "error",
+      });
     } finally {
       setResetting(false);
     }
@@ -81,13 +117,13 @@ export function AuthScreen() {
 
   const handleTestLogin = async () => {
     setLoading(true);
-    setMessage("");
+    setMessage(null);
 
     const testEmail = import.meta.env.VITE_TEST_EMAIL;
     const testPassword = import.meta.env.VITE_TEST_PASSWORD;
 
     if (!testEmail || !testPassword) {
-      setMessage("Test credentials not configured");
+      setMessage({ text: "Test credentials not configured", type: "error" });
       setLoading(false);
       return;
     }
@@ -101,7 +137,10 @@ export function AuthScreen() {
       if (error) throw error;
     } catch (error: any) {
       console.error("AuthScreen test login error:", error);
-      setMessage("An error occurred during test login. Please try again.");
+      setMessage({
+        text: "An error occurred during test login. Please try again.",
+        type: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -109,7 +148,7 @@ export function AuthScreen() {
 
   const handleDemoLogin = async () => {
     setLoading(true);
-    setMessage("");
+    setMessage(null);
     try {
       const { error } = await supabase.auth.signInWithPassword({
         email: DEMO_USER_EMAIL,
@@ -118,7 +157,10 @@ export function AuthScreen() {
       if (error) throw error;
     } catch (error: any) {
       console.error("AuthScreen demo login error:", error);
-      setMessage("Unable to enter the demo workspace.");
+      setMessage({
+        text: "Unable to enter the demo workspace.",
+        type: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -302,12 +344,12 @@ export function AuthScreen() {
                 <div
                   role="alert"
                   className={`rounded-lg border p-3 text-small font-medium ${
-                    message.includes("error") || message.includes("Error")
-                      ? "border-coral/30 bg-coral-soft text-coral-strong"
-                      : "border-success/30 bg-success-bg text-success"
+                    message.type === "success"
+                      ? "border-success/30 bg-success-bg text-success"
+                      : "border-coral/30 bg-coral-soft text-coral-strong"
                   }`}
                 >
-                  {message}
+                  {message.text}
                 </div>
               )}
 
@@ -331,7 +373,7 @@ export function AuthScreen() {
               <button
                 onClick={() => {
                   setIsSignUp(!isSignUp);
-                  setMessage("");
+                  setMessage(null);
                 }}
                 className="text-small font-medium text-text-secondary transition-colors hover:text-text-primary"
               >

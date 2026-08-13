@@ -55,6 +55,7 @@ export function TaskManager() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOption, setSortOption] = useState<SortOption>("due_date");
   const [compactView, setCompactView] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -387,15 +388,15 @@ export function TaskManager() {
     <div className="h-full flex flex-col bg-bg-base">
       {/* Header */}
       <div className="p-4 sm:p-6 border-b border-border-subtle bg-bg-surface">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between gap-2 mb-4">
           <h2 className="text-title font-bold text-text-primary">
             Task Manager
           </h2>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <DropdownMenu.Root>
               <DropdownMenu.Trigger asChild>
                 <button
-                  className="px-4 py-2 bg-bg-surface border border-border-moderate text-text-secondary rounded-lg hover:bg-bg-elevated hover:text-text-primary transition-colors flex items-center gap-2 font-medium text-small shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
+                  className="px-4 py-2 bg-bg-surface border border-border-moderate text-text-secondary rounded-lg hover:bg-bg-elevated hover:text-text-primary transition-colors flex items-center gap-2 font-medium text-small shadow-sm whitespace-nowrap focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
                   title="Export tasks"
                 >
                   <Download className="w-4 h-4" aria-hidden="true" />
@@ -434,9 +435,9 @@ export function TaskManager() {
             </DropdownMenu.Root>
             <button
               onClick={() => setShowAddModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-text-primary text-bg-base rounded-lg hover:opacity-95 transition-opacity text-small font-medium shadow-lift focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-text-primary text-bg-base rounded-lg hover:opacity-95 transition-opacity text-small font-medium shadow-lift whitespace-nowrap focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
             >
-              <Plus className="w-4 h-4" aria-hidden="true" />
+              <Plus className="w-4 h-4 shrink-0" aria-hidden="true" />
               New Task
             </button>
           </div>
@@ -470,7 +471,7 @@ export function TaskManager() {
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
-                  className={`px-3 py-1.5 rounded-lg text-caption font-medium transition-colors capitalize focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 ${
+                  className={`px-3 py-1.5 rounded-lg text-caption font-medium transition-colors capitalize whitespace-nowrap focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 ${
                     filter === f
                       ? "bg-text-primary text-bg-base shadow-sm"
                       : "bg-bg-elevated text-text-secondary hover:bg-bg-muted hover:text-text-primary"
@@ -483,40 +484,54 @@ export function TaskManager() {
           </div>
 
           <div className="flex flex-wrap gap-2 items-center">
-            <label htmlFor="task-filter-category" className="sr-only">
-              Filter by category
-            </label>
-            <select
-              id="task-filter-category"
-              value={categoryFilter}
-              onChange={(e) =>
-                setCategoryFilter(e.target.value as "all" | TaskCategory)
-              }
-              className="px-3 py-1.5 bg-bg-surface border border-border-moderate rounded-lg text-caption text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
+            <button
+              type="button"
+              onClick={() => setShowAdvancedFilters((v) => !v)}
+              aria-expanded={showAdvancedFilters}
+              className="sm:hidden px-3 py-1.5 bg-bg-surface border border-border-moderate rounded-lg text-caption font-medium text-text-secondary hover:text-text-primary transition-colors whitespace-nowrap"
             >
-              <option value="all">All categories</option>
-              {CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-            <label htmlFor="task-filter-project" className="sr-only">
-              Filter by project
-            </label>
-            <select
-              id="task-filter-project"
-              value={projectFilter}
-              onChange={(e) => setProjectFilter(e.target.value)}
-              className="px-3 py-1.5 bg-bg-surface border border-border-moderate rounded-lg text-caption text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent max-w-[14rem]"
+              {showAdvancedFilters ? "Hide filters" : "More filters"}
+            </button>
+            <div
+              className={`${
+                showAdvancedFilters ? "flex" : "hidden"
+              } sm:flex flex-wrap gap-2 items-center w-full sm:w-auto`}
             >
-              <option value="all">All projects</option>
-              {projectIdsInUse.map((id) => (
-                <option key={id} value={id}>
-                  {id}
-                </option>
-              ))}
-            </select>
+              <label htmlFor="task-filter-category" className="sr-only">
+                Filter by category
+              </label>
+              <select
+                id="task-filter-category"
+                value={categoryFilter}
+                onChange={(e) =>
+                  setCategoryFilter(e.target.value as "all" | TaskCategory)
+                }
+                className="px-3 py-1.5 bg-bg-surface border border-border-moderate rounded-lg text-caption text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
+              >
+                <option value="all">All categories</option>
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+              <label htmlFor="task-filter-project" className="sr-only">
+                Filter by project
+              </label>
+              <select
+                id="task-filter-project"
+                value={projectFilter}
+                onChange={(e) => setProjectFilter(e.target.value)}
+                className="px-3 py-1.5 bg-bg-surface border border-border-moderate rounded-lg text-caption text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent max-w-[14rem]"
+              >
+                <option value="all">All projects</option>
+                {projectIdsInUse.map((id) => (
+                  <option key={id} value={id}>
+                    {id}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
