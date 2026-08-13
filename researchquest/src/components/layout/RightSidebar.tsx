@@ -541,7 +541,8 @@ export function RightSidebar() {
                 <Flame className="w-4 h-4 text-gold" aria-hidden="true" />
                 <span>
                   {user?.current_streak || 0} day streak · longest{" "}
-                  {user?.longest_streak || 0} days
+                  {user?.longest_streak || 0}{" "}
+                  {(user?.longest_streak || 0) === 1 ? "day" : "days"}
                 </span>
               </div>
               <p className="text-text-tertiary">

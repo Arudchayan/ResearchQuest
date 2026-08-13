@@ -548,7 +548,8 @@ export function Dashboard() {
                   </span>
                   <div>
                     <div className="text-lg font-bold text-text-primary">
-                      {stats?.streak} days
+                      {stats?.streak}{" "}
+                      {stats?.streak === 1 ? "day" : "days"}
                     </div>
                     <div className="text-caption text-text-tertiary">Streak</div>
                   </div>
@@ -628,7 +629,10 @@ export function Dashboard() {
           </span>
           <div>
             <div className="font-serif text-2xl font-bold text-text-primary">
-              {stats?.streak} <span className="text-base font-sans font-medium">days</span>
+              {stats?.streak}{" "}
+              <span className="text-base font-sans font-medium">
+                {stats?.streak === 1 ? "day" : "days"}
+              </span>
             </div>
             <div className="text-caption text-text-tertiary">Research streak</div>
           </div>
@@ -656,7 +660,8 @@ export function Dashboard() {
               {pendingTaskCount} <span className="text-base font-sans font-medium">open</span>
             </div>
             <div className="text-caption text-text-tertiary">
-              {completedTaskCount} completed tasks
+              {completedTaskCount} completed{" "}
+              {completedTaskCount === 1 ? "task" : "tasks"}
             </div>
           </div>
         </div>
