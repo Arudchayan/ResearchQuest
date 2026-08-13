@@ -189,7 +189,8 @@ export function ProfileDialog({ open, onClose }: ProfileDialogProps) {
                 <div className="mt-auto text-caption text-text-secondary">
                   Longest streak:{" "}
                   <span className="font-semibold">
-                    {user?.longest_streak || 0} days
+                    {user?.longest_streak || 0}{" "}
+                    {(user?.longest_streak || 0) === 1 ? "day" : "days"}
                   </span>
                 </div>
               </div>

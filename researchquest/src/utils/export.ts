@@ -67,7 +67,8 @@ export function downloadFile(
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  // Revoke on a later tick so the browser has time to start the download.
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 export type ExportDataInput = Omit<
