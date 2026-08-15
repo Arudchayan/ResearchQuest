@@ -54,7 +54,6 @@ export function TopicList({
         highlightQuery ? (
           <div
             className="surface-card text-center p-8 text-text-tertiary"
-            aria-hidden="true"
           >
             <div className="icon-tile mx-auto mb-3 bg-bg-elevated text-text-tertiary">
               <Hash className="h-5 w-5 opacity-70" />
@@ -67,7 +66,7 @@ export function TopicList({
             </p>
           </div>
         ) : (
-          <div className="surface-card text-center p-8 text-text-tertiary" aria-hidden="true">
+          <div className="surface-card text-center p-8 text-text-tertiary">
             <div className="icon-tile mx-auto mb-3 bg-bg-elevated text-text-tertiary">
               <Hash className="h-5 w-5 opacity-70" />
             </div>
