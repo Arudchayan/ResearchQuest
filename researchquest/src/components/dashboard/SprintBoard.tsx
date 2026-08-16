@@ -34,10 +34,25 @@ export function SprintBoard() {
     [days],
   );
 
-  const weekXp = weekDays.reduce((sum, day) => sum + day.xp, 0);
-  const weekMinutes = weekDays.reduce((sum, day) => sum + day.minutes, 0);
-  const activeGoals = weekGoals.filter((goal) => goal.status === "active").length;
-  const doneGoals = weekGoals.filter((goal) => goal.status === "done").length;
+  const { weekXp, weekMinutes } = useMemo(() => {
+    let xp = 0;
+    let mins = 0;
+    for (let i = 0; i < weekDays.length; i++) {
+      xp += weekDays[i].xp;
+      mins += weekDays[i].minutes;
+    }
+    return { weekXp: xp, weekMinutes: mins };
+  }, [weekDays]);
+
+  const { activeGoals, doneGoals } = useMemo(() => {
+    let active = 0;
+    let done = 0;
+    for (let i = 0; i < weekGoals.length; i++) {
+      if (weekGoals[i].status === "active") active++;
+      else if (weekGoals[i].status === "done") done++;
+    }
+    return { activeGoals: active, doneGoals: done };
+  }, [weekGoals]);
   const goalProgress = weekGoals.length
     ? Math.round((doneGoals / weekGoals.length) * 100)
     : 0;
