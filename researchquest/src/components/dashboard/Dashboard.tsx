@@ -1102,6 +1102,13 @@ export function Dashboard() {
                 Task Manager <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </button>
             </div>
+            <div className="sr-only" role="status" aria-live="polite">
+              {upcomingTasks.length === 0 && tasks.length === 0
+                ? "You're clear. Choose a focus session when you're ready."
+                : upcomingTasks.length === 0
+                ? "All tasks complete. Nice work."
+                : ""}
+            </div>
             <div className="space-y-3">
               {upcomingTasks.length === 0 && tasks.length === 0 ? (
                 <div className="surface-card p-6 text-center">
