@@ -78,6 +78,7 @@ export function PapersView() {
   } = usePapers(userId);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOption, setSortOption] = useState<SortOption>("updated_desc");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -169,7 +170,7 @@ export function PapersView() {
   // Memoize filtered papers to avoid expensive recalculation on every render
   const filteredPapers = useMemo(() => {
     // Optimization: Skip filtering if query is empty and sort order matches default
-    if (!searchQuery && sortOption === "updated_desc") {
+    if (!searchQuery && sortOption === "updated_desc" && statusFilter === "all") {
       return papers || [];
     }
 
@@ -180,15 +181,14 @@ export function PapersView() {
       const query = searchQuery?.toLowerCase() || "";
       const safeSearchablePapers = searchablePapers || [];
       for (let i = 0; i < safeSearchablePapers.length; i++) {
-        const sp = searchablePapers[i];
+        const sp = safeSearchablePapers[i];
+        if (statusFilter !== "all" && sp.paper.status !== statusFilter) continue;
         if (sp.searchText.includes(query)) {
           filtered.push(sp.paper);
         }
       }
     } else {
-      // Create a shallow copy if we need to sort but not filter
-      // (to avoid mutating the store)
-      filtered = [...(papers || [])];
+      filtered = statusFilter === "all" ? [...(papers || [])] : (papers || []).filter(p => p.status === statusFilter);
     }
 
     return filtered.sort((a, b) => {
@@ -239,7 +239,7 @@ export function PapersView() {
           return 0;
       }
     });
-  }, [papers, searchQuery, sortOption]);
+  }, [papers, searchQuery, sortOption, statusFilter, searchablePapers]);
 
   const rowCount = Math.ceil(filteredPapers.length / columnCount);
 
@@ -407,6 +407,21 @@ export function PapersView() {
                 <X className="h-3 w-3" aria-hidden="true" />
               </button>
             )}
+          </div>
+
+
+          <div className="flex items-center gap-2">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="cursor-pointer rounded-lg border border-border-moderate bg-bg-surface px-3 py-2.5 text-small text-text-primary shadow-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+              aria-label="Filter by status"
+            >
+              <option value="all">All Statuses</option>
+              <option value="To Read">To Read</option>
+              <option value="Reading">Reading</option>
+              <option value="Read">Read</option>
+            </select>
           </div>
 
           <div className="flex items-center gap-2">
