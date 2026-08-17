@@ -24,3 +24,6 @@ researchquest/UI_UX_AUDIT.md
 node_modules/
 .vite/
 package-lock.json
+
+# Dev server logs (accidental commit hygiene)
+server.log
