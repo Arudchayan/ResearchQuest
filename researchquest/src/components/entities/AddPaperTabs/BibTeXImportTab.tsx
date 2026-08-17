@@ -102,16 +102,16 @@ export function BibTeXImportTab({
             {parsedEntries.map((entry) => (
               <div key={entry.id} className="p-3 flex items-start gap-3 hover:bg-bg-base">
                 <input
+                  id={`bibtex-entry-${entry.id}`}
                   type="checkbox"
                   checked={selectedEntryIds.has(entry.id)}
                   onChange={() => toggleEntrySelection(entry.id)}
-                  className="mt-1"
-                  aria-label={entry.title ? `Select ${entry.title}` : `Select entry ${entry.id}`}
+                  className="mt-1 cursor-pointer"
                 />
-                <div className="flex-1 min-w-0">
+                <label htmlFor={`bibtex-entry-${entry.id}`} className="flex-1 min-w-0 cursor-pointer">
                   <p className="font-medium truncate">{entry.title || "Untitled"}</p>
                   <p className="text-sm text-text-secondary truncate">{entry.authors?.join(", ")}</p>
-                </div>
+                </label>
               </div>
             ))}
           </div>
