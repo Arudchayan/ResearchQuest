@@ -137,12 +137,16 @@ export function analyzeIdea(
 ): AdversarialReview {
   const findings: AdversarialFinding[] = [];
   const strengths: string[] = [];
-  const linkedNotes = (idea.linked_note_ids ?? []).filter((id) =>
-    notes.some((note) => note.id === id),
-  ).length;
-  const linkedPapers = (idea.linked_paper_ids ?? []).filter((id) =>
-    papers.some((paper) => paper.id === id),
-  ).length;
+  let linkedNotes = 0;
+  const ideaNotes = idea.linked_note_ids ?? [];
+  for (let i = 0; i < ideaNotes.length; i++) {
+    if (notes.some((note) => note.id === ideaNotes[i])) linkedNotes++;
+  }
+  let linkedPapers = 0;
+  const ideaPapers = idea.linked_paper_ids ?? [];
+  for (let i = 0; i < ideaPapers.length; i++) {
+    if (papers.some((paper) => paper.id === ideaPapers[i])) linkedPapers++;
+  }
   const linkCount = linkedNotes + linkedPapers;
   const descriptionLength = idea.description?.trim().length ?? 0;
 
@@ -238,14 +242,20 @@ export function analyzeIdea(
     strengths.push("The description is detailed enough to guide next steps.");
   }
 
+  let highSeverity = 0;
+  let mediumSeverity = 0;
+  for (let i = 0; i < findings.length; i++) {
+    if (findings[i].severity === "high") highSeverity++;
+    else if (findings[i].severity === "medium") mediumSeverity++;
+  }
+
   const score = Math.max(
     20,
     Math.min(
       98,
       72 +
         Math.min(18, linkCount * 6) -
-        findings.filter((finding) => finding.severity === "high").length * 10 -
-        findings.filter((finding) => finding.severity === "medium").length * 4,
+        highSeverity * 10 - mediumSeverity * 4,
     ),
   );
 
@@ -266,12 +276,16 @@ export function analyzePaper(
 ): AdversarialReview {
   const findings: AdversarialFinding[] = [];
   const strengths: string[] = [];
-  const mentioned = notes.filter((note) =>
-    (note.linked_entity_ids ?? []).includes(paper.id),
-  ).length;
-  const supportedIdeas = ideas.filter((idea) =>
-    (idea.linked_paper_ids ?? []).includes(paper.id),
-  ).length;
+  let mentioned = 0;
+  for (let i = 0; i < notes.length; i++) {
+    const ids = notes[i].linked_entity_ids;
+    if (ids && ids.includes(paper.id)) mentioned++;
+  }
+  let supportedIdeas = 0;
+  for (let i = 0; i < ideas.length; i++) {
+    const ids = ideas[i].linked_paper_ids;
+    if (ids && ids.includes(paper.id)) supportedIdeas++;
+  }
 
   if (!paper.abstract || paper.abstract.trim().length < 60) {
     findings.push(
@@ -354,6 +368,13 @@ export function analyzePaper(
     );
   }
 
+  let highSeverity = 0;
+  let mediumSeverity = 0;
+  for (let i = 0; i < findings.length; i++) {
+    if (findings[i].severity === "high") highSeverity++;
+    else if (findings[i].severity === "medium") mediumSeverity++;
+  }
+
   const score = Math.max(
     20,
     Math.min(
@@ -361,8 +382,7 @@ export function analyzePaper(
       74 +
         (paper.abstract ? 8 : 0) +
         (paper.doi || paper.source_url ? 8 : 0) -
-        findings.filter((finding) => finding.severity === "high").length * 10 -
-        findings.filter((finding) => finding.severity === "medium").length * 4,
+        highSeverity * 10 - mediumSeverity * 4,
     ),
   );
 
