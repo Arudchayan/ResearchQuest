@@ -65,7 +65,7 @@
     "@types/react-router-dom": "^5",
     "@vitejs/plugin-react": "^4.4.2",
     "@vitest/coverage-v8": "^4.1.10",
-    "@vitest/eslint-plugin": "^1.6.16",
+    "@vitest/eslint-plugin": "^1.6.27",
     "@vitest/ui": "^4.1.0",
     "autoprefixer": "10.5.4",
     "deno": "^2.9.5",
