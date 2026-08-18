@@ -13,6 +13,12 @@ updates:
       time: "09:00"
       timezone: "Etc/UTC"
     # Group non-major updates into a single PR to reduce noise
+    # NOTE (SDC c82, 2026-08-18): the former dev-dependencies group was removed —
+    # its patterns (typescript*, vite, eslint*, @types/*, @vitejs/*, vitest*,
+    # @testing-library/*) funneled EVERY major bump into one blob PR (#674: 12 updates,
+    # 7 majors incl. TS 5.6->7.0, vite 6->8, eslint 9->10). Such blob PRs are unmergeable
+    # as-is and dependabot's rebase keeps them "up-to-date" (the majors are intended).
+    # Per-package PRs gate+merge cleanly (11 merged in one sweep, cycle 76) — prefer them.
     groups:
       react-vendor:
         patterns:
@@ -23,17 +29,6 @@ updates:
       radix-ui:
         patterns:
           - "@radix-ui/*"
-      dev-dependencies:
-        patterns:
-          - "@types/*"
-          - "@vitejs/*"
-          - "eslint*"
-          - "typescript*"
-          - "vitest*"
-          - "@vitest/*"
-          - "@playwright/*"
-          - "@testing-library/*"
-          - "vite"
     open-pull-requests-limit: 10
     labels:
       - "dependencies"
