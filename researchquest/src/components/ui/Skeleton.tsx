@@ -27,9 +27,9 @@ export function Skeleton({ className, ...props }: SkeletonProps) {
  */
 interface EntityCardSkeletonProps {
   titleWidth: string;
-  lineWidths?: string[];
+  lineWidths?: readonly string[];
   badgeWidth?: string;
-  chipWidths?: string[];
+  chipWidths?: readonly string[];
   iconSize?: string;
   padding?: string;
 }
@@ -67,61 +67,50 @@ function EntityCardSkeleton({
   );
 }
 
-/**
- * Skeleton for note cards in the sidebar
- */
-export function NoteCardSkeleton() {
-  return (
-    <EntityCardSkeleton
-      titleWidth="w-3/4"
-      lineWidths={["w-full", "w-2/3"]}
-      chipWidths={["w-12", "w-16"]}
-    />
-  );
-}
+const CARD_SKELETON_CONFIG = {
+  note: {
+    titleWidth: "w-3/4",
+    lineWidths: ["w-full", "w-2/3"],
+    chipWidths: ["w-12", "w-16"],
+  },
+  paper: {
+    titleWidth: "w-4/5",
+    lineWidths: ["w-3/5"],
+    badgeWidth: "w-20",
+    chipWidths: ["w-12"],
+  },
+  idea: {
+    titleWidth: "w-4/5",
+    lineWidths: ["w-full", "w-3/4"],
+    badgeWidth: "w-24",
+    chipWidths: ["w-16"],
+  },
+  task: {
+    titleWidth: "w-4/5",
+    lineWidths: ["w-2/3"],
+    badgeWidth: "w-16",
+    iconSize: "w-5 h-5 rounded flex-shrink-0 mt-0.5",
+    padding: "p-4",
+  },
+} as const;
 
-/**
- * Skeleton for paper cards in the sidebar
- */
-export function PaperCardSkeleton() {
-  return (
-    <EntityCardSkeleton
-      titleWidth="w-4/5"
-      lineWidths={["w-3/5"]}
-      badgeWidth="w-20"
-      chipWidths={["w-12"]}
-    />
-  );
-}
+export type CardSkeletonType = keyof typeof CARD_SKELETON_CONFIG;
 
-/**
- * Skeleton for idea cards in the sidebar
- */
-export function IdeaCardSkeleton() {
-  return (
-    <EntityCardSkeleton
-      titleWidth="w-4/5"
-      lineWidths={["w-full", "w-3/4"]}
-      badgeWidth="w-24"
-      chipWidths={["w-16"]}
-    />
-  );
-}
+export const NoteCardSkeleton = () => (
+  <EntityCardSkeleton {...CARD_SKELETON_CONFIG.note} />
+);
 
-/**
- * Skeleton for task items
- */
-export function TaskCardSkeleton() {
-  return (
-    <EntityCardSkeleton
-      titleWidth="w-4/5"
-      lineWidths={["w-2/3"]}
-      badgeWidth="w-16"
-      iconSize="w-5 h-5 rounded flex-shrink-0 mt-0.5"
-      padding="p-4"
-    />
-  );
-}
+export const PaperCardSkeleton = () => (
+  <EntityCardSkeleton {...CARD_SKELETON_CONFIG.paper} />
+);
+
+export const IdeaCardSkeleton = () => (
+  <EntityCardSkeleton {...CARD_SKELETON_CONFIG.idea} />
+);
+
+export const TaskCardSkeleton = () => (
+  <EntityCardSkeleton {...CARD_SKELETON_CONFIG.task} />
+);
 
 /**
  * Skeleton for the markdown editor
@@ -184,20 +173,13 @@ export function EditorSkeleton() {
  */
 interface ListSkeletonProps {
   count?: number;
-  itemType?: "note" | "paper" | "idea" | "task";
+  itemType?: CardSkeletonType;
 }
 
 export function ListSkeleton({
   count = 5,
   itemType = "note",
 }: ListSkeletonProps) {
-  const SkeletonComponent = {
-    note: NoteCardSkeleton,
-    paper: PaperCardSkeleton,
-    idea: IdeaCardSkeleton,
-    task: TaskCardSkeleton,
-  }[itemType];
-
   return (
     <div
       className="space-y-2"
@@ -205,7 +187,7 @@ export function ListSkeleton({
       aria-label={`Loading ${itemType}s...`}
     >
       {Array.from({ length: count }).map((_, i) => (
-        <SkeletonComponent key={i} />
+        <EntityCardSkeleton key={i} {...CARD_SKELETON_CONFIG[itemType]} />
       ))}
     </div>
   );

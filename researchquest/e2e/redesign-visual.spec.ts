@@ -14,7 +14,6 @@ const routes = [
   { name: "tasks", path: "/tasks" },
   { name: "focus", path: "/focus" },
   { name: "topics", path: "/topics" },
-  { name: "showcase", path: "/showcase" },
 ] as const;
 
 const viewports = [
@@ -99,115 +98,6 @@ test("captures deterministic redesign evidence", async ({ browser }) => {
             documentSize.scrollWidth,
             `${routeDefinition.name}/${theme}/${viewport.name} has horizontal overflow`,
           ).toBeLessThanOrEqual(documentSize.viewportWidth);
-
-          if (routeDefinition.name === "showcase") {
-            await expect(page.getByTestId("showcase-page")).toBeVisible();
-            await expect(page.getByTestId("showcase-page-header-default")).toBeVisible();
-            await expect(page.locator('[data-testid^="showcase-badge-"]').first()).toBeVisible();
-            await expect(page.getByTestId("showcase-empty-state")).toBeVisible();
-
-            const primaryAction = page.getByTestId("showcase-page-header-primary-action");
-            await primaryAction.focus();
-            await expect(primaryAction).toBeFocused();
-            const focusStyle = await primaryAction.evaluate((element) => {
-              const computedStyle = window.getComputedStyle(element);
-              return {
-                outlineColor: computedStyle.outlineColor,
-                outlineStyle: computedStyle.outlineStyle,
-                outlineWidth: computedStyle.outlineWidth,
-                boxShadow: computedStyle.boxShadow,
-              };
-            });
-            expect(
-              [
-                focusStyle.outlineColor,
-                focusStyle.outlineStyle,
-                focusStyle.outlineWidth,
-                focusStyle.boxShadow,
-              ].some((value) => value !== "" && value !== "none" && value !== "0px"),
-            ).toBe(true);
-            await primaryAction.blur();
-
-            const tooltipTrigger = page.getByTestId("showcase-tooltip-top");
-            await tooltipTrigger.hover();
-            await expect(page.getByTestId("showcase-tooltip-top-content")).toBeVisible();
-            const tooltipPath = path.join(
-              interactionsDirectory,
-              "showcase",
-              theme,
-              viewport.name,
-              "tooltip.png",
-            );
-            await mkdir(path.dirname(tooltipPath), { recursive: true });
-            await page.screenshot({
-              path: tooltipPath,
-              fullPage: true,
-              animations: "disabled",
-              caret: "hide",
-              scale: "css",
-            });
-
-            const formTrigger = page.getByTestId("showcase-dialog-open-form");
-            await formTrigger.click();
-            const formDialog = page.getByRole("dialog");
-            await expect(formDialog).toBeVisible();
-            const formTitleInput = page.getByTestId("showcase-dialog-first-input");
-            await expect(formTitleInput).toBeFocused();
-            const formDialogPath = path.join(
-              interactionsDirectory,
-              "showcase",
-              theme,
-              viewport.name,
-              "form-dialog-open.png",
-            );
-            await page.screenshot({
-              path: formDialogPath,
-              fullPage: true,
-              animations: "disabled",
-              caret: "hide",
-              scale: "css",
-            });
-            await page.keyboard.press("Escape");
-            await expect(formDialog).toHaveCount(0);
-            await expect(formTrigger).toBeFocused();
-
-            const dangerTrigger = page.getByTestId("showcase-dialog-open-danger");
-            await dangerTrigger.click();
-            const dangerDialog = page.getByRole("alertdialog");
-            await expect(dangerDialog).toBeVisible();
-            const cancelAction = dangerDialog.getByRole("button", {
-              name: "Cancel",
-              exact: true,
-            });
-            const confirmAction = dangerDialog.getByRole("button", {
-              name: "Delete",
-              exact: true,
-            });
-            await expect(cancelAction).toBeFocused();
-            await page.keyboard.press("Tab");
-            await expect(confirmAction).toBeFocused();
-            const confirmDialogPath = path.join(
-              interactionsDirectory,
-              "showcase",
-              theme,
-              viewport.name,
-              "danger-confirm-open.png",
-            );
-            await page.screenshot({
-              path: confirmDialogPath,
-              fullPage: true,
-              animations: "disabled",
-              caret: "hide",
-              scale: "css",
-            });
-            await confirmAction.click();
-            await expect(dangerDialog).toBeVisible();
-            await expect(
-              dangerDialog.getByRole("button", { name: "Loading..." }),
-            ).toBeDisabled();
-            await page.clock.runFor(1500);
-            await expect(dangerDialog).toHaveCount(0);
-          }
 
           const outputPath = path.join(
             snapshotsDirectory,

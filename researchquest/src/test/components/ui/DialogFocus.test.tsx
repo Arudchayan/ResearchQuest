@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
@@ -60,7 +60,9 @@ describe("dialog focus management", () => {
 
     await user.keyboard("{Escape}");
 
-    expect(trigger).toHaveFocus();
+    await waitFor(() => {
+      expect(trigger).toHaveFocus();
+    });
   });
 
   it("keeps a loading FormDialog open when its backdrop is clicked", async () => {
@@ -68,8 +70,7 @@ describe("dialog focus management", () => {
     render(<FormDialogHarness isLoading />);
 
     await user.click(screen.getByRole("button", { name: "Open form dialog" }));
-    const dialog = screen.getByRole("dialog");
-    const overlay = dialog.parentElement;
+    const overlay = document.querySelector<HTMLElement>(".bg-overlay");
 
     if (!(overlay instanceof HTMLElement)) {
       throw new Error("FormDialog overlay is missing");
@@ -92,7 +93,9 @@ describe("dialog focus management", () => {
 
     await user.click(cancelButton);
 
-    expect(trigger).toHaveFocus();
+    await waitFor(() => {
+      expect(trigger).toHaveFocus();
+    });
   });
 
   it("exposes modal semantics and mobile-safe controls in ConfirmDialog", async () => {
@@ -130,8 +133,7 @@ describe("dialog focus management", () => {
     render(<ConfirmDialogHarness isLoading />);
 
     await user.click(screen.getByRole("button", { name: "Open confirm dialog" }));
-    const dialog = screen.getByRole("alertdialog");
-    const overlay = dialog.parentElement;
+    const overlay = document.querySelector<HTMLElement>(".bg-overlay");
 
     if (!(overlay instanceof HTMLElement)) {
       throw new Error("ConfirmDialog overlay is missing");
@@ -147,8 +149,7 @@ describe("dialog focus management", () => {
     render(<FormDialogHarness />);
 
     await user.click(screen.getByRole("button", { name: "Open form dialog" }));
-    const dialog = screen.getByRole("dialog");
-    const overlay = dialog.parentElement;
+    const overlay = document.querySelector<HTMLElement>(".bg-overlay");
 
     if (!(overlay instanceof HTMLElement)) {
       throw new Error("FormDialog overlay is missing");
@@ -163,8 +164,7 @@ describe("dialog focus management", () => {
     render(<ConfirmDialogHarness />);
 
     await user.click(screen.getByRole("button", { name: "Open confirm dialog" }));
-    const dialog = screen.getByRole("alertdialog");
-    const overlay = dialog.parentElement;
+    const overlay = document.querySelector<HTMLElement>(".bg-overlay");
 
     if (!(overlay instanceof HTMLElement)) {
       throw new Error("ConfirmDialog overlay is missing");

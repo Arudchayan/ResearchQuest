@@ -85,11 +85,6 @@ const ShortcutsDialog = lazy(() =>
   })),
 );
 
-// Dev-only showcase — tree-shaken from production builds
-const ShowcaseLazy = import.meta.env.DEV
-  ? lazy(() => import("./components/showcase/Showcase"))
-  : null;
-
 function RouteLoadingFallback() {
   return (
     <div className="flex h-full min-h-[320px] items-center justify-center px-6 py-10 text-sm text-text-secondary">
@@ -134,7 +129,7 @@ function App() {
   );
 
   // Sync data centrally (lazy-loads based on currentView)
-  useDataSync(userId, currentView);
+  useDataSync(userId);
 
   // Get hooks for CRUD operations (data comes from store now)
   const { papers, loading: papersLoading } = usePapers(userId);
@@ -248,13 +243,6 @@ function App() {
   // URL-based routing — handle initial load, popstate, and invalid-route recovery
   useEffect(() => {
     const handleRouteChange = () => {
-      // Dev-only showcase route — tree-shaken from production
-      if (import.meta.env.DEV && window.location.pathname === "/showcase") {
-        setCurrentView("showcase" as any);
-        setRouteError(null);
-        return;
-      }
-
       const route = parseRoute(window.location.pathname);
 
       if (route.isValid && route.view) {
@@ -379,10 +367,6 @@ function App() {
         <OnboardingGuide storageKey="rq_focus_onboarding_bridge" />
         <FocusWorkspace userId={userId} />
       </div>
-    ) : import.meta.env.DEV && currentView === "showcase" && ShowcaseLazy ? (
-      <Suspense fallback={<RouteLoadingFallback />}>
-        <ShowcaseLazy />
-      </Suspense>
     ) : null;
 
   return (

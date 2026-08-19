@@ -45,7 +45,6 @@ export default defineConfig(({ mode, command }) => {
         '@codemirror/view',
         '@codemirror/lang-markdown',
         '@uiw/react-codemirror',
-        '@uiw/codemirror-extensions-basic-setup',
       ],
     },
     optimizeDeps: {
@@ -54,7 +53,6 @@ export default defineConfig(({ mode, command }) => {
         '@codemirror/view',
         '@codemirror/lang-markdown',
         '@uiw/react-codemirror',
-        '@uiw/codemirror-extensions-basic-setup',
       ],
     },
     preview: {
@@ -75,7 +73,7 @@ export default defineConfig(({ mode, command }) => {
           manualChunks: {
             'react-vendor': ['react', 'react-dom'],
             'supabase': ['@supabase/supabase-js'],
-            'ui': ['lucide-react', 'framer-motion'],
+            'ui': ['lucide-react'],
             'cm-core': ['@codemirror/view', '@codemirror/state', '@uiw/react-codemirror', '@uiw/codemirror-theme-github'],
           },
         },

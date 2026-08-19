@@ -10,7 +10,7 @@
  * daily_logs is consolidated here to eliminate duplicate subscriptions
  * from RightSidebar and useSidebarData.
  */
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { useAppStore, type DataSyncResource } from "../store/appStore";
 import { useShallow } from "zustand/react/shallow";
@@ -19,9 +19,7 @@ import { extractFunctionErrorMessage } from "../utils/errors";
 import type { Note, Paper, Idea } from "../types/database";
 import { dedupeById } from "../utils/collections";
 
-export function useDataSync(userId: string | undefined, currentView: string) {
-  // Use a ref to track what we've already fetched in this session to prevent redundant calls
-  const fetchedRef = useRef<Set<string>>(new Set());
+export function useDataSync(userId: string | undefined) {
 
   const {
     setNotes,
@@ -65,30 +63,8 @@ export function useDataSync(userId: string | undefined, currentView: string) {
       setIdeasLoading(false);
       setFocusSessionSecondsToday(0);
       clearDataSyncErrors();
-      fetchedRef.current.clear();
       return;
     }
-
-    // Reset cache if user changes
-    if (userId && !fetchedRef.current.has(`user_${userId}`)) {
-      fetchedRef.current.clear();
-      fetchedRef.current.add(`user_${userId}`);
-    }
-
-    const shouldFetch = (domain: string) => {
-      if (fetchedRef.current.has(domain)) return false;
-
-      // Always fetch for dashboard
-      if (currentView === 'dashboard') return true;
-
-      // Otherwise only fetch for the active view
-      if (domain === 'notes' && currentView === 'notes') return true;
-      if (domain === 'papers' && currentView === 'papers') return true;
-      if (domain === 'ideas' && currentView === 'ideas') return true;
-      if (domain === 'focus' && currentView === 'focus') return true;
-
-      return false;
-    };
 
     // Generic fetch for the per-view tables (notes/papers/ideas): same
     // select-all-where-user_id query, loading flag, and error handling.
@@ -105,9 +81,6 @@ export function useDataSync(userId: string | undefined, currentView: string) {
         };
       },
     ) => {
-      if (!shouldFetch(table)) return;
-      fetchedRef.current.add(table);
-
       opts.setLoading(true);
       try {
         const { data, error } = await supabase
@@ -182,9 +155,6 @@ export function useDataSync(userId: string | undefined, currentView: string) {
       });
 
     const fetchFocusSessionsToday = async () => {
-      if (!shouldFetch('focus')) return;
-      fetchedRef.current.add('focus');
-
       const startOfDay = new Date();
       startOfDay.setHours(0, 0, 0, 0);
       const { data, error } = await supabase
@@ -389,30 +359,26 @@ export function useDataSync(userId: string | undefined, currentView: string) {
       .subscribe();
     channels.push(dailyLogsSub);
 
-    // Retry signal: when retryDataSync bumps a per-resource counter, drop the
-    // fetched guard for that resource and refetch so the Dashboard retry
-    // buttons actually re-run the failed query.
+    // Retry signal: when retryDataSync bumps a per-resource counter, refetch
+    // so the Dashboard retry buttons actually re-run the failed query.
     const retryUnsub = useAppStore.subscribe((state, prevState) => {
       if (!userId) return;
       if (
         state.dataSyncRetryCounters.notes !==
         prevState.dataSyncRetryCounters.notes
       ) {
-        fetchedRef.current.delete("notes");
         void fetchNotes();
       }
       if (
         state.dataSyncRetryCounters.papers !==
         prevState.dataSyncRetryCounters.papers
       ) {
-        fetchedRef.current.delete("papers");
         void fetchPapers();
       }
       if (
         state.dataSyncRetryCounters.ideas !==
         prevState.dataSyncRetryCounters.ideas
       ) {
-        fetchedRef.current.delete("ideas");
         void fetchIdeas();
       }
     });
@@ -436,6 +402,5 @@ export function useDataSync(userId: string | undefined, currentView: string) {
     setSelectedIdea,
     setFocusSessionSecondsToday,
     setTodayXP,
-    currentView,
   ]);
 }

@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
-import { basicSetup } from "@uiw/codemirror-extensions-basic-setup";
+import { basicSetup } from "@uiw/react-codemirror";
 
 // Guards the CodeMirror single-instance contract: duplicate @codemirror/state instances crash EditorState.create.
 

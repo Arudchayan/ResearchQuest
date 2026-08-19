@@ -6,24 +6,13 @@ import type { Paper } from "../types/database";
 export function extractYear(dateString?: string): string {
   if (!dateString) return "n.d.";
 
-  // Fast path: check if the first 4 characters are digits
-  const candidate = dateString.slice(0, 4);
-  if (dateString.length >= 4 && /^\d{4}$/.test(candidate)) {
-    // If it's exactly 4 characters, or the 5th character is a non-digit (like '-', 'T', ' '), we found our year
-    if (dateString.length === 4 || dateString.charCodeAt(4) < 48 || dateString.charCodeAt(4) > 57) {
-        return candidate;
-    }
-  }
-
-  // Fallback to full Date parsing (e.g. for "Oct 25, 2023")
-  const dateYear = new Date(dateString).getFullYear();
-  if (!isNaN(dateYear)) {
-    return dateYear.toString();
-  }
-
-  // Last resort: find any 4 consecutive digits
+  // Any 4-digit run (covers ISO dates, "Oct 25, 2023", bare years)
   const match = dateString.match(/\d{4}/);
-  return match ? match[0] : "n.d.";
+  if (match) return match[0];
+
+  // Last resort: full Date parsing (e.g. for "two thousand twenty three")
+  const dateYear = new Date(dateString).getFullYear();
+  return isNaN(dateYear) ? "n.d." : dateYear.toString();
 }
 
 /**
