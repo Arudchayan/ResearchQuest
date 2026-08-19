@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import type { ReactNode, FormEvent } from "react";
 
@@ -33,6 +33,13 @@ export function FormDialog({
   isSubmitDisabled = false,
 }: FormDialogProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      previouslyFocusedRef.current = document.activeElement as HTMLElement;
+    }
+  }, [isOpen]);
 
   return (
     <Dialog.Root
@@ -53,6 +60,10 @@ export function FormDialog({
                 'input:not([disabled]), select:not([disabled]), textarea:not([disabled])',
               )
               ?.focus();
+          }}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            previouslyFocusedRef.current?.focus();
           }}
           className="fixed left-1/2 top-1/2 z-modal-stacked w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-surface bg-bg-surface shadow-lg border border-border-moderate animate-in zoom-in-95 duration-fast"
         >

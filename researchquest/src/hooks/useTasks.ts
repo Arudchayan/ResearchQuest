@@ -131,6 +131,7 @@ export function useTasks(
       return sanitized;
     },
     xpCreate: { reward: XP_REWARDS.CREATE_TASK, action: "create_task" },
+    resyncSelectedOnDeleteRevert: true,
     afterUpdateSuccess: (uid, payload, snapshot) => {
       // XP + celebration only when completing, not un-completing
       if (payload.completed && !snapshot?.completed) {

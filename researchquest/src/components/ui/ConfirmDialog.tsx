@@ -1,5 +1,5 @@
 import { AlertTriangle, X } from "lucide-react";
-import { useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 
 import { Button } from "@/components/ui/button";
@@ -48,7 +48,14 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   const confirmButtonRef = useRef<HTMLButtonElement>(null);
   const cancelButtonRef = useRef<HTMLButtonElement>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
   const styles = VARIANT_STYLES[variant];
+
+  useEffect(() => {
+    if (isOpen) {
+      previouslyFocusedRef.current = document.activeElement as HTMLElement;
+    }
+  }, [isOpen]);
 
   const handleConfirm = () => {
     if (!isLoading) {
@@ -75,6 +82,10 @@ export function ConfirmDialog({
                 ? cancelButtonRef.current
                 : confirmButtonRef.current;
             target?.focus();
+          }}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            previouslyFocusedRef.current?.focus();
           }}
           className="fixed left-1/2 top-1/2 z-modal-stacked w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-surface bg-bg-surface shadow-lg border border-border-moderate animate-in zoom-in-95 duration-fast"
         >
