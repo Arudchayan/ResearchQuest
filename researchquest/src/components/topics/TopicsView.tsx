@@ -327,12 +327,13 @@ export function TopicsView() {
 
           {isCreating && (
             <form onSubmit={handleCreateTopic} className="flex gap-2">
+              <label htmlFor="new-topic-name" className="sr-only">Topic name</label>
               <input
+                id="new-topic-name"
                 type="text"
                 value={newTopicName}
                 onChange={(e) => setNewTopicName(e.target.value)}
                 placeholder="Topic name..."
-                aria-label="Topic name"
                 className="flex-1 h-10 rounded-lg border border-border-moderate bg-bg-base px-3 text-small text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-accent"
                 autoFocus
               />
