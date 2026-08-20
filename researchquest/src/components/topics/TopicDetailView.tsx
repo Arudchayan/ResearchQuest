@@ -1,6 +1,6 @@
 import { ConfirmDialog, useConfirmDialog } from "../ui/ConfirmDialog";
 import { logger } from "../../utils/logger";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "../../lib/supabase";
 import { useAppStore } from "../../store/appStore";
@@ -43,6 +43,8 @@ export function TopicDetailView({
   onUpdate,
   onDelete,
 }: TopicDetailViewProps) {
+  const nameInputId = useId();
+  const descInputId = useId();
   // Performance: Use useShallow with an object selector to prevent TopicDetailView from unnecessarily re-rendering on unrelated state changes in the global appStore.
   const { setCurrentView, setSelectedNote, setSelectedPaper, setSelectedIdea } =
     useAppStore(
@@ -266,14 +268,17 @@ export function TopicDetailView({
                 <Hash className="h-4 w-4" aria-hidden="true" />
               </span>
               {isEditing ? (
-                <input
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  maxLength={50}
-                  placeholder="Topic name..."
-                  aria-label="Topic name"
-                  className="w-full min-w-0 flex-1 h-10 rounded-lg border border-border-moderate bg-bg-base px-3 text-xl font-semibold text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
-                />
+                <>
+                  <label htmlFor={nameInputId} className="sr-only">Topic name</label>
+                  <input
+                    id={nameInputId}
+                    value={name}
+                    onChange={(event) => setName(event.target.value)}
+                    maxLength={50}
+                    placeholder="Topic name..."
+                    className="w-full min-w-0 flex-1 h-10 rounded-lg border border-border-moderate bg-bg-base px-3 text-xl font-semibold text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+                  />
+                </>
               ) : (
                 <h1 className="min-w-0 truncate font-serif text-2xl font-bold text-text-primary">
                   {topic.name}
@@ -281,15 +286,18 @@ export function TopicDetailView({
               )}
             </div>
             {isEditing ? (
-              <textarea
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-                rows={4}
-                maxLength={500}
-                className="w-full rounded-lg border border-border-moderate bg-bg-base px-3 py-2.5 text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
-                placeholder="Describe what belongs in this topic..."
-                aria-label="Topic description"
-              />
+              <>
+                <label htmlFor={descInputId} className="sr-only">Topic description</label>
+                <textarea
+                  id={descInputId}
+                  value={description}
+                  onChange={(event) => setDescription(event.target.value)}
+                  rows={4}
+                  maxLength={500}
+                  className="w-full rounded-lg border border-border-moderate bg-bg-base px-3 py-2.5 text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+                  placeholder="Describe what belongs in this topic..."
+                />
+              </>
             ) : (
               <p className="ml-11 text-body text-text-secondary whitespace-pre-wrap">
                 {topic.description ||
