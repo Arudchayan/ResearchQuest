@@ -269,7 +269,7 @@ export function CommandPalette() {
         className="flex items-center border-b border-border-subtle px-3"
         cmdk-input-wrapper=""
       >
-        <Search className="w-5 h-5 text-text-tertiary mr-2" />
+        <Search className="w-5 h-5 text-text-tertiary mr-2" aria-hidden="true" />
         <Command.Input
           placeholder="Type a command or search..."
           value={searchValue}

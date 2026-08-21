@@ -611,7 +611,7 @@ export function RightSidebar() {
                 </span>
               </div>
               <div className="flex items-start gap-2">
-                <Coffee className="w-4 h-4 text-success mt-0.5" />
+                <Coffee className="w-4 h-4 text-success mt-0.5" aria-hidden="true" />
                 <span>
                   {streakFreezeTokens} freeze token
                   {streakFreezeTokens === 1 ? "" : "s"} · {restDays} rest day
