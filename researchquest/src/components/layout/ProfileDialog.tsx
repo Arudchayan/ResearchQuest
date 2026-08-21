@@ -280,7 +280,7 @@ export function ProfileDialog({ open, onClose }: ProfileDialogProps) {
                           </span>
                           {isUnlocked && earnedDate && (
                             <span className="text-text-tertiary flex items-center gap-1">
-                              <Calendar className="w-3 h-3" />
+                              <Calendar className="w-3 h-3" aria-hidden="true" />
                               {new Date(earnedDate).toLocaleDateString()}
                             </span>
                           )}
