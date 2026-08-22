@@ -1,0 +1,491 @@
+# Minimal OpenAPI contract fixture for gateway smoke tests.
+# Full Schemathesis runs against a live function in later CI once secrets exist.
+openapi: "3.1.0"
+info:
+  title: ResearchQuest Agent API
+  version: "1.0.0"
+paths:
+  /health:
+    get: { operationId: getHealth, responses: { "200": { description: ok } } }
+  /openapi.json:
+    get: { operationId: getOpenApi, responses: { "200": { description: ok } } }
+  /explore:
+    get:
+      operationId: getExplore
+      responses:
+        "200": { description: ok }
+        "400": { description: validation }
+  /keys:
+    get: {
+      operationId: listApiKeys,
+      security: [{ BearerAuth: [] }],
+      responses: {
+        "200": { description: ok },
+        "401": { description: unauthorized },
+      },
+    }
+    post: {
+      operationId: createApiKey,
+      security: [{ BearerAuth: [] }],
+      responses: {
+        "201": { description: created },
+        "400": { description: validation },
+        "401": { description: unauthorized },
+        "403": { description: forbidden },
+      },
+    }
+  /keys/{id}:
+    delete: {
+      operationId: revokeApiKey,
+      security: [{ BearerAuth: [] }],
+      responses: {
+        "204": { description: revoked },
+        "401": { description: unauthorized },
+        "404": { description: not found },
+      },
+    }
+  /notes:
+    get: {
+      operationId: listNotes,
+      security: [{ BearerAuth: [] }],
+      responses: { "200": { description: ok } },
+    }
+    post: {
+      operationId: createNotes,
+      security: [{ BearerAuth: [] }],
+      responses: {
+        "201": { description: created },
+        "400": { description: validation },
+      },
+    }
+  /notes/{id}:
+    get: {
+      operationId: getNotes,
+      security: [{ BearerAuth: [] }],
+      responses: {
+        "200": { description: ok },
+        "404": { description: not found },
+      },
+    }
+    patch: {
+      operationId: updateNotes,
+      security: [{ BearerAuth: [] }],
+      responses: {
+        "200": { description: updated },
+        "400": { description: validation },
+      },
+    }
+    delete: {
+      operationId: deleteNotes,
+      security: [{ BearerAuth: [] }],
+      responses: {
+        "204": { description: deleted },
+        "404": { description: not found },
+      },
+    }
+  /notes:batchCreate:
+    post: {
+      operationId: batchCreateNotes,
+      security: [{ BearerAuth: [] }],
+      responses: {
+        "201": { description: created },
+        "207": { description: partial },
+        "400": { description: validation },
+      },
+    }
+  /papers:
+    get: {
+      operationId: listPapers,
+      security: [{ BearerAuth: [] }],
+      responses: { "200": { description: ok } },
+    }
+    post: {
+      operationId: createPapers,
+      security: [{ BearerAuth: [] }],
+      responses: {
+        "201": { description: created },
+        "400": { description: validation },
+      },
+    }
+  /papers/{id}:
+    get: {
+      operationId: getPapers,
+      security: [{ BearerAuth: [] }],
+      responses: {
+        "200": { description: ok },
+        "404": { description: not found },
+      },
+    }
+    patch: {
+      operationId: updatePapers,
+      security: [{ BearerAuth: [] }],
+      responses: {
+        "200": { description: updated },
+        "400": { description: validation },
+      },
+    }
+    delete: {
+      operationId: deletePapers,
+      security: [{ BearerAuth: [] }],
+      responses: {
+        "204": { description: deleted },
+        "404": { description: not found },
+      },
+    }
+  /papers:batchCreate:
+    post: {
+      operationId: batchCreatePapers,
+      security: [{ BearerAuth: [] }],
+      responses: {
+        "201": { description: created },
+        "207": { description: partial },
+        "400": { description: validation },
+      },
+    }
+  /ideas:
+    get: {
+      operationId: listIdeas,
+      security: [{ BearerAuth: [] }],
+      responses: { "200": { description: ok } },
+    }
+    post: {
+      operationId: createIdeas,
+      security: [{ BearerAuth: [] }],
+      responses: {
+        "201": { description: created },
+        "400": { description: validation },
+      },
+    }
+  /ideas/{id}:
+    get: {
+      operationId: getIdeas,
+      security: [{ BearerAuth: [] }],
+      responses: {
+        "200": { description: ok },
+        "404": { description: not found },
+      },
+    }
+    patch: {
+      operationId: updateIdeas,
+      security: [{ BearerAuth: [] }],
+      responses: {
+        "200": { description: updated },
+        "400": { description: validation },
+      },
+    }
+    delete: {
+      operationId: deleteIdeas,
+      security: [{ BearerAuth: [] }],
+      responses: {
+        "204": { description: deleted },
+        "404": { description: not found },
+      },
+    }
+  /ideas:batchCreate:
+    post: {
+      operationId: batchCreateIdeas,
+      security: [{ BearerAuth: [] }],
+      responses: {
+        "201": { description: created },
+        "207": { description: partial },
+        "400": { description: validation },
+      },
+    }
+  /topics:
+    get: {
+      operationId: listTopics,
+      security: [{ BearerAuth: [] }],
+      responses: { "200": { description: ok } },
+    }
+    post: {
+      operationId: createTopics,
+      security: [{ BearerAuth: [] }],
+      responses: {
+        "201": { description: created },
+        "400": { description: validation },
+      },
+    }
+  /topics/{id}:
+    get: {
+      operationId: getTopics,
+      security: [{ BearerAuth: [] }],
+      responses: {
+        "200": { description: ok },
+        "404": { description: not found },
+      },
+    }
+    patch: {
+      operationId: updateTopics,
+      security: [{ BearerAuth: [] }],
+      responses: {
+        "200": { description: updated },
+        "400": { description: validation },
+      },
+    }
+    delete: {
+      operationId: deleteTopics,
+      security: [{ BearerAuth: [] }],
+      responses: {
+        "204": { description: deleted },
+        "404": { description: not found },
+      },
+    }
+  /topics:batchCreate:
+    post: {
+      operationId: batchCreateTopics,
+      security: [{ BearerAuth: [] }],
+      responses: {
+        "201": { description: created },
+        "207": { description: partial },
+        "400": { description: validation },
+      },
+    }
+  /topics/{id}/attach:
+    post: {
+      operationId: attachTopic,
+      security: [{ BearerAuth: [] }],
+      responses: {
+        "200": { description: attached },
+        "400": { description: validation },
+        "404": { description: not found },
+      },
+    }
+  /topics/{id}/detach:
+    post: {
+      operationId: detachTopic,
+      security: [{ BearerAuth: [] }],
+      responses: {
+        "200": { description: detached },
+        "400": { description: validation },
+        "404": { description: not found },
+      },
+    }
+  /tasks:
+    get: {
+      operationId: listTasks,
+      security: [{ BearerAuth: [] }],
+      responses: { "200": { description: ok } },
+    }
+    post: {
+      operationId: createTasks,
+      security: [{ BearerAuth: [] }],
+      responses: {
+        "201": { description: created },
+        "400": { description: validation },
+      },
+    }
+  /tasks/{id}:
+    get: {
+      operationId: getTasks,
+      security: [{ BearerAuth: [] }],
+      responses: {
+        "200": { description: ok },
+        "404": { description: not found },
+      },
+    }
+    patch: {
+      operationId: updateTasks,
+      security: [{ BearerAuth: [] }],
+      responses: {
+        "200": { description: updated },
+        "400": { description: validation },
+      },
+    }
+    delete: {
+      operationId: deleteTasks,
+      security: [{ BearerAuth: [] }],
+      responses: {
+        "204": { description: deleted },
+        "404": { description: not found },
+      },
+    }
+  /tasks:batchCreate:
+    post: {
+      operationId: batchCreateTasks,
+      security: [{ BearerAuth: [] }],
+      responses: {
+        "201": { description: created },
+        "207": { description: partial },
+        "400": { description: validation },
+      },
+    }
+  /goals:
+    get: {
+      operationId: listGoals,
+      security: [{ BearerAuth: [] }],
+      responses: { "200": { description: ok } },
+    }
+    post: {
+      operationId: createGoals,
+      security: [{ BearerAuth: [] }],
+      responses: {
+        "201": { description: created },
+        "400": { description: validation },
+      },
+    }
+  /goals/{id}:
+    get: {
+      operationId: getGoals,
+      security: [{ BearerAuth: [] }],
+      responses: {
+        "200": { description: ok },
+        "404": { description: not found },
+      },
+    }
+    patch: {
+      operationId: updateGoals,
+      security: [{ BearerAuth: [] }],
+      responses: {
+        "200": { description: updated },
+        "400": { description: validation },
+      },
+    }
+    delete: {
+      operationId: deleteGoals,
+      security: [{ BearerAuth: [] }],
+      responses: {
+        "204": { description: deleted },
+        "404": { description: not found },
+      },
+    }
+  /goals:batchCreate:
+    post: {
+      operationId: batchCreateGoals,
+      security: [{ BearerAuth: [] }],
+      responses: {
+        "201": { description: created },
+        "207": { description: partial },
+        "400": { description: validation },
+      },
+    }
+  /research_goals:
+    get: {
+      operationId: listResearchGoals,
+      security: [{ BearerAuth: [] }],
+      responses: { "200": { description: ok } },
+    }
+    post: {
+      operationId: createResearchGoals,
+      security: [{ BearerAuth: [] }],
+      responses: {
+        "201": { description: created },
+        "400": { description: validation },
+      },
+    }
+  /research_goals/{id}:
+    get: {
+      operationId: getResearchGoals,
+      security: [{ BearerAuth: [] }],
+      responses: {
+        "200": { description: ok },
+        "404": { description: not found },
+      },
+    }
+    patch: {
+      operationId: updateResearchGoals,
+      security: [{ BearerAuth: [] }],
+      responses: {
+        "200": { description: updated },
+        "400": { description: validation },
+      },
+    }
+    delete: {
+      operationId: deleteResearchGoals,
+      security: [{ BearerAuth: [] }],
+      responses: {
+        "204": { description: deleted },
+        "404": { description: not found },
+      },
+    }
+  /research_goals:batchCreate:
+    post: {
+      operationId: batchCreateResearchGoals,
+      security: [{ BearerAuth: [] }],
+      responses: {
+        "201": { description: created },
+        "207": { description: partial },
+        "400": { description: validation },
+      },
+    }
+  /feed-sources:
+    get:
+      operationId: listFeedSources
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200": { description: ok }
+        "401": { description: unauthorized }
+        "403": { description: forbidden }
+    post:
+      operationId: createFeedSource
+      security: [{ BearerAuth: [] }]
+      responses:
+        "201": { description: created }
+        "400": { description: validation }
+        "401": { description: unauthorized }
+        "403": { description: forbidden }
+  /feed-sources/{id}:
+    get:
+      operationId: getFeedSource
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200": { description: ok }
+        "404": { description: not found }
+    patch:
+      operationId: updateFeedSource
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200": { description: updated }
+        "400": { description: validation }
+        "404": { description: not found }
+    delete:
+      operationId: deleteFeedSource
+      security: [{ BearerAuth: [] }]
+      responses:
+        "204": { description: deleted }
+        "404": { description: not found }
+  /feed-items:
+    get:
+      operationId: listFeedItems
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: type, in: query, required: false, schema: { type: string } }
+        - { name: status, in: query, required: false, schema: { type: string } }
+      responses:
+        "200": { description: ok }
+        "400": { description: validation }
+    post:
+      operationId: createFeedItem
+      security: [{ BearerAuth: [] }]
+      responses:
+        "201": { description: created }
+        "400": { description: validation }
+        "409": { description: duplicate }
+  /feed-items:batchCreate:
+    post:
+      operationId: batchCreateFeedItems
+      security: [{ BearerAuth: [] }]
+      responses:
+        "201": { description: created }
+        "400": { description: validation }
+  /feed-items/{id}:
+    patch:
+      operationId: patchFeedItem
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200": { description: updated }
+        "400": { description: validation }
+        "404": { description: not found }
+  /feed-items/{id}/promote:
+    post:
+      operationId: promoteFeedItem
+      security: [{ BearerAuth: [] }]
+      responses:
+        "201": { description: promoted }
+        "400": { description: validation }
+        "404": { description: not found }
+        "409": { description: conflict }
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer

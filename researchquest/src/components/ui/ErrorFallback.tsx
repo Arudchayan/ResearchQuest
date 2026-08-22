@@ -83,7 +83,7 @@ export function ErrorFallback({
             <p className="text-caption font-mono text-destructive break-words">
               {error.message}
             </p>
-            {/* 🛡️ Sentinel: Removed error.stack exposure to prevent information leakage */}
+            
           </div>
         </details>
 

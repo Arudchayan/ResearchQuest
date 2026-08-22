@@ -174,6 +174,47 @@ function cleanPaperDraft(
   return { ok: true, payload: cleanData };
 }
 
+// ARU-657: normalize DOIs for comparison — lowercase, strip resolver
+// prefixes ("https://doi.org/", "http://dx.doi.org/") and a leading
+// "doi:" so spelling variants of the same DOI dedupe correctly.
+export function normalizeDoi(doi: string): string {
+  let value = doi.trim().toLowerCase();
+  value = value.replace(/^https?:\/\/(dx\.)?doi\.org\//, "");
+  value = value.replace(/^doi:\s*/, "");
+  return value;
+}
+
+// ARU-657: returns the set of NORMALIZED DOIs that this user already has
+// in their library among the given candidates. Fails open (empty set +
+// logged error) so a transient query failure never blocks paper creation.
+async function fetchExistingDois(
+  dois: string[],
+  userId: string,
+): Promise<Set<string>> {
+  const existing = new Set<string>();
+  if (dois.length === 0) return existing;
+
+  try {
+    const { data, error } = await supabase
+      .from("papers")
+      .select("doi")
+      .eq("user_id", userId)
+      .in("doi", dois);
+
+    if (error) {
+      logger.error("DOI duplicate check failed", error);
+      return existing;
+    }
+
+    for (const row of data ?? []) {
+      if (row?.doi) existing.add(normalizeDoi(row.doi as string));
+    }
+  } catch (error) {
+    logger.error("DOI duplicate check failed", error);
+  }
+  return existing;
+}
+
 const CREATE_FAIL_REASON_MESSAGE: Record<
   "title-required" | "title-too-long" | "abstract-too-long",
   string
@@ -200,6 +241,14 @@ export function usePapers(userId: string | undefined) {
     updateReturnsData: true,
     resyncSelectedOnDeleteRevert: true,
     onError: (op, err, setError) => {
+      if (
+        op === "create" &&
+        err?.message === "This paper (DOI) is already in your library"
+      ) {
+        setError(err.message);
+        toast.warning(err.message);
+        return;
+      }
       if (op === "create") {
         const message = paperErrorMessage(err);
         setError(`Failed to create paper: ${message}`);
@@ -219,6 +268,27 @@ export function usePapers(userId: string | undefined) {
         return null;
       }
       return cleaned.payload;
+    },
+    insert: async (payload) => {
+      const doi =
+        typeof payload.doi === "string" && payload.doi.trim()
+          ? payload.doi.trim()
+          : undefined;
+      if (doi && userId) {
+        const existingDois = await fetchExistingDois([doi], userId);
+        if (existingDois.has(normalizeDoi(doi))) {
+          return {
+            data: null,
+            error: { message: "This paper (DOI) is already in your library" },
+          };
+        }
+      }
+      const res = await supabase
+        .from("papers")
+        .insert(payload)
+        .select()
+        .single();
+      return { data: res.data ?? null, error: res.error };
     },
     prepareUpdate: (_current, updates, fail) => {
       if (updates.title && updates.title.length > PAPER_TITLE_MAX_LENGTH) {
@@ -407,6 +477,54 @@ export function usePapers(userId: string | undefined) {
 
       if (validPapers.length === 0) {
         return [];
+      }
+
+      // ARU-657: server-side DOI dedupe for the batch path — drop entries
+      // already in the user's library AND collapse duplicates within the
+      // batch itself (first occurrence wins).
+      const seenInBatch = new Set<string>();
+      const doiCandidates = new Set<string>();
+      for (const paper of validPapers) {
+        if (!paper.doi) continue;
+        const normalized = normalizeDoi(paper.doi);
+        if (seenInBatch.has(normalized)) continue;
+        seenInBatch.add(normalized);
+        doiCandidates.add(normalized);
+      }
+
+      const existingDois =
+        doiCandidates.size > 0
+          ? await fetchExistingDois([...doiCandidates], userId)
+          : new Set<string>();
+
+      if (existingDois.size > 0 || seenInBatch.size > 0) {
+        const deduped: PaperInsertPayload[] = [];
+        let duplicateCount = 0;
+        const seenFinal = new Set<string>();
+        for (const paper of validPapers) {
+          const normalized = paper.doi ? normalizeDoi(paper.doi) : null;
+          if (
+            normalized &&
+            (seenFinal.has(normalized) || existingDois.has(normalized))
+          ) {
+            duplicateCount++;
+            continue;
+          }
+          if (normalized) seenFinal.add(normalized);
+          deduped.push(paper);
+        }
+
+        if (deduped.length === 0) {
+          toast.warning("All papers are already in your library");
+          return [];
+        }
+        if (duplicateCount > 0) {
+          toast.warning(
+            `${duplicateCount} duplicate paper${duplicateCount === 1 ? "" : "s"} skipped`,
+          );
+        }
+        validPapers.length = 0;
+        validPapers.push(...deduped);
       }
 
       // Batch insert using Supabase

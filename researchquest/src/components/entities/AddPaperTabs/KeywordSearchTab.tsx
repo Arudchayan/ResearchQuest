@@ -9,6 +9,7 @@ interface KeywordSearchTabProps {
   onSearch: (query: string) => Promise<void>;
   onAdd: () => Promise<void>;
   loading: boolean;
+  isAdding: boolean;
   searchResults: CrossrefPaper[];
   selectedResult: CrossrefPaper | null;
   setSelectedResult: (res: CrossrefPaper) => void;
@@ -27,6 +28,7 @@ export function KeywordSearchTab({
   onSearch,
   onAdd,
   loading,
+  isAdding,
   searchResults,
   selectedResult,
   setSelectedResult,
@@ -143,13 +145,22 @@ export function KeywordSearchTab({
                 )}
                 <button
                   onClick={onAdd}
-                  disabled={loading}
+                  disabled={loading || isAdding}
                   className="w-full py-2.5 bg-primary-500 text-white rounded-lg font-semibold flex justify-center items-center gap-2 hover:bg-primary-600 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 disabled:opacity-70 disabled:cursor-not-allowed"
                   aria-live="polite"
                   aria-atomic="true"
                 >
-                  {loading ? <Loader className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                  Add to library
+                  {isAdding ? (
+                    <>
+                      <Loader className="w-4 h-4 animate-spin" aria-hidden="true" />
+                      Adding...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4" aria-hidden="true" />
+                      Add to library
+                    </>
+                  )}
                 </button>
               </div>
             ) : (

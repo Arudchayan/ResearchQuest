@@ -22,6 +22,10 @@ begin
     raise exception 'user_id is required';
   end if;
 
+  if p_user_id != auth.uid() then
+    raise exception 'permission denied';
+  end if;
+
   cleaned_title := trim(coalesce(p_title, ''));
   if cleaned_title = '' then
     raise exception 'title is required';

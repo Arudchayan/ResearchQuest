@@ -119,4 +119,47 @@ describe("useRelatedItems", () => {
       expect(mockFrom).toHaveBeenCalled();
     });
   });
+
+  it("filters topic junction queries by user_id", async () => {
+    const createBuilder = (result: { data: any[]; error: null }) => {
+      const builder = {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        neq: vi.fn().mockReturnThis(),
+        in: vi.fn().mockReturnThis(),
+        then: (resolve: any) => resolve(result),
+      };
+      return builder;
+    };
+
+    const currentTopicsBuilder = createBuilder({
+      data: [{ topic_id: "topic-1" }],
+      error: null,
+    });
+    const relatedNotesBuilder = createBuilder({
+      data: [{ note_id: "note-2", topic_id: "topic-1" }],
+      error: null,
+    });
+    const relatedPapersBuilder = createBuilder({ data: [], error: null });
+    const relatedIdeasBuilder = createBuilder({ data: [], error: null });
+    const builders = [
+      currentTopicsBuilder,
+      relatedNotesBuilder,
+      relatedPapersBuilder,
+      relatedIdeasBuilder,
+    ];
+    const mockFrom = supabase.from as unknown as ReturnType<typeof vi.fn>;
+    mockFrom.mockImplementation(() => builders.shift());
+
+    renderHook(() => useRelatedItems("note-1", "note", "user-1"));
+
+    await waitFor(() => {
+      expect(mockFrom).toHaveBeenCalledTimes(4);
+    });
+
+    expect(currentTopicsBuilder.eq).toHaveBeenCalledWith("user_id", "user-1");
+    expect(relatedNotesBuilder.eq).toHaveBeenCalledWith("user_id", "user-1");
+    expect(relatedPapersBuilder.eq).toHaveBeenCalledWith("user_id", "user-1");
+    expect(relatedIdeasBuilder.eq).toHaveBeenCalledWith("user_id", "user-1");
+  });
 });

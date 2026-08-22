@@ -25,6 +25,14 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
+      thresholds: {
+        'src/utils/security.ts': {
+          lines: 95,
+          functions: 100,
+          branches: 100,
+          statements: 95,
+        },
+      },
       exclude: [
         'node_modules/',
         'src/test/',

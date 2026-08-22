@@ -13,21 +13,24 @@ import { useAppStore } from "../../store/appStore";
 
 // Mock dependencies
 // No useNavigate mock needed anymore as we don't use it
+let mockNotes = [{ id: "1", title: "Test Note", markdown_body: "" }];
+let mockPapers = [{ id: "1", title: "Test Paper", authors: [] }];
+let mockIdeas = [{ id: "1", title: "Test Idea" }];
 
 vi.mock("../../hooks/useNotes", () => ({
   useNotes: () => ({
-    notes: [{ id: "1", title: "Test Note", markdown_body: "" }],
+    notes: mockNotes,
   }),
 }));
 
 vi.mock("../../hooks/usePapers", () => ({
   usePapers: () => ({
-    papers: [{ id: "1", title: "Test Paper", authors: [] }],
+    papers: mockPapers,
   }),
 }));
 
 vi.mock("../../hooks/useIdeas", () => ({
-  useIdeas: () => ({ ideas: [{ id: "1", title: "Test Idea" }] }),
+  useIdeas: () => ({ ideas: mockIdeas }),
 }));
 
 describe("CommandPalette", () => {
@@ -43,6 +46,9 @@ describe("CommandPalette", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockNotes = [{ id: "1", title: "Test Note", markdown_body: "" }];
+    mockPapers = [{ id: "1", title: "Test Paper", authors: [] }];
+    mockIdeas = [{ id: "1", title: "Test Idea" }];
     useAppStore.setState({
       effectiveTheme: "light",
       setTheme: vi.fn(),
@@ -51,6 +57,8 @@ describe("CommandPalette", () => {
       setSelectedPaper: vi.fn(),
       setSelectedIdea: vi.fn(),
       user: { id: "test-user" } as any,
+      tasks: [{ id: "task-1", title: "Test Task" } as any],
+      topics: {},
     });
   });
 
@@ -134,6 +142,78 @@ describe("CommandPalette", () => {
       expect(screen.getByText("Test Note")).toBeInTheDocument();
       expect(screen.getByText("Test Paper")).toBeInTheDocument();
       expect(screen.getByText("Test Idea")).toBeInTheDocument();
+      expect(screen.getByText("Test Task")).toBeInTheDocument();
+    });
+  });
+
+  it("handles 0 matches correctly", async () => {
+    render(<CommandPalette />);
+    fireEvent.keyDown(document, { key: "k", metaKey: true });
+
+    await waitFor(() => {
+      const input = screen.getByPlaceholderText("Type a command or search...");
+      fireEvent.change(input, { target: { value: "NonExistentItemXYZ" } });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("No results found.")).toBeInTheDocument();
+    });
+  });
+
+  it("handles exactly 1 match correctly", async () => {
+    render(<CommandPalette />);
+    fireEvent.keyDown(document, { key: "k", metaKey: true });
+
+    await waitFor(() => {
+      const input = screen.getByPlaceholderText("Type a command or search...");
+      fireEvent.change(input, { target: { value: "Test Note" } });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Test Note")).toBeInTheDocument();
+      expect(screen.queryByText("Test Paper")).not.toBeInTheDocument();
+    });
+  });
+
+  it("handles exactly 50 matches correctly", async () => {
+    mockNotes = Array.from({ length: 50 }, (_, index) => ({
+      id: `bulk-note-${index}`,
+      title: `Bulk Note ${index}`,
+      markdown_body: "",
+    }));
+    mockPapers = [];
+    mockIdeas = [];
+    useAppStore.setState({ tasks: [], topics: {} });
+
+    render(<CommandPalette />);
+    fireEvent.keyDown(document, { key: "k", metaKey: true });
+
+    await waitFor(() => {
+      expect(screen.getByText("Bulk Note 49")).toBeInTheDocument();
+      expect(screen.getAllByText(/Bulk Note/).length).toBe(50);
+    });
+  });
+
+  it("limits rendered search results to 50 matches when >50 matches exist", async () => {
+    mockNotes = Array.from({ length: 60 }, (_, index) => ({
+      id: `bulk-note-${index}`,
+      title: `Bulk Note ${index}`,
+      markdown_body: "",
+    }));
+    mockPapers = [];
+    mockIdeas = [];
+    useAppStore.setState({
+      tasks: [],
+      topics: {},
+    });
+
+    render(<CommandPalette />);
+    fireEvent.keyDown(document, { key: "k", metaKey: true });
+
+    await waitFor(() => {
+      expect(screen.getByText("Bulk Note 49")).toBeInTheDocument();
+      expect(screen.queryByText("Bulk Note 50")).not.toBeInTheDocument();
+      expect(screen.getAllByText(/Bulk Note/).length).toBe(50);
     });
   });
 

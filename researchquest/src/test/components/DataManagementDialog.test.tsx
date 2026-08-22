@@ -28,6 +28,7 @@ vi.mock("sonner", () => ({
     success: vi.fn(),
     error: vi.fn(),
     loading: vi.fn(),
+    warning: vi.fn(),
   },
 }));
 
@@ -48,9 +49,10 @@ describe("DataManagementDialog", () => {
 
   it("renders correctly when open", () => {
     render(<DataManagementDialog open={true} onClose={onClose} />);
-    expect(screen.getByText("Data Management")).toBeInTheDocument();
+    expect(screen.getByText("Data & API Settings")).toBeInTheDocument();
     expect(screen.getByText("Export Data")).toBeInTheDocument();
     expect(screen.getByText("Import Data")).toBeInTheDocument();
+    expect(screen.getByText("API Keys")).toBeInTheDocument();
   });
 
   it("calls exportData when Download is clicked", async () => {

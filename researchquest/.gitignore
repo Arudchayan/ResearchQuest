@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 .env
+.env.local
+.env.*.local
+
+# pnpm
+.pnpm-store/
 
 # Editor directories and files
 .vscode/*
@@ -30,4 +35,5 @@ core
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+.vercel
 NUL

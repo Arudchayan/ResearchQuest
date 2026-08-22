@@ -26,6 +26,7 @@ vi.mock("sonner", () => ({
     success: vi.fn(),
     error: vi.fn(),
     dismiss: vi.fn(),
+    warning: vi.fn(),
   },
 }));
 
@@ -83,6 +84,14 @@ vi.mock("../../store/appStore", () => {
 // Mock the editor to avoid complex rendering
 vi.mock("../editor/MarkdownEditor", () => ({
   MarkdownEditor: () => <div data-testid="markdown-editor">Editor</div>,
+}));
+
+// Mock @tanstack/react-virtual to return virtual items in JSDOM (no layout dimensions)
+vi.mock("@tanstack/react-virtual", () => ({
+  useVirtualizer: () => ({
+    getVirtualItems: () => [{ index: 0, key: 0, start: 0, size: 160, lane: 0 }],
+    getTotalSize: () => 160,
+  }),
 }));
 
 describe("NotesView Deletion UX", () => {

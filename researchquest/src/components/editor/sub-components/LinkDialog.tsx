@@ -78,26 +78,26 @@ export function LinkDialog({
       onKeyDown={handleKeyDown}
       ref={dialogRef}
     >
-      <div className="w-full max-w-md rounded-lg bg-bg-surface border border-border-subtle shadow-xl">
-        <div className="p-6 border-b border-border-subtle">
-          <h2 id="link-dialog-title" className="text-lg font-semibold text-text-primary">Insert link</h2>
-          <p className="text-caption text-text-secondary mt-1">Wrap selection with a link label.</p>
+      <div className="w-full max-w-md rounded-xl border border-border-moderate bg-bg-surface shadow-lift animate-fade-slide-in">
+        <div className="border-b border-border-subtle p-6">
+          <h2 id="link-dialog-title" className="font-serif text-lg font-semibold text-text-primary">Insert link</h2>
+          <p className="mt-1 text-caption text-text-secondary">Wrap selection with a link label.</p>
         </div>
 
         <form onSubmit={onSubmit} className="p-6 space-y-4" noValidate>
           <div>
-            <label htmlFor="link-text" className="block text-caption font-medium text-text-secondary mb-1">Link text</label>
+            <label htmlFor="link-text" className="mb-1.5 block text-caption font-semibold text-text-secondary">Link text</label>
             <input
               id="link-text"
               type="text"
               value={linkText}
               onChange={(e) => setLinkText(e.target.value)}
-              className="w-full px-3 py-2 rounded-md border border-border-subtle bg-bg-base text-small"
+              className="w-full rounded-lg border border-border-moderate bg-bg-surface px-3 py-2.5 text-small text-text-primary shadow-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
             />
           </div>
 
           <div>
-            <label htmlFor="link-url" className="block text-caption font-medium text-text-secondary mb-1">URL</label>
+            <label htmlFor="link-url" className="mb-1.5 block text-caption font-semibold text-text-secondary">URL</label>
             <input
               id="link-url"
               ref={inputRef}
@@ -107,14 +107,25 @@ export function LinkDialog({
               required
               aria-invalid={!!error}
               aria-describedby={error ? "link-url-error" : undefined}
-              className="w-full px-3 py-2 rounded-md border border-border-subtle bg-bg-base text-small"
+              className="w-full rounded-lg border border-border-moderate bg-bg-surface px-3 py-2.5 text-small text-text-primary shadow-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
             />
-            {error && <p id="link-url-error" role="alert" className="text-caption text-destructive mt-1">{error}</p>}
+            {error && <p id="link-url-error" role="alert" className="mt-1.5 text-caption font-medium text-coral-strong">{error}</p>}
           </div>
 
-          <div className="flex justify-end gap-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 border rounded-md">Cancel</button>
-            <button type="submit" className="px-4 py-2 bg-primary-500 text-white rounded-md">Insert link</button>
+          <div className="flex justify-end gap-2 pt-1">
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex h-10 items-center justify-center rounded-lg border border-border-moderate bg-bg-surface px-4 text-sm font-semibold text-text-secondary shadow-sm transition-all hover:-translate-y-0.5 hover:border-border-strong hover:bg-bg-elevated hover:text-text-primary hover:shadow-lift"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="inline-flex h-10 items-center justify-center rounded-lg bg-text-primary px-4 text-sm font-semibold text-bg-base shadow-lift transition-transform hover:-translate-y-0.5 hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
+            >
+              Insert link
+            </button>
           </div>
         </form>
       </div>

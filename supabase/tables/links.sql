@@ -1,3 +1,4 @@
+-- Deprecated/unused: entity arrays and topic junction tables are the source of truth for relationships.
 CREATE TABLE links (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
