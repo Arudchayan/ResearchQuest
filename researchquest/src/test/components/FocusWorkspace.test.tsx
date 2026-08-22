@@ -57,6 +57,7 @@ vi.mock("../../utils/gamification", () => ({
 vi.mock("sonner", () => ({
   toast: {
     success: vi.fn(),
+    warning: vi.fn(),
   },
 }));
 
