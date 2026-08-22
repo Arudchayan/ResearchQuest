@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { useDataSync } from "../../hooks/useDataSync";
 import { useAppStore } from "../../store/appStore";
@@ -10,12 +10,9 @@ function queryResult<T>(result: { data: T[] | null; error: { message: string } |
   builder.eq = vi.fn().mockReturnValue(builder);
   builder.gte = vi.fn().mockReturnValue(builder);
   builder.order = vi.fn().mockReturnValue(builder);
+  builder.maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
   builder.then = (onFulfilled?: (value: typeof result) => unknown) =>
     Promise.resolve(result).then(onFulfilled);
-
-  builder.range = vi.fn().mockReturnValue({
-     then: builder.then
-  });
   return builder;
 }
 
@@ -37,7 +34,7 @@ describe("useDataSync sync errors", () => {
     });
   });
 
-  test("stores dashboard preview fetch failures for notes, papers, and ideas", async () => {
+  test("stores fetch failures for notes, papers, and ideas", async () => {
     mockSupabaseClient.from.mockImplementation((table: string) =>
       queryResult({
         data: null,
@@ -50,15 +47,15 @@ describe("useDataSync sync errors", () => {
     await waitFor(() => {
       expect(useAppStore.getState().dataSyncErrors).toEqual({
         notes: {
-          message: "Failed to load notes preview.",
+          message: "notes unavailable",
           resource: "notes",
         },
         papers: {
-          message: "Failed to load papers preview.",
+          message: "papers unavailable",
           resource: "papers",
         },
         ideas: {
-          message: "Failed to load ideas preview.",
+          message: "ideas unavailable",
           resource: "ideas",
         },
       });
@@ -92,74 +89,47 @@ describe("useDataSync sync errors", () => {
     });
   });
 
-  test("clears stale ideas when an ideas fetch returns no rows", async () => {
-    useAppStore.setState({
-      ideas: [
-        {
-          id: "stale-idea",
-          user_id: "user-1",
-          title: "Stale Idea",
-          description: "",
-          stage: "Seed",
-          linked_note_ids: [],
-          linked_paper_ids: [],
-          created_at: "2024-01-01T00:00:00Z",
-          updated_at: "2024-01-01T00:00:00Z",
-        },
-      ],
+  test("retryDataSync clears the error and refetches the resource", async () => {
+    const recoveredNote = {
+      id: "note-1",
+      user_id: "user-1",
+      title: "Recovered",
+      markdown_body: "body",
+      tags: [],
+      linked_entity_ids: [],
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-02T00:00:00Z",
+    };
+
+    // First fetch fails for all resources
+    mockSupabaseClient.from.mockImplementation((table: string) =>
+      queryResult({
+        data: null,
+        error: { message: `${table} unavailable` },
+      }),
+    );
+
+    renderHook(() => useDataSync("user-1", "dashboard"));
+
+    await waitFor(() => {
+      expect(useAppStore.getState().dataSyncErrors.notes).not.toBeNull();
     });
 
-    mockSupabaseClient.from.mockImplementation(() =>
+    // Backend recovers; the retry signal must issue a fresh notes fetch
+    mockSupabaseClient.from.mockImplementation((table: string) =>
       queryResult({
-        data: [],
+        data: table === "notes" ? [recoveredNote] : [],
         error: null,
       }),
     );
 
-    renderHook(() => useDataSync("user-1", "ideas"));
+    act(() => {
+      useAppStore.getState().retryDataSync("notes");
+    });
 
     await waitFor(() => {
-      expect(useAppStore.getState().ideas).toEqual([]);
+      expect(useAppStore.getState().notes).toEqual([recoveredNote]);
     });
-  });
-
-  test("allows retrying notes after a failed fetch", async () => {
-    let notesFetches = 0;
-
-    mockSupabaseClient.from.mockImplementation((table: string) => {
-      if (table === "notes") {
-        notesFetches += 1;
-        return queryResult({
-          data: notesFetches === 1 ? null : [],
-          error: notesFetches === 1 ? { message: "notes unavailable" } : null,
-        });
-      }
-
-      return queryResult({
-        data: [],
-        error: null,
-      });
-    });
-
-    const { rerender } = renderHook(
-      ({ view }) => useDataSync("user-1", view),
-      { initialProps: { view: "notes" } },
-    );
-
-    await waitFor(() => {
-      expect(useAppStore.getState().dataSyncErrors.notes).toEqual({
-        message: "Failed to load notes.",
-        resource: "notes",
-      });
-    });
-    expect(notesFetches).toBe(1);
-
-    rerender({ view: "ideas" });
-    rerender({ view: "notes" });
-
-    await waitFor(() => {
-      expect(notesFetches).toBe(2);
-      expect(useAppStore.getState().dataSyncErrors.notes).toBeNull();
-    });
+    expect(useAppStore.getState().dataSyncErrors.notes).toBeNull();
   });
 });

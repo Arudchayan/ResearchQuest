@@ -12,8 +12,7 @@ import {
   BookOpen,
 } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
-import { useState, useEffect, useMemo, useRef } from "react";
-import type { RealtimeChannel } from "@supabase/supabase-js";
+import { useMemo } from "react";
 import { supabase } from "../../lib/supabase";
 import { useGamificationStore } from "../../store/gamificationStore";
 import { logger } from "../../utils/logger";
@@ -22,7 +21,6 @@ import { useBacklinks } from "../../hooks/useBacklinks";
 import { useRelatedItems } from "../../hooks/useRelatedItems";
 import { useShallow } from "zustand/react/shallow";
 import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
-import { FeedsRail } from "../feeds/FeedsRail";
 
 export function RightSidebar() {
   const {
@@ -54,13 +52,54 @@ export function RightSidebar() {
     (state) => state.streakFreezeTokens,
   );
   const restDays = useGamificationStore((state) => state.restDays);
-  const [todayXP, setTodayXP] = useState(0);
-  const [weeklyPapers, setWeeklyPapers] = useState(0);
-  const [activeIdeas, setActiveIdeas] = useState(0);
-  const [upcomingDeadlines, setUpcomingDeadlines] = useState<
-    { id: string; title: string; due_date: string }[]
-  >([]);
-  const realtimeChannelsRef = useRef<RealtimeChannel[]>([]);
+  const todayXP = useAppStore((state) => state.todayXP);
+  const storePapers = useAppStore((state) => state.papers);
+  const storeIdeas = useAppStore((state) => state.ideas);
+  const storeTasks = useAppStore((state) => state.tasks);
+
+  const weeklyPapers = useMemo(
+    () => {
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      return storePapers.filter(
+        (p) => new Date(p.created_at) >= weekAgo,
+      ).length;
+    },
+    [storePapers],
+  );
+
+  const activeIdeas = useMemo(
+    () =>
+      storeIdeas.filter((i) =>
+        ["Seed", "Growing", "Blooming"].includes(i.stage),
+      ).length,
+    [storeIdeas],
+  );
+
+  const upcomingDeadlines = useMemo(() => {
+    const now = new Date();
+    const horizon = new Date();
+    horizon.setDate(now.getDate() + 7);
+    return storeTasks
+      .filter((t) => {
+        if (!t.due_date) return false;
+        if ("completed" in t && t.completed) return false;
+        if ("status" in t && (t.status === "completed" || t.status === "done"))
+          return false;
+        const due = new Date(t.due_date);
+        return due >= now && due <= horizon;
+      })
+      .sort(
+        (a, b) =>
+          new Date(a.due_date!).getTime() - new Date(b.due_date!).getTime(),
+      )
+      .slice(0, 5)
+      .map((t) => ({
+        id: t.id,
+        title: t.title,
+        due_date: t.due_date as string,
+      }));
+  }, [storeTasks]);
 
   // Determine current entity
   const currentEntity = selectedNote || selectedPaper || selectedIdea;
@@ -87,216 +126,9 @@ export function RightSidebar() {
     { enabled: isRightSidebarOpen },
   );
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const clearRealtimeChannels = () => {
-      realtimeChannelsRef.current.forEach((channel) => {
-        try {
-          channel.unsubscribe();
-        } catch (error) {
-          logger.error("Failed to unsubscribe from Supabase channel", error);
-        }
-      });
-      realtimeChannelsRef.current = [];
-    };
-
-    const fetchTodayXp = async (userId: string) => {
-      const today = new Date().toISOString().split("T")[0];
-      const { data, error } = await supabase
-        .from("daily_logs")
-        .select("xp_earned")
-        .eq("user_id", userId)
-        .eq("date", today)
-        .maybeSingle();
-
-      if (!isMounted) {
-        return;
-      }
-
-      if (error) {
-        logger.error("Failed to fetch today's XP:", error);
-        return;
-      }
-
-      setTodayXP(data?.xp_earned ?? 0);
-    };
-
-    const fetchWeeklyPapers = async (userId: string) => {
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-
-      const { count, error } = await supabase
-        .from("papers")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", userId)
-        .gte("created_at", weekAgo.toISOString());
-
-      if (!isMounted) {
-        return;
-      }
-
-      if (error) {
-        logger.error("Failed to fetch weekly paper count:", error);
-        return;
-      }
-
-      setWeeklyPapers(count ?? 0);
-    };
-
-    const fetchActiveIdeas = async (userId: string) => {
-      const { count, error } = await supabase
-        .from("ideas")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", userId)
-        .in("stage", ["Seed", "Growing", "Blooming"]);
-
-      if (!isMounted) {
-        return;
-      }
-
-      if (error) {
-        logger.error("Failed to fetch active ideas count:", error);
-        return;
-      }
-
-      setActiveIdeas(count ?? 0);
-    };
-
-    const fetchUpcomingDeadlines = async (userId: string) => {
-      const now = new Date();
-      const horizon = new Date();
-      horizon.setDate(now.getDate() + 7);
-
-      const { data, error } = await supabase
-        .from("tasks")
-        .select("id, title, due_date, completed")
-        .eq("user_id", userId)
-        .eq("completed", false)
-        .not("due_date", "is", null)
-        .gte("due_date", now.toISOString())
-        .lte("due_date", horizon.toISOString())
-        .order("due_date", { ascending: true })
-        .limit(5);
-
-      if (!isMounted) {
-        return;
-      }
-
-      if (error) {
-        logger.error("Failed to load upcoming deadlines:", error);
-        return;
-      }
-
-      const tasks =
-        (data as
-          | { id: string; title: string; due_date: string | null }[]
-          | null) ?? [];
-      setUpcomingDeadlines(
-        tasks
-          .filter((item) => Boolean(item.due_date))
-          .map((item) => ({
-            id: item.id,
-            title: item.title,
-            due_date: item.due_date as string,
-          })),
-      );
-    };
-
-    const syncSnapshot = async (userId: string) => {
-      await Promise.all([
-        fetchTodayXp(userId),
-        fetchWeeklyPapers(userId),
-        fetchActiveIdeas(userId),
-        fetchUpcomingDeadlines(userId),
-      ]);
-    };
-
-    if (!user?.id) {
-      setTodayXP(0);
-      setWeeklyPapers(0);
-      setActiveIdeas(0);
-      setUpcomingDeadlines([]);
-      clearRealtimeChannels();
-      return () => {
-        isMounted = false;
-        clearRealtimeChannels();
-      };
-    }
-
-    // Optimization: Skip fetching and subscriptions if sidebar is closed
-    if (!isRightSidebarOpen) {
-      return () => {
-        isMounted = false;
-        clearRealtimeChannels();
-      };
-    }
-
-    const userId = user.id;
-
-    void syncSnapshot(userId);
-
-    clearRealtimeChannels();
-
-    const summaryChannel = supabase
-      .channel(`right_sidebar_summary_${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "daily_logs",
-          filter: `user_id=eq.${userId}`,
-        },
-        () => {
-          void fetchTodayXp(userId);
-        },
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "papers",
-          filter: `user_id=eq.${userId}`,
-        },
-        () => {
-          void fetchWeeklyPapers(userId);
-        },
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "ideas",
-          filter: `user_id=eq.${userId}`,
-        },
-        () => {
-          void fetchActiveIdeas(userId);
-        },
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "tasks",
-          filter: `user_id=eq.${userId}`,
-        },
-        () => {
-          void fetchUpcomingDeadlines(userId);
-        },
-      )
-      .subscribe();
-
-    realtimeChannelsRef.current = [summaryChannel];
-
-    return () => {
-      isMounted = false;
-      clearRealtimeChannels();
-    };
-  }, [user?.id, isRightSidebarOpen]);
+  // No realtime subscriptions here — all data is read from the Zustand store
+  // which is kept up to date by useDataSync (daily_logs, papers, ideas) and
+  // useTasks (tasks).
 
   const hasSelection = selectedNote || selectedPaper || selectedIdea;
   const nextDeadline = upcomingDeadlines[0];
@@ -305,29 +137,64 @@ export function RightSidebar() {
     itemId: string,
     itemType: "note" | "paper" | "idea",
   ) => {
-    const { notes, papers, ideas } = useAppStore.getState();
-
     if (itemType === "note") {
       setCurrentView("notes");
-      const note = notes.find((item) => item.id === itemId);
-      if (note) {
-        setSelectedNote(note);
-      }
-      window.history.pushState(null, "", `/notes/${itemId}`);
+      // We need to fetch the note first
+      const fetchNote = async () => {
+        try {
+          const { data } = await supabase
+            .from("notes")
+            .select("*")
+            .eq("id", itemId)
+            .single();
+
+          if (data) {
+            setSelectedNote(data);
+            window.history.pushState(null, "", `/notes/${itemId}`);
+          }
+        } catch (error) {
+          logger.error("Error navigating to note:", error);
+        }
+      };
+      void fetchNote();
     } else if (itemType === "paper") {
       setCurrentView("papers");
-      const paper = papers.find((item) => item.id === itemId);
-      if (paper) {
-        setSelectedPaper(paper);
-      }
-      window.history.pushState(null, "", `/papers/${itemId}`);
+      const fetchPaper = async () => {
+        try {
+          const { data } = await supabase
+            .from("papers")
+            .select("*")
+            .eq("id", itemId)
+            .single();
+
+          if (data) {
+            setSelectedPaper(data);
+            window.history.pushState(null, "", `/papers/${itemId}`);
+          }
+        } catch (error) {
+          logger.error("Error navigating to paper:", error);
+        }
+      };
+      void fetchPaper();
     } else if (itemType === "idea") {
       setCurrentView("ideas");
-      const idea = ideas.find((item) => item.id === itemId);
-      if (idea) {
-        setSelectedIdea(idea);
-      }
-      window.history.pushState(null, "", `/ideas/${itemId}`);
+      const fetchIdea = async () => {
+        try {
+          const { data } = await supabase
+            .from("ideas")
+            .select("*")
+            .eq("id", itemId)
+            .single();
+
+          if (data) {
+            setSelectedIdea(data);
+            window.history.pushState(null, "", `/ideas/${itemId}`);
+          }
+        } catch (error) {
+          logger.error("Error navigating to idea:", error);
+        }
+      };
+      void fetchIdea();
     }
   };
 
@@ -374,39 +241,33 @@ export function RightSidebar() {
   })();
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-y-auto">
+    <div className="flex h-full min-w-0 flex-1 flex-col overflow-y-auto">
       <div className="p-4 space-y-4">
-        {!hasSelection && isRightSidebarOpen ? (
-          <FeedsRail />
+        {!hasSelection ? (
+          <div className="text-center py-8 text-text-tertiary">
+            <p className="text-small">Select an item to see details</p>
+          </div>
         ) : (
           <>
             {/* Backlinks Panel */}
-            <div className="surface-card p-3.5">
-              <div className="mb-2 flex items-center gap-2">
-                <span className="icon-tile h-8 w-8 bg-violet-soft text-violet-strong">
-                  <Link2 className="w-4 h-4" aria-hidden="true" />
-                </span>
-                <h3 className="text-small font-semibold text-text-primary">
-                  Backlinks
-                </h3>
+            <div className="bg-bg-elevated rounded-lg border border-border-subtle p-3">
+              <h3 className="text-small font-semibold text-text-primary mb-2 flex items-center gap-2">
+                <Link2 className="w-4 h-4" />
+                Backlinks
                 {backlinks.length > 0 && (
-                  <span className="status-chip ml-auto bg-violet-soft text-violet-strong">
+                  <span className="ml-auto text-xs bg-primary-500/20 text-primary-600 dark:text-primary-400 px-2 py-0.5 rounded-full">
                     {backlinks.length}
                   </span>
                 )}
-              </div>
-              <div className="sr-only" role="status" aria-live="polite">
-                {!backlinksLoading && backlinks.length === 0 ? "No items link to this yet. Link from notes or ideas to create connections." : ""}
-              </div>
+              </h3>
               {backlinksLoading ? (
                 <div className="text-caption text-text-tertiary">
                   Loading...
                 </div>
               ) : backlinks.length === 0 ? (
-                <div className="text-center py-6 text-text-tertiary">
-                  <Link2 className="w-8 h-8 mx-auto mb-2 opacity-50" aria-hidden="true" />
-                  <p className="text-small font-semibold text-text-secondary">No backlinks yet</p>
-                  <p className="text-caption mt-1">Link from other items to create connections.</p>
+                <div className="text-caption text-text-tertiary" role="status" aria-live="polite">
+                  No items link to this yet. Link from notes or ideas to create
+                  connections.
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -416,10 +277,10 @@ export function RightSidebar() {
                         <button
                           onClick={() => handleNavigateToItem(item.id, item.type)}
                           aria-label={`Navigate to ${item.type} ${item.title}`}
-                          className="w-full text-left p-2 rounded-lg bg-bg-elevated hover:bg-accent-soft border border-border-subtle hover:border-accent transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+                          className="w-full text-left p-2 rounded-md bg-bg-base hover:bg-primary-500/10 border border-border-subtle hover:border-primary-400 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
                         >
                           <div className="flex items-start gap-2">
-                            <div className="text-accent-strong mt-0.5">
+                            <div className="text-text-tertiary mt-0.5">
                               {getItemIcon(item.type)}
                             </div>
                             <div className="flex-1 min-w-0">
@@ -448,32 +309,23 @@ export function RightSidebar() {
             </div>
 
             {/* Related Entities */}
-            <div className="surface-card p-3.5">
-              <div className="mb-2 flex items-center gap-2">
-                <span className="icon-tile h-8 w-8 bg-blue-soft text-blue-strong">
-                  <Hash className="w-4 h-4" aria-hidden="true" />
-                </span>
-                <h3 className="text-small font-semibold text-text-primary">
-                  Related
-                </h3>
+            <div className="bg-bg-elevated rounded-lg border border-border-subtle p-3">
+              <h3 className="text-small font-semibold text-text-primary mb-2 flex items-center gap-2">
+                <Hash className="w-4 h-4" />
+                Related
                 {relatedItems.length > 0 && (
-                  <span className="status-chip ml-auto bg-blue-soft text-blue-strong">
+                  <span className="ml-auto text-xs bg-primary-500/20 text-primary-600 dark:text-primary-400 px-2 py-0.5 rounded-full">
                     {relatedItems.length}
                   </span>
                 )}
-              </div>
-              <div className="sr-only" role="status" aria-live="polite">
-                {!relatedLoading && relatedItems.length === 0 ? "No related items found. Add topics to discover connections." : ""}
-              </div>
+              </h3>
               {relatedLoading ? (
                 <div className="text-caption text-text-tertiary">
                   Loading...
                 </div>
               ) : relatedItems.length === 0 ? (
-                <div className="text-center py-6 text-text-tertiary">
-                  <Hash className="w-8 h-8 mx-auto mb-2 opacity-50" aria-hidden="true" />
-                  <p className="text-small font-semibold text-text-secondary">No related items</p>
-                  <p className="text-caption mt-1">Add topics to discover connections.</p>
+                <div className="text-caption text-text-tertiary" role="status" aria-live="polite">
+                  No related items found. Add topics to discover connections.
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -483,10 +335,10 @@ export function RightSidebar() {
                         <button
                           onClick={() => handleNavigateToItem(item.id, item.type)}
                           aria-label={`Navigate to ${item.type} ${item.title}`}
-                          className="w-full text-left p-2 rounded-lg bg-bg-elevated hover:bg-accent-soft border border-border-subtle hover:border-accent transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+                          className="w-full text-left p-2 rounded-md bg-bg-base hover:bg-primary-500/10 border border-border-subtle hover:border-primary-400 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
                         >
                           <div className="flex items-start gap-2">
-                            <div className="text-accent-strong mt-0.5">
+                            <div className="text-text-tertiary mt-0.5">
                               {getItemIcon(item.type)}
                             </div>
                             <div className="flex-1 min-w-0">
@@ -497,7 +349,7 @@ export function RightSidebar() {
                                 <span className="text-xs text-text-tertiary">
                                   {getItemTypeLabel(item.type)}
                                 </span>
-                                <span className="text-xs text-accent-strong">
+                                <span className="text-xs text-primary-600 dark:text-primary-400">
                                   {item.sharedTopics} topic
                                   {item.sharedTopics === 1 ? "" : "s"}
                                 </span>
@@ -523,26 +375,23 @@ export function RightSidebar() {
         )}
 
         <div className="pt-4 border-t border-border-subtle space-y-4">
-          <div className="surface-card p-4 space-y-3">
-            <div className="flex items-center gap-2">
-              <span className="icon-tile h-8 w-8 bg-gold-soft text-gold-strong">
-                <Sparkles className="w-4 h-4" aria-hidden="true" />
-              </span>
-              <h3 className="section-kicker">
+          <div className="p-4 bg-bg-elevated rounded-lg border border-border-subtle space-y-3">
+            <div className="flex items-center gap-2 text-text-primary">
+              <Sparkles className="w-4 h-4 text-primary-500" />
+              <h3 className="text-small font-semibold uppercase tracking-wide">
                 Today's wins
               </h3>
             </div>
             <div className="space-y-2 text-caption text-text-secondary">
               <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-accent-strong" aria-hidden="true" />
+                <Sparkles className="w-4 h-4 text-primary-500" />
                 <span>+{todayXP} XP collected today</span>
               </div>
               <div className="flex items-center gap-2">
-                <Flame className="w-4 h-4 text-gold" aria-hidden="true" />
+                <Flame className="w-4 h-4 text-success" />
                 <span>
                   {user?.current_streak || 0} day streak · longest{" "}
-                  {user?.longest_streak || 0}{" "}
-                  {(user?.longest_streak || 0) === 1 ? "day" : "days"}
+                  {user?.longest_streak || 0} days
                 </span>
               </div>
               <p className="text-text-tertiary">
@@ -553,12 +402,10 @@ export function RightSidebar() {
             </div>
           </div>
 
-          <div className="surface-card p-4">
-            <div className="flex items-center gap-2">
-              <span className="icon-tile h-8 w-8 bg-coral-soft text-coral-strong">
-                <CalendarCheck className="w-4 h-4" aria-hidden="true" />
-              </span>
-              <h3 className="section-kicker">
+          <div className="p-4 bg-bg-elevated rounded-lg border border-border-subtle">
+            <div className="flex items-center gap-2 text-text-primary">
+              <CalendarCheck className="w-4 h-4 text-primary-500" />
+              <h3 className="text-small font-semibold uppercase tracking-wide">
                 Upcoming focus
               </h3>
             </div>
@@ -567,7 +414,7 @@ export function RightSidebar() {
                 {upcomingDeadlines.slice(0, 3).map((deadline) => (
                   <li
                     key={deadline.id}
-                    className="text-caption bg-bg-elevated rounded-lg p-2.5 border border-border-subtle"
+                    className="text-caption bg-bg-base/60 rounded-md p-2 border border-border-subtle/60"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-medium text-text-primary truncate">
@@ -592,18 +439,16 @@ export function RightSidebar() {
             )}
           </div>
 
-          <div className="surface-card p-4 space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="icon-tile h-8 w-8 bg-blue-soft text-blue-strong">
-                <Snowflake className="w-4 h-4" aria-hidden="true" />
-              </span>
-              <h3 className="section-kicker">
+          <div className="p-4 bg-bg-elevated rounded-lg border border-border-subtle space-y-2">
+            <div className="flex items-center gap-2 text-text-primary">
+              <Snowflake className="w-4 h-4 text-primary-400" />
+              <h3 className="text-small font-semibold uppercase tracking-wide">
                 Energy tools
               </h3>
             </div>
             <div className="text-caption text-text-secondary space-y-1">
               <div className="flex items-start gap-2">
-                <Sparkles className="w-4 h-4 text-accent-strong mt-0.5" aria-hidden="true" />
+                <Sparkles className="w-4 h-4 text-primary-500 mt-0.5" />
                 <span>
                   {activeBoost
                     ? `${activeBoost.label ?? "Focus boost"} active${boostCountdown ? ` • ${boostCountdown} remaining` : ""}`
@@ -611,7 +456,7 @@ export function RightSidebar() {
                 </span>
               </div>
               <div className="flex items-start gap-2">
-                <Coffee className="w-4 h-4 text-success mt-0.5" aria-hidden="true" />
+                <Coffee className="w-4 h-4 text-success mt-0.5" />
                 <span>
                   {streakFreezeTokens} freeze token
                   {streakFreezeTokens === 1 ? "" : "s"} · {restDays} rest day
@@ -621,13 +466,11 @@ export function RightSidebar() {
             </div>
           </div>
 
-          <div className="surface-card p-4">
-            <div className="flex items-start gap-3">
-              <span className="icon-tile h-8 w-8 bg-coral-soft text-coral-strong">
-                <Heart className="w-4 h-4" aria-hidden="true" />
-              </span>
+          <div className="p-4 bg-bg-elevated rounded-lg border border-border-subtle">
+            <div className="flex items-start gap-3 text-text-primary">
+              <Heart className="w-5 h-5 text-primary-500 mt-0.5" />
               <div>
-                <h3 className="section-kicker">
+                <h3 className="text-small font-semibold uppercase tracking-wide">
                   Gentle reminder
                 </h3>
                 <p className="mt-2 text-caption text-text-secondary leading-relaxed">

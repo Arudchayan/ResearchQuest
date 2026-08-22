@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { PaperDetailView } from "../../components/entities/PaperDetailView";
+import { TooltipProvider } from "../../components/ui/tooltip";
 import type { Paper } from "../../types/database";
 
 // Mock icons
@@ -26,15 +27,6 @@ vi.mock("lucide-react", () => ({
   Loader2: () => <span>Loader2Icon</span>,
   AlertTriangle: () => <span>AlertIcon</span>,
   FileText: () => <span>FileTextIcon</span>,
-  ShieldAlert: () => <span>ShieldAlertIcon</span>,
-}));
-
-// Mock Tooltip to avoid TooltipProvider requirement
-vi.mock("@radix-ui/react-tooltip", () => ({
-  Provider: ({ children }: any) => children,
-  Root: ({ children }: any) => children,
-  Trigger: ({ children }: any) => children,
-  Content: () => null,
 }));
 
 // Mock sub-components
@@ -61,11 +53,13 @@ describe("PaperDetailView", () => {
     const onUpdate = vi.fn();
 
     render(
-      <PaperDetailView
-        paper={mockPaper}
-        onUpdate={onUpdate}
-        onDelete={onDelete}
-      />,
+      <TooltipProvider delayDuration={0}>
+        <PaperDetailView
+          paper={mockPaper}
+          onUpdate={onUpdate}
+          onDelete={onDelete}
+        />
+      </TooltipProvider>,
     );
 
     expect(screen.getByRole("button", { name: /delete paper/i })).toBeInTheDocument();
@@ -76,11 +70,13 @@ describe("PaperDetailView", () => {
     const onUpdate = vi.fn();
 
     render(
-      <PaperDetailView
-        paper={mockPaper}
-        onUpdate={onUpdate}
-        onDelete={onDelete}
-      />,
+      <TooltipProvider delayDuration={0}>
+        <PaperDetailView
+          paper={mockPaper}
+          onUpdate={onUpdate}
+          onDelete={onDelete}
+        />
+      </TooltipProvider>,
     );
 
     const deleteButton = screen.getByRole("button", { name: /delete paper/i });
@@ -106,11 +102,13 @@ describe("PaperDetailView", () => {
     const onUpdate = vi.fn();
 
     render(
-      <PaperDetailView
-        paper={mockPaper}
-        onUpdate={onUpdate}
-        onDelete={onDelete}
-      />,
+      <TooltipProvider delayDuration={0}>
+        <PaperDetailView
+          paper={mockPaper}
+          onUpdate={onUpdate}
+          onDelete={onDelete}
+        />
+      </TooltipProvider>,
     );
 
     const deleteButton = screen.getByRole("button", { name: /delete paper/i });
@@ -132,7 +130,7 @@ describe("PaperDetailView", () => {
 
   it("does not render delete button if onDelete is not provided", () => {
     const onUpdate = vi.fn();
-    render(<PaperDetailView paper={mockPaper} onUpdate={onUpdate} />);
+    render(<TooltipProvider delayDuration={0}><PaperDetailView paper={mockPaper} onUpdate={onUpdate} /></TooltipProvider>);
     expect(screen.queryByRole("button", { name: /delete paper/i })).not.toBeInTheDocument();
   });
 });

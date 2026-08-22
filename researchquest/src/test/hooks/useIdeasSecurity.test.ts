@@ -18,6 +18,7 @@ vi.mock("sonner", () => ({
 // Mock gamification utils
 vi.mock("../../utils/gamification", () => ({
   awardXP: vi.fn().mockResolvedValue(true),
+  notifyGamificationResult: vi.fn(),
   XP_REWARDS: {
     CREATE_IDEA: 10,
     ADVANCE_IDEA_STAGE: 20,

@@ -1,0 +1,55 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.8 [39m[90mE:/Repos/ResearchQuest/researchquest[39m
+
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22mparseRoute[2m > [22mreturns dashboard for root path[32m 2[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22mparseRoute[2m > [22mreturns dashboard for empty path[32m 0[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22mparseRoute[2m > [22mparses view-only path /notes as notes[32m 1[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22mparseRoute[2m > [22mparses view-only path /papers as papers[32m 0[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22mparseRoute[2m > [22mparses view-only path /ideas as ideas[32m 0[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22mparseRoute[2m > [22mparses view-only path /tasks as tasks[32m 0[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22mparseRoute[2m > [22mparses view-only path /topics as topics[32m 0[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22mparseRoute[2m > [22mparses view-only path /focus as focus[32m 0[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22mparseRoute[2m > [22mparses view-only path /dashboard as dashboard[32m 0[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22mparseRoute[2m > [22mparses deep-link path with itemId[32m 0[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22mparseRoute[2m > [22mparses view with extra segments (drops extra path parts)[32m 0[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22mparseRoute[2m > [22mmarks path /unknown as invalid[32m 0[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22mparseRoute[2m > [22mmarks path /gibberish/123 as invalid[32m 0[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22mparseRoute[2m > [22mmarks path // as invalid[32m 0[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22misValidView[2m > [22mreturns true for dashboard[32m 0[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22misValidView[2m > [22mreturns true for notes[32m 0[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22misValidView[2m > [22mreturns true for papers[32m 0[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22misValidView[2m > [22mreturns true for ideas[32m 0[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22misValidView[2m > [22mreturns true for tasks[32m 0[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22misValidView[2m > [22mreturns true for topics[32m 0[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22misValidView[2m > [22mreturns true for focus[32m 0[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22misValidView[2m > [22mreturns false for unknown[32m 0[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22misValidView[2m > [22mreturns false for [32m 0[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22misValidView[2m > [22mreturns false for gibberish[32m 0[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22misValidView[2m > [22mreturns false for settings[32m 0[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22mselectEntityForRoute[2m > [22mdoes nothing when route has no itemId[32m 0[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22mselectEntityForRoute[2m > [22mdoes nothing when route is invalid[32m 0[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22mselectEntityForRoute[2m > [22mselects a paper when data is loaded and found[32m 0[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22mselectEntityForRoute[2m > [22mclears paper selection when item not found after load[32m 0[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22mselectEntityForRoute[2m > [22mreturns early when papers are still loading[32m 0[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22mselectEntityForRoute[2m > [22mselects an idea when data is loaded[32m 0[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22mselectEntityForRoute[2m > [22mreturns early when ideas are still loading[32m 0[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22mselectEntityForRoute[2m > [22mselects a note when data is loaded[32m 0[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22mselectEntityForRoute[2m > [22mselects a topic when data is loaded (Record lookup)[32m 0[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22mselectEntityForRoute[2m > [22mclears topic selection when not found[32m 0[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22mselectEntityForRoute[2m > [22mselects a task when data is loaded[32m 0[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22mselectEntityForRoute[2m > [22mdoes nothing for dashboard route (no entity)[32m 0[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22mselectEntityForRoute[2m > [22mdoes nothing for focus route (no entity)[32m 0[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22mDashboard navigation[2m > [22mnavigates to /notes from the recent notes action[33m 429[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22mDashboard navigation[2m > [22mnavigates to /papers from the reading list action[32m 124[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22mDashboard navigation[2m > [22mnavigates to /ideas from the active ideas action[32m 127[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22mDashboard navigation[2m > [22mnavigates to /focus from the start focus session button[32m 91[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22mRouting behavior[2m > [22mpopstate event triggers currentView update from URL[32m 1[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22mRouting behavior[2m > [22mauth-redirect preserves the pending path as a parseable route[32m 0[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22mRouting behavior[2m > [22mauth-redirect preserves a deep-link path with itemId[32m 0[2mms[22m[39m
+ [32mΓ£ô[39m src/test/components/DashboardRouting.test.tsx[2m > [22mRouting behavior[2m > [22minvalid route does NOT silently redirect to root (recovery contract)[32m 0[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m46 passed[39m[22m[90m (46)[39m
+[2m   Start at [22m 17:48:28
+[2m   Duration [22m 3.27s[2m (transform 259ms, setup 517ms, collect 365ms, tests 785ms, environment 1.31s, prepare 26ms)[22m
+

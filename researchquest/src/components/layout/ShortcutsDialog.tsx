@@ -2,7 +2,6 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { X, Keyboard } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAppStore } from "../../store/appStore";
-import type { AppView } from "../../store/appStore";
 
 interface ShortcutItem {
   keys: string[];
@@ -14,6 +13,8 @@ interface ShortcutSection {
   shortcuts: ShortcutItem[];
 }
 
+type AppView = "dashboard" | "notes" | "papers" | "ideas" | "tasks" | "focus" | "topics";
+
 const NAVIGATION_SHORTCUTS: Record<string, { view: AppView; url: string }> = {
   "1": { view: "dashboard", url: "/" },
   "2": { view: "notes", url: "/notes" },
@@ -22,7 +23,6 @@ const NAVIGATION_SHORTCUTS: Record<string, { view: AppView; url: string }> = {
   "5": { view: "tasks", url: "/tasks" },
   "6": { view: "focus", url: "/focus" },
   "7": { view: "topics", url: "/topics" },
-  "8": { view: "feeds", url: "/feeds" },
 };
 
 const isMac =
@@ -33,14 +33,6 @@ const isMac =
 const META_KEY = isMac ? "Cmd" : "Ctrl";
 const META_SYMBOL = isMac ? "⌘" : "Ctrl";
 
-const EXPORTABLE_VIEWS = new Set<AppView>([
-  "notes",
-  "papers",
-  "ideas",
-  "tasks",
-  "topics",
-]);
-
 const SHORTCUTS: ShortcutSection[] = [
   {
     title: "General",
@@ -49,7 +41,6 @@ const SHORTCUTS: ShortcutSection[] = [
       { keys: ["?"], description: "Show Keyboard Shortcuts" },
       { keys: ["/"], description: "Open Command Palette (Search)" },
       { keys: [META_KEY, "."], description: "Toggle Context Panel" },
-      { keys: [META_KEY, "E"], description: "Export current view" },
     ],
   },
   {
@@ -75,7 +66,6 @@ const SHORTCUTS: ShortcutSection[] = [
       { keys: [META_KEY, "Alt", "5"], description: "Go to Tasks" },
       { keys: [META_KEY, "Alt", "6"], description: "Go to Focus" },
       { keys: [META_KEY, "Alt", "7"], description: "Go to Topics" },
-      { keys: [META_KEY, "Alt", "8"], description: "Go to Feeds" },
     ],
   },
   {
@@ -96,26 +86,7 @@ export function ShortcutsDialog() {
     const handleKeyDown = (e: KeyboardEvent) => {
       const isMod = e.metaKey || e.ctrlKey;
 
-      const target = e.target as HTMLElement;
-      const isEditableTarget =
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.isContentEditable ||
-        (target instanceof HTMLElement &&
-          target.closest("[contenteditable='true']") !== null);
-
-      // Export current view on routes that provide an export action.
-      if (isMod && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "e") {
-        if (isEditableTarget || !EXPORTABLE_VIEWS.has(useAppStore.getState().currentView)) {
-          return;
-        }
-
-        e.preventDefault();
-        document.dispatchEvent(new CustomEvent("export-current-view"));
-        return;
-      }
-
-      // Global Navigation (Mod+Alt+1-8)
+      // Global Navigation (Mod+Alt+1-6)
       if (isMod && e.altKey) {
         const destination = NAVIGATION_SHORTCUTS[e.key];
 
@@ -143,6 +114,7 @@ export function ShortcutsDialog() {
       }
 
       // Ignore if typing in an input for other shortcuts
+      const target = e.target as HTMLElement;
       const isInput =
         target.tagName === "INPUT" ||
         target.tagName === "TEXTAREA" ||
@@ -174,20 +146,18 @@ export function ShortcutsDialog() {
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 animate-fade-in" />
         <Dialog.Content
-          className="fixed left-[50%] top-[50%] max-h-[85vh] w-[90vw] max-w-[600px] translate-x-[-50%] translate-y-[-50%] rounded-xl bg-bg-surface p-0 shadow-lg focus:outline-none z-50 animate-slide-in border border-border-subtle overflow-hidden flex flex-col"
+          className="fixed left-[50%] top-[50%] z-50 flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-xl translate-x-[-50%] translate-y-[-50%] flex-col overflow-hidden rounded-surface border border-border-subtle bg-bg-surface p-0 shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus animate-slide-in"
           aria-describedby={undefined}
         >
-          <div className="flex items-center justify-between p-4 border-b border-border-subtle bg-bg-elevated">
+          <div className="flex items-center justify-between p-4 border-b border-border-subtle bg-bg-elevated/50">
             <div className="flex items-center gap-2">
-              <span className="icon-tile bg-violet-soft text-violet-strong">
-                <Keyboard className="w-4 h-4" aria-hidden="true" />
-              </span>
+              <Keyboard className="w-5 h-5 text-primary-500" />
               <Dialog.Title className="text-lg font-semibold text-text-primary">
                 Keyboard Shortcuts
               </Dialog.Title>
             </div>
             <Dialog.Close
-              className="icon-btn"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full transition-colors hover:bg-bg-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
               aria-label="Close dialog"
             >
               <X className="w-5 h-5 text-text-tertiary" aria-hidden="true" />
@@ -197,7 +167,7 @@ export function ShortcutsDialog() {
           <div className="flex-1 overflow-y-auto p-6 space-y-8">
             {SHORTCUTS.map((section) => (
               <div key={section.title} className="space-y-4">
-                <h3 className="section-kicker">
+                <h3 className="text-sm font-semibold text-text-secondary uppercase tracking-wider">
                   {section.title}
                 </h3>
                 <div className="grid gap-3">
@@ -206,14 +176,14 @@ export function ShortcutsDialog() {
                       key={index}
                       className="flex items-center justify-between group"
                     >
-                      <span className="text-sm text-text-primary group-hover:text-accent-strong transition-colors">
+                      <span className="text-sm text-text-primary group-hover:text-primary-600 transition-colors">
                         {shortcut.description}
                       </span>
                       <div className="flex items-center gap-1.5">
                         {shortcut.keys.map((key, kIndex) => (
                           <kbd
                             key={kIndex}
-                            className="inline-flex items-center justify-center h-6 min-w-[24px] px-1.5 text-[11px] font-bold text-text-secondary bg-bg-elevated border border-border-moderate rounded-md shadow-sm font-mono"
+                            className="inline-flex items-center justify-center h-6 min-w-[24px] px-1.5 text-[11px] font-bold text-text-secondary bg-bg-elevated border border-border-subtle rounded shadow-sm font-mono"
                           >
                             {key === META_KEY ? (
                               <span className="text-xs">{META_SYMBOL}</span>
@@ -230,10 +200,10 @@ export function ShortcutsDialog() {
             ))}
           </div>
 
-          <div className="p-4 border-t border-border-subtle bg-bg-elevated text-center">
+          <div className="p-4 border-t border-border-subtle bg-bg-elevated/30 text-center">
             <p className="text-xs text-text-tertiary">
               Tip: Press{" "}
-              <kbd className="inline-flex items-center justify-center h-6 min-w-[24px] px-1.5 text-[11px] font-bold text-text-secondary bg-bg-elevated border border-border-moderate rounded-md shadow-sm font-mono">?</kbd>{" "}
+              <kbd className="font-mono font-bold text-text-secondary">?</kbd>{" "}
               anywhere to open this dialog.
             </p>
           </div>

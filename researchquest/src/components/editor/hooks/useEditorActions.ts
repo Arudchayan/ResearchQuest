@@ -1,22 +1,24 @@
 import { useCallback } from "react";
+import type { RefObject } from "react";
 import { toast } from "sonner";
 import DOMPurify from "dompurify";
 import { NOTE_BODY_MAX_LENGTH } from "../../../hooks/useNotes";
+import { useAppStore } from "../../../store/appStore";
+import { downloadFile } from "../../../utils/export";
+import type { Note } from "../../../types/database";
+import type { SaveState } from "./useMarkdownEditor";
 
-function areStringArraysEqual(left: string[], right: string[]) {
-  if (left.length !== right.length) return false;
-  return left.every((value, index) => value === right[index]);
+interface EditorActionOptions {
+  readonly content: string;
+  readonly title: string;
+  readonly previewRef: RefObject<HTMLDivElement | null>;
+  readonly selectedNote: Note | null;
+  readonly userId: string | undefined;
+  readonly updateNote: (noteId: string, updates: Partial<Note>) => Promise<boolean>;
+  readonly setSaveState: (saveState: SaveState) => void;
 }
 
-export function useEditorActions(
-  content: string,
-  title: string,
-  previewRef: React.RefObject<HTMLDivElement>,
-  selectedNote: any,
-  userId: string | undefined,
-  updateNote: any,
-  setSaving: (saving: boolean) => void,
-) {
+export function useEditorActions({ content, title, previewRef, selectedNote, userId, updateNote, setSaveState }: EditorActionOptions) {
   const handleCopyMarkdown = useCallback(() => {
     if (!content) return;
     navigator.clipboard.writeText(content).then(() => {
@@ -64,15 +66,7 @@ export function useEditorActions(
       .replace(/\s+/g, "_");
     const filename = `${safeTitle || "note"}.md`;
 
-    const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    downloadFile(content, filename, "text/markdown;charset=utf-8");
   }, [content, title]);
 
   const handlePrint = useCallback(() => {
@@ -87,12 +81,18 @@ export function useEditorActions(
 
     const htmlContent = DOMPurify.sanitize(previewElement.innerHTML);
     const rawTitle = title || "Untitled Note";
+    const documentTitle = rawTitle
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
 
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
-          <title></title>
+          <title>${documentTitle}</title>
           <style>
             body { font-family: sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 2rem; }
             h1, h2, h3 { margin-top: 24px; margin-bottom: 16px; font-weight: 600; }
@@ -102,23 +102,13 @@ export function useEditorActions(
           </style>
         </head>
         <body>
-          <h1 id="print-title"></h1>
-          <div id="print-content" class="markdown-body"></div>
+          <h1>${documentTitle}</h1>
+          <div class="markdown-body">${htmlContent}</div>
           <script>window.onload = function() { window.print(); window.close(); };</script>
         </body>
       </html>
     `);
     printWindow.document.close();
-
-    printWindow.document.title = rawTitle;
-    const titleElement = printWindow.document.getElementById("print-title");
-    if (titleElement) {
-      titleElement.textContent = rawTitle;
-    }
-    const contentElement = printWindow.document.getElementById("print-content");
-    if (contentElement) {
-      contentElement.innerHTML = htmlContent;
-    }
   }, [title, previewRef]);
 
   const saveNote = useCallback(async () => {
@@ -126,39 +116,34 @@ export function useEditorActions(
 
     if (content.length > NOTE_BODY_MAX_LENGTH) {
       toast.error(`Note content exceeds ${NOTE_BODY_MAX_LENGTH.toLocaleString()} characters`);
+      setSaveState("error");
       return;
     }
 
-    const tagMatches = content.match(/#(\w+)/g);
-    const tags = tagMatches
-      ? [...new Set(tagMatches.map((tag) => tag.slice(1)))]
-      : [];
-
-    const trimmedTitle = title.trim();
-    const persistedTitle = trimmedTitle.length > 0 ? trimmedTitle : null;
-    const selectedTags = Array.isArray(selectedNote.tags) ? selectedNote.tags : [];
-
-    if (
-      selectedNote.title === persistedTitle &&
-      selectedNote.markdown_body === content &&
-      areStringArraysEqual(selectedTags, tags)
-    ) {
-      return;
-    }
-
-    setSaving(true);
+    const noteId = selectedNote.id;
+    setSaveState("saving");
     try {
-      await updateNote(selectedNote.id, {
-        title: persistedTitle,
-        markdown_body: content,
-        tags,
-      });
-    } catch (err) {
-      // Error handled by updateNote
-    } finally {
-      setSaving(false);
+      const tagMatches = content.match(/#(\w+)/g);
+      const tags = tagMatches
+        ? [...new Set(tagMatches.map((tag) => tag.slice(1)))]
+        : [];
+
+      const updates: Partial<Note> = { markdown_body: content, tags };
+      const trimmedTitle = title.trim();
+      if (trimmedTitle) {
+        updates.title = trimmedTitle;
+      }
+
+      const didSave = await updateNote(noteId, updates);
+      if (useAppStore.getState().selectedNote?.id === noteId) {
+        setSaveState(didSave ? "saved" : "error");
+      }
+    } catch {
+      if (useAppStore.getState().selectedNote?.id === noteId) {
+        setSaveState("error");
+      }
     }
-  }, [selectedNote, userId, content, title, updateNote, setSaving]);
+  }, [selectedNote, userId, content, title, updateNote, setSaveState]);
 
   return {
     handleCopyMarkdown,

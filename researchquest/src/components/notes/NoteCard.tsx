@@ -1,10 +1,26 @@
 import React from "react";
-import { Trash2, Clock, FileText } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { Trash2, Clock } from "lucide-react";
 import { cn } from "../../lib/utils";
 import type { Note } from "../../types/database";
 import { highlightMatch } from "../../utils/highlight";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+
+const relativeTime = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+
+function formatRelativeTime(date: Date): string {
+  const now = new Date();
+  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  const weeks = Math.floor(days / 7);
+
+  if (weeks > 0) return relativeTime.format(-weeks, "week");
+  if (days > 0) return relativeTime.format(-days, "day");
+  if (hours > 0) return relativeTime.format(-hours, "hour");
+  if (minutes > 0) return relativeTime.format(-minutes, "minute");
+  return relativeTime.format(0, "minute");
+}
 
 interface NoteCardProps {
   note: Note;
@@ -26,84 +42,77 @@ export const NoteCard = React.memo(function NoteCard({
     onDelete(note.id);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.target !== e.currentTarget) return;
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      onSelect(note);
-    }
-  };
+  const title = note.title || "Untitled Note";
 
   return (
     <div
-      role="button"
-      tabIndex={0}
-      aria-label={`Select note: ${note.title || "Untitled Note"}`}
-      onClick={() => onSelect(note)}
-      onKeyDown={handleKeyDown}
       className={cn(
-        "surface-card group h-full w-full cursor-pointer p-4 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+        "group relative min-w-0 border-l-4 p-4 transition-colors",
         isSelected
-          ? "border-accent shadow-lift"
-          : "border-transparent hover:border-border-moderate",
+          ? "border-primary-500 bg-primary-50 hover:bg-primary-50"
+          : "border-transparent hover:bg-bg-elevated",
       )}
     >
-      <div className="flex items-start gap-3">
-        <span className="icon-tile shrink-0 bg-blue-soft text-blue-strong">
-          <FileText className="h-4 w-4" aria-hidden="true" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <h3
-              className={cn(
-                "min-w-0 flex-1 truncate text-sm font-semibold",
-                !note.title
-                  ? "text-text-tertiary italic"
-                  : "text-text-primary",
-              )}
+      <span
+        aria-hidden="true"
+        className="absolute inset-y-1 left-0 w-0.5 origin-left scale-x-0 bg-primary-500 transition-transform duration-fast ease-out group-hover:scale-x-100 group-focus-within:scale-x-100"
+      />
+      <div className="mb-1 flex min-w-0 items-start justify-between gap-2">
+        <button
+          type="button"
+          data-note-card={note.id}
+          aria-label={`Open note: ${title}`}
+          aria-current={isSelected ? "true" : undefined}
+          onClick={() => onSelect(note)}
+          className="min-w-0 flex-1 cursor-pointer rounded-sm text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-[-2px]"
+        >
+          <h3
+            className={cn(
+              "truncate text-body font-medium",
+              !note.title ? "italic text-text-tertiary" : "text-text-primary",
+            )}
+          >
+            {note.title ? highlightMatch(note.title, highlightQuery) : "Untitled Note"}
+          </h3>
+        </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={handleDelete}
+              aria-label="Delete note"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-control p-1 text-text-tertiary transition-colors hover:bg-destructive-bg hover:text-destructive focus:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-destructive focus-visible:outline-offset-2 md:min-h-0 md:min-w-0 md:opacity-0 md:group-focus-within:opacity-100 md:group-hover:opacity-100"
             >
-              {note.title ? highlightMatch(note.title, highlightQuery) : "Untitled Note"}
-            </h3>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={handleDelete}
-                  aria-label="Delete note"
-                  className="icon-btn h-8 w-8 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100 text-text-tertiary hover:text-coral-strong"
-                >
-                  <Trash2 className="h-4 w-4" aria-hidden="true" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Delete note</p>
-              </TooltipContent>
-            </Tooltip>
-          </div>
+              <Trash2 className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Delete note</p>
+          </TooltipContent>
+        </Tooltip>
+      </div>
 
-          <p className="mt-1 line-clamp-2 min-h-[2.5rem] text-small text-text-secondary">
-            {note.markdown_body ? highlightMatch(note.markdown_body, highlightQuery) : "No content..."}
-          </p>
+      <p className="mb-2 line-clamp-2 text-small text-text-secondary">
+        {note.markdown_body ? highlightMatch(note.markdown_body, highlightQuery) : "No content..."}
+      </p>
 
-          {note.tags && note.tags.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1">
-              {note.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="rounded-full border border-border-subtle bg-bg-elevated px-2 py-0.5 text-caption font-medium text-text-secondary"
-                >
-                  #{tag}
-                </span>
-              ))}
-            </div>
-          )}
-
-          <div className="mt-2 flex items-center gap-1.5 text-caption text-text-tertiary">
-            <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            <span className="truncate">
-              {formatDistanceToNow(new Date(note.updated_at), { addSuffix: true })}
+      {note.tags && note.tags.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-1">
+          {note.tags.map((tag) => (
+            <span
+              key={tag}
+              className="rounded-control border border-border-subtle bg-bg-elevated px-2 py-0.5 text-caption font-medium text-text-secondary"
+            >
+              #{tag}
             </span>
-          </div>
+          ))}
         </div>
+      )}
+
+      <div className="flex items-center gap-2 text-caption text-text-tertiary">
+        <Clock className="h-3 w-3 shrink-0" aria-hidden="true" />
+        <span>
+          {formatRelativeTime(new Date(note.updated_at))}
+        </span>
       </div>
     </div>
   );

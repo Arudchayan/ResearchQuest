@@ -11,7 +11,7 @@ export function Skeleton({ className, ...props }: SkeletonProps) {
   return (
     <div
       className={cn(
-        "shimmer rounded-lg bg-bg-elevated",
+        "animate-pulse rounded-control bg-bg-elevated",
         className,
       )}
       aria-label="Loading..."
@@ -22,93 +22,95 @@ export function Skeleton({ className, ...props }: SkeletonProps) {
 }
 
 /**
- * Skeleton for note cards in the sidebar
+ * Shared chrome for the four entity-card skeletons; each variant differs
+ * only in bar widths.
  */
-export function NoteCardSkeleton() {
-  return (
-    <div
-      aria-hidden="true"
-      className="rounded-lg border border-border-subtle bg-bg-surface p-3 shadow-card space-y-2"
-    >
-      <div className="flex items-center gap-2">
-        <Skeleton className="w-4 h-4 flex-shrink-0" />
-        <Skeleton className="h-4 w-3/4" />
-      </div>
-      <Skeleton className="h-3 w-full" />
-      <Skeleton className="h-3 w-2/3" />
-      <div className="flex gap-3 mt-2">
-        <Skeleton className="h-3 w-12" />
-        <Skeleton className="h-3 w-16" />
-      </div>
-    </div>
-  );
+interface EntityCardSkeletonProps {
+  titleWidth: string;
+  lineWidths?: readonly string[];
+  badgeWidth?: string;
+  chipWidths?: readonly string[];
+  iconSize?: string;
+  padding?: string;
 }
 
-/**
- * Skeleton for paper cards in the sidebar
- */
-export function PaperCardSkeleton() {
+function EntityCardSkeleton({
+  titleWidth,
+  lineWidths = [],
+  badgeWidth,
+  chipWidths = [],
+  iconSize = "w-4 h-4 flex-shrink-0",
+  padding = "p-3",
+}: EntityCardSkeletonProps) {
   return (
     <div
       aria-hidden="true"
-      className="rounded-lg border border-border-subtle bg-bg-surface p-3 shadow-card space-y-2"
+      className={cn(
+        padding,
+        "rounded-md border border-border-subtle bg-bg-surface space-y-2",
+      )}
     >
       <div className="flex items-center gap-2">
-        <Skeleton className="w-4 h-4 flex-shrink-0" />
-        <Skeleton className="h-4 w-4/5" />
+        <Skeleton className={iconSize} />
+        <Skeleton className={cn("h-4", titleWidth)} />
       </div>
-      <Skeleton className="h-3 w-3/5" />
+      {lineWidths.map((width) => (
+        <Skeleton key={width} className={cn("h-3", width)} />
+      ))}
       <div className="flex gap-2 mt-2">
-        <Skeleton className="h-6 w-20 rounded-md" />
-        <Skeleton className="h-3 w-12" />
+        {badgeWidth && <Skeleton className={cn("h-6 rounded-md", badgeWidth)} />}
+        {chipWidths.map((width) => (
+          <Skeleton key={width} className={cn("h-3", width)} />
+        ))}
       </div>
     </div>
   );
 }
 
-/**
- * Skeleton for idea cards in the sidebar
- */
-export function IdeaCardSkeleton() {
-  return (
-    <div
-      aria-hidden="true"
-      className="rounded-lg border border-border-subtle bg-bg-surface p-3 shadow-card space-y-2"
-    >
-      <div className="flex items-center gap-2">
-        <Skeleton className="w-4 h-4 flex-shrink-0" />
-        <Skeleton className="h-4 w-4/5" />
-      </div>
-      <Skeleton className="h-3 w-full" />
-      <Skeleton className="h-3 w-3/4" />
-      <div className="flex gap-2 mt-2">
-        <Skeleton className="h-6 w-24 rounded-md" />
-        <Skeleton className="h-3 w-16" />
-      </div>
-    </div>
-  );
-}
+const CARD_SKELETON_CONFIG = {
+  note: {
+    titleWidth: "w-3/4",
+    lineWidths: ["w-full", "w-2/3"],
+    chipWidths: ["w-12", "w-16"],
+  },
+  paper: {
+    titleWidth: "w-4/5",
+    lineWidths: ["w-3/5"],
+    badgeWidth: "w-20",
+    chipWidths: ["w-12"],
+  },
+  idea: {
+    titleWidth: "w-4/5",
+    lineWidths: ["w-full", "w-3/4"],
+    badgeWidth: "w-24",
+    chipWidths: ["w-16"],
+  },
+  task: {
+    titleWidth: "w-4/5",
+    lineWidths: ["w-2/3"],
+    badgeWidth: "w-16",
+    iconSize: "w-5 h-5 rounded flex-shrink-0 mt-0.5",
+    padding: "p-4",
+  },
+} as const;
 
-/**
- * Skeleton for task items
- */
-export function TaskCardSkeleton() {
-  return (
-    <div
-      aria-hidden="true"
-      className="rounded-lg border border-border-subtle bg-bg-surface p-4 shadow-card space-y-2"
-    >
-      <div className="flex items-start gap-3">
-        <Skeleton className="w-5 h-5 rounded flex-shrink-0 mt-0.5" />
-        <div className="flex-1 space-y-2">
-          <Skeleton className="h-4 w-4/5" />
-          <Skeleton className="h-3 w-2/3" />
-        </div>
-        <Skeleton className="h-6 w-16 rounded-md" />
-      </div>
-    </div>
-  );
-}
+export type CardSkeletonType = keyof typeof CARD_SKELETON_CONFIG;
+
+export const NoteCardSkeleton = () => (
+  <EntityCardSkeleton {...CARD_SKELETON_CONFIG.note} />
+);
+
+export const PaperCardSkeleton = () => (
+  <EntityCardSkeleton {...CARD_SKELETON_CONFIG.paper} />
+);
+
+export const IdeaCardSkeleton = () => (
+  <EntityCardSkeleton {...CARD_SKELETON_CONFIG.idea} />
+);
+
+export const TaskCardSkeleton = () => (
+  <EntityCardSkeleton {...CARD_SKELETON_CONFIG.task} />
+);
 
 /**
  * Skeleton for the markdown editor
@@ -171,20 +173,13 @@ export function EditorSkeleton() {
  */
 interface ListSkeletonProps {
   count?: number;
-  itemType?: "note" | "paper" | "idea" | "task";
+  itemType?: CardSkeletonType;
 }
 
 export function ListSkeleton({
   count = 5,
   itemType = "note",
 }: ListSkeletonProps) {
-  const SkeletonComponent = {
-    note: NoteCardSkeleton,
-    paper: PaperCardSkeleton,
-    idea: IdeaCardSkeleton,
-    task: TaskCardSkeleton,
-  }[itemType];
-
   return (
     <div
       className="space-y-2"
@@ -192,7 +187,7 @@ export function ListSkeleton({
       aria-label={`Loading ${itemType}s...`}
     >
       {Array.from({ length: count }).map((_, i) => (
-        <SkeletonComponent key={i} />
+        <EntityCardSkeleton key={i} {...CARD_SKELETON_CONFIG[itemType]} />
       ))}
     </div>
   );
@@ -201,16 +196,23 @@ export function ListSkeleton({
 /**
  * Skeleton for the app loading state
  */
-export function AppLoadingSkeleton() {
+interface AppLoadingSkeletonProps {
+  readonly className?: string;
+}
+
+export function AppLoadingSkeleton({ className }: AppLoadingSkeletonProps) {
   return (
     <div
-      className="min-h-screen flex flex-col items-center justify-center bg-bg-base"
+      className={cn(
+        "min-h-screen flex flex-col items-center justify-center bg-bg-base",
+        className,
+      )}
       role="status"
       aria-label="Loading application..."
     >
       <div className="text-center" aria-hidden="true">
         {/* Logo */}
-        <div className="w-16 h-16 bg-primary-500 rounded-lg mx-auto mb-6 flex items-center justify-center text-white font-bold text-2xl animate-pulse">
+        <div className="w-16 h-16 bg-primary-500 rounded-surface mx-auto mb-6 flex items-center justify-center text-bg-base font-bold text-2xl animate-pulse">
           RQ
         </div>
 

@@ -1,5 +1,8 @@
 import { logger } from "./logger";
 import { supabase } from "../lib/supabase";
+import { toast } from "sonner";
+import { useAppStore } from "../store/appStore";
+import { useGamificationStore } from "../store/gamificationStore";
 import type { UserProfile } from "../types/database";
 
 // XP rewards for different actions
@@ -18,10 +21,6 @@ export const XP_REWARDS = {
   UPDATE_TOPIC: 8,
   TAG_ENTITY_WITH_TOPIC: 6,
   COMPLETE_TOPIC_QUEST: 30,
-  CREATE_GOAL: 30,
-  COMPLETE_GOAL: 100,
-  COMPLETE_MILESTONE: 50,
-  DAILY_LOGIN: 5,
   FOCUS_SESSION_MINUTE: 2,
 };
 
@@ -71,6 +70,8 @@ export const ACHIEVEMENTS = {
   },
 };
 
+export type Achievement = (typeof ACHIEVEMENTS)[keyof typeof ACHIEVEMENTS];
+
 // Research level titles
 export const LEVEL_TITLES: { [key: number]: string } = {
   1: "Research Novice",
@@ -103,12 +104,50 @@ export function getLevelFromXP(totalXP: number): number {
   return Math.floor(totalXP / 500) + 1;
 }
 
+export interface GamificationResult {
+  /** Actual XP credited (after boost multiplier). */
+  xpEarned: number;
+  level: number;
+  leveledUp: boolean;
+  streak: number;
+  achievementsEarned: Achievement[];
+}
+
+/**
+ * Fire sonner celebrations for a completed awardXP.
+ * `skipXpToast` opts out of the "+N XP" toast when the caller already
+ * announces the XP itself (e.g. FocusWorkspace's completion toast).
+ */
+export function notifyGamificationResult(
+  result: GamificationResult | null | undefined,
+  options?: { skipXpToast?: boolean },
+): void {
+  if (!result || typeof result !== "object") return;
+
+  if (result.xpEarned > 0 && !options?.skipXpToast) {
+    toast.success(`+${result.xpEarned} XP`);
+  }
+
+  if (result.leveledUp) {
+    toast.success(`Level up! You're now Level ${result.level}`);
+  }
+
+  const achievements = Array.isArray(result.achievementsEarned)
+    ? result.achievementsEarned
+    : [];
+  for (const achievement of achievements) {
+    toast.success(
+      `Achievement unlocked: ${achievement.title} (+${achievement.xp} XP)`,
+    );
+  }
+}
+
 // Award XP and update user profile
 export async function awardXP(
   userId: string,
   xpAmount: number,
   action: string,
-): Promise<void> {
+): Promise<GamificationResult | null> {
   // Get current profile
   const { data: profile, error: fetchError } = await supabase
     .from("user_profiles")
@@ -123,18 +162,33 @@ export async function awardXP(
       "Failed to fetch user profile:",
       fetchError?.message || "Profile not found",
     );
-    return;
+    return null;
   }
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = new Date().toISOString().split("T")[0]!;
+
+  // Apply active boost multiplier (rounded to the nearest integer so
+  // fractional multipliers still credit whole XP amounts)
+  const boost = profile.active_boost as
+    | { multiplier?: number; expires_at: string }
+    | null
+    | undefined;
+  const boostActive =
+    boost?.multiplier &&
+    boost.expires_at &&
+    new Date(boost.expires_at).getTime() > Date.now();
+  const xpEarned = Math.round(
+    xpAmount * (boostActive && boost.multiplier ? boost.multiplier : 1),
+  );
 
   // Calculate new XP and Level
-  const newTotalXP = profile.total_xp + xpAmount;
+  const newTotalXP = (profile.total_xp || 0) + xpEarned;
   const newLevel = getLevelFromXP(newTotalXP);
 
   // Calculate Streak
   // Logic moved here to avoid fetching profile again and to ensure correct calculation based on previous state
   let newStreak = 1;
+  let freezeTokens = profile.streak_freeze_tokens || 0;
   if (profile.last_activity_date) {
     const lastDate = new Date(profile.last_activity_date);
     const todayDate = new Date(today);
@@ -148,8 +202,25 @@ export async function awardXP(
     } else if (daysDiff === 1) {
       // Consecutive day, increment streak
       newStreak = (profile.current_streak || 0) + 1;
+    } else if (
+      daysDiff >= 2 &&
+      freezeTokens > 0 &&
+      (profile.current_streak || 0) > 0
+    ) {
+      // Streak protection: client is the single authority — consume ONE
+      // freeze token and preserve the streak (matches server cron behavior).
+      // Only preserves a NONZERO streak — a 0-streak (post-cron reset) must
+      // not burn a scarce token, it restarts for free like the no-token path.
+      freezeTokens -= 1;
+      newStreak = profile.current_streak || 1;
     }
-    // If > 1 day, streak resets to 1 (already set)
+    // If > 1 day with no tokens, streak resets to 1 (already set)
+  }
+
+  // Grant a freeze token when the streak reaches a new multiple of 7
+  // (only on transition, so staying at 14 doesn't farm tokens daily)
+  if (newStreak % 7 === 0 && newStreak > (profile.current_streak || 0)) {
+    freezeTokens += 1;
   }
 
   const longestStreak = Math.max(newStreak, profile.longest_streak || 0);
@@ -167,29 +238,71 @@ export async function awardXP(
   if (action === "complete_task") newCounts.tasks_completed_count++;
   if (action === "add_paper_insights") newCounts.papers_with_insights_count++;
 
-  // Update profile with ALL changes in one go
+  // Update profile with ALL changes in one go (anti-N+1: single update folds
+  // boost/streak/token/level/count changes together)
+  const updatePayload: Partial<UserProfile> = {
+    total_xp: newTotalXP,
+    current_level: newLevel,
+    current_streak: newStreak,
+    longest_streak: longestStreak,
+    last_activity_date: today,
+    ...newCounts,
+  };
+  // Only write tokens when they changed to avoid clobbering a concurrent consumeFreeze
+  if (freezeTokens !== (profile.streak_freeze_tokens || 0)) {
+    updatePayload.streak_freeze_tokens = freezeTokens;
+  }
+
   const { error: updateError } = await supabase
     .from("user_profiles")
-    .update({
-      total_xp: newTotalXP,
-      current_level: newLevel,
-      current_streak: newStreak,
-      longest_streak: longestStreak,
-      last_activity_date: today,
-      ...newCounts,
-    })
+    .update(updatePayload)
     .eq("id", userId);
 
   if (updateError) {
     logger.error("Failed to update user profile", updateError);
-    return;
+    return null;
   }
 
   // Update or create daily log (passing streak to avoid refetch)
-  await updateDailyLog(userId, xpAmount, newStreak);
+  await updateDailyLog(userId, xpEarned, newStreak);
 
   // Check for achievements (passing streak and counts to avoid refetch)
-  await checkAchievements(userId, action, newStreak, newCounts);
+  const achievementsEarned = await checkAchievements(
+    userId,
+    action,
+    newStreak,
+    newCounts,
+  );
+
+  // Re-hydrate the profile into the stores so XP/level/streak/boost/freeze
+  // UI updates immediately without a refetch
+  const updatedProfile: UserProfile = {
+    ...(profile as UserProfile),
+    ...updatePayload,
+  };
+  // Fold achievement XP into the hydrated profile so the store matches DB state
+  const achievementXp = achievementsEarned.reduce(
+    (sum, achievement) => sum + achievement.xp,
+    0,
+  );
+  if (achievementXp > 0) {
+    updatedProfile.total_xp += achievementXp;
+    updatedProfile.current_level = getLevelFromXP(updatedProfile.total_xp);
+  }
+
+  // Level computed AFTER achievement XP is folded in, so result.level /
+  // leveledUp reflect the final totals (the hydrated profile's level)
+  const finalLevel = updatedProfile.current_level;
+  useAppStore.getState().setUser(updatedProfile);
+  useGamificationStore.getState().hydrateFromProfile(updatedProfile);
+
+  return {
+    xpEarned,
+    level: finalLevel,
+    leveledUp: finalLevel > (profile.current_level || 1),
+    streak: newStreak,
+    achievementsEarned,
+  };
 }
 
 // Cache for user achievements to prevent N+1 queries
@@ -205,7 +318,6 @@ export function clearAchievementsCache(userId?: string) {
 
 // Check and award achievements
 async function checkAchievements(
-
   userId: string,
   action: string,
   currentStreak: number,
@@ -215,8 +327,9 @@ async function checkAchievements(
     tasks_completed_count: number;
     papers_with_insights_count: number;
   },
-): Promise<void> {
+): Promise<Achievement[]> {
   // Optimization: Use passed currentStreak and counts instead of fetching from tables
+  const earnedAchievements: Achievement[] = [];
 
   // Check existing achievements
   let earned = achievementsCache.get(userId);
@@ -232,20 +345,26 @@ async function checkAchievements(
 
   // Check for 7-day streak
   if (currentStreak >= 7 && !earned.has(ACHIEVEMENTS.RESEARCH_STREAK_7.type)) {
-    await awardAchievement(userId, ACHIEVEMENTS.RESEARCH_STREAK_7);
+    const awarded = await awardAchievement(
+      userId,
+      ACHIEVEMENTS.RESEARCH_STREAK_7,
+    );
+    if (awarded) earnedAchievements.push(awarded);
   }
 
   // Check for first paper
   if (action === "create_paper" && !earned.has(ACHIEVEMENTS.FIRST_PAPER.type)) {
     if (counts.papers_count === 1) {
-      await awardAchievement(userId, ACHIEVEMENTS.FIRST_PAPER);
+      const awarded = await awardAchievement(userId, ACHIEVEMENTS.FIRST_PAPER);
+      if (awarded) earnedAchievements.push(awarded);
     }
   }
 
   // Check for 50 notes
   if (action === "create_note" && !earned.has(ACHIEVEMENTS.NOTE_MASTER.type)) {
     if (counts.notes_count >= 50) {
-      await awardAchievement(userId, ACHIEVEMENTS.NOTE_MASTER);
+      const awarded = await awardAchievement(userId, ACHIEVEMENTS.NOTE_MASTER);
+      if (awarded) earnedAchievements.push(awarded);
     }
   }
 
@@ -255,7 +374,8 @@ async function checkAchievements(
     !earned.has(ACHIEVEMENTS.TASK_WARRIOR.type)
   ) {
     if (counts.tasks_completed_count >= 25) {
-      await awardAchievement(userId, ACHIEVEMENTS.TASK_WARRIOR);
+      const awarded = await awardAchievement(userId, ACHIEVEMENTS.TASK_WARRIOR);
+      if (awarded) earnedAchievements.push(awarded);
     }
   }
 
@@ -264,7 +384,8 @@ async function checkAchievements(
     action === "complete_goal" &&
     !earned.has(ACHIEVEMENTS.GOAL_CRUSHER.type)
   ) {
-    await awardAchievement(userId, ACHIEVEMENTS.GOAL_CRUSHER);
+    const awarded = await awardAchievement(userId, ACHIEVEMENTS.GOAL_CRUSHER);
+    if (awarded) earnedAchievements.push(awarded);
   }
 
   // Check for 10 papers with insights
@@ -273,16 +394,22 @@ async function checkAchievements(
     !earned.has(ACHIEVEMENTS.INSIGHT_COLLECTOR.type)
   ) {
     if (counts.papers_with_insights_count >= 10) {
-      await awardAchievement(userId, ACHIEVEMENTS.INSIGHT_COLLECTOR);
+      const awarded = await awardAchievement(
+        userId,
+        ACHIEVEMENTS.INSIGHT_COLLECTOR,
+      );
+      if (awarded) earnedAchievements.push(awarded);
     }
   }
+
+  return earnedAchievements;
 }
 
 // Award an achievement
 async function awardAchievement(
   userId: string,
-  achievement: (typeof ACHIEVEMENTS)[keyof typeof ACHIEVEMENTS],
-): Promise<void> {
+  achievement: Achievement,
+): Promise<Achievement | null> {
   const { error: insertError } = await supabase
     .from("research_achievements")
     .insert({
@@ -293,10 +420,9 @@ async function awardAchievement(
       xp_awarded: achievement.xp,
     });
 
-
   if (insertError) {
     logger.error("Failed to award achievement", insertError);
-    return;
+    return null;
   }
 
   // Update cache
@@ -304,7 +430,6 @@ async function awardAchievement(
   if (cacheEarned) {
     cacheEarned.add(achievement.type);
   }
-
 
   // Award XP for achievement (simplified to avoid double-counting)
   const { data: profile } = await supabase
@@ -314,7 +439,7 @@ async function awardAchievement(
     .single();
 
   if (profile) {
-    const newTotalXP = profile.total_xp + achievement.xp;
+    const newTotalXP = (profile.total_xp || 0) + achievement.xp;
     const newLevel = getLevelFromXP(newTotalXP);
 
     const { error: xpError } = await supabase
@@ -329,6 +454,8 @@ async function awardAchievement(
       logger.error("Failed to award achievement XP", xpError);
     }
   }
+
+  return achievement;
 }
 
 // Update daily log
@@ -337,7 +464,7 @@ async function updateDailyLog(
   xpEarned: number,
   currentStreak: number,
 ): Promise<void> {
-  const today = new Date().toISOString().split("T")[0];
+  const today = new Date().toISOString().split("T")[0]!;
 
   // Optimization: Removed redundant profile fetching and updating.
   // Streak is now calculated in awardXP and passed down.

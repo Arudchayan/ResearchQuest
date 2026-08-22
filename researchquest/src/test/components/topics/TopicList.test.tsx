@@ -54,18 +54,20 @@ describe("TopicList", () => {
     expect(screen.getByText("Machine Learning")).toBeInTheDocument();
 
     const researchCard = screen.getByRole("button", {
-      name: /^Research Methods$/i,
+      name: /^Open topic: Research Methods$/i,
     });
     const machineLearningCard = screen.getByRole("button", {
-      name: /^Machine Learning$/i,
+      name: /^Open topic: Machine Learning$/i,
     });
-    expect(researchCard).toHaveClass("border-primary-500");
+    expect(researchCard.parentElement?.parentElement?.parentElement).toHaveClass(
+      "border-primary-500",
+    );
 
     fireEvent.click(machineLearningCard);
     expect(handleSelect).toHaveBeenCalledWith(baseTopics[1]);
   });
 
-  it("supports keyboard activation for accessibility", () => {
+  it("is keyboard focusable and activates selection", () => {
     const handleSelect = vi.fn();
 
     render(
@@ -80,10 +82,13 @@ describe("TopicList", () => {
     );
 
     const researchCard = screen.getByRole("button", {
-      name: /^Research Methods$/i,
+      name: /^Open topic: Research Methods$/i,
     });
     researchCard.focus();
-    fireEvent.keyDown(researchCard, { key: "Enter", code: "Enter" });
+    expect(researchCard).toHaveFocus();
+
+    // Buttons activate with Enter/Space natively, which resolves to a click event
+    fireEvent.click(researchCard);
 
     expect(handleSelect).toHaveBeenCalledWith(baseTopics[0]);
   });

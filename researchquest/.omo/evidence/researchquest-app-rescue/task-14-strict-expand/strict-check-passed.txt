@@ -1,0 +1,6 @@
+$ pnpm exec tsc -p tsconfig.strict.json --noEmit
+EXIT: 0 (zero errors)
+
+$ pnpm exec vitest run src/test/hooks/ src/test/store/
+Test Files  16 passed (16)
+     Tests  59 passed (59)

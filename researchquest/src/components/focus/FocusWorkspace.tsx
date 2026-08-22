@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Clock,
   Play,
@@ -19,10 +19,8 @@ import { useNotes } from "../../hooks/useNotes";
 import { usePapers } from "../../hooks/usePapers";
 import { useTasks } from "../../hooks/useTasks";
 import { useAppStore } from "../../store/appStore";
-import { recordDailyMissionEvent } from "../../store/dailyMissionsStore";
-import { recordSprintEvent } from "../../store/sprintStore";
 import type { Note, Paper, Task } from "../../types/database";
-import { awardXP, XP_REWARDS } from "../../utils/gamification";
+import { awardXP, notifyGamificationResult, XP_REWARDS } from "../../utils/gamification";
 import {
   playTimerCompleteSound,
   showTimerCompleteNotification,
@@ -32,6 +30,11 @@ import {
 import { toast } from "sonner";
 import { supabase } from "../../lib/supabase";
 import { logger } from "../../utils/logger";
+import { Badge } from "../ui/Badge";
+import { Button } from "../ui/button";
+import { Card, CardContent, CardHeader } from "../ui/card";
+import { Input } from "../ui/input";
+import { PageHeader } from "../ui/PageHeader";
 import {
   type FocusTargetType,
   type SelectedTarget,
@@ -42,85 +45,63 @@ import {
   extractNotePreview,
   extractPaperPreview,
   extractTaskPreview,
+  loadStoredFocusSession,
+  saveFocusSession,
+  clearStoredFocusSession,
 } from "./focusUtils";
 import { FocusTargetAside } from "./FocusTargetAside";
+
+const DEFAULT_SESSION_LENGTH = 25 * 60;
 
 interface FocusWorkspaceProps {
   userId: string | undefined;
 }
 
-function FocusTimerRing({
-  timeLeft,
-  progress,
-}: {
-  timeLeft: string;
-  progress: number;
-}) {
-  const size = 224;
-  const stroke = 10;
-  const radius = (size - stroke) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const offset =
-    circumference - (Math.min(100, Math.max(0, progress * 100)) / 100) * circumference;
-
-  return (
-    <div
-      className="relative inline-flex items-center justify-center"
-      style={{ width: size, height: size }}
-    >
-      <svg width={size} height={size} className="-rotate-90">
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke="var(--bg-elevated)"
-          strokeWidth={stroke}
-        />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke="var(--accent)"
-          strokeWidth={stroke}
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          className="transition-[stroke-dashoffset] duration-1000 ease-out"
-        />
-      </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div className="text-center">
-          <div className="font-mono text-5xl font-bold text-text-primary md:text-6xl">
-            {timeLeft}
-          </div>
-          <div className="mt-1 text-caption font-semibold uppercase tracking-wider text-text-tertiary">
-            Time remaining
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   const { notes, loading: notesLoading } = useNotes(userId);
   const { papers, loading: papersLoading } = usePapers(userId);
-  const { tasks, loading: tasksLoading } = useTasks(userId);
+  const { tasks, loading: tasksLoading } = useTasks(userId, { owner: false });
 
   const setCurrentView = useAppStore((state) => state.setCurrentView);
   const setSelectedNote = useAppStore((state) => state.setSelectedNote);
   const setSelectedPaper = useAppStore((state) => state.setSelectedPaper);
 
+  const [restoredSession] = useState(loadStoredFocusSession);
+
   const [selectedTarget, setSelectedTarget] = useState<SelectedTarget | null>(
-    null,
+    restoredSession?.selectedTarget ?? null,
   );
-  const [sessionLength, setSessionLength] = useState(25 * 60);
-  const [timeLeft, setTimeLeft] = useState(sessionLength);
-  const [isRunning, setIsRunning] = useState(false);
+  const [sessionLength, setSessionLength] = useState(
+    restoredSession?.sessionLength ?? DEFAULT_SESSION_LENGTH,
+  );
+  const [timeLeft, setTimeLeft] = useState(() => {
+    if (!restoredSession) return DEFAULT_SESSION_LENGTH;
+    if (restoredSession.isRunning && restoredSession.startedAt !== null) {
+      return Math.max(
+        0,
+        restoredSession.sessionLength -
+          Math.floor((Date.now() - restoredSession.startedAt) / 1000),
+      );
+    }
+    return restoredSession.timeLeft;
+  });
+  const [isRunning, setIsRunning] = useState(
+    restoredSession?.isRunning ?? false,
+  );
+  const [startedAt, setStartedAt] = useState<number | null>(
+    restoredSession?.startedAt ?? null,
+  );
   const [customMinutes, setCustomMinutes] = useState("");
-  const [hasCompletedSession, setHasCompletedSession] = useState(false);
+  const [hasCompletedSession, setHasCompletedSession] = useState(
+    restoredSession?.hasCompletedSession ?? false,
+  );
+  const [sessionCount, setSessionCount] = useState(
+    restoredSession?.sessionCount ?? 0,
+  );
+  // State (not a ref): the award resolves asynchronously AFTER the colophon's
+  // first render (hasCompletedSession flips synchronously), so the colophon
+  // must re-render with the actually credited (boosted) amount once it lands.
+  const [awardedXp, setAwardedXp] = useState<number | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(() => {
     if (typeof window === "undefined") {
       return true;
@@ -142,7 +123,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   const [isSoundEnabled, setIsSoundEnabled] = useState(true);
   const [isNotificationEnabled, setIsNotificationEnabled] = useState(true);
 
-  // Performance: Use Array.find() instead of pre-computing Maps for single lookups
+  // ⚡ PERFORMANCE OPTIMIZATION: Use Array.find() instead of pre-computing Maps for single lookups
   // This avoids O(N) memory allocation and iteration on every list update when we only need to find one item
   const selectedItem = useMemo(() => {
     if (!selectedTarget) return null;
@@ -159,10 +140,85 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   }, [notes, papers, tasks, selectedTarget]);
 
   useEffect(() => {
+    if (restoredSession) return;
     setTimeLeft(sessionLength);
     setIsRunning(false);
+    setStartedAt(null);
     setHasCompletedSession(false);
-  }, [sessionLength, selectedTarget?.id]);
+  }, [sessionLength, selectedTarget?.id, restoredSession]);
+
+  const sessionAwardedRef = useRef(false);
+
+  const completeSession = useCallback(() => {
+    if (sessionAwardedRef.current) return;
+    sessionAwardedRef.current = true;
+
+    setIsRunning(false);
+    setStartedAt(null);
+    setHasCompletedSession(true);
+
+    if (isSoundEnabled) {
+      playTimerCompleteSound();
+    }
+
+    if (isNotificationEnabled) {
+      const targetName = selectedItem
+        ? selectedTarget?.type === "note"
+          ? extractNoteSummary(selectedItem as Note)
+          : selectedTarget?.type === "paper"
+            ? (selectedItem as Paper).title
+            : (selectedItem as Task).title
+        : "Focus Session";
+
+      showTimerCompleteNotification("Focus session complete!", {
+        body: `You completed your session on ${targetName}.`,
+      });
+    }
+
+    if (userId) {
+      const durationMinutes = Math.floor(sessionLength / 60);
+      const xpEarned = durationMinutes * XP_REWARDS.FOCUS_SESSION_MINUTE;
+
+      if (xpEarned > 0) {
+        awardXP(userId, xpEarned, "complete_focus_session")
+          .then((result) => {
+            setAwardedXp(result?.xpEarned ?? null);
+            notifyGamificationResult(result);
+          })
+          .catch((err) => logger.error("Failed to award XP", err));
+        toast.success("Focus session complete!", {
+          description: `You completed ${durationMinutes} minutes of focus.`,
+        });
+      }
+
+      void supabase
+        .from("focus_sessions")
+        .insert({
+          user_id: userId,
+          duration_seconds: sessionLength,
+          target_type: selectedTarget?.type ?? null,
+          target_id: selectedTarget?.id ?? null,
+        })
+        .then(({ error }) => {
+          if (error) {
+            logger.error("[RQ] focus_sessions insert failed", error);
+            return;
+          }
+          const { focusSessionSecondsToday, setFocusSessionSecondsToday } =
+            useAppStore.getState();
+          setFocusSessionSecondsToday(
+            focusSessionSecondsToday + sessionLength,
+          );
+        });
+    }
+  }, [
+    userId,
+    isSoundEnabled,
+    isNotificationEnabled,
+    selectedItem,
+    selectedTarget,
+    sessionLength,
+  ]);
 
   useEffect(() => {
     if (!isRunning) return;
@@ -171,53 +227,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           window.clearInterval(timer);
-          setIsRunning(false);
-          setHasCompletedSession(true);
-
-          if (isSoundEnabled) {
-            playTimerCompleteSound();
-          }
-
-          if (isNotificationEnabled) {
-            const targetName = selectedItem
-              ? selectedTarget?.type === "note"
-                ? extractNoteSummary(selectedItem as Note)
-                : (selectedItem as any).title
-              : "Focus Session";
-
-            showTimerCompleteNotification("Focus session complete!", {
-              body: `You completed your session on ${targetName}.`,
-            });
-          }
-
-          if (userId) {
-            const durationMinutes = Math.floor(sessionLength / 60);
-            const xpEarned = durationMinutes * XP_REWARDS.FOCUS_SESSION_MINUTE;
-
-            if (xpEarned > 0) {
-              awardXP(userId, xpEarned, "complete_focus_session");
-              recordDailyMissionEvent("focus_minute", durationMinutes);
-              recordSprintEvent("focus", xpEarned, durationMinutes);
-              toast.success("Focus session complete!", {
-                description: `You earned ${xpEarned} XP for ${durationMinutes} minutes of focus.`,
-              });
-            }
-
-            void supabase
-              .from("focus_sessions")
-              .insert({
-                user_id: userId,
-                duration_seconds: sessionLength,
-                target_type: selectedTarget?.type ?? null,
-                target_id: selectedTarget?.id ?? null,
-              })
-              .then(({ error }) => {
-                if (error) {
-                  logger.error("[RQ] focus_sessions insert failed", error);
-                }
-              });
-          }
-
+          completeSession();
           return 0;
         }
         return prev - 1;
@@ -225,15 +235,14 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     }, 1000);
 
     return () => window.clearInterval(timer);
-  }, [
-    isRunning,
-    sessionLength,
-    userId,
-    isSoundEnabled,
-    isNotificationEnabled,
-    selectedItem,
-    selectedTarget,
-  ]);
+  }, [isRunning, completeSession]);
+
+  useEffect(() => {
+    if (hasCompletedSession || !restoredSession?.isRunning || timeLeft > 0) {
+      return;
+    }
+    completeSession();
+  }, [hasCompletedSession, restoredSession, timeLeft, completeSession]);
 
   const isLoading = notesLoading || papersLoading || tasksLoading;
   const effectiveTimeLeft = Math.max(0, timeLeft);
@@ -244,97 +253,116 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     effectiveTimeLeft < sessionLength;
   const progress =
     sessionLength > 0 ? (sessionLength - effectiveTimeLeft) / sessionLength : 0;
+  const durationMinutes = Math.floor(sessionLength / 60);
+  const xpEarned = durationMinutes * XP_REWARDS.FOCUS_SESSION_MINUTE;
+  const sessionOrdinal = Math.max(1, sessionCount);
+
+  useEffect(() => {
+    const hasActiveSession =
+      isRunning ||
+      hasCompletedSession ||
+      (selectedTarget !== null && effectiveTimeLeft < sessionLength);
+
+    if (!hasActiveSession) {
+      clearStoredFocusSession();
+      return;
+    }
+
+    saveFocusSession({
+      version: 1,
+      selectedTarget,
+      sessionLength,
+      isRunning,
+      startedAt: isRunning ? startedAt : null,
+      timeLeft: effectiveTimeLeft,
+      hasCompletedSession,
+      sessionCount,
+    });
+  }, [
+    isRunning,
+    startedAt,
+    hasCompletedSession,
+    selectedTarget,
+    sessionLength,
+    effectiveTimeLeft,
+    sessionCount,
+  ]);
 
   const quickTargets = useMemo(() => {
-    const safeNotes = notes || [];
-    const notesItems = [];
-    for (let i = 0; i < Math.min(safeNotes.length, 4); i++) {
-      const note = safeNotes[i];
-      notesItems.push({
-        id: note.id,
-        title: extractNoteSummary(note),
-        meta: new Date(note.updated_at).toLocaleDateString(),
-      });
-    }
-
-    const safePapers = papers || [];
-    const papersItems = [];
-    for (let i = 0; i < safePapers.length && papersItems.length < 4; i++) {
-      const paper = safePapers[i];
-      if (paper.status === "To Read" || paper.status === "Reading") {
-        papersItems.push({
-          id: paper.id,
-          title: paper.title,
-          meta: paper.publication_date
-            ? (
-                parseInt(paper.publication_date.substring(0, 4)) || "No year"
-              ).toString()
-            : "No year",
-        });
-      }
-    }
-
-    const safeTasks = tasks || [];
-    const tasksItems = [];
-    for (let i = 0; i < safeTasks.length && tasksItems.length < 4; i++) {
-      const task = safeTasks[i];
-      if (!task.completed) {
-        tasksItems.push({
-          id: task.id,
-          title: task.title,
-          meta: task.due_date
-            ? new Date(task.due_date).toLocaleString(undefined, {
-                month: "short",
-                day: "numeric",
-              })
-            : "No due date",
-        });
-      }
-    }
-
     return [
       {
         type: "note" as FocusTargetType,
         title: "Notes",
         description: "Recently edited notes ready for synthesis",
         icon: FileText,
-        items: notesItems,
+        items: notes.slice(0, 4).map((note) => ({
+          id: note.id,
+          title: extractNoteSummary(note),
+          meta: new Date(note.updated_at).toLocaleDateString(),
+        })),
       },
       {
         type: "paper" as FocusTargetType,
         title: "Papers",
         description: "Papers waiting for a close read or annotation",
         icon: BookOpen,
-        items: papersItems,
+        items: papers
+          .filter(
+            (paper) => paper.status === "To Read" || paper.status === "Reading",
+          )
+          .slice(0, 4)
+          .map((paper) => ({
+            id: paper.id,
+            title: paper.title,
+            meta: paper.publication_date
+              ? (
+                  parseInt(paper.publication_date.substring(0, 4)) || "No year"
+                ).toString()
+              : "No year",
+          })),
       },
       {
         type: "task" as FocusTargetType,
         title: "Tasks",
         description: "Upcoming commitments that benefit from deep work",
         icon: CheckSquare,
-        items: tasksItems,
+        items: tasks
+          .filter((task) => !task.completed)
+          .slice(0, 4)
+          .map((task) => ({
+            id: task.id,
+            title: task.title,
+            meta: task.due_date
+              ? new Date(task.due_date).toLocaleString(undefined, {
+                  month: "short",
+                  day: "numeric",
+                })
+              : "No due date",
+          })),
       },
     ];
   }, [notes, papers, tasks]);
 
   const focusInsights = useMemo(() => {
     const insights: { title: string; detail: string }[] = [];
+
+    // ⚡ PERFORMANCE OPTIMIZATION:
     // Compute multiple aggregate statistics in single O(N) passes.
     // This avoids chaining multiple .filter().length calls that create unnecessary
     // intermediate arrays and trigger redundant iterations during render.
     let unreadPapers = 0;
-    for (let i = 0; i < papers.length; i++) {
-      if (papers[i].status === "To Read") unreadPapers++;
+    for (const p of papers) {
+      if (p.status === "To Read") unreadPapers++;
     }
 
     let inProgressTasks = 0;
-    for (let i = 0; i < tasks.length; i++) {
-      if (!tasks[i].completed) inProgressTasks++;
+    for (const t of tasks) {
+      if (!t.completed) inProgressTasks++;
     }
 
     let notesWithoutTitles = 0;
-    for (let i = 0; i < notes.length; i++) {
-      if (!notes[i].title || notes[i].title.trim() === "") notesWithoutTitles++;
+    for (const n of notes) {
+      if (!n.title || n.title.trim() === "") notesWithoutTitles++;
     }
 
     if (unreadPapers > 0) {
@@ -404,23 +432,36 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   };
 
   const handleTargetSelection = (target: SelectedTarget) => {
+    sessionAwardedRef.current = false;
+    setAwardedXp(null);
     setSelectedTarget(target);
     setHasCompletedSession(false);
     setIsRunning(false);
+    setStartedAt(null);
     setTimeLeft(sessionLength);
   };
 
   const toggleTimer = () => {
-    setIsRunning((prev) => {
-      if (!prev) {
-        // Starting
-        warmupAudio();
-        if (isNotificationEnabled) {
-          requestNotificationPermission();
-        }
-      }
-      return !prev;
-    });
+    if (isRunning) {
+      setIsRunning(false);
+      setStartedAt(null);
+      return;
+    }
+    if (hasCompletedSession || timeLeft <= 0) {
+      setTimeLeft(sessionLength);
+      setHasCompletedSession(false);
+    }
+    if (!isPaused) {
+      setSessionCount((count) => count + 1);
+    }
+    sessionAwardedRef.current = false;
+    setAwardedXp(null);
+    warmupAudio();
+    if (isNotificationEnabled) {
+      requestNotificationPermission();
+    }
+    setStartedAt(Date.now());
+    setIsRunning(true);
   };
 
   const handleOpenInWorkspace = () => {
@@ -441,366 +482,380 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   };
 
   const presets = [
-    { label: "15 min warm-up", value: 15 * 60 },
-    { label: "25 min pomodoro", value: 25 * 60 },
-    { label: "45 min deep work", value: 45 * 60 },
-    { label: "60 min dive", value: 60 * 60 },
+    { label: "warm-up", minutes: 15, value: 15 * 60 },
+    { label: "pomodoro", minutes: 25, value: 25 * 60 },
+    { label: "deep work", minutes: 45, value: 45 * 60 },
+    { label: "dive", minutes: 60, value: 60 * 60 },
   ];
 
   return (
-    <div className="p-4 sm:p-6 md:p-8 max-w-6xl mx-auto space-y-6">
-      <header className="hero-ambient surface-panel relative overflow-hidden p-6 md:p-8">
-        <div className="relative z-10 flex flex-col gap-3">
-        <div className="inline-flex items-center gap-2">
-          <span className="icon-tile bg-accent-soft text-accent-strong">
-            <Target className="w-4 h-4" aria-hidden="true" />
+    <div className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6 md:p-8">
+      <PageHeader
+        className="-mx-4 sm:-mx-6 md:-mx-8 md:p-8"
+        title={
+          <span className="inline-flex flex-wrap items-center gap-3">
+            <Target className="h-6 w-6 text-primary-500" aria-hidden="true" />
+            Focus Studio
           </span>
-          <span className="section-kicker">Focus Studio</span>
-        </div>
-        <h1 className="font-serif text-3xl font-bold text-text-primary">
-          Design an intentional deep work session
-        </h1>
-        <p className="text-text-secondary max-w-3xl">
-          Choose one target, set a timer, and stay in flow. Your notes, papers,
-          and tasks update automatically when the session ends.
-        </p>
-        </div>
-      </header>
+        }
+        description="Design an intentional deep work session. Choose one target, set a duration, and stay in flow. Your notes, papers, and tasks update automatically when the session ends."
+      />
 
       {showOnboarding && (
-        <div className="surface-card p-5 sm:p-6 flex flex-col gap-4">
+        <Card className="border-primary-100 bg-primary-50 p-4 sm:p-6">
           <div className="flex items-start gap-3">
-            <div className="icon-tile h-10 w-10 rounded-full bg-accent-soft text-accent-strong">
-              <Info className="w-5 h-5" aria-hidden="true" />
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-primary-500 text-bg-base">
+              <Info className="h-5 w-5" aria-hidden="true" />
             </div>
-            <div className="space-y-2 text-sm sm:text-base">
-              <h2 className="text-lg font-semibold text-text-primary">
+            <div className="min-w-0 space-y-2">
+              <h2 className="font-serif text-body-lg font-semibold text-text-primary">
                 How to settle into a Focus Studio sprint
               </h2>
-              <ul className="list-disc pl-5 space-y-1 text-text-secondary">
+              <ul className="list-disc space-y-2 pl-5 text-body text-text-secondary">
+                <li>Pick one item and set a meaningful session length.</li>
                 <li>
-                  Pick one item on the right and set a meaningful session
-                  length.
+                  Capture what you learn in the preview or open the full
+                  workspace.
                 </li>
-                <li>
-                  Capture what you learn in the preview panel or jump straight
-                  into the full workspace.
-                </li>
-                <li>
-                  Log a takeaway at the end—completing the sprint earns
-                  streak-protecting XP.
-                </li>
+                <li>Complete the sprint to earn streak-protecting XP.</li>
               </ul>
             </div>
           </div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-caption text-text-tertiary">
-              You can reopen this guide from the session menu at any time.
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-small text-text-tertiary">
+              Reopen this guide from the session controls at any time.
             </p>
-            <button
+            <Button
               type="button"
+              size="sm"
               onClick={dismissOnboarding}
-              className="self-start sm:self-auto inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-text-primary text-bg-base text-sm font-medium shadow-lift hover:opacity-95 transition-opacity"
+              className="self-start sm:self-auto"
             >
               Got it
-            </button>
+            </Button>
           </div>
-        </div>
+        </Card>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_1fr]">
-        <div className="space-y-6">
-          <div className="surface-card p-6 space-y-6">
-            <div className="flex items-center justify-between gap-4 flex-wrap">
-              <div className="flex items-center gap-3">
-                <div className="icon-tile h-12 w-12 rounded-full bg-accent-soft text-accent-strong">
-                  <Clock className="w-6 h-6" aria-hidden="true" />
-                </div>
-                <div>
-                  <p className="section-kicker mb-1">
-                    Current session
-                  </p>
-                  <p className="text-lg font-semibold text-text-primary line-clamp-2">
-                    {selectedItem ? (
-                      <>
-                        {selectedTarget?.type === "note" && "Note review · "}
-                        {selectedTarget?.type === "paper" && "Paper focus · "}
-                        {selectedTarget?.type === "task" && "Task sprint · "}
-                        {selectedTarget?.type === "note" &&
-                          extractNoteSummary(selectedItem as Note)}
-                        {selectedTarget?.type === "paper" &&
-                          (selectedItem as Paper).title}
-                        {selectedTarget?.type === "task" &&
-                          (selectedItem as Task).title}
-                      </>
-                    ) : (
-                      "Select a focus target"
-                    )}
-                  </p>
-                </div>
-              </div>
-              {hasCompletedSession && (
-                <span className="status-chip bg-success-bg text-success">
-                  <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> Session complete!
-                </span>
-              )}
-            </div>
-
-            <div className="flex flex-col items-center gap-5">
-              <FocusTimerRing
-                timeLeft={formatTime(effectiveTimeLeft)}
-                progress={progress}
-              />
-
-              <div className="w-full space-y-2">
-                <div className="flex items-center justify-between text-caption text-text-tertiary">
-                  <span>Time remaining</span>
-                  <span>{Math.round(progress * 100)}% complete</span>
-                </div>
-                <div
-                  className="progress-track h-2 w-full"
-                  role="progressbar"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={Math.min(
-                    100,
-                    Math.max(0, Math.round(progress * 100)),
-                  )}
-                  aria-label="Focus session progress"
-                >
-                  <div
-                    className="progress-fill"
-                    style={{
-                      width: `${Math.min(100, Math.max(0, progress * 100))}%`,
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div
-                className="grid gap-2 w-full sm:grid-cols-2"
-                aria-label="Session length presets"
-              >
-                {presets.map((preset) => (
-                  <button
-                    key={preset.value}
-                    type="button"
-                    onClick={() => setSessionLength(preset.value)}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${
-                      sessionLength === preset.value
-                        ? "bg-accent-soft text-accent-strong border-accent shadow-sm"
-                        : "border-border-moderate bg-bg-surface text-text-secondary hover:border-border-strong hover:text-text-primary"
-                    }`}
-                  >
-                    {preset.label}
-                  </button>
-                ))}
-              </div>
-
-              <form
-                className="flex flex-col sm:flex-row sm:items-center gap-2 w-full bg-bg-elevated border border-border-subtle rounded-lg px-4 py-3"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  applyCustomDuration();
-                }}
-                aria-labelledby="custom-duration-label"
-              >
-                <div className="flex flex-col flex-1">
-                  <label
-                    id="custom-duration-label"
-                    htmlFor="custom-duration-input"
-                    className="text-caption font-medium text-text-secondary"
-                  >
-                    Custom duration
-                  </label>
-                  <input
-                    id="custom-duration-input"
-                    value={customMinutes}
-                    onChange={(event) =>
-                      setCustomMinutes(
-                        event.target.value.replace(/[^0-9]/g, ""),
-                      )
-                    }
-                    placeholder="e.g. 35"
-                    inputMode="numeric"
-                    aria-describedby="custom-duration-hint"
-                    className="mt-1 w-full bg-transparent text-base text-text-primary outline-none"
-                  />
-                </div>
-                <div className="flex items-center gap-2 text-sm text-text-tertiary">
-                  <span id="custom-duration-hint">minutes</span>
-                  <button
-                    type="submit"
-                    className="inline-flex items-center px-3 py-1.5 rounded-lg bg-text-primary text-bg-base font-semibold shadow-sm hover:opacity-95 transition-opacity disabled:opacity-50"
-                    disabled={!customMinutes}
-                  >
-                    Apply
-                  </button>
-                </div>
-              </form>
-
-              <div className="flex flex-wrap items-center justify-center gap-3">
-                <button
-                  onClick={toggleTimer}
-                  disabled={!selectedItem || sessionLength === 0}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-text-primary text-bg-base font-semibold shadow-lift hover:opacity-95 transition-opacity disabled:opacity-50"
-                  type="button"
-                >
-                  {isRunning ? (
-                    <Pause className="w-5 h-5" aria-hidden="true" />
-                  ) : (
-                    <Play className="w-5 h-5" aria-hidden="true" />
-                  )}
-                  {isRunning ? "Pause" : isPaused ? "Resume" : "Start focus"}
-                </button>
-                <button
-                  onClick={() => {
-                    setTimeLeft(sessionLength);
-                    setIsRunning(false);
-                    setHasCompletedSession(false);
-                  }}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border-moderate bg-bg-surface text-text-secondary shadow-sm hover:border-border-strong hover:text-text-primary transition-colors"
-                  type="button"
-                >
-                  <RotateCcw className="w-4 h-4" aria-hidden="true" /> Reset
-                </button>
-              </div>
-
-              <div className="flex flex-wrap items-center justify-center gap-2 pt-2 border-t border-border-subtle/50 w-full max-w-sm">
-                <button
-                  type="button"
-                  onClick={() => setIsSoundEnabled(!isSoundEnabled)}
-                  className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                    isSoundEnabled
-                      ? "text-text-primary bg-bg-elevated hover:bg-bg-muted"
-                      : "text-text-tertiary hover:text-text-secondary"
-                  }`}
-                  title={isSoundEnabled ? "Sound enabled" : "Sound disabled"}
-                >
-                  {isSoundEnabled ? (
-                    <Volume2 className="w-4 h-4" />
-                  ) : (
-                    <VolumeX className="w-4 h-4" />
-                  )}
-                  <span className="sr-only">
-                    {isSoundEnabled ? "Mute sound" : "Unmute sound"}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    setIsNotificationEnabled(!isNotificationEnabled)
-                  }
-                  className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                    isNotificationEnabled
-                      ? "text-text-primary bg-bg-elevated hover:bg-bg-muted"
-                      : "text-text-tertiary hover:text-text-secondary"
-                  }`}
-                  title={
-                    isNotificationEnabled
-                      ? "Notifications enabled"
-                      : "Notifications disabled"
-                  }
-                >
-                  {isNotificationEnabled ? (
-                    <Bell className="w-4 h-4" />
-                  ) : (
-                    <BellOff className="w-4 h-4" />
-                  )}
-                  <span className="sr-only">
-                    {isNotificationEnabled
-                      ? "Disable notifications"
-                      : "Enable notifications"}
-                  </span>
-                </button>
-
-                <div className="w-px h-4 bg-border-subtle mx-1" />
-
-                <button
-                  type="button"
-                  onClick={() => setShowOnboarding(true)}
-                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-bg-elevated transition-colors"
-                >
-                  <Info className="w-4 h-4" />
-                  <span>Tips</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="surface-card p-6">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="section-kicker mb-1">
-                  Focus target
-                </p>
-                <h2 className="font-serif text-2xl font-semibold text-text-primary">
-                  {selectedItem
-                    ? selectedTarget?.type === "note"
-                      ? extractNoteSummary(selectedItem as Note)
-                      : selectedTarget?.type === "paper"
-                        ? (selectedItem as Paper).title
-                        : (selectedItem as Task).title
-                    : "Nothing selected yet"}
-                </h2>
-              </div>
-              {selectedTarget && (
-                <span className="status-chip bg-accent-soft text-accent-strong">
-                  {selectedTarget.type === "note" && "Note"}
-                  {selectedTarget.type === "paper" && "Paper"}
-                  {selectedTarget.type === "task" && "Task"}
-                </span>
-              )}
-            </div>
-
-            {selectedItem ? (
-              <div className="mt-4 space-y-4">
-                <div className="bg-bg-elevated border border-border-subtle rounded-lg p-4 text-sm text-text-secondary whitespace-pre-line max-h-56 overflow-y-auto">
-                  {selectedTarget?.type === "note" &&
-                    extractNotePreview(selectedItem as Note)}
-                  {selectedTarget?.type === "paper" &&
-                    extractPaperPreview(selectedItem as Paper)}
-                  {selectedTarget?.type === "task" &&
-                    extractTaskPreview(selectedItem as Task)}
-                </div>
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="text-caption text-text-tertiary">
-                    {selectedTarget?.type === "paper" &&
-                      (selectedItem as Paper).status}
-                    {selectedTarget?.type === "task" &&
-                      (() => {
-                        const dueDate = (selectedItem as Task).due_date;
-                        if (!dueDate) {
-                          return "No due date";
-                        }
-                        return `Due ${new Date(dueDate).toLocaleString(
-                          undefined,
-                          {
-                            month: "short",
-                            day: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          },
-                        )}`;
-                      })()}
+      <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <div className="min-w-0 space-y-6">
+          <Card className="min-w-0">
+            <CardHeader className="space-y-0 border-b border-border-subtle p-4 sm:p-6">
+              <div className="flex min-w-0 flex-wrap items-start justify-between gap-4">
+                <div className="flex min-w-0 items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-control border border-border-moderate bg-bg-elevated text-primary-500">
+                    <Clock className="h-5 w-5" aria-hidden="true" />
                   </div>
-                  <button
-                    onClick={handleOpenInWorkspace}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-text-primary text-bg-base font-medium shadow-lift hover:opacity-95 transition-opacity"
+                  <div className="min-w-0">
+                    <p className="text-small font-semibold text-text-secondary">
+                      Current session
+                    </p>
+                    <p className="break-words text-body-lg font-semibold leading-snug text-text-primary">
+                      {selectedItem ? (
+                        <>
+                          {selectedTarget?.type === "note" && "Note review · "}
+                          {selectedTarget?.type === "paper" && "Paper focus · "}
+                          {selectedTarget?.type === "task" && "Task sprint · "}
+                          {selectedTarget?.type === "note" &&
+                            extractNoteSummary(selectedItem as Note)}
+                          {selectedTarget?.type === "paper" &&
+                            (selectedItem as Paper).title}
+                          {selectedTarget?.type === "task" &&
+                            (selectedItem as Task).title}
+                        </>
+                      ) : (
+                        "Select a focus target"
+                      )}
+                    </p>
+                  </div>
+                </div>
+                {hasCompletedSession && (
+                  <Badge variant="success">
+                    <Sparkles className="h-4 w-4" aria-hidden="true" />
+                    Session complete
+                  </Badge>
+                )}
+              </div>
+            </CardHeader>
+
+            <CardContent className="space-y-6 px-4 pb-4 pt-6 sm:px-6 sm:pb-6">
+              <div className="flex flex-col items-center gap-6">
+                <div className="w-full rounded-control border border-border-subtle bg-bg-elevated bg-[repeating-linear-gradient(to_right,var(--border-subtle)_0_1px,transparent_1px_8px),repeating-linear-gradient(to_bottom,var(--border-subtle)_0_1px,transparent_1px_8px)] px-4 py-6 text-center sm:px-8 sm:py-8">
+                  <div className="font-mono text-hero font-bold leading-none tabular-nums text-text-primary">
+                    {formatTime(effectiveTimeLeft)}
+                  </div>
+
+                  <p className="mt-4 font-mono text-caption tabular-nums tracking-[0.14em] text-text-tertiary">
+                    SESSION {String(sessionOrdinal).padStart(2, "0")} ·{" "}
+                    {durationMinutes} MIN ·{" "}
+                    {selectedTarget ? selectedTarget.type.toUpperCase() : "FOCUS"}
+                  </p>
+
+                  <div className="mt-6 w-full space-y-2">
+                    <div className="flex items-center justify-between gap-4 text-caption text-text-tertiary">
+                      <span>Time remaining</span>
+                      <span className="font-mono tabular-nums">
+                        {Math.round(progress * 100)}% complete
+                      </span>
+                    </div>
+                    <div
+                      className="h-3 w-full overflow-hidden rounded-full border border-border-subtle bg-bg-elevated"
+                      role="progressbar"
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={Math.min(
+                        100,
+                        Math.max(0, Math.round(progress * 100)),
+                      )}
+                      aria-label="Focus session progress"
+                    >
+                      <div
+                        className={`h-full ${
+                          hasCompletedSession ? "bg-success" : "bg-primary-500"
+                        }`}
+                        style={{
+                          width: `${Math.min(100, Math.max(0, progress * 100))}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  className="grid w-full gap-2 sm:grid-cols-2"
+                  role="group"
+                  aria-label="Session length presets"
+                >
+                  {presets.map((preset) => (
+                    <Button
+                      key={preset.value}
+                      type="button"
+                      variant={
+                        sessionLength === preset.value ? "default" : "outline"
+                      }
+                      size="sm"
+                      onClick={() => setSessionLength(preset.value)}
+                      aria-pressed={sessionLength === preset.value}
+                      className="h-auto min-h-11 justify-start"
+                    >
+                      <span className="font-mono tabular-nums">
+                        {preset.minutes} min
+                      </span>
+                      <span>{preset.label}</span>
+                    </Button>
+                  ))}
+                </div>
+
+                <form
+                  className="flex w-full flex-col gap-3 rounded-control border border-border-moderate bg-bg-elevated p-4 sm:flex-row sm:items-end"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    applyCustomDuration();
+                  }}
+                  aria-labelledby="custom-duration-label"
+                >
+                  <div className="min-w-0 flex-1">
+                    <label
+                      id="custom-duration-label"
+                      htmlFor="custom-duration-input"
+                      className="text-caption font-medium text-text-secondary"
+                    >
+                      Custom duration
+                    </label>
+                    <Input
+                      id="custom-duration-input"
+                      value={customMinutes}
+                      onChange={(event) =>
+                        setCustomMinutes(
+                          event.target.value.replace(/[^0-9]/g, ""),
+                        )
+                      }
+                      placeholder="e.g. 35"
+                      inputMode="numeric"
+                      aria-describedby="custom-duration-hint"
+                      className="mt-1 font-mono tabular-nums"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between gap-3 text-small text-text-tertiary sm:justify-end">
+                    <span id="custom-duration-hint">minutes</span>
+                    <Button type="submit" size="sm" disabled={!customMinutes}>
+                      Apply
+                    </Button>
+                  </div>
+                </form>
+
+                <div className="flex flex-wrap items-center justify-center gap-3">
+                  <Button
                     type="button"
+                    size="lg"
+                    onClick={toggleTimer}
+                    disabled={!selectedItem || sessionLength === 0}
                   >
-                    Open in workspace
-                  </button>
+                    {isRunning ? (
+                      <Pause className="h-5 w-5" aria-hidden="true" />
+                    ) : (
+                      <Play className="h-5 w-5" aria-hidden="true" />
+                    )}
+                    {isRunning ? "Pause" : isPaused ? "Resume" : "Start focus"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="lg"
+                    onClick={() => {
+                      sessionAwardedRef.current = false;
+                      setAwardedXp(null);
+                      setTimeLeft(sessionLength);
+                      setIsRunning(false);
+                      setStartedAt(null);
+                      setHasCompletedSession(false);
+                    }}
+                  >
+                    <RotateCcw className="h-4 w-4" aria-hidden="true" /> Reset
+                  </Button>
+                </div>
+
+                <div className="flex w-full max-w-sm flex-wrap items-center justify-center gap-2 border-t border-border-subtle pt-4">
+                  <Button
+                    type="button"
+                    variant={isSoundEnabled ? "secondary" : "ghost"}
+                    aria-pressed={isSoundEnabled}
+                    onClick={() => setIsSoundEnabled(!isSoundEnabled)}
+                    title={isSoundEnabled ? "Sound enabled" : "Sound disabled"}
+                  >
+                    {isSoundEnabled ? (
+                      <Volume2 aria-hidden="true" />
+                    ) : (
+                      <VolumeX aria-hidden="true" />
+                    )}
+                    {isSoundEnabled ? "Sound on" : "Sound off"}
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant={isNotificationEnabled ? "secondary" : "ghost"}
+                    aria-pressed={isNotificationEnabled}
+                    onClick={() =>
+                      setIsNotificationEnabled(!isNotificationEnabled)
+                    }
+                    title={
+                      isNotificationEnabled
+                        ? "Notifications enabled"
+                        : "Notifications disabled"
+                    }
+                  >
+                    {isNotificationEnabled ? (
+                      <Bell aria-hidden="true" />
+                    ) : (
+                      <BellOff aria-hidden="true" />
+                    )}
+                    {isNotificationEnabled ? "Notifications on" : "Notifications off"}
+                  </Button>
+
+                  <span className="h-4 w-px bg-border-subtle" aria-hidden="true" />
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setShowOnboarding(true)}
+                  >
+                    <Info aria-hidden="true" /> Tips
+                  </Button>
                 </div>
               </div>
-            ) : (
-              <div className="mt-6 text-text-secondary text-sm">
-                Select a target from the lists on the right to preview its
-                details and plan your focus session.
+
+              {hasCompletedSession && (
+                <div className="flex w-full items-center justify-between gap-4 border-t-2 border-success pt-3">
+                  <span className="text-caption font-semibold uppercase tracking-[0.14em] text-success">
+                    Colophon
+                  </span>
+                  <span className="font-mono text-caption font-semibold tabular-nums text-success">
+                    {durationMinutes} MIN · +{awardedXp ?? xpEarned} XP
+                  </span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="min-w-0">
+            <CardHeader className="space-y-0 p-4 sm:p-6">
+              <div className="flex min-w-0 flex-wrap items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-small font-semibold text-text-secondary">
+                    Focus target
+                  </p>
+                  <h2 className="mt-2 break-words font-serif text-subtitle font-semibold leading-tight text-text-primary">
+                    {selectedItem
+                      ? selectedTarget?.type === "note"
+                        ? extractNoteSummary(selectedItem as Note)
+                        : selectedTarget?.type === "paper"
+                          ? (selectedItem as Paper).title
+                          : (selectedItem as Task).title
+                      : "Nothing selected yet"}
+                  </h2>
+                </div>
+                {selectedTarget && (
+                  <Badge variant="neutral">
+                    {selectedTarget.type === "note" && "Note"}
+                    {selectedTarget.type === "paper" && "Paper"}
+                    {selectedTarget.type === "task" && "Task"}
+                  </Badge>
+                )}
               </div>
-            )}
-          </div>
+            </CardHeader>
+
+            <CardContent className="space-y-4 px-4 pb-4 pt-0 sm:px-6 sm:pb-6">
+              {selectedItem ? (
+                <>
+                  <div className="max-h-56 overflow-y-auto break-words whitespace-pre-line rounded-control border border-border-moderate bg-bg-elevated p-4 text-body text-text-secondary">
+                    {selectedTarget?.type === "note" &&
+                      extractNotePreview(selectedItem as Note)}
+                    {selectedTarget?.type === "paper" &&
+                      extractPaperPreview(selectedItem as Paper)}
+                    {selectedTarget?.type === "task" &&
+                      extractTaskPreview(selectedItem as Task)}
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="text-caption text-text-tertiary">
+                      {selectedTarget?.type === "paper" &&
+                        (selectedItem as Paper).status}
+                      {selectedTarget?.type === "task" &&
+                        (() => {
+                          const dueDate = (selectedItem as Task).due_date;
+                          if (!dueDate) {
+                            return "No due date";
+                          }
+                          return `Due ${new Date(dueDate).toLocaleString(
+                            undefined,
+                            {
+                              month: "short",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            },
+                          )}`;
+                        })()}
+                    </div>
+                    <Button
+                      type="button"
+                      onClick={handleOpenInWorkspace}
+                    >
+                      Open in workspace
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <div
+                  className="rounded-control border border-dashed border-border-strong bg-bg-elevated p-4 text-body text-text-secondary"
+                  role="status"
+                  aria-live="polite"
+                >
+                  Select a target from the lists to preview its details and
+                  plan your focus session.
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         <FocusTargetAside

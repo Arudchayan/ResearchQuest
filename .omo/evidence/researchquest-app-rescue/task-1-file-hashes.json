@@ -1,0 +1,177 @@
+[
+  {
+    "sha256": "E5299FF6C17E6ABEE9C9ECB5C31E035E7CBBA8B48528AADE9505AB133CEDB8DC",
+    "size": 1128,
+    "path": ".omo\\boulder.json"
+  },
+  {
+    "sha256": "2C904C1ABE084E107CEE030FB9E481718CD4A6ABCA5EC3151A052B2A47D1E9F8",
+    "size": 6027,
+    "path": ".omo\\drafts\\researchquest-app-rescue.md"
+  },
+  {
+    "sha256": "33BD130393592B47A94662CF1C71413FAE303450FEA189DFA46055ED2B0C0AD8",
+    "size": 8533,
+    "path": ".omo\\drafts\\researchquest-rescue.md"
+  },
+  {
+    "sha256": "303DC0FE23B20A455E77196C3E39EE9D8776A874C4F93FC08D10D6DF2F3B2DBB",
+    "size": 455,
+    "path": ".omo\\evidence\\researchquest-app-rescue\\task-1-workspace-manifest.json"
+  },
+  {
+    "sha256": "42F3456E487147E42343DA29315AE6841BABB1374ABEE2B31D066EF77282D80E",
+    "size": 48308,
+    "path": ".omo\\plans\\researchquest-app-rescue.md"
+  },
+  {
+    "sha256": "40B01F68C9B63BA65799E0966DA7ABA534B3EFF52A3306D06E01BC09B754FED0",
+    "size": 214,
+    "path": ".omo\\run-continuation\\ses_085e37dfcffeGCjACqxIzwlLfm.json"
+  },
+  {
+    "sha256": "C136DB78B09B33B9EA2FBC60CB5F41BA1712A6116D796D20CD83FC24465A3D6E",
+    "size": 214,
+    "path": ".omo\\run-continuation\\ses_085e37e06ffeUPJmInqG7L4qqj.json"
+  },
+  {
+    "sha256": "400D7EAE7BDD683F683F610BA92AAED4C79EBE255A7D19D0D744ABF7B63DD0DC",
+    "size": 214,
+    "path": ".omo\\run-continuation\\ses_085e79748ffefZtl112S1T7NGq.json"
+  },
+  {
+    "sha256": "1C2DAFF63057CC99A3EB13315B26883F946F18859AC38C0DF14CD3280A94697B",
+    "size": 214,
+    "path": ".omo\\run-continuation\\ses_085e79810ffez0eKWs5XkF2gjA.json"
+  },
+  {
+    "sha256": "D4EB4D9CBC0603CC94C44C3DD43F689C42A4BAEB0A5855E2D6575BBF82632F98",
+    "size": 214,
+    "path": ".omo\\run-continuation\\ses_085efdde6ffevT9DcTwo3vSJ6o.json"
+  },
+  {
+    "sha256": "FD72A1C20E20C41C4DB14037A65C1DE6E069928D4153C611D5B810CE4F0D8B73",
+    "size": 214,
+    "path": ".omo\\run-continuation\\ses_085efde11ffe9Xb6di0Ugrt8Ez.json"
+  },
+  {
+    "sha256": "D345235FFA4E9720103CC2039DF0AC863908055F4B948C737A70D4E9FF2C8F8B",
+    "size": 214,
+    "path": ".omo\\run-continuation\\ses_085efdfccffe0KfCZn3AEmPlTx.json"
+  },
+  {
+    "sha256": "62067B39357875B36934E51C837DDF2D6801F14F1296BBAE2CF2CFAAD164D93E",
+    "size": 214,
+    "path": ".omo\\run-continuation\\ses_085f0139affeHmi34srQVq6Qmq.json"
+  },
+  {
+    "sha256": "E1417E1068CC481E59A6EC8AFEED593CEFFD8A0266B81C234FBF1EAA339F6ACA",
+    "size": 214,
+    "path": ".omo\\run-continuation\\ses_085fc9b75ffeEflXRPf5YzUAoa.json"
+  },
+  {
+    "sha256": "70C797FB31DB514615C7F5EAB3CE1A7E8020505B1B2A6422075471B03C64F979",
+    "size": 214,
+    "path": ".omo\\run-continuation\\ses_085ffb95affeOGXX5LI1nyJ6An.json"
+  },
+  {
+    "sha256": "1A66E8CAE8395DA53F6A07E89D17E51853601511DE9695849D3F1D436C9BB88B",
+    "size": 214,
+    "path": ".omo\\run-continuation\\ses_085ffb980ffePzKpjWDomQwyzH.json"
+  },
+  {
+    "sha256": "7302B1C279A65C2CA1DFB9B47FF7AD791894EE59C2BC938E736430EB34F01C16",
+    "size": 214,
+    "path": ".omo\\run-continuation\\ses_085ffb99dffeWaRSMKYPm8KHNN.json"
+  },
+  {
+    "sha256": "36314F64334766A5290E30129FC3426EF11DCDC841782360741AA090824EE167",
+    "size": 214,
+    "path": ".omo\\run-continuation\\ses_08602fed8ffeweT03xgX1eXIpv.json"
+  },
+  {
+    "sha256": "6E5F75AA7359735AC6F8680924BB49A50645837037A6E81F0F63B20CAE170FBA",
+    "size": 214,
+    "path": ".omo\\run-continuation\\ses_08602feeaffeD1X1ggvbGfu3Nt.json"
+  },
+  {
+    "sha256": "A48EC1827806DBF81E3A85C5D8005CAF977510F724DD909A4015E7877A097225",
+    "size": 214,
+    "path": ".omo\\run-continuation\\ses_08602ffafffese2E2ZqcPHTEP8.json"
+  },
+  {
+    "sha256": "523A8BB2642E288FC1743C0F5EBAD9B2A0AC199330A6CEEC1777F10F1DB78D36",
+    "size": 214,
+    "path": ".omo\\run-continuation\\ses_086030187ffel6Nr2fSob1vZ0s.json"
+  },
+  {
+    "sha256": "50710F8037BFD503B06D72A3F3337F87522FEA256A12BCD15E4A4874626A4A4B",
+    "size": 214,
+    "path": ".omo\\run-continuation\\ses_086030601ffe2ma2xGmQGQtSn7.json"
+  },
+  {
+    "sha256": "D9C7E743774E7F4591EC377B21EFA56B885C822373560DE6497D50539F2A2210",
+    "size": 214,
+    "path": ".omo\\run-continuation\\ses_0860626b8ffeZ6rrVdcRRpGN9d.json"
+  },
+  {
+    "sha256": "ABF009A9ECFEE78077E09837D52EF267763530080F5E19F7A06337CE3DFED502",
+    "size": 214,
+    "path": ".omo\\run-continuation\\ses_08606273effeW6sbEl4qUFY193.json"
+  },
+  {
+    "sha256": "8D03230C7D06D27A8E03B9E0932C8F0F1D5F3FABBE23F2505E360ACDF4DCD02D",
+    "size": 214,
+    "path": ".omo\\run-continuation\\ses_0860627daffejNXIZQiKQRbg9y.json"
+  },
+  {
+    "sha256": "2D4F446EA1FAD694FEABED86B772C38719314D27838149EECA876DC80695D199",
+    "size": 214,
+    "path": ".omo\\run-continuation\\ses_0860627f6ffevbqHN930I0UNkK.json"
+  },
+  {
+    "sha256": "075D9B4BA8A9CFC0559481B2C083400CB20B9492A109FD49507D9444A16CA726",
+    "size": 214,
+    "path": ".omo\\run-continuation\\ses_08606286dffePrMWdNaUitOK1n.json"
+  },
+  {
+    "sha256": "89FA20610953B5FAF43977BC892D44725BCE754B8783F285A21BBE80302D6E03",
+    "size": 214,
+    "path": ".omo\\run-continuation\\ses_08620e07effeg0YOOnE7R8vJGM.json"
+  },
+  {
+    "sha256": "CEC9876FA8EF6E313EF49148499452040285F8CF20E26E0FD095F1086BC48D5F",
+    "size": 214,
+    "path": ".omo\\run-continuation\\ses_08623b471ffegmmJdqKbBH2EXd.json"
+  },
+  {
+    "sha256": "D3501941F1071ACA30C741BD29EF7FD7F359B46644643C7ED016FE0E70F5D96C",
+    "size": 214,
+    "path": ".omo\\run-continuation\\ses_08623b48dffeRzqjtHvZjmNuBs.json"
+  },
+  {
+    "sha256": "AB5DED787AD0049C0E8A8EE3C2FF67D158C03AC5A10A55F4192EDC81079A2B04",
+    "size": 214,
+    "path": ".omo\\run-continuation\\ses_08623b8e2ffep6bHEDIiBgNd3V.json"
+  },
+  {
+    "sha256": "41EA63D70CEC81389B817C9393A74AD8D9FF6014300455892CC8A5DCC32AF392",
+    "size": 214,
+    "path": ".omo\\run-continuation\\ses_08624e8d8ffeJWF9dWsqW856Fa.json"
+  },
+  {
+    "sha256": "817F4BD858B12AAD14C7355BFF5E93E20F23E47F4323AF26B0E5A5EBA00F39FF",
+    "size": 214,
+    "path": ".omo\\run-continuation\\ses_181be3ec6ffeX5pvsMRuC3hvj7.json"
+  },
+  {
+    "sha256": "D9AFD1D2F20117B70F5BBE2CE9560F6B5B124552363609F01D43B8E72AE49297",
+    "size": 1119,
+    "path": "prompt.txt"
+  },
+  {
+    "sha256": "7BD11343C3D7482E7517C56624E255D9A0C79460F138749C28589047138AAFD7",
+    "size": 18435,
+    "path": "reply.txt"
+  }
+]

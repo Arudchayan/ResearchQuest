@@ -69,7 +69,7 @@ describe("DataManagementDialog", () => {
     const payload = mockExportData.mock.calls[0][0] as { userId: string; notes: unknown[] };
     expect(payload.userId).toBe("test-user");
     expect(payload.notes).toHaveLength(1);
-    expect(onClose).toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it("switches to Import tab", async () => {
@@ -82,5 +82,20 @@ describe("DataManagementDialog", () => {
     await waitFor(() => {
       expect(screen.getByText("Upload Backup File")).toBeInTheDocument();
     });
+  });
+
+  it("requires an explicit confirmation before clearing research data", async () => {
+    const user = userEvent.setup();
+    render(<DataManagementDialog open={true} onClose={onClose} />);
+
+    await user.click(screen.getByRole("tab", { name: "Clear data" }));
+    await user.click(screen.getByRole("button", { name: "Clear all data" }));
+
+    expect(
+      screen.getByRole("alertdialog", { name: "Clear all research data" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/notes, papers, ideas, tasks, topics, and their connections/i),
+    ).toBeInTheDocument();
   });
 });

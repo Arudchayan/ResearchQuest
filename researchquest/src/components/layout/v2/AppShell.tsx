@@ -1,6 +1,7 @@
-import type { ReactNode} from "react";
-import { useEffect } from "react";
+import type { ReactNode } from "react";
+import { useEffect, useRef } from "react";
 import { Sidebar } from "./Sidebar";
+import { MobileTabBar } from "./MobileTabBar";
 import { RightSidebar } from "../RightSidebar";
 import { HamburgerMenuIcon, Cross1Icon, DoubleArrowDownIcon, MagnifyingGlassIcon } from "@radix-ui/react-icons";
 import { useAppStore } from "../../../store/appStore";
@@ -13,6 +14,9 @@ interface AppShellProps {
 }
 
 export function AppShell({ children }: AppShellProps) {
+  const mobileSidebarTriggerRef = useRef<HTMLButtonElement>(null);
+  const mobileDrawerRef = useRef<HTMLDivElement>(null);
+  const mobileSidebarWasOpenRef = useRef(false);
   // OPTIMIZATION: Use shallow selector to prevent unnecessary re-renders when other parts of the store change
   const {
     isMobileSidebarOpen,
@@ -53,8 +57,67 @@ export function AppShell({ children }: AppShellProps) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [toggleZenMode]);
 
+  useEffect(() => {
+    if (!isMobileSidebarOpen) {
+      if (mobileSidebarWasOpenRef.current) {
+        mobileSidebarTriggerRef.current?.focus();
+      }
+      mobileSidebarWasOpenRef.current = false;
+      return;
+    }
+
+    mobileSidebarWasOpenRef.current = true;
+
+    const drawer = mobileDrawerRef.current;
+    const closeButton = drawer?.querySelector<HTMLButtonElement>(
+      '[aria-label="Close sidebar"]',
+    );
+    closeButton?.focus();
+
+    const handleDrawerKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setIsMobileSidebarOpen(false);
+        return;
+      }
+
+      if (event.key !== "Tab" || !drawer) {
+        return;
+      }
+
+      const focusable = drawer.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (!first || !last) {
+        event.preventDefault();
+        return;
+      }
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleDrawerKeyDown);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", handleDrawerKeyDown);
+      document.body.style.overflow = "unset";
+    };
+  }, [isMobileSidebarOpen, setIsMobileSidebarOpen]);
+
   return (
-    <div className="flex h-screen bg-bg-base text-text-primary font-sans overflow-hidden relative selection:bg-primary-500 selection:text-bg-base">
+    <div
+      data-testid="app-shell"
+      className="relative flex min-h-[100dvh] w-full min-w-0 overflow-x-hidden bg-bg-base font-sans text-text-primary selection:bg-primary-500 selection:text-bg-base"
+    >
       {/* Skip to content link for accessibility */}
       <a
         href="#main-content"
@@ -63,26 +126,40 @@ export function AppShell({ children }: AppShellProps) {
         Skip to content
       </a>
 
+      {/* Desktop Sidebar */}
+      {!isZenMode && (
+        <div
+          className="hidden min-h-[100dvh] shrink-0 lg:block"
+          {...(isMobileSidebarOpen ? { inert: true } : {})}
+        >
+          <Sidebar />
+        </div>
+      )}
+
       {/* Mobile Sidebar Overlay */}
       {isMobileSidebarOpen && !isZenMode && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          aria-hidden="true"
+          className="fixed inset-0 z-40 bg-overlay lg:hidden"
           onClick={() => setIsMobileSidebarOpen(false)}
         />
       )}
 
-      {/* Sidebar: fixed drawer on mobile, static rail on desktop */}
-      {!isZenMode && (
+      {/* Mobile Sidebar */}
+      {isMobileSidebarOpen && !isZenMode && (
         <div
+          ref={mobileDrawerRef}
+          role="dialog"
+          aria-label="Main navigation"
+          aria-modal="true"
           className={cn(
-            "fixed inset-y-0 left-0 z-50 h-full w-64 shrink-0 transition-transform duration-300 lg:static lg:z-auto lg:translate-x-0",
-            isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full",
+            "fixed inset-y-0 left-0 z-50 flex w-64 max-w-[calc(100vw-1rem)] flex-col border-r border-border-subtle bg-bg-elevated shadow-lg lg:hidden",
           )}
         >
           <Sidebar />
           <button
             onClick={() => setIsMobileSidebarOpen(false)}
-            className="absolute top-4 right-4 p-2 text-text-tertiary hover:text-text-primary rounded-sm focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500 bg-bg-surface lg:hidden"
+            className="absolute right-4 top-4 inline-flex min-h-11 min-w-11 items-center justify-center rounded-sm bg-bg-surface text-text-tertiary hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
             aria-label="Close sidebar"
           >
             <Cross1Icon className="w-4 h-4" aria-hidden="true" />
@@ -91,24 +168,29 @@ export function AppShell({ children }: AppShellProps) {
       )}
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div
+        data-testid="app-shell-content"
+        className="flex min-w-0 flex-1 flex-col overflow-hidden"
+        {...(isMobileSidebarOpen ? { inert: true } : {})}
+      >
         {/* Mobile Header */}
         {!isZenMode && (
-          <header className="lg:hidden h-16 flex items-center justify-between px-4 border-b border-border-subtle bg-bg-surface shrink-0">
+          <header className="flex h-16 shrink-0 items-center justify-between border-b border-border-subtle bg-bg-surface px-4 lg:hidden">
             <div className="flex items-center">
               <button
+                ref={mobileSidebarTriggerRef}
                 onClick={() => setIsMobileSidebarOpen(true)}
-                className="p-2 -ml-2 text-text-secondary hover:text-text-primary hover:bg-bg-elevated rounded-sm focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500"
+                className="-ml-2 inline-flex min-h-11 min-w-11 items-center justify-center rounded-sm text-text-secondary hover:bg-bg-elevated hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
                 aria-label="Open sidebar"
               >
                 <HamburgerMenuIcon className="w-5 h-5" aria-hidden="true" />
               </button>
               <span className="ml-3 font-serif font-bold text-lg">ResearchQuest</span>
             </div>
-            <button
-              onClick={() => document.dispatchEvent(new CustomEvent('open-command-palette'))}
-              className="p-2 -mr-2 text-text-secondary hover:text-text-primary hover:bg-bg-elevated rounded-sm focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500"
-              aria-label="Open search"
+              <button
+                onClick={() => document.dispatchEvent(new CustomEvent('open-command-palette'))}
+                className="-mr-2 inline-flex min-h-11 min-w-11 items-center justify-center rounded-sm text-text-secondary hover:bg-bg-elevated hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+                aria-label="Open search"
             >
               <MagnifyingGlassIcon className="w-5 h-5" aria-hidden="true" />
             </button>
@@ -116,25 +198,30 @@ export function AppShell({ children }: AppShellProps) {
         )}
 
         {/* Content Area */}
-        <main id="main-content" className="flex-1 overflow-auto" tabIndex={-1}>
+          <main
+            id="main-content"
+            className="min-w-0 flex-1 overflow-auto pb-20 lg:pb-0"
+            tabIndex={-1}
+          >
           {children}
         </main>
+
+        {/* Mobile Bottom Tab Bar */}
+        {!isZenMode && <MobileTabBar />}
       </div>
 
       {/* Right Sidebar (Context Panel) */}
-      {!isZenMode && (
-        <div
-          className={cn(
-            "hidden xl:block h-full shrink-0 bg-bg-surface transition-all duration-300 ease-in-out overflow-hidden",
-            isRightSidebarOpen
-              ? "w-80 border-l border-border-subtle"
-              : "w-0 border-l-0",
-          )}
+      {!isZenMode && isRightSidebarOpen && (
+        <aside
+          data-testid="right-panel"
+          aria-label="Context panel"
+          className="hidden min-h-[100dvh] w-80 shrink-0 border-l border-border-subtle bg-bg-surface xl:flex"
+          {...(isMobileSidebarOpen ? { inert: true } : {})}
         >
-          <div className="w-80 h-full">
-            {isRightSidebarOpen && <RightSidebar />}
+          <div className="h-full w-full min-w-0">
+            <RightSidebar />
           </div>
-        </div>
+        </aside>
       )}
 
       {/* Zen Mode Exit Button */}
@@ -143,7 +230,7 @@ export function AppShell({ children }: AppShellProps) {
           <TooltipTrigger asChild>
             <button
               onClick={() => toggleZenMode()}
-              className="fixed bottom-6 right-6 z-[100] p-3 rounded-full bg-bg-elevated/80 text-text-secondary hover:bg-bg-base hover:text-text-primary backdrop-blur-sm transition-all shadow-lg border border-border-moderate group focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+              className="group fixed bottom-6 right-6 z-[100] inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-border-moderate bg-bg-elevated/80 text-text-secondary shadow-lg backdrop-blur-sm transition-all hover:bg-bg-base hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
               aria-label="Exit Zen Mode"
             >
               <DoubleArrowDownIcon className="w-5 h-5 group-hover:scale-110 transition-transform" aria-hidden="true" />

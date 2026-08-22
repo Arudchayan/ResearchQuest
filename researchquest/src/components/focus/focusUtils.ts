@@ -12,6 +12,87 @@ export type CollapsedGroups = Record<FocusTargetType, boolean>;
 
 export type CollapsiblePanel = "suggestions";
 
+export const FOCUS_SESSION_STORAGE_KEY = "rq_focus_session";
+
+export interface FocusSessionSnapshot {
+  version: 1;
+  selectedTarget: SelectedTarget | null;
+  sessionLength: number;
+  isRunning: boolean;
+  startedAt: number | null;
+  timeLeft: number;
+  hasCompletedSession: boolean;
+  sessionCount?: number;
+}
+
+function isFocusSessionSnapshot(value: unknown): value is FocusSessionSnapshot {
+  if (typeof value !== "object" || value === null) return false;
+  const snapshot = value as Record<string, unknown>;
+  if (snapshot["version"] !== 1) return false;
+  if (
+    typeof snapshot["sessionLength"] !== "number" ||
+    snapshot["sessionLength"] <= 0
+  ) {
+    return false;
+  }
+  if (typeof snapshot["isRunning"] !== "boolean") return false;
+  if (typeof snapshot["hasCompletedSession"] !== "boolean") return false;
+  if (typeof snapshot["timeLeft"] !== "number" || snapshot["timeLeft"] < 0) {
+    return false;
+  }
+  const sessionCount = snapshot["sessionCount"];
+  if (
+    sessionCount !== undefined &&
+    (typeof sessionCount !== "number" ||
+      !Number.isInteger(sessionCount) ||
+      sessionCount < 0)
+  ) {
+    return false;
+  }
+  if (
+    snapshot["startedAt"] !== null &&
+    typeof snapshot["startedAt"] !== "number"
+  ) {
+    return false;
+  }
+  const target = snapshot["selectedTarget"];
+  if (target === null) return true;
+  if (typeof target !== "object") return false;
+  const selected = target as Record<string, unknown>;
+  return (
+    (selected["type"] === "note" ||
+      selected["type"] === "paper" ||
+      selected["type"] === "task") &&
+    typeof selected["id"] === "string"
+  );
+}
+
+export function loadStoredFocusSession(): FocusSessionSnapshot | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(FOCUS_SESSION_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed: unknown = JSON.parse(raw);
+    if (!isFocusSessionSnapshot(parsed)) return null;
+    return { ...parsed, sessionCount: parsed.sessionCount ?? 1 };
+  } catch {
+    return null;
+  }
+}
+
+export function saveFocusSession(snapshot: FocusSessionSnapshot): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(
+    FOCUS_SESSION_STORAGE_KEY,
+    JSON.stringify(snapshot),
+  );
+}
+
+export function clearStoredFocusSession(): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(FOCUS_SESSION_STORAGE_KEY);
+}
+
 export function formatTime(seconds: number) {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;

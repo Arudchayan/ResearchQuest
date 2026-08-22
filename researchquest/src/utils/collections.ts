@@ -4,6 +4,7 @@ export function dedupeById<T extends { id: string }>(items: T[]): T[] {
 
   for (let index = items.length - 1; index >= 0; index -= 1) {
     const item = items[index];
+    if (!item) continue;
     if (seen.has(item.id)) continue;
     seen.add(item.id);
     deduped.push(item);

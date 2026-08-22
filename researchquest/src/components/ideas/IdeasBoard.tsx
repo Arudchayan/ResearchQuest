@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import type { KeyboardEvent } from "react";
 import {
   Plus,
   Trash2,
   Lightbulb,
-  ArrowRight,
   X,
   Search,
   Download,
@@ -12,23 +12,28 @@ import {
   FileJson,
   ArrowUpDown,
   ArrowLeft,
+  ArrowRight,
+  ListTodo,
 } from "lucide-react";
-
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useAppStore } from "../../store/appStore";
 import { useShallow } from "zustand/react/shallow";
 import { highlightMatch } from "../../utils/highlight";
 import { useIdeas } from "../../hooks/useIdeas";
+import { useTasks } from "../../hooks/useTasks";
 import { IdeaDetailView } from "../entities/IdeaDetailView";
 import type { IdeaStage, Idea } from "../../types/database";
 import { cn } from "../../lib/utils";
 import * as Dialog from "@radix-ui/react-dialog";
 import { OnboardingGuide } from "../layout/OnboardingGuide";
+import { Badge } from "../ui/Badge";
+import { Button } from "../ui/button";
+import { Card } from "../ui/card";
+import { EmptyState } from "../ui/EmptyState";
 import { InlineError } from "../ui/ErrorFallback";
 import { toast } from "sonner";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { ListSkeleton } from "../ui/Skeleton";
-import { getIdeaConfidence } from "../../utils/adversarialAnalysis";
 import {
   convertIdeasToCSV,
   convertIdeasToJSON,
@@ -36,7 +41,9 @@ import {
   downloadFile,
 } from "../../utils/export";
 import { logger } from "../../utils/logger";
-import { UNDO_WINDOW_MS } from "../../lib/constants";
+import { IDEA_STAGES } from "./ideaStages";
+
+const UNDO_WINDOW_MS = 6000;
 
 type SortOption =
   | "updated_desc"
@@ -46,21 +53,22 @@ type SortOption =
   | "title_asc"
   | "title_desc";
 
-const STAGES: { id: IdeaStage; label: string; color: string; tint: string }[] = [
-  { id: "Seed", label: "Seed", color: "bg-bg-elevated", tint: "from-bg-elevated" },
-  { id: "Developing", label: "Developing", color: "bg-gold-soft", tint: "from-gold-soft" },
-  { id: "Supported", label: "Supported", color: "bg-blue-soft", tint: "from-blue-soft" },
-  { id: "Mature", label: "Mature", color: "bg-violet-soft", tint: "from-violet-soft" },
-];
+const STAGE_EDGE_CLASS: Record<IdeaStage, string> = {
+  Seed: "border-t-2 border-t-stage-seed",
+  Developing: "border-t-2 border-t-stage-developing",
+  Supported: "border-t-2 border-t-stage-supported",
+  Mature: "border-t-2 border-t-stage-mature",
+};
 
-const STAGE_ICON_STYLES: Record<string, string> = {
-  Seed: "bg-bg-elevated text-text-secondary",
-  Developing: "bg-gold-soft text-gold-strong",
-  Supported: "bg-blue-soft text-blue-strong",
-  Mature: "bg-violet-soft text-violet-strong",
+const STAGE_FILL_CLASS: Record<IdeaStage, string> = {
+  Seed: "bg-stage-seed",
+  Developing: "bg-stage-developing",
+  Supported: "bg-stage-supported",
+  Mature: "bg-stage-mature",
 };
 
 export function IdeasBoard() {
+  // ⚡ PERFORMANCE OPTIMIZATION:
   // Using useShallow to prevent unnecessary re-renders of the entire IdeasBoard
   // when unrelated properties in the global appStore change.
   const {
@@ -81,7 +89,11 @@ export function IdeasBoard() {
     })),
   );
   const { createIdea, updateIdea, deleteIdea, restoreIdea } = useIdeas(userId);
+  const { createTask } = useTasks(userId, { owner: false });
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [updatingIdeaId, setUpdatingIdeaId] = useState<string | null>(null);
+  const [promotingIdeaId, setPromotingIdeaId] = useState<string | null>(null);
   const [newIdeaTitle, setNewIdeaTitle] = useState("");
   const [newIdeaDesc, setNewIdeaDesc] = useState("");
   const [ideaToDelete, setIdeaToDelete] = useState<Idea | null>(null);
@@ -94,7 +106,7 @@ export function IdeasBoard() {
   const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastDeletedRef = useRef<Idea | null>(null);
 
-  // Performance: Pre-compute derived text fields for faster searching
+  // ⚡ PERFORMANCE OPTIMIZATION: Pre-compute derived text fields for faster searching
   const searchableIdeas = useMemo(() => {
     return (ideas || []).map((idea) => ({
       idea,
@@ -115,8 +127,7 @@ export function IdeasBoard() {
       result = [];
       const normalizedQuery = searchQuery?.toLowerCase() || "";
       const safeSearchableIdeas = searchableIdeas || [];
-      for (let i = 0; i < safeSearchableIdeas.length; i++) {
-        const si = safeSearchableIdeas[i];
+      for (const si of safeSearchableIdeas) {
         if (si.searchText.includes(normalizedQuery)) {
           result.push(si.idea);
         }
@@ -144,18 +155,19 @@ export function IdeasBoard() {
           return 0;
       }
     });
-  }, [ideas, searchQuery, sortOption]);
+  }, [ideas, searchQuery, sortOption, searchableIdeas]);
 
   const stageBuckets = useMemo(() => {
-    const buckets: Record<string, Idea[]> = {};
-    for (let i = 0; i < STAGES.length; i++) {
-      buckets[STAGES[i].id] = [];
+    const buckets: Record<IdeaStage, Idea[]> = {
+      Seed: [],
+      Developing: [],
+      Supported: [],
+      Mature: [],
+    };
+    for (const stage of IDEA_STAGES) {
+      buckets[stage.id] = [];
     }
-    for (let i = 0; i < filteredIdeas.length; i++) {
-      const idea = filteredIdeas[i];
-      if (!buckets[idea.stage]) {
-        buckets[idea.stage] = [];
-      }
+    for (const idea of filteredIdeas) {
       buckets[idea.stage].push(idea);
     }
     return buckets;
@@ -211,34 +223,81 @@ export function IdeasBoard() {
   );
 
   const handleCreate = async () => {
-    if (!newIdeaTitle.trim()) return;
-    const idea = await createIdea({
-      title: newIdeaTitle,
-      description: newIdeaDesc,
-      stage: "Seed",
-    });
-    if (idea) {
-      setNewIdeaTitle("");
-      setNewIdeaDesc("");
-      setIsCreateDialogOpen(false);
+    if (!newIdeaTitle.trim() || isCreating) return;
+    setIsCreating(true);
+    try {
+      const idea = await createIdea({
+        title: newIdeaTitle,
+        description: newIdeaDesc,
+        stage: "Seed",
+      });
+      if (idea) {
+        setNewIdeaTitle("");
+        setNewIdeaDesc("");
+        setIsCreateDialogOpen(false);
+      }
+    } finally {
+      setIsCreating(false);
     }
   };
 
-  const handleMoveStage = async (
-    e: React.MouseEvent,
-    ideaId: string,
-    currentStage: IdeaStage,
+  const updateIdeaStage = async (idea: Idea, nextStage: IdeaStage) => {
+    if (nextStage === idea.stage || updatingIdeaId) return;
+
+    setUpdatingIdeaId(idea.id);
+    try {
+      await updateIdea(idea.id, { stage: nextStage }, idea.stage);
+    } finally {
+      setUpdatingIdeaId(null);
+    }
+  };
+
+  const handleStageChange = async (
+    event: React.ChangeEvent<HTMLSelectElement>,
+    idea: Idea,
   ) => {
-    e.stopPropagation();
-    const currentIndex = STAGES.findIndex((s) => s.id === currentStage);
-    const nextStage = STAGES[currentIndex + 1];
-    if (nextStage) {
-      const update = () => updateIdea(ideaId, { stage: nextStage.id });
-      if (document.startViewTransition) {
-        document.startViewTransition(update);
-      } else {
-        await update();
+    event.stopPropagation();
+    const nextStage = IDEA_STAGES.find(({ id }) => id === event.target.value)?.id;
+    if (nextStage) await updateIdeaStage(idea, nextStage);
+  };
+
+  const handleAdvanceStage = async (event: React.MouseEvent, idea: Idea) => {
+    event.stopPropagation();
+    const currentIndex = IDEA_STAGES.findIndex(({ id }) => id === idea.stage);
+    const nextStage = IDEA_STAGES[currentIndex + 1]?.id;
+    if (nextStage) await updateIdeaStage(idea, nextStage);
+  };
+
+  const handlePromoteToTask = async (event: React.MouseEvent, idea: Idea) => {
+    event.stopPropagation();
+    if (promotingIdeaId) return;
+
+    setPromotingIdeaId(idea.id);
+    try {
+      const task = await createTask({
+        title: idea.title,
+        ...(idea.description ? { description: idea.description.slice(0, 1000) } : {}),
+        priority: "medium",
+        category: "Research",
+        completed: false,
+      });
+
+      if (!task) {
+        toast.error("Failed to create task");
+        return;
       }
+
+      if (idea.stage !== "Mature") {
+        const currentIndex = IDEA_STAGES.findIndex(
+          ({ id }) => id === idea.stage,
+        );
+        const nextStage = IDEA_STAGES[currentIndex + 1]?.id;
+        if (nextStage) {
+          await updateIdea(idea.id, { stage: nextStage }, idea.stage);
+        }
+      }
+    } finally {
+      setPromotingIdeaId(null);
     }
   };
 
@@ -253,7 +312,7 @@ export function IdeasBoard() {
     }
   };
 
-  const handleExport = useCallback((format: "markdown" | "csv" | "json") => {
+  const handleExport = (format: "markdown" | "csv" | "json") => {
     if (filteredIdeas.length === 0) {
       toast.error("No ideas to export");
       return;
@@ -291,88 +350,78 @@ export function IdeasBoard() {
       logger.error("Export failed", err);
       toast.error("Failed to export ideas");
     }
-  }, [filteredIdeas]);
-
-  useEffect(() => {
-    const handleExportShortcut = () => {
-      handleExport("markdown");
-    };
-
-    document.addEventListener("export-current-view", handleExportShortcut);
-    return () => {
-      document.removeEventListener("export-current-view", handleExportShortcut);
-    };
-  }, [handleExport]);
+  };
 
   return (
-    <div className="relative flex h-full bg-bg-base text-text-primary overflow-hidden">
+    <div className="relative flex h-full overflow-hidden bg-bg-base">
       <div
         className={cn(
           "flex-1 flex flex-col min-w-0",
           selectedIdea && "max-lg:hidden",
         )}
       >
-        <div className="p-4 sm:p-6 border-b border-border-subtle bg-bg-surface flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex flex-col gap-4 border-b border-border-subtle bg-bg-surface p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
           <div className="min-w-0">
-            <h1 className="text-2xl font-serif font-bold text-text-primary">
+            <h1 className="font-serif text-subtitle font-bold text-text-primary">
               Idea Board
             </h1>
-            <p className="text-text-secondary text-small mt-1">
+            <p className="text-small text-text-secondary">
               Track the evolution of your research concepts
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <DropdownMenu.Root>
               <DropdownMenu.Trigger asChild>
-                <button className="inline-flex h-10 items-center gap-2 rounded-lg border border-border-moderate bg-bg-surface px-3.5 text-small font-medium text-text-secondary shadow-sm transition-all hover:-translate-y-0.5 hover:border-border-strong hover:bg-bg-elevated hover:text-text-primary hover:shadow-lift">
-                  <Download className="w-5 h-5" />
+                <Button type="button" variant="outline">
+                  <Download aria-hidden="true" />
                   Export
-                </button>
+                </Button>
               </DropdownMenu.Trigger>
               <DropdownMenu.Portal>
                 <DropdownMenu.Content
-                  className="min-w-[180px] bg-bg-surface rounded-lg shadow-lg border border-border-moderate p-1 z-50 animate-in fade-in-0 zoom-in-95"
+                  className="z-dropdown min-w-44 rounded-surface border border-border-subtle bg-bg-surface p-1 shadow-md animate-in fade-in-0 zoom-in-95"
                   align="end"
                   sideOffset={5}
                 >
                   <DropdownMenu.Item
                     onSelect={() => handleExport("markdown")}
-                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-small text-text-secondary hover:bg-bg-elevated hover:text-text-primary cursor-pointer outline-none"
+                    className="flex cursor-pointer items-center gap-2 rounded-control px-3 py-2 text-small text-text-secondary outline-none transition-colors hover:bg-bg-elevated hover:text-text-primary focus:bg-bg-elevated"
                   >
-                    <FileText className="w-4 h-4" />
+                    <FileText aria-hidden="true" className="h-4 w-4" />
                     Markdown (.md)
                   </DropdownMenu.Item>
                   <DropdownMenu.Item
                     onSelect={() => handleExport("csv")}
-                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-small text-text-secondary hover:bg-bg-elevated hover:text-text-primary cursor-pointer outline-none"
+                    className="flex cursor-pointer items-center gap-2 rounded-control px-3 py-2 text-small text-text-secondary outline-none transition-colors hover:bg-bg-elevated hover:text-text-primary focus:bg-bg-elevated"
                   >
-                    <Table className="w-4 h-4" />
+                    <Table aria-hidden="true" className="h-4 w-4" />
                     CSV (.csv)
                   </DropdownMenu.Item>
                   <DropdownMenu.Item
                     onSelect={() => handleExport("json")}
-                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-small text-text-secondary hover:bg-bg-elevated hover:text-text-primary cursor-pointer outline-none"
+                    className="flex cursor-pointer items-center gap-2 rounded-control px-3 py-2 text-small text-text-secondary outline-none transition-colors hover:bg-bg-elevated hover:text-text-primary focus:bg-bg-elevated"
                   >
-                    <FileJson className="w-4 h-4" />
+                    <FileJson aria-hidden="true" className="h-4 w-4" />
                     JSON (.json)
                   </DropdownMenu.Item>
                 </DropdownMenu.Content>
               </DropdownMenu.Portal>
             </DropdownMenu.Root>
-            <button
+            <Button
+              type="button"
               onClick={() => setIsCreateDialogOpen(true)}
-              className="inline-flex h-10 items-center gap-2 rounded-lg bg-text-primary px-4 text-small font-semibold text-bg-base shadow-lift transition-all hover:-translate-y-0.5 hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+              aria-label="Create a new idea"
             >
-              <Plus className="w-5 h-5" />
+              <Plus aria-hidden="true" />
               New Idea
-            </button>
+            </Button>
           </div>
         </div>
 
-        <div className="p-4 bg-bg-surface border-b border-border-subtle flex flex-col sm:flex-row gap-4">
+        <div className="flex flex-col gap-4 border-b border-border-subtle bg-bg-surface p-4 sm:flex-row">
           <div className="relative flex-1 sm:max-w-md">
             <label htmlFor="ideas-search-input" className="sr-only">Search ideas</label>
-            <Search className="absolute left-3 top-2.5 w-4 h-4 text-text-tertiary" />
+            <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-tertiary" />
             <input
               id="ideas-search-input"
               ref={searchInputRef}
@@ -380,29 +429,32 @@ export function IdeasBoard() {
               placeholder="Search ideas..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full h-10 rounded-lg border border-border-moderate bg-bg-elevated pl-9 pr-10 text-small text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-accent"
+              className="w-full rounded-control border border-border-subtle bg-bg-base py-2 pl-10 pr-12 text-small text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-focus"
               aria-label="Search ideas"
             />
             {searchQuery && (
-              <button
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
                 onClick={() => {
                   setSearchQuery("");
                   searchInputRef.current?.focus();
                 }}
-                className="icon-btn absolute right-1.5 top-1/2 h-8 w-8 -translate-y-1/2 rounded-full"
+                className="absolute right-1 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-primary"
                 aria-label="Clear search"
               >
-                <X className="w-3 h-3" aria-hidden="true" />
-              </button>
+                <X aria-hidden="true" />
+              </Button>
             )}
           </div>
 
           <div className="flex items-center gap-2">
-            <ArrowUpDown className="w-4 h-4 text-text-tertiary flex-shrink-0" />
+            <ArrowUpDown className="h-4 w-4 flex-shrink-0 text-text-tertiary" />
             <select
               value={sortOption}
               onChange={(e) => setSortOption(e.target.value as SortOption)}
-              className="h-10 rounded-lg border border-border-moderate bg-bg-elevated px-3 text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer min-w-[180px]"
+              className="min-w-44 cursor-pointer rounded-control border border-border-subtle bg-bg-base px-3 py-2 text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-focus"
               aria-label="Sort ideas"
             >
               <option value="updated_desc">Last Updated (Newest)</option>
@@ -415,144 +467,150 @@ export function IdeasBoard() {
           </div>
         </div>
 
-        <div className="sr-only" role="status" aria-live="polite">
-          {!ideasLoading && !ideasSyncError && filteredIdeas.length === 0 ? (searchQuery ? "No matches found. Try a different keyword or clear your search." : "No ideas yet") : ""}
-        </div>
-
-        <div className="flex-1 overflow-auto p-4 sm:p-6 flex flex-col">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-4 sm:p-6">
           <div className="mb-4">
             <OnboardingGuide />
           </div>
           {ideasSyncError && (
             <InlineError message={ideasSyncError.message} className="mb-4" />
           )}
-          <div className="grid grid-cols-1 gap-4 lg:flex lg:gap-6 lg:h-full lg:min-w-max">
-            {STAGES.map((stage) => {
-              const stageIdeas = stageBuckets[stage.id] || [];
+          <div className="flex min-h-0 min-w-0 flex-1 gap-4 overflow-x-auto pb-2 sm:gap-6">
+            {IDEA_STAGES.map((stage) => {
+              const stageIdeas = stageBuckets[stage.id];
+              const share =
+                filteredIdeas.length > 0
+                  ? stageIdeas.length / filteredIdeas.length
+                  : 0;
 
               return (
                 <div
                   key={stage.id}
-                  className="w-full lg:w-80 flex flex-col min-h-[280px] lg:h-full rounded-xl bg-bg-elevated border border-border-subtle"
+                  className={cn(
+                    "flex min-h-64 w-80 shrink-0 flex-col overflow-hidden rounded-surface border border-border-subtle bg-bg-elevated lg:h-full",
+                    STAGE_EDGE_CLASS[stage.id],
+                  )}
                 >
-                  <div className={`p-4 flex items-center justify-between border-b border-border-subtle bg-gradient-to-r ${stage.tint} via-bg-surface to-bg-surface rounded-t-xl sticky top-0 z-10`}>
-                    <div className="flex items-center gap-2">
+                  <div className="sticky top-0 z-10 flex flex-col gap-3 rounded-t-surface border-b border-border-subtle bg-bg-surface p-4">
+                    <h2 className="flex items-center gap-2">
+                      <Badge variant={stage.badgeVariant}>{stage.label}</Badge>
+                      <Badge variant="neutral" aria-label={`${stageIdeas.length} ideas`}>
+                        <span className="font-mono">{stageIdeas.length}</span>
+                      </Badge>
+                    </h2>
+                    <div
+                      aria-hidden="true"
+                      className="h-0.5 w-full overflow-hidden rounded-full bg-border-subtle"
+                    >
                       <div
-                        className={cn("h-2.5 w-2.5 rounded-full shadow-sm ring-2 ring-white/60 dark:ring-white/10", stage.color)}
+                        className={cn(
+                          "h-full w-full origin-left transition-transform duration-fast",
+                          STAGE_FILL_CLASS[stage.id],
+                        )}
+                        style={{ transform: `scaleX(${share})` }}
                       />
-                      <h3 className="font-semibold text-text-primary">
-                        {stage.label}
-                      </h3>
-                      <span className="rounded-full border border-border-subtle bg-bg-surface px-2 py-0.5 text-caption font-medium text-text-secondary shadow-sm">
-                        {stageIdeas.length}
-                      </span>
                     </div>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto p-3 space-y-3">
+                  <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
                     {ideasLoading ? (
                       <ListSkeleton count={3} itemType="idea" />
                     ) : (
                       <>
                           {stageIdeas.map((idea) => (
-                            <div
+                            <Card
                               key={idea.id}
-                              className="surface-card group cursor-pointer rounded-lg p-4 transition-all hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-accent animate-fade-slide-in"
-                              style={{ viewTransitionName: `idea-${idea.id}` }}
                               onClick={() => setSelectedIdea(idea)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter" || e.key === " ") {
-                                  e.preventDefault();
+                              onKeyDown={(event: KeyboardEvent<HTMLDivElement>) => {
+                                if (event.target !== event.currentTarget) return;
+                                if (event.key === "Enter" || event.key === " ") {
+                                  event.preventDefault();
                                   setSelectedIdea(idea);
                                 }
                               }}
                               tabIndex={0}
+                              className="group cursor-pointer p-4 transition duration-fast hover:border-border-strong hover:shadow-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
                             >
-                              <div className="flex items-start gap-3">
-                                <span
-                                  className={`icon-tile ${
-                                    STAGE_ICON_STYLES[idea.stage] ?? STAGE_ICON_STYLES.Seed
-                                  }`}
+                              <div className="mb-2 flex items-start justify-between gap-2">
+                                <h3 className="min-w-0 line-clamp-2 font-medium leading-snug text-text-primary">
+                                  {idea.title ? highlightMatch(idea.title, searchQuery) : "Untitled"}
+                                </h3>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIdeaToDelete(idea);
+                                  }}
+                                  onKeyDown={(event) => event.stopPropagation()}
+                                  aria-label={`Delete ${idea.title}`}
+                                  className="shrink-0 text-text-tertiary hover:bg-destructive-bg hover:text-destructive md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
                                 >
-                                  <Lightbulb className="h-4 w-4" aria-hidden="true" />
-                                </span>
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-start justify-between gap-2">
-                                    <h4 className="min-w-0 font-semibold text-small text-text-primary line-clamp-2 leading-snug">
-                                      {idea.title ? highlightMatch(idea.title, searchQuery) : "Untitled"}
-                                    </h4>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setIdeaToDelete(idea);
-                                      }}
-                                      aria-label={`Delete ${idea.title}`}
-                                      className="icon-btn h-8 w-8 shrink-0 rounded-lg opacity-0 text-text-tertiary hover:text-warning hover:bg-warning-bg group-hover:opacity-100 group-focus-within:opacity-100"
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </button>
-                                  </div>
-
-                                  <p className="mt-1 text-caption text-text-secondary line-clamp-3">
-                                    {idea.description
-                                      ? highlightMatch(idea.description, searchQuery)
-                                      : "No description provided..."}
-                                  </p>
-                                </div>
+                                  <Trash2 aria-hidden="true" />
+                                </Button>
                               </div>
 
-                              <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-border-subtle pt-2">
-                                {(() => {
-                                  const confidence = getIdeaConfidence(idea);
-                                  const toneStyles = {
-                                    success: "bg-success-bg text-success border border-success/20",
-                                    gold: "bg-gold-soft text-gold-strong border border-gold/20",
-                                    coral: "bg-coral-soft text-coral-strong border border-coral/20",
-                                  }[confidence.tone];
-                                  return (
-                                    <span
-                                      className={`status-chip ${toneStyles}`}
-                                      title={`Confidence score: ${confidence.score}/100 (${confidence.label})`}
-                                    >
-                                      {confidence.score}
-                                    </span>
-                                  );
-                                })()}
+                              <p className="mb-3 line-clamp-3 text-small text-text-secondary">
+                                {idea.description
+                                  ? highlightMatch(idea.description, searchQuery)
+                                  : "No description provided..."}
+                              </p>
+
+                              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border-subtle pt-2">
+                                <label htmlFor={`idea-stage-${idea.id}`} className="text-caption text-text-tertiary">
+                                  Stage
+                                </label>
+                                <select
+                                  id={`idea-stage-${idea.id}`}
+                                  value={idea.stage}
+                                  onChange={(event) => void handleStageChange(event, idea)}
+                                  onClick={(event) => event.stopPropagation()}
+                                  onKeyDown={(event) => event.stopPropagation()}
+                                  disabled={updatingIdeaId === idea.id}
+                                  aria-label={`Change stage for ${idea.title || "untitled idea"}`}
+                                  className={cn("min-h-11 min-w-0 flex-1 cursor-pointer rounded-control border px-2 py-1 text-small font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-focus disabled:cursor-not-allowed disabled:opacity-60 md:min-h-0 md:flex-none", stage.selectClassName)}
+                                >
+                                  {IDEA_STAGES.map((stageOption) => (
+                                    <option key={stageOption.id} value={stageOption.id}>
+                                      {stageOption.label}
+                                    </option>
+                                  ))}
+                                </select>
                                 {stage.id !== "Mature" && (
-                                  <button
-                                    onClick={(e) =>
-                                      handleMoveStage(e, idea.id, idea.stage)
-                                    }
+                                  <Button
+                                    type="button"
+                                    variant="link"
+                                    size="sm"
+                                    onClick={(event) => void handleAdvanceStage(event, idea)}
+                                    disabled={updatingIdeaId === idea.id}
                                     aria-label="Advance idea to next stage"
-                                    className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-caption font-medium text-text-secondary transition-colors hover:text-accent-strong opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
+                                    className="shrink-0 px-2 text-caption font-semibold"
                                   >
-                                    Advance <ArrowRight className="w-3 h-3" />
-                                  </button>
+                                    Advance <ArrowRight aria-hidden="true" className="h-3 w-3" />
+                                  </Button>
                                 )}
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={(event) => void handlePromoteToTask(event, idea)}
+                                  disabled={promotingIdeaId === idea.id}
+                                  className="shrink-0"
+                                >
+                                  <ListTodo aria-hidden="true" className="h-3 w-3" />
+                                  Promote to task
+                                </Button>
                               </div>
-                            </div>
+                            </Card>
                           ))}
 
-                        <div className="sr-only" role="status" aria-live="polite">
-                          {stageIdeas.length === 0 ? (
-                            searchQuery ? `No matches found in ${stage.label}. Try a different keyword or clear your search.` : `No ideas yet in ${stage.label}`
-                          ) : (
-                            ""
-                          )}
-                        </div>
-
                         {stageIdeas.length === 0 && (
-                          <div className="p-8 text-center border-2 border-dashed border-border-moderate rounded-xl bg-bg-surface text-text-tertiary">
-                            <span className="icon-tile mx-auto mb-2 bg-bg-elevated text-text-tertiary">
-                              <Lightbulb className="h-5 w-5" aria-hidden="true" />
-                            </span>
-                            <p className="text-small font-medium mb-1 text-text-secondary">{searchQuery ? "No matches found" : "No ideas yet"}</p>
-                            {searchQuery && (
-                              <p className="text-caption text-text-secondary">
-                                Try a different keyword or clear your search.
-                              </p>
-                            )}
-                          </div>
+                          <EmptyState
+                            icon={<Lightbulb aria-hidden="true" className="h-6 w-6" />}
+                            title={searchQuery ? "No matches found" : "No ideas yet"}
+                            description={searchQuery ? "Try a broader search." : stage.description}
+                            className="min-h-64 rounded-surface border-2 border-dashed border-border-subtle p-8"
+                          />
                         )}
                       </>
                     )}
@@ -566,27 +624,36 @@ export function IdeasBoard() {
 
       {/* Idea Detail Drawer */}
       {selectedIdea && (
-        <div className="absolute inset-0 w-full border-l-0 lg:border-l border-border-subtle bg-bg-surface flex flex-col h-full shadow-2xl z-20 lg:relative lg:inset-auto lg:w-[450px]">
-          <div className="p-4 border-b border-border-subtle flex items-center justify-between">
+          <aside
+            aria-label="Idea details"
+            className="absolute inset-0 z-20 flex h-full w-full flex-col border-l-0 border-border-subtle bg-bg-surface shadow-lg lg:relative lg:inset-auto lg:w-[450px] lg:border-l"
+          >
+           <div className="flex items-center justify-between border-b border-border-subtle p-4">
             <div className="flex items-center gap-3">
-              <button
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
                 onClick={() => setSelectedIdea(null)}
-                className="icon-btn lg:hidden -ml-2 rounded-full"
+                className="-ml-2 lg:hidden"
                 aria-label="Back to board"
               >
-                <ArrowLeft className="w-5 h-5 text-text-secondary" />
-              </button>
-              <h2 className="font-serif text-lg font-bold text-text-primary">
+                <ArrowLeft aria-hidden="true" />
+              </Button>
+               <h2 className="font-semibold text-text-primary">
                 Idea Details
-              </h2>
+               </h2>
             </div>
-            <button
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
               onClick={() => setSelectedIdea(null)}
               aria-label="Close details"
-              className="icon-btn hidden rounded-full lg:flex"
+              className="hidden lg:inline-flex"
             >
-              <X className="w-5 h-5" />
-            </button>
+              <X aria-hidden="true" />
+            </Button>
           </div>
           <div className="flex-1 overflow-y-auto overflow-x-hidden p-4">
             <IdeaDetailView
@@ -595,7 +662,7 @@ export function IdeasBoard() {
               onDelete={handleDeleteWithUndo}
             />
           </div>
-        </div>
+          </aside>
       )}
 
       {/* Create Dialog */}
@@ -604,36 +671,37 @@ export function IdeasBoard() {
         onOpenChange={setIsCreateDialogOpen}
       >
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-md z-50 animate-fade-in" />
+          <Dialog.Overlay className="fixed inset-0 z-overlay bg-overlay backdrop-blur-sm animate-fade-in" />
           <Dialog.Content
-            className="surface-panel fixed left-[50%] top-[50%] max-h-[85vh] w-[90vw] max-w-[500px] translate-x-[-50%] translate-y-[-50%] rounded-xl p-6 shadow-lift focus:outline-none z-50 animate-slide-in"
+            className="fixed left-1/2 top-1/2 z-modal max-h-[85vh] w-11/12 max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-surface border border-border-subtle bg-bg-surface p-6 shadow-lg focus:outline-none animate-slide-in"
             aria-describedby={undefined}
           >
-            <Dialog.Title className="font-serif text-xl font-bold mb-4 text-text-primary">
+            <Dialog.Title className="mb-4 font-serif text-subtitle font-bold text-text-primary">
               Capture New Idea
             </Dialog.Title>
-            <form onSubmit={(e) => { e.preventDefault(); void handleCreate(); }} className="space-y-4">
+             <form onSubmit={(e) => { e.preventDefault(); void handleCreate(); }} className="space-y-4" aria-busy={isCreating}>
               <div>
                 <label
                   htmlFor="create-idea-title"
-                  className="block text-sm font-medium text-text-secondary mb-1"
+                   className="mb-1 block text-small font-medium text-text-primary"
                 >
                   Title
                 </label>
                 <input
                   id="create-idea-title"
                   autoFocus
-                  className="w-full h-11 rounded-lg border border-border-moderate bg-bg-elevated px-4 text-body text-text-primary placeholder:text-text-tertiary focus:ring-2 focus:ring-accent outline-none"
+                   className="w-full rounded-control border border-border-subtle bg-bg-base px-4 py-2 text-body text-text-primary placeholder:text-text-tertiary outline-none focus:ring-2 focus:ring-focus disabled:cursor-not-allowed disabled:opacity-60"
                   placeholder="e.g. Quantum Entanglement in Biology"
                   value={newIdeaTitle}
                   onChange={(e) => setNewIdeaTitle(e.target.value)}
                   onFocus={() => setIsTitleFocused(true)}
                   onBlur={() => setIsTitleFocused(false)}
-                  maxLength={255}
+                   maxLength={255}
+                   disabled={isCreating}
                 />
                 <div className="flex justify-end h-5 mt-1">
                   {isTitleFocused && (
-                    <span className="text-xs text-text-tertiary animate-in fade-in duration-200">
+                     <span className="text-caption text-text-tertiary animate-in fade-in duration-fast">
                       {newIdeaTitle.length}/255
                     </span>
                   )}
@@ -642,34 +710,35 @@ export function IdeasBoard() {
               <div>
                 <label
                   htmlFor="create-idea-description"
-                  className="block text-sm font-medium text-text-secondary mb-1"
+                   className="mb-1 block text-small font-medium text-text-primary"
                 >
                   Description
                 </label>
                 <textarea
                   id="create-idea-description"
-                  className="w-full h-32 resize-none rounded-lg border border-border-moderate bg-bg-elevated px-4 py-2.5 text-body text-text-primary placeholder:text-text-tertiary focus:ring-2 focus:ring-accent outline-none"
+                   className="h-32 w-full resize-none rounded-control border border-border-subtle bg-bg-base px-4 py-2 text-body text-text-primary placeholder:text-text-tertiary outline-none focus:ring-2 focus:ring-focus disabled:cursor-not-allowed disabled:opacity-60"
                   placeholder="Briefly describe your hypothesis..."
                   value={newIdeaDesc}
                   onChange={(e) => setNewIdeaDesc(e.target.value)}
-                  maxLength={5000}
+                   maxLength={5000}
+                   disabled={isCreating}
                 />
               </div>
               <div className="flex justify-end gap-3 pt-2">
-                <button
+                <Button
                   type="button"
+                  variant="outline"
                   onClick={() => setIsCreateDialogOpen(false)}
-                  className="h-10 rounded-lg px-4 text-small font-medium text-text-secondary transition-colors hover:bg-bg-elevated"
+                   disabled={isCreating}
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
-                  disabled={!newIdeaTitle.trim()}
-                  className="h-10 rounded-lg bg-text-primary px-6 text-small font-semibold text-bg-base shadow-lift transition-all hover:-translate-y-0.5 hover:opacity-95 disabled:translate-y-0 disabled:opacity-50"
-                >
-                  Create Idea
-                </button>
+                   disabled={!newIdeaTitle.trim() || isCreating}
+                 >
+                   {isCreating ? "Creating…" : "Create Idea"}
+                 </Button>
               </div>
             </form>
           </Dialog.Content>

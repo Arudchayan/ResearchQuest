@@ -17,6 +17,7 @@ vi.mock("sonner", () => ({
 // Mock gamification
 vi.mock("../../utils/gamification", () => ({
   awardXP: vi.fn().mockResolvedValue(true),
+  notifyGamificationResult: vi.fn(),
   XP_REWARDS: {
     CREATE_TASK: 10,
     COMPLETE_TASK: 20,
@@ -83,6 +84,7 @@ describe("useTasks Security Extended", () => {
       expect(useAppStore.getState().tasks).toEqual([fetchedTask]);
       expect(useAppStore.getState().tasksLoading).toBe(false);
     });
+
   });
 
   describe("IDOR Prevention", () => {

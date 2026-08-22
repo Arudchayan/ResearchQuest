@@ -26,9 +26,6 @@ function dateOnly(daysAgo: number): string {
   return date.toISOString().split("T")[0];
 }
 
-function uid(prefix: string, index: number): string {
-  return `${prefix}-${String(index).padStart(4, "0")}`;
-}
 
 export function buildDemoTables(): TableMap {
   const userProfile: Row = {

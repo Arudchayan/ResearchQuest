@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useId } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   BookOpen,
   Calendar,
@@ -14,7 +14,6 @@ import {
   Download,
   Table,
   FileJson,
-  ShieldAlert,
 } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import type { Paper, ReadingStatus } from "../../types/database";
@@ -23,7 +22,6 @@ import { isValidUrl } from "../../utils/security";
 import { TopicSelector } from "../topics/TopicSelector";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { CitationDialog } from "../papers/CitationDialog";
-import { AdversarialReviewPanel } from "../analysis/AdversarialReviewPanel";
 import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
 import { useNotes } from "../../hooks/useNotes";
 import { useAppStore } from "../../store/appStore";
@@ -54,12 +52,8 @@ export function PaperDetailView({
   const [editedStatus, setEditedStatus] = useState(paper.status);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showCitation, setShowCitation] = useState(false);
-  const [showAdversarial, setShowAdversarial] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const isMounted = useRef(true);
-
-  const authorsInputId = useId();
-  const statusInputId = useId();
 
   const { createNote } = useNotes(useAppStore.getState().user?.id);
 
@@ -84,7 +78,7 @@ export function PaperDetailView({
         .split(",")
         .map((a) => a.trim())
         .filter(Boolean),
-      abstract: editedAbstract || undefined,
+      ...(editedAbstract ? { abstract: editedAbstract } : {}),
       status: editedStatus,
     };
 
@@ -101,6 +95,15 @@ export function PaperDetailView({
     setEditedAbstract(paper.abstract || "");
     setEditedStatus(paper.status);
     setIsEditing(false);
+  };
+
+  const handleStatusChange = async (status: ReadingStatus) => {
+    const success = await onUpdate(paper.id, { status });
+    if (success) {
+      toast.success(`Marked paper as ${status}`);
+    } else {
+      toast.error("Unable to update the paper status");
+    }
   };
 
   const handleDeleteClick = () => {
@@ -137,11 +140,11 @@ export function PaperDetailView({
   const getStatusColor = (status: ReadingStatus) => {
     switch (status) {
       case "Read":
-        return "bg-success-bg text-success border border-success/20";
+        return "border-success bg-success-bg text-success";
       case "Reading":
-        return "bg-blue-soft text-blue-strong border border-blue/20";
+        return "border-primary-500 bg-primary-50 text-primary-500 dark:bg-primary-900/20";
       default:
-        return "bg-gold-soft text-gold-strong border border-gold/20";
+        return "border-border-moderate bg-bg-elevated text-text-secondary";
     }
   };
 
@@ -197,51 +200,51 @@ export function PaperDetailView({
 
       downloadFile(content, filename, format);
       toast.success(`Exported paper as ${format.toUpperCase()}`);
-    } catch (err: any) {
+    } catch (err) {
       logger.error("Export failed", err);
-      toast.error(err.message || "Failed to export paper");
+      toast.error(err instanceof Error ? err.message : "Failed to export paper");
     }
   };
 
   return (
     <>
       <div className="p-6 max-w-4xl mx-auto">
-        <div className="surface-panel overflow-hidden">
+        <div className="bg-bg-surface rounded-lg border border-border-subtle shadow-sm">
           {/* Header */}
           <div className="p-6 border-b border-border-subtle">
             <div className="flex items-start justify-between gap-4 mb-4">
-              <div className="flex items-center gap-3 flex-1 min-w-0">
-                <span className="icon-tile shrink-0 bg-violet-soft text-violet-strong">
-                  <BookOpen className="h-6 w-6" aria-hidden="true" />
-                </span>
+              <div className="flex items-center gap-3 flex-1">
+                <div className="p-3 bg-bg-elevated rounded-lg">
+                  <BookOpen className="w-6 h-6 text-primary-500" />
+                </div>
                 {isEditing ? (
                   <input
                     type="text"
                     value={editedTitle}
                     onChange={(e) => setEditedTitle(e.target.value)}
                     maxLength={255}
-                    className="min-w-0 flex-1 rounded-lg border border-border-moderate bg-bg-surface px-4 py-2 text-xl font-bold text-text-primary shadow-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+                    className="flex-1 text-2xl font-bold text-text-primary bg-bg-base border border-border-subtle rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                     placeholder="Paper title..."
                     aria-label="Paper title"
                   />
                 ) : (
-                  <h1 className="min-w-0 break-words font-serif text-2xl font-bold text-text-primary">
+                  <h1 className="text-2xl font-bold text-text-primary">
                     {paper.title}
                   </h1>
                 )}
               </div>
 
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="flex items-center gap-2">
                 {isEditing ? (
                   <>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button
                           onClick={handleSave}
-                          className="icon-btn bg-accent-soft text-accent-strong hover:bg-accent/20"
+                          className="rounded-control bg-primary-500 p-2 text-bg-base transition-colors hover:bg-primary-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
                           aria-label="Save changes"
                         >
-                          <Save className="h-4 w-4" aria-hidden="true" />
+                          <Save className="w-5 h-5" aria-hidden="true" />
                         </button>
                       </TooltipTrigger>
                       <TooltipContent>Save changes</TooltipContent>
@@ -250,10 +253,10 @@ export function PaperDetailView({
                       <TooltipTrigger asChild>
                         <button
                           onClick={handleCancel}
-                          className="icon-btn bg-bg-elevated text-text-secondary hover:bg-bg-surface hover:text-text-primary"
+                          className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
                           aria-label="Cancel"
                         >
-                          <X className="h-4 w-4" aria-hidden="true" />
+                          <X className="w-5 h-5" aria-hidden="true" />
                         </button>
                       </TooltipTrigger>
                       <TooltipContent>Cancel</TooltipContent>
@@ -266,10 +269,10 @@ export function PaperDetailView({
                         <TooltipTrigger asChild>
                           <DropdownMenu.Trigger asChild>
                             <button
-                              className="icon-btn bg-bg-elevated text-text-secondary hover:bg-bg-surface hover:text-text-primary"
+                              className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
                               aria-label="Export paper"
                             >
-                              <Download className="h-4 w-4" aria-hidden="true" />
+                              <Download className="w-5 h-5" aria-hidden="true" />
                             </button>
                           </DropdownMenu.Trigger>
                         </TooltipTrigger>
@@ -277,35 +280,35 @@ export function PaperDetailView({
                       </Tooltip>
                       <DropdownMenu.Portal>
                         <DropdownMenu.Content
-                          className="min-w-[160px] bg-bg-surface border border-border-moderate rounded-lg shadow-lift p-1 z-50 animate-in fade-in zoom-in-95"
+                          className="min-w-[160px] bg-bg-surface border border-border-subtle rounded-md shadow-md p-1 z-50 animate-in fade-in zoom-in-95"
                           align="end"
                         >
                           <DropdownMenu.Item
-                            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-text-primary hover:bg-bg-elevated cursor-pointer outline-none"
+                            className="flex items-center gap-2 px-2 py-1.5 text-sm text-text-primary hover:bg-bg-elevated rounded cursor-pointer outline-none"
                             onSelect={() => handleExport("markdown")}
                           >
-                            <FileText className="h-4 w-4 text-text-secondary" />
+                            <FileText className="w-4 h-4 text-text-secondary" />
                             Markdown
                           </DropdownMenu.Item>
                           <DropdownMenu.Item
-                            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-text-primary hover:bg-bg-elevated cursor-pointer outline-none"
+                            className="flex items-center gap-2 px-2 py-1.5 text-sm text-text-primary hover:bg-bg-elevated rounded cursor-pointer outline-none"
                             onSelect={() => handleExport("bibtex")}
                           >
-                            <Quote className="h-4 w-4 text-text-secondary" />
+                            <Quote className="w-4 h-4 text-text-secondary" />
                             BibTeX
                           </DropdownMenu.Item>
                           <DropdownMenu.Item
-                            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-text-primary hover:bg-bg-elevated cursor-pointer outline-none"
+                            className="flex items-center gap-2 px-2 py-1.5 text-sm text-text-primary hover:bg-bg-elevated rounded cursor-pointer outline-none"
                             onSelect={() => handleExport("csv")}
                           >
-                            <Table className="h-4 w-4 text-text-secondary" />
+                            <Table className="w-4 h-4 text-text-secondary" />
                             CSV
                           </DropdownMenu.Item>
                           <DropdownMenu.Item
-                            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-text-primary hover:bg-bg-elevated cursor-pointer outline-none"
+                            className="flex items-center gap-2 px-2 py-1.5 text-sm text-text-primary hover:bg-bg-elevated rounded cursor-pointer outline-none"
                             onSelect={() => handleExport("json")}
                           >
-                            <FileJson className="h-4 w-4 text-text-secondary" />
+                            <FileJson className="w-4 h-4 text-text-secondary" />
                             JSON
                           </DropdownMenu.Item>
                         </DropdownMenu.Content>
@@ -315,10 +318,10 @@ export function PaperDetailView({
                       <TooltipTrigger asChild>
                         <button
                           onClick={() => setIsEditing(true)}
-                          className="icon-btn bg-bg-elevated text-text-secondary hover:bg-bg-surface hover:text-text-primary"
+                          className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
                           aria-label="Edit paper"
                         >
-                          <Edit2 className="h-4 w-4" aria-hidden="true" />
+                          <Edit2 className="w-5 h-5" aria-hidden="true" />
                         </button>
                       </TooltipTrigger>
                       <TooltipContent>Edit paper</TooltipContent>
@@ -327,10 +330,10 @@ export function PaperDetailView({
                       <TooltipTrigger asChild>
                         <button
                           onClick={handleCreateNote}
-                          className="icon-btn bg-bg-elevated text-text-secondary hover:bg-bg-surface hover:text-text-primary"
+                          className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
                           aria-label="Create linked note"
                         >
-                          <FileText className="h-4 w-4" aria-hidden="true" />
+                          <FileText className="w-5 h-5" aria-hidden="true" />
                         </button>
                       </TooltipTrigger>
                       <TooltipContent>Create linked note</TooltipContent>
@@ -339,35 +342,23 @@ export function PaperDetailView({
                       <TooltipTrigger asChild>
                         <button
                           onClick={() => setShowCitation(true)}
-                          className="icon-btn bg-bg-elevated text-text-secondary hover:bg-bg-surface hover:text-text-primary"
+                          className="p-2 bg-bg-elevated text-text-secondary rounded-md hover:bg-bg-base transition-colors"
                           aria-label="Cite paper"
                         >
-                          <Quote className="h-4 w-4" aria-hidden="true" />
+                          <Quote className="w-5 h-5" aria-hidden="true" />
                         </button>
                       </TooltipTrigger>
                       <TooltipContent>Cite paper</TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          onClick={() => setShowAdversarial(true)}
-                          className="icon-btn bg-coral-soft text-coral-strong hover:bg-coral/20"
-                          aria-label="Adversarial review paper"
-                        >
-                          <ShieldAlert className="h-4 w-4" aria-hidden="true" />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent>Adversarial review</TooltipContent>
                     </Tooltip>
                     {onDelete && (
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button
                             onClick={handleDeleteClick}
-                            className="icon-btn bg-coral-soft text-coral-strong hover:bg-coral/20"
+                            className="rounded-control bg-bg-elevated p-2 text-destructive transition-colors hover:bg-destructive-bg focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
                             aria-label="Delete paper"
                           >
-                            <Trash className="h-4 w-4" aria-hidden="true" />
+                            <Trash className="w-5 h-5" aria-hidden="true" />
                           </button>
                         </TooltipTrigger>
                         <TooltipContent>Delete paper</TooltipContent>
@@ -380,21 +371,21 @@ export function PaperDetailView({
 
             {/* Authors */}
             <div className="space-y-2 mb-4">
-              <label htmlFor={authorsInputId} className="block text-small font-medium text-text-secondary">
+              <label className="block text-sm font-medium text-text-secondary">
                 Authors
               </label>
               {isEditing ? (
                 <input
-                  id={authorsInputId}
                   type="text"
                   value={editedAuthors}
                   onChange={(e) => setEditedAuthors(e.target.value)}
                   maxLength={1000}
-                  className="w-full rounded-lg border border-border-moderate bg-bg-surface px-4 py-2 text-body text-text-primary shadow-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+                  className="w-full px-4 py-2 bg-bg-base border border-border-subtle rounded-md text-body text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="Author 1, Author 2, et al."
+                  aria-label="Authors"
                 />
               ) : (
-                <p className="text-body text-text-secondary">
+                <p className="text-lg text-text-secondary">
                   {paper.authors.join(", ")}
                 </p>
               )}
@@ -402,73 +393,52 @@ export function PaperDetailView({
 
             {/* Status Selector */}
             <div className="space-y-2">
-              <label htmlFor={statusInputId} className="block text-small font-medium text-text-secondary">
+              <label className="block text-sm font-medium text-text-secondary">
                 Reading Status
               </label>
               {isEditing ? (
                 <select
-                  id={statusInputId}
                   value={editedStatus}
                   onChange={(e) =>
                     setEditedStatus(e.target.value as ReadingStatus)
                   }
-                  className={`rounded-lg border px-4 py-2 text-sm font-medium ${getStatusColor(editedStatus)} focus:outline-none focus:ring-2 focus:ring-accent/30`}
+                  className={`px-4 py-2 rounded-md border text-sm font-medium ${getStatusColor(editedStatus)} focus:outline-none focus:ring-2 focus:ring-primary-500`}
                 >
-                  <option value="To Read">📚 To Read</option>
-                  <option value="Reading">📖 Reading</option>
-                  <option value="Read">✅ Read</option>
+                  <option value="To Read">To Read</option>
+                  <option value="Reading">Reading</option>
+                  <option value="Read">Read</option>
                 </select>
               ) : (
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={() => setIsEditing(true)}
-                        className={`status-chip px-4 py-2 text-sm transition-all ${getStatusColor(paper.status)} hover:ring-2 hover:ring-accent/30`}
-                        aria-label="Change status"
-                      >
-                        {paper.status === "To Read" && "📚"}
-                        {paper.status === "Reading" && "📖"}
-                        {paper.status === "Read" && "✅"}
-                        <span className="ml-2">{paper.status}</span>
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent>Click to change status</TooltipContent>
-                  </Tooltip>
-                  <button
-                    onClick={async () => {
-                      // Cycle through statuses
-                      const statusOrder: ReadingStatus[] = [
-                        "To Read",
-                        "Reading",
-                        "Read",
-                      ];
-                      const currentIndex = statusOrder.indexOf(paper.status);
-                      const nextStatus =
-                        statusOrder[(currentIndex + 1) % statusOrder.length];
-                      await onUpdate(paper.id, { status: nextStatus });
-                    }}
-                    className="inline-flex h-9 items-center rounded-lg px-3 py-2 text-sm font-semibold text-accent-strong transition-colors hover:bg-accent-soft"
+                  <select
+                    aria-label="Change reading status"
+                    className={`rounded-control border px-4 py-2 text-small font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-focus ${getStatusColor(paper.status)}`}
+                    onChange={(event) => void handleStatusChange(event.target.value as ReadingStatus)}
+                    value={paper.status}
                   >
-                    Next →
-                  </button>
+                    <option value="To Read">To Read</option>
+                    <option value="Reading">Reading</option>
+                    <option value="Read">Read</option>
+                  </select>
                 </div>
               )}
               <div className="mt-4 space-y-3">
-                <div className="flex items-center justify-between text-caption font-semibold text-text-tertiary uppercase tracking-wider">
+                <div className="flex items-center justify-between text-caption text-text-tertiary uppercase tracking-wide">
                   <span>{statusCopy[statusForProgress].title}</span>
                   <span>{progressPercent}% complete</span>
                 </div>
-                <div className="progress-track h-2 w-full">
-                  <div className="progress-fill" style={{ width: `${progressPercent}%` }} aria-hidden />
+                <div className="h-2 bg-bg-base rounded-full overflow-hidden">
+                  <div
+                    className="h-full w-full origin-left bg-primary-500 transition-transform"
+                    style={{ transform: `scaleX(${progressPercent / 100})` }}
+                    aria-hidden
+                  />
                 </div>
                 <p className="text-sm text-text-secondary leading-relaxed">
                   {statusCopy[statusForProgress].helper}
                 </p>
-                <div className="flex items-start gap-3 rounded-lg border border-border-subtle bg-bg-elevated p-3.5">
-                  <span className="icon-tile h-8 w-8 shrink-0 bg-accent-soft text-accent-strong">
-                    <Sparkles className="h-4 w-4" aria-hidden="true" />
-                  </span>
+                <div className="flex items-start gap-3 rounded-lg border border-border-subtle bg-bg-elevated/60 p-3">
+                  <Sparkles className="w-4 h-4 text-primary-500 mt-0.5" />
                   <p className="text-sm text-text-secondary leading-relaxed">
                     Updating statuses, linking topics, or finishing summaries
                     all grant XP. Every change is reflected instantly in Focus
@@ -482,7 +452,7 @@ export function PaperDetailView({
           {/* Abstract */}
           {(paper.abstract || isEditing) && (
             <div className="p-6 border-b border-border-subtle">
-              <h2 className="mb-3 font-serif text-lg font-semibold text-text-primary">
+              <h2 className="text-lg font-semibold text-text-primary mb-3">
                 Abstract
               </h2>
               {isEditing ? (
@@ -491,11 +461,11 @@ export function PaperDetailView({
                   onChange={(e) => setEditedAbstract(e.target.value)}
                   rows={8}
                   maxLength={10000}
-                  className="w-full resize-none rounded-lg border border-border-moderate bg-bg-surface px-4 py-3 text-body text-text-primary shadow-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+                  className="w-full px-4 py-3 bg-bg-base border border-border-subtle rounded-md text-body text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
                   placeholder="Enter or paste the paper's abstract..."
                 />
               ) : (
-                <div className="prose prose-sm max-w-none dark:prose-invert prose-a:text-accent prose-strong:text-text-primary">
+                <div className="prose prose-sm max-w-none dark:prose-invert">
                   <p className="text-body text-text-secondary leading-relaxed whitespace-pre-wrap">
                     {paper.abstract}
                   </p>
@@ -511,22 +481,22 @@ export function PaperDetailView({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {paper.publication_date && (
                 <div className="space-y-1">
-                  <div className="flex items-center gap-2 text-caption font-semibold text-text-tertiary uppercase tracking-wider">
-                    <Calendar className="h-4 w-4" />
+                  <div className="flex items-center gap-2 text-text-tertiary">
+                    <Calendar className="w-4 h-4" />
                     <span className="text-sm font-medium">
                       Publication Date
                     </span>
                   </div>
-                  <p className="text-small font-medium text-text-primary">{paper.publication_date}</p>
+                  <p className="text-text-primary">{paper.publication_date}</p>
                 </div>
               )}
 
               <div className="space-y-1">
-                <div className="flex items-center gap-2 text-caption font-semibold text-text-tertiary uppercase tracking-wider">
-                  <Calendar className="h-4 w-4" />
+                <div className="flex items-center gap-2 text-text-tertiary">
+                  <Calendar className="w-4 h-4" />
                   <span className="text-sm font-medium">Added to Library</span>
                 </div>
-                <p className="text-small font-medium text-text-primary">
+                <p className="text-text-primary">
                   {new Date(paper.created_at).toLocaleDateString("en-US", {
                     year: "numeric",
                     month: "long",
@@ -544,9 +514,9 @@ export function PaperDetailView({
                     href={`https://doi.org/${paper.doi}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-text-primary px-4 text-sm font-semibold text-bg-base shadow-lift transition-transform hover:-translate-y-0.5 hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
+                    className="inline-flex items-center gap-2 rounded-control bg-primary-500 px-4 py-2 text-bg-base transition-colors hover:bg-primary-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
                   >
-                    <LinkIcon className="h-4 w-4" aria-hidden="true" />
+                    <LinkIcon className="w-4 h-4" />
                     View DOI
                   </a>
                 )}
@@ -555,31 +525,33 @@ export function PaperDetailView({
                     href={paper.source_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-border-moderate bg-bg-surface px-4 text-sm font-semibold text-text-primary shadow-sm transition-all hover:-translate-y-0.5 hover:border-border-strong hover:shadow-lift"
+                    className="inline-flex items-center gap-2 rounded-control border border-border-subtle bg-bg-elevated px-4 py-2 text-text-primary transition-colors hover:bg-bg-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
                   >
-                    <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                    <ExternalLink className="w-4 h-4" />
                     View Source
                   </a>
                 )}
+                <button
+                  onClick={() => setShowCitation(true)}
+                  className="inline-flex items-center gap-2 rounded-control border border-border-subtle bg-bg-elevated px-4 py-2 text-text-primary transition-colors hover:bg-bg-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+                >
+                  <Quote className="w-4 h-4" aria-hidden="true" />
+                  Cite paper
+                </button>
               </div>
             </div>
           </div>
         </div>
 
         {/* Tips Card */}
-        <div className="surface-card mt-6 flex items-start gap-4 p-5">
-          <span className="icon-tile shrink-0 bg-gold-soft text-gold-strong">
-            <Sparkles className="h-4 w-4" aria-hidden="true" />
-          </span>
-          <div className="min-w-0">
-            <h3 className="text-small font-semibold text-text-primary">
-              💡 Pro Tip
-            </h3>
-            <p className="mt-1 text-small text-text-secondary leading-relaxed">
-              Update the reading status as you progress through the paper. This
-              helps track your research progress and earns you XP!
-            </p>
-          </div>
+        <div className="mt-6 rounded-surface border border-border-subtle bg-primary-50 p-4 dark:bg-primary-900/20">
+          <h3 className="mb-2 text-small font-semibold text-text-primary">
+            Reading rhythm
+          </h3>
+          <p className="text-small text-text-secondary">
+            Update the reading status as you progress through the paper. This
+            helps track your research progress and earns you XP!
+          </p>
         </div>
       </div>
 
@@ -599,22 +571,6 @@ export function PaperDetailView({
         isOpen={showCitation}
         onOpenChange={setShowCitation}
       />
-
-      {showAdversarial && (
-        <AdversarialReviewPanel
-          open={showAdversarial}
-          onOpenChange={setShowAdversarial}
-          target={{
-            type: "paper",
-            title: paper.title,
-            abstract: paper.abstract,
-            authors: paper.authors,
-            status: paper.status,
-            sourceUrl: paper.source_url,
-            publicationDate: paper.publication_date,
-          }}
-        />
-      )}
     </>
   );
 }

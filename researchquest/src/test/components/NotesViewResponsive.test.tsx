@@ -1,5 +1,5 @@
 import { TooltipProvider } from "../../components/ui/tooltip";
-import { describe, it, expect, vi } from "vitest";
+import { beforeEach, describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { NotesView } from "../../components/notes/NotesView";
 import type { Note } from "../../types/database";
@@ -70,6 +70,10 @@ vi.mock("../../components/ui/Skeleton", () => ({
 }));
 
 describe("NotesView responsive layout", () => {
+  beforeEach(() => {
+    window.history.replaceState(null, "", "/notes/test-note-1");
+  });
+
   it("uses a mobile-first single column and restores the split layout on large screens", () => {
     const { container } = render(<TooltipProvider delayDuration={0}><NotesView /></TooltipProvider>);
 
@@ -81,14 +85,17 @@ describe("NotesView responsive layout", () => {
     const [listPane, editorPane] = Array.from(root?.children ?? []);
 
     expect(listPane).toHaveClass("w-full");
-    expect(listPane).toHaveClass("max-h-[45vh]");
+    expect(listPane).toHaveClass("h-full");
     expect(listPane).toHaveClass("lg:w-80");
+    expect(listPane).toHaveClass("lg:h-full");
     expect(listPane).toHaveClass("lg:max-h-none");
     expect(listPane).toHaveClass("flex-shrink-0");
+    expect(listPane).toHaveClass("hidden");
 
     expect(editorPane).toHaveClass("w-full");
     expect(editorPane).toHaveClass("min-w-0");
     expect(editorPane).toHaveClass("flex-1");
+    expect(editorPane).toHaveClass("flex");
   });
 
   it("renders a notes sync error instead of silently showing an empty state", () => {

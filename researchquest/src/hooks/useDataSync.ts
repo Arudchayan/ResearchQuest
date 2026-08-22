@@ -1,18 +1,25 @@
-import { useEffect, useRef } from "react";
+/**
+ * OWNERSHIP: notes, papers, ideas, focus_sessions, daily_logs
+ *
+ * This hook is the sole realtime owner for the notes, papers, ideas,
+ * focus_sessions, and daily_logs tables. It loads the initial data,
+ * subscribes to Postgres changes, and pushes updates into the Zustand
+ * store (useAppStore).
+ *
+ * Do NOT add tasks here — useTasks is the sole task owner.
+ * daily_logs is consolidated here to eliminate duplicate subscriptions
+ * from RightSidebar and useSidebarData.
+ */
+import { useEffect } from "react";
 import { supabase } from "../lib/supabase";
-import { useAppStore } from "../store/appStore";
+import { useAppStore, type DataSyncResource } from "../store/appStore";
 import { useShallow } from "zustand/react/shallow";
 import { sortByUpdatedAt } from "../utils/sort";
+import { extractFunctionErrorMessage } from "../utils/errors";
 import type { Note, Paper, Idea } from "../types/database";
 import { dedupeById } from "../utils/collections";
 
-/** Number of rows to fetch per paginated request. */
-const PAGE_LIMIT = 50;
-const DASHBOARD_PREVIEW_LIMIT = 3;
-
-export function useDataSync(userId: string | undefined, currentView: string) {
-  // Use a ref to track what we've already fetched in this session to prevent redundant calls
-  const fetchedRef = useRef<Set<string>>(new Set());
+export function useDataSync(userId: string | undefined) {
 
   const {
     setNotes,
@@ -27,9 +34,7 @@ export function useDataSync(userId: string | undefined, currentView: string) {
     setSelectedPaper,
     setSelectedIdea,
     setFocusSessionSecondsToday,
-    setDashboardLibrary,
-    setDashboardLibraryLoading,
-    resetDashboardLibrary,
+    setTodayXP,
   } = useAppStore(
     useShallow((state) => ({
       setNotes: state.setNotes,
@@ -44,9 +49,7 @@ export function useDataSync(userId: string | undefined, currentView: string) {
       setSelectedPaper: state.setSelectedPaper,
       setSelectedIdea: state.setSelectedIdea,
       setFocusSessionSecondsToday: state.setFocusSessionSecondsToday,
-      setDashboardLibrary: state.setDashboardLibrary,
-      setDashboardLibraryLoading: state.setDashboardLibraryLoading,
-      resetDashboardLibrary: state.resetDashboardLibrary,
+      setTodayXP: state.setTodayXP,
     })),
   );
 
@@ -60,307 +63,98 @@ export function useDataSync(userId: string | undefined, currentView: string) {
       setIdeasLoading(false);
       setFocusSessionSecondsToday(0);
       clearDataSyncErrors();
-      resetDashboardLibrary();
-      fetchedRef.current.clear();
       return;
     }
 
-    // Reset cache if user changes
-    if (userId && !fetchedRef.current.has(`user_${userId}`)) {
-       fetchedRef.current.clear();
-       fetchedRef.current.add(`user_${userId}`);
-       resetDashboardLibrary();
-    }
-
-    const shouldFetch = (domain: string) => {
-      if (fetchedRef.current.has(domain)) return false;
-      
-      // Dashboard uses lightweight preview/count queries instead of full library fetches.
-      if (currentView === 'dashboard') return domain === 'focus';
-      
-      // Otherwise only fetch for the active view
-      if (domain === 'notes' && currentView === 'notes') return true;
-      if (domain === 'papers' && currentView === 'papers') return true;
-      if (domain === 'ideas' && currentView === 'ideas') return true;
-      if (domain === 'focus' && currentView === 'focus') return true;
-      
-      return false;
-    };
-
-    const fetchDashboardLibrary = async (force = false) => {
-      if (currentView !== 'dashboard') return;
-      if (!force && fetchedRef.current.has('dashboard_library')) return;
-
-      setDashboardLibraryLoading(true);
+    // Generic fetch for the per-view tables (notes/papers/ideas): same
+    // select-all-where-user_id query, loading flag, and error handling.
+    const fetchTable = async <T extends { id: string }>(
+      table: DataSyncResource,
+      opts: {
+        fallbackError: string;
+        setItems: (items: T[]) => void;
+        setLoading: (loading: boolean) => void;
+        transform?: (items: T[]) => T[];
+        syncSelected?: {
+          getSelected: () => { id: string } | null;
+          setSelected: (item: T | null) => void;
+        };
+      },
+    ) => {
+      opts.setLoading(true);
       try {
-        const [
-          notesResult,
-          readingListResult,
-          paperCountResult,
-          ideasResult,
-        ] = await Promise.all([
-          supabase
-            .from("notes")
-            .select("id, user_id, title, markdown_body, tags, linked_entity_ids, created_at, updated_at", { count: "exact" })
-            .eq("user_id", userId)
-            .order("updated_at", { ascending: false })
-            .range(0, DASHBOARD_PREVIEW_LIMIT - 1),
-          supabase
-            .from("papers")
-            .select("id, user_id, title, authors, doi, source_url, status, topic_ids, abstract, publication_date, created_at, updated_at")
-            .eq("user_id", userId)
-            .eq("status", "To Read")
-            .order("created_at", { ascending: false })
-            .range(0, DASHBOARD_PREVIEW_LIMIT - 1),
-          supabase
-            .from("papers")
-            .select("id", { count: "exact", head: true })
-            .eq("user_id", userId),
-          supabase
-            .from("ideas")
-            .select("id, user_id, title, description, stage, linked_note_ids, linked_paper_ids, created_at, updated_at", { count: "exact" })
-            .eq("user_id", userId)
-            .order("updated_at", { ascending: false })
-            .range(0, DASHBOARD_PREVIEW_LIMIT - 1),
-        ]);
+        const { data, error } = await supabase
+          .from(table)
+          .select("*")
+          .eq("user_id", userId)
+          .order("updated_at", { ascending: false });
 
-        if (notesResult.error) {
-          console.error("Failed to load dashboard notes preview:", notesResult.error);
-          setDataSyncError("notes", "Failed to load notes preview.");
-        } else {
-          clearDataSyncError("notes");
-        }
-
-        if (readingListResult.error || paperCountResult.error) {
-          console.error(
-            "Failed to load dashboard papers preview:",
-            readingListResult.error ?? paperCountResult.error,
+        if (error) {
+          setDataSyncError(
+            table,
+            extractFunctionErrorMessage(error, opts.fallbackError),
           );
-          setDataSyncError("papers", "Failed to load papers preview.");
-        } else {
-          clearDataSyncError("papers");
-        }
-
-        if (ideasResult.error) {
-          console.error("Failed to load dashboard ideas preview:", ideasResult.error);
-          setDataSyncError("ideas", "Failed to load ideas preview.");
-        } else {
-          clearDataSyncError("ideas");
-        }
-
-        if (notesResult.error || readingListResult.error || paperCountResult.error || ideasResult.error) {
-          fetchedRef.current.delete('dashboard_library');
           return;
         }
 
-        setDashboardLibrary({
-          recentNotes: notesResult.data ?? [],
-          readingList: readingListResult.data ?? [],
-          activeIdeas: ideasResult.data ?? [],
-          counts: {
-            notes: notesResult.count ?? 0,
-            papers: paperCountResult.count ?? 0,
-            ideas: ideasResult.count ?? 0,
-          },
-          loading: false,
-        });
-        fetchedRef.current.add('dashboard_library');
-      } catch (error) {
-        console.error("Failed to load dashboard library preview:", error);
-        fetchedRef.current.delete('dashboard_library');
-        setDataSyncError("notes", "Failed to load dashboard preview.");
-        setDataSyncError("papers", "Failed to load dashboard preview.");
-        setDataSyncError("ideas", "Failed to load dashboard preview.");
-      } finally {
-        setDashboardLibraryLoading(false);
-      }
-    };
+        clearDataSyncError(table);
+        if (data) {
+          const items = opts.transform ? opts.transform(data) : data;
+          opts.setItems(items);
 
-    // --- NOTES ---
-    const fetchNotes = async () => {
-      if (!shouldFetch('notes')) return;
-      
-      setNotesLoading(true);
-      try {
-        const allNotes: Note[] = [];
-        let offset = 0;
-        let hasMore = true;
-
-        while (hasMore) {
-          const { data, error } = await supabase
-            .from("notes")
-            .select("id, title, markdown_body, tags, linked_entity_ids, created_at, updated_at, user_id")
-            .eq("user_id", userId)
-            .order("updated_at", { ascending: false })
-            .range(offset, offset + PAGE_LIMIT - 1);
-
-          if (error) {
-            console.error("Failed to load notes:", error);
-            fetchedRef.current.delete('notes');
-            setDataSyncError(
-              "notes",
-              "Failed to load notes.",
-            );
-            return;
-          }
-
-          if (data && data.length > 0) {
-            allNotes.push(...data);
-            if (data.length < PAGE_LIMIT) {
-              hasMore = false;
-            } else {
-              offset += PAGE_LIMIT;
+          // Sync selected entity if it still exists in the fresh data
+          if (opts.syncSelected) {
+            const current = opts.syncSelected.getSelected();
+            if (current) {
+              const fresh = items.find((item) => item.id === current.id);
+              if (fresh) {
+                opts.syncSelected.setSelected(fresh);
+              }
             }
-          } else {
-            hasMore = false;
           }
         }
-
-        clearDataSyncError("notes");
-        setNotes(allNotes);
-        fetchedRef.current.add('notes');
       } catch (error) {
-        console.error("Failed to load notes:", error);
-        fetchedRef.current.delete('notes');
         setDataSyncError(
-          "notes",
-          "Failed to load notes.",
+          table,
+          extractFunctionErrorMessage(error, opts.fallbackError),
         );
       } finally {
-        setNotesLoading(false);
+        opts.setLoading(false);
       }
     };
 
-    // --- PAPERS ---
-    const fetchPapers = async () => {
-      if (!shouldFetch('papers')) return;
+    const fetchNotes = () =>
+      fetchTable<Note>("notes", {
+        fallbackError: "Failed to load notes.",
+        setItems: setNotes,
+        setLoading: setNotesLoading,
+        transform: sortByUpdatedAt,
+      });
 
-      setPapersLoading(true);
-      try {
-        const allPapers: Paper[] = [];
-        let offset = 0;
-        let hasMore = true;
+    const fetchPapers = () =>
+      fetchTable<Paper>("papers", {
+        fallbackError: "Failed to load papers.",
+        setItems: setPapers,
+        setLoading: setPapersLoading,
+        transform: sortByUpdatedAt,
+        syncSelected: {
+          getSelected: () => useAppStore.getState().selectedPaper,
+          setSelected: setSelectedPaper,
+        },
+      });
 
-        while (hasMore) {
-          const { data, error } = await supabase
-            .from("papers")
-            .select("id, title, authors, doi, source_url, status, topic_ids, abstract, publication_date, created_at, updated_at, user_id")
-            .eq("user_id", userId)
-            .order("updated_at", { ascending: false })
-            .range(offset, offset + PAGE_LIMIT - 1);
+    const fetchIdeas = () =>
+      fetchTable<Idea>("ideas", {
+        fallbackError: "Failed to load ideas.",
+        setItems: setIdeas,
+        setLoading: setIdeasLoading,
+        syncSelected: {
+          getSelected: () => useAppStore.getState().selectedIdea,
+          setSelected: setSelectedIdea,
+        },
+      });
 
-          if (error) {
-            console.error("Failed to load papers:", error);
-            fetchedRef.current.delete('papers');
-            setDataSyncError(
-              "papers",
-              "Failed to load papers.",
-            );
-            return;
-          }
-
-          if (data && data.length > 0) {
-            allPapers.push(...data);
-            if (data.length < PAGE_LIMIT) {
-              hasMore = false;
-            } else {
-              offset += PAGE_LIMIT;
-            }
-          } else {
-            hasMore = false;
-          }
-        }
-
-        clearDataSyncError("papers");
-        setPapers(allPapers);
-        fetchedRef.current.add('papers');
-
-        // Sync selected paper if it exists in the fresh data
-        const current = useAppStore.getState().selectedPaper;
-        if (current) {
-          const fresh = allPapers.find((paper) => paper.id === current.id);
-          if (fresh) {
-            setSelectedPaper(fresh);
-          }
-        }
-      } catch (error) {
-        console.error("Failed to load papers:", error);
-        fetchedRef.current.delete('papers');
-        setDataSyncError(
-          "papers",
-          "Failed to load papers.",
-        );
-      } finally {
-        setPapersLoading(false);
-      }
-    };
-
-    // --- IDEAS ---
-    const fetchIdeas = async () => {
-      if (!shouldFetch('ideas')) return;
-
-      setIdeasLoading(true);
-      try {
-        const allIdeas: Idea[] = [];
-        let offset = 0;
-        let hasMore = true;
-
-        while (hasMore) {
-          const { data, error } = await supabase
-            .from("ideas")
-            .select("id, title, description, stage, linked_note_ids, linked_paper_ids, created_at, updated_at, user_id")
-            .eq("user_id", userId)
-            .order("updated_at", { ascending: false })
-            .range(offset, offset + PAGE_LIMIT - 1);
-
-          if (error) {
-            console.error("Failed to load ideas:", error);
-            fetchedRef.current.delete('ideas');
-            setDataSyncError(
-              "ideas",
-              "Failed to load ideas.",
-            );
-            return;
-          }
-
-          if (data && data.length > 0) {
-            allIdeas.push(...data);
-            if (data.length < PAGE_LIMIT) {
-              hasMore = false;
-            } else {
-              offset += PAGE_LIMIT;
-            }
-          } else {
-            hasMore = false;
-          }
-        }
-
-        clearDataSyncError("ideas");
-        setIdeas(allIdeas);
-        fetchedRef.current.add('ideas');
-
-        const current = useAppStore.getState().selectedIdea;
-        if (current) {
-          const fresh = allIdeas.find((idea) => idea.id === current.id);
-          if (fresh) {
-            setSelectedIdea(fresh);
-          }
-        }
-      } catch (error) {
-        console.error("Failed to load ideas:", error);
-        fetchedRef.current.delete('ideas');
-        setDataSyncError(
-          "ideas",
-          "Failed to load ideas.",
-        );
-      } finally {
-        setIdeasLoading(false);
-      }
-    };
-
-    const fetchFocusSessionsToday = async (force = false) => {
-      if (!force && !shouldFetch('focus')) return;
-
+    const fetchFocusSessionsToday = async () => {
       const startOfDay = new Date();
       startOfDay.setHours(0, 0, 0, 0);
       const { data, error } = await supabase
@@ -370,7 +164,6 @@ export function useDataSync(userId: string | undefined, currentView: string) {
         .gte("completed_at", startOfDay.toISOString());
 
       if (error) {
-        fetchedRef.current.delete('focus');
         return;
       }
 
@@ -379,167 +172,156 @@ export function useDataSync(userId: string | undefined, currentView: string) {
         0,
       );
       setFocusSessionSecondsToday(total);
-      fetchedRef.current.add('focus');
+    };
+
+    const fetchTodayXP = async () => {
+      // Always fetch — no shouldFetch guard since the sidebar always needs it
+      const today = new Date().toISOString().split("T")[0];
+      const { data, error } = await supabase
+        .from("daily_logs")
+        .select("xp_earned")
+        .eq("user_id", userId)
+        .eq("date", today)
+        .maybeSingle();
+
+      if (!error) {
+        setTodayXP(data?.xp_earned ?? 0);
+      }
     };
 
     // Initial fetch (only what is needed for current view)
-    void fetchDashboardLibrary();
     void fetchNotes();
     void fetchPapers();
     void fetchIdeas();
     void fetchFocusSessionsToday();
+    void fetchTodayXP();
 
     // --- SUBSCRIPTIONS ---
     const channels: ReturnType<typeof supabase.channel>[] = [];
 
-    // Notes Subscription
-    const notesSub = supabase
-      .channel(`notes_realtime_sync_${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "notes",
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload) => {
-          if (!fetchedRef.current.has('notes')) {
-            void fetchDashboardLibrary(true);
-            return;
-          }
-
-          if (payload.eventType === "INSERT") {
-            setNotes(
-              dedupeById([
-                payload.new as Note,
-                ...useAppStore.getState().notes,
-              ]),
-            );
-          } else if (payload.eventType === "UPDATE") {
-            const updated = payload.new as Note;
-            const currentNotes = useAppStore.getState().notes;
-            const remaining = currentNotes.filter((n) => n.id !== updated.id);
-            setNotes(sortByUpdatedAt([updated, ...remaining]));
-
-            const selected = useAppStore.getState().selectedNote;
-            if (selected?.id === updated.id) {
-              // We don't auto-update selectedNote here because it might disrupt editing
-              // But typically we should if it's a remote update?
-              // For now, let's leave it as is, similar to useNotes logic
+    // Generic realtime subscription for the per-view tables (notes/papers/ideas):
+    // same postgres_changes listener; per-table merge logic via callbacks.
+    const makeSubscription = <T extends { id: string }>(opts: {
+      table: string;
+      channelName: string;
+      onInsert: (newItem: T) => void;
+      onUpdate: (updated: T) => void;
+      onDelete: (oldId: string) => void;
+    }) =>
+      supabase
+        .channel(opts.channelName)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: opts.table,
+            filter: `user_id=eq.${userId}`,
+          },
+          (payload) => {
+            if (payload.eventType === "INSERT") {
+              opts.onInsert(payload.new as T);
+            } else if (payload.eventType === "UPDATE") {
+              opts.onUpdate(payload.new as T);
+            } else if (payload.eventType === "DELETE") {
+              const oldId = payload.old["id"];
+              if (typeof oldId === "string") {
+                opts.onDelete(oldId);
+              }
             }
-          } else if (payload.eventType === "DELETE") {
-            const currentNotes = useAppStore.getState().notes;
-            setNotes(currentNotes.filter((n) => n.id !== payload.old.id));
-          }
-        },
-      )
-      .subscribe();
+          },
+        )
+        .subscribe();
+
+    // Notes Subscription
+    const notesSub = makeSubscription<Note>({
+      table: "notes",
+      channelName: `notes_realtime_sync_${userId}`,
+      onInsert: (newNote) =>
+        setNotes(dedupeById([newNote, ...useAppStore.getState().notes])),
+      onUpdate: (updated) => {
+        const remaining = useAppStore
+          .getState()
+          .notes.filter((n) => n.id !== updated.id);
+        setNotes(sortByUpdatedAt([updated, ...remaining]));
+        // We don't auto-update selectedNote here because it might disrupt editing
+      },
+      onDelete: (oldId) =>
+        setNotes(useAppStore.getState().notes.filter((n) => n.id !== oldId)),
+    });
     channels.push(notesSub);
 
     // Papers Subscription
-    const papersSub = supabase
-      .channel(`papers_realtime_sync_${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "papers",
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload) => {
-          if (!fetchedRef.current.has('papers')) {
-            void fetchDashboardLibrary(true);
-            return;
-          }
+    const syncSelectedPaper = (paper: Paper) => {
+      const current = useAppStore.getState().selectedPaper;
+      if (current?.id === paper.id) {
+        setSelectedPaper(paper);
+      }
+    };
 
-          if (payload.eventType === "INSERT") {
-            const newPaper = payload.new as Paper;
-            setPapers(
-              sortByUpdatedAt([newPaper, ...useAppStore.getState().papers]),
-            );
+    const papersSub = makeSubscription<Paper>({
+      table: "papers",
+      channelName: `papers_realtime_sync_${userId}`,
+      onInsert: (newPaper) => {
+        setPapers(
+          sortByUpdatedAt([newPaper, ...useAppStore.getState().papers]),
+        );
+        syncSelectedPaper(newPaper);
+      },
+      onUpdate: (updated) => {
+        const remaining = useAppStore
+          .getState()
+          .papers.filter((p) => p.id !== updated.id);
+        setPapers(sortByUpdatedAt([updated, ...remaining]));
+        syncSelectedPaper(updated);
+      },
+      onDelete: (oldId) => {
+        setPapers(useAppStore.getState().papers.filter((p) => p.id !== oldId));
 
-            const current = useAppStore.getState().selectedPaper;
-            if (current?.id === newPaper.id) {
-              setSelectedPaper(newPaper);
-            }
-          } else if (payload.eventType === "UPDATE") {
-            const updated = payload.new as Paper;
-            const currentPapers = useAppStore.getState().papers;
-            const remaining = currentPapers.filter((p) => p.id !== updated.id);
-            setPapers(sortByUpdatedAt([updated, ...remaining]));
-
-            const current = useAppStore.getState().selectedPaper;
-            if (current?.id === updated.id) {
-              setSelectedPaper(updated);
-            }
-          } else if (payload.eventType === "DELETE") {
-            const currentPapers = useAppStore.getState().papers;
-            setPapers(currentPapers.filter((p) => p.id !== payload.old.id));
-
-            const current = useAppStore.getState().selectedPaper;
-            if (current?.id === payload.old.id) {
-              setSelectedPaper(null);
-            }
-          }
-        },
-      )
-      .subscribe();
+        const current = useAppStore.getState().selectedPaper;
+        if (current?.id === oldId) {
+          setSelectedPaper(null);
+        }
+      },
+    });
     channels.push(papersSub);
 
     // Ideas Subscription
-    const ideasSub = supabase
-      .channel(`ideas_realtime_sync_${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "ideas",
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload) => {
-          if (!fetchedRef.current.has('ideas')) {
-            void fetchDashboardLibrary(true);
-            return;
-          }
+    const syncSelectedIdea = (idea: Idea) => {
+      const current = useAppStore.getState().selectedIdea;
+      if (current?.id === idea.id) {
+        setSelectedIdea(idea);
+      }
+    };
 
-          if (payload.eventType === "INSERT") {
-            const newIdea = payload.new as Idea;
-            // Check if exists
-            const currentIdeas = useAppStore.getState().ideas;
-            if (!currentIdeas.some((i) => i.id === newIdea.id)) {
-              setIdeas([newIdea, ...currentIdeas]);
+    const ideasSub = makeSubscription<Idea>({
+      table: "ideas",
+      channelName: `ideas_realtime_sync_${userId}`,
+      onInsert: (newIdea) => {
+        const currentIdeas = useAppStore.getState().ideas;
+        // Check if exists
+        if (!currentIdeas.some((i) => i.id === newIdea.id)) {
+          setIdeas([newIdea, ...currentIdeas]);
+          syncSelectedIdea(newIdea);
+        }
+      },
+      onUpdate: (updated) => {
+        setIdeas(
+          useAppStore
+            .getState()
+            .ideas.map((i) => (i.id === updated.id ? updated : i)),
+        );
+        syncSelectedIdea(updated);
+      },
+      onDelete: (oldId) => {
+        setIdeas(useAppStore.getState().ideas.filter((i) => i.id !== oldId));
 
-              const current = useAppStore.getState().selectedIdea;
-              if (current?.id === newIdea.id) {
-                setSelectedIdea(newIdea);
-              }
-            }
-          } else if (payload.eventType === "UPDATE") {
-            const updated = payload.new as Idea;
-            const currentIdeas = useAppStore.getState().ideas;
-            setIdeas(
-              currentIdeas.map((i) => (i.id === updated.id ? updated : i)),
-            );
-
-            const current = useAppStore.getState().selectedIdea;
-            if (current?.id === updated.id) {
-              setSelectedIdea(updated);
-            }
-          } else if (payload.eventType === "DELETE") {
-            const currentIdeas = useAppStore.getState().ideas;
-            setIdeas(currentIdeas.filter((i) => i.id !== payload.old.id));
-
-            const current = useAppStore.getState().selectedIdea;
-            if (current?.id === payload.old.id) {
-              setSelectedIdea(null);
-            }
-          }
-        },
-      )
-      .subscribe();
+        const current = useAppStore.getState().selectedIdea;
+        if (current?.id === oldId) {
+          setSelectedIdea(null);
+        }
+      },
+    });
     channels.push(ideasSub);
 
     const focusSessionsSub = supabase
@@ -553,13 +335,56 @@ export function useDataSync(userId: string | undefined, currentView: string) {
           filter: `user_id=eq.${userId}`,
         },
         () => {
-          void fetchFocusSessionsToday(true);
+          void fetchFocusSessionsToday();
         },
       )
       .subscribe();
     channels.push(focusSessionsSub);
 
+    // daily_logs Subscription (consolidated — replaces RightSidebar + useSidebarData copies)
+    const dailyLogsSub = supabase
+      .channel(`daily_logs_sync_${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "daily_logs",
+          filter: `user_id=eq.${userId}`,
+        },
+        () => {
+          void fetchTodayXP();
+        },
+      )
+      .subscribe();
+    channels.push(dailyLogsSub);
+
+    // Retry signal: when retryDataSync bumps a per-resource counter, refetch
+    // so the Dashboard retry buttons actually re-run the failed query.
+    const retryUnsub = useAppStore.subscribe((state, prevState) => {
+      if (!userId) return;
+      if (
+        state.dataSyncRetryCounters.notes !==
+        prevState.dataSyncRetryCounters.notes
+      ) {
+        void fetchNotes();
+      }
+      if (
+        state.dataSyncRetryCounters.papers !==
+        prevState.dataSyncRetryCounters.papers
+      ) {
+        void fetchPapers();
+      }
+      if (
+        state.dataSyncRetryCounters.ideas !==
+        prevState.dataSyncRetryCounters.ideas
+      ) {
+        void fetchIdeas();
+      }
+    });
+
     return () => {
+      retryUnsub();
       channels.forEach((sub) => sub.unsubscribe());
     };
   }, [
@@ -576,9 +401,6 @@ export function useDataSync(userId: string | undefined, currentView: string) {
     setSelectedPaper,
     setSelectedIdea,
     setFocusSessionSecondsToday,
-    setDashboardLibrary,
-    setDashboardLibraryLoading,
-    resetDashboardLibrary,
-    currentView,
+    setTodayXP,
   ]);
 }

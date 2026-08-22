@@ -4,21 +4,19 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NotesView } from "../../components/notes/NotesView";
 import { useAppStore } from "../../store/appStore";
 
-// Mock @tanstack/react-virtual to work in JSDOM (no scroll dimensions)
 vi.mock("@tanstack/react-virtual", () => ({
-  useVirtualizer: (opts: any) => {
-    const count = opts.count ?? 0;
-    return {
-      getVirtualItems: () =>
-        Array.from({ length: count }, (_, index) => ({
-          index,
-          key: index,
-          start: index * 160,
-          size: 160,
-        })),
-      getTotalSize: () => count * 160,
-    };
-  },
+  useVirtualizer: ({ count, estimateSize }: { count: number; estimateSize: () => number }) => ({
+    getVirtualItems: () =>
+      Array.from({ length: count }, (_, i) => ({
+        index: i,
+        key: i,
+        size: estimateSize(),
+        start: i * estimateSize(),
+        lane: 0,
+      })),
+    getTotalSize: () => count * estimateSize(),
+    measure: () => {},
+  }),
 }));
 
 // Mock NoteCard to track renders

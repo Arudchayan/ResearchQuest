@@ -5,12 +5,17 @@ import { TooltipProvider } from "../../../components/ui/tooltip";
 import { mockSupabaseClient } from "../../mocks/supabase";
 import { vi, describe, it, expect, beforeEach } from "vitest";
 
+const { mockUseBacklinks, mockUseRelatedItems } = vi.hoisted(() => ({
+  mockUseBacklinks: vi.fn(() => ({ backlinks: [], loading: false })),
+  mockUseRelatedItems: vi.fn(() => ({ relatedItems: [], loading: false })),
+}));
+
 // Mock hooks
 vi.mock("../../../hooks/useBacklinks", () => ({
-  useBacklinks: () => ({ backlinks: [], loading: false }),
+  useBacklinks: mockUseBacklinks,
 }));
 vi.mock("../../../hooks/useRelatedItems", () => ({
-  useRelatedItems: () => ({ relatedItems: [], loading: false }),
+  useRelatedItems: mockUseRelatedItems,
 }));
 
 describe("RightSidebar Performance", () => {
@@ -18,6 +23,9 @@ describe("RightSidebar Performance", () => {
     useAppStore.setState({
       user: { id: "user-1" } as any,
       isRightSidebarOpen: false,
+      selectedNote: null,
+      selectedPaper: null,
+      selectedIdea: null,
     });
     vi.clearAllMocks();
   });
@@ -26,17 +34,37 @@ describe("RightSidebar Performance", () => {
     useAppStore.setState({ isRightSidebarOpen: false });
     render(<TooltipProvider><RightSidebar /></TooltipProvider>);
 
-    // With current implementation (unoptimized), this will FAIL as it fetches
-    // After optimization, this should PASS
-    expect(mockSupabaseClient.from).not.toHaveBeenCalled();
-    expect(mockSupabaseClient.channel).not.toHaveBeenCalled();
+    expect(mockUseBacklinks).toHaveBeenCalledWith(
+      null,
+      null,
+      "user-1",
+      { enabled: false },
+    );
+    expect(mockUseRelatedItems).toHaveBeenCalledWith(
+      null,
+      null,
+      "user-1",
+      { enabled: false },
+    );
   });
 
-  it("fetches data when sidebar is open", () => {
+  it("enables related-data fetches when the sidebar is open", () => {
     useAppStore.setState({ isRightSidebarOpen: true });
     render(<TooltipProvider><RightSidebar /></TooltipProvider>);
 
-    expect(mockSupabaseClient.from).toHaveBeenCalled();
-    expect(mockSupabaseClient.channel).toHaveBeenCalled();
+    expect(mockUseBacklinks).toHaveBeenCalledWith(
+      null,
+      null,
+      "user-1",
+      { enabled: true },
+    );
+    expect(mockUseRelatedItems).toHaveBeenCalledWith(
+      null,
+      null,
+      "user-1",
+      { enabled: true },
+    );
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled();
+    expect(mockSupabaseClient.channel).not.toHaveBeenCalled();
   });
 });

@@ -1,11 +1,19 @@
 import { ConfirmDialog, useConfirmDialog } from "../ui/ConfirmDialog";
 import { logger } from "../../utils/logger";
-import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "../../lib/supabase";
 import { useAppStore } from "../../store/appStore";
 import { useShallow } from "zustand/react/shallow";
-import type { TopicWithCounts, Note, Paper, Idea } from "../../types/database";
+import { useTopics } from "../../hooks/useTopics";
+import type {
+  TopicWithCounts,
+  Note,
+  Paper,
+  Idea,
+  TopicQuest,
+} from "../../types/database";
+import { Badge, type BadgeVariant } from "../ui/Badge";
 import { deriveTitleFromMarkdown } from "../../utils/text";
 import {
   Pencil,
@@ -19,7 +27,6 @@ import {
   Download,
   Table,
   FileJson,
-  Hash,
 } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
@@ -28,6 +35,23 @@ import {
   convertTopicsToJSON,
   downloadFile,
 } from "../../utils/export";
+import { InlineError } from "../ui/ErrorFallback";
+import { Skeleton } from "../ui/Skeleton";
+
+type AssociationKind = "notes" | "papers" | "ideas";
+
+type AssociationLoadErrors = Record<AssociationKind, string | null>;
+
+const EMPTY_ASSOCIATION_ERRORS: AssociationLoadErrors = {
+  notes: null,
+  papers: null,
+  ideas: null,
+};
+
+interface AssociationLoadResult<T> {
+  readonly items: T[];
+  readonly error: string | null;
+}
 
 interface TopicDetailViewProps {
   topic: TopicWithCounts;
@@ -43,9 +67,7 @@ export function TopicDetailView({
   onUpdate,
   onDelete,
 }: TopicDetailViewProps) {
-  const nameInputId = useId();
-  const descInputId = useId();
-  // Performance: Use useShallow with an object selector to prevent TopicDetailView from unnecessarily re-rendering on unrelated state changes in the global appStore.
+  // ⚡ OPTIMIZATION: Use useShallow with an object selector to prevent TopicDetailView from unnecessarily re-rendering on unrelated state changes in the global appStore.
   const { setCurrentView, setSelectedNote, setSelectedPaper, setSelectedIdea } =
     useAppStore(
       useShallow((state) => ({
@@ -63,7 +85,25 @@ export function TopicDetailView({
   const [notes, setNotes] = useState<Note[]>([]);
   const [papers, setPapers] = useState<Paper[]>([]);
   const [ideas, setIdeas] = useState<Idea[]>([]);
+  const [associationErrors, setAssociationErrors] =
+    useState<AssociationLoadErrors>(EMPTY_ASSOCIATION_ERRORS);
   const [userId, setUserId] = useState<string | null>(null);
+
+  const { quests, questsLoading, refreshQuests, advanceQuest } = useTopics(
+    userId ?? undefined,
+    { owner: false },
+  );
+
+  const topicQuests = useMemo(
+    () => quests.filter((quest) => quest.topic_id === topic.id),
+    [quests, topic.id],
+  );
+
+  const questStatusVariant: Record<TopicQuest["status"], BadgeVariant> = {
+    active: "neutral",
+    completed: "success",
+    expired: "warning",
+  };
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -82,16 +122,18 @@ export function TopicDetailView({
       setNotes([]);
       setPapers([]);
       setIdeas([]);
+      setAssociationErrors(EMPTY_ASSOCIATION_ERRORS);
       setLoadingAssociations(false);
       return;
     }
 
     setLoadingAssociations(true);
+    try {
 
-    const fetchIds = async <T extends string>(
+    const fetchIds = async (
       table: string,
       column: string,
-    ): Promise<T[]> => {
+    ): Promise<{ readonly ids: string[]; readonly error: string | null }> => {
       const { data, error } = await supabase
         .from(table)
         .select(column)
@@ -99,34 +141,41 @@ export function TopicDetailView({
 
       if (error) {
         logger.error(`Failed to load ${table}`, error);
-        return [];
+        return { ids: [], error: error.message };
       }
 
-      return (data || []).map((row) => row[column as keyof typeof row] as T);
+      return {
+        ids: (data || []).flatMap((row) => {
+          const value = row[column as keyof typeof row];
+          return typeof value === "string" ? [value] : [];
+        }),
+        error: null,
+      };
     };
 
-    // Performance: Combine ID fetching and row querying into independent, chained promises.
+    // ⚡ OPTIMIZATION: Combine ID fetching and row querying into independent, chained promises.
     // This removes the sequential bottleneck of waiting for all IDs across all entity types
     // to load before fetching *any* of the associated row data.
     const fetchAssociatedRows = async <T,>(
       idTable: string,
       idColumn: string,
       rowTable: string,
-    ): Promise<T[]> => {
-      const ids = await fetchIds<string>(idTable, idColumn);
-      if (!ids.length) return [];
+    ): Promise<AssociationLoadResult<T>> => {
+      const idResult = await fetchIds(idTable, idColumn);
+      if (idResult.error) return { items: [], error: idResult.error };
+      if (!idResult.ids.length) return { items: [], error: null };
 
       const { data, error } = await supabase
         .from(rowTable)
         .select("*")
-        .in("id", ids);
+        .in("id", idResult.ids);
 
       if (error) {
         logger.error(`Failed to load ${rowTable}`, error);
-        return [];
+        return { items: [], error: error.message };
       }
 
-      return (data || []) as T[];
+      return { items: (data || []) as T[], error: null };
     };
 
     const [notesData, papersData, ideasData] = await Promise.all([
@@ -135,10 +184,24 @@ export function TopicDetailView({
       fetchAssociatedRows<Idea>("topic_ideas", "idea_id", "ideas"),
     ]);
 
-    setNotes(notesData);
-    setPapers(papersData);
-    setIdeas(ideasData);
-    setLoadingAssociations(false);
+    setNotes(notesData.items);
+    setPapers(papersData.items);
+    setIdeas(ideasData.items);
+    setAssociationErrors({
+      notes: notesData.error,
+      papers: papersData.error,
+      ideas: ideasData.error,
+    });
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to load linked work. Please try again.";
+      logger.error("Failed to load topic associations", error);
+      setAssociationErrors({ notes: message, papers: message, ideas: message });
+    } finally {
+      setLoadingAssociations(false);
+    }
   }, [topic.id, userId]);
 
   useEffect(() => {
@@ -207,9 +270,11 @@ export function TopicDetailView({
 
       downloadFile(content, filename, format);
       toast.success(`Exported topic as ${format.toUpperCase()}`);
-    } catch (err: any) {
-      logger.error("Export failed", err);
-      toast.error(err.message || "Failed to export topic");
+    } catch (error) {
+      logger.error("Export failed", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to export topic",
+      );
     }
   };
 
@@ -217,21 +282,27 @@ export function TopicDetailView({
     () => [
       {
         label: "Notes",
-        count: topic.note_count,
+        recordedCount: topic.note_count,
+        displayCount: associationErrors.notes ? topic.note_count : notes.length,
+        error: associationErrors.notes,
         items: notes,
         icon: FileText,
         view: "notes" as const,
       },
       {
         label: "Papers",
-        count: topic.paper_count,
+        recordedCount: topic.paper_count,
+        displayCount: associationErrors.papers ? topic.paper_count : papers.length,
+        error: associationErrors.papers,
         items: papers,
         icon: BookOpen,
         view: "papers" as const,
       },
       {
         label: "Ideas",
-        count: topic.idea_count,
+        recordedCount: topic.idea_count,
+        displayCount: associationErrors.ideas ? topic.idea_count : ideas.length,
+        error: associationErrors.ideas,
         items: ideas,
         icon: Lightbulb,
         view: "ideas" as const,
@@ -241,6 +312,7 @@ export function TopicDetailView({
       ideas,
       notes,
       papers,
+      associationErrors,
       topic.idea_count,
       topic.note_count,
       topic.paper_count,
@@ -253,53 +325,42 @@ export function TopicDetailView({
         isOpen={isOpen}
         title={config.title || "Confirm Action"}
         message={config.message || "Are you sure?"}
-        confirmText={config.confirmText}
-        cancelText={config.cancelText}
-        variant={config.variant}
-        onConfirm={config.onConfirm!}
-        onClose={config.onClose!}
+        {...(config.confirmText !== undefined ? { confirmText: config.confirmText } : {})}
+        {...(config.cancelText !== undefined ? { cancelText: config.cancelText } : {})}
+        {...(config.variant !== undefined ? { variant: config.variant } : {})}
+        onConfirm={config.onConfirm ?? (() => {})}
+        onClose={config.onClose ?? (() => {})}
       />
       <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-6">
-      <div className="surface-panel p-4 sm:p-6 space-y-4">
+      <div className="bg-bg-surface border border-border-subtle rounded-xl shadow-sm p-4 sm:p-6 space-y-4">
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
           <div className="flex-1 space-y-2">
-            <div className="flex items-center gap-3">
-              <span className="icon-tile bg-accent-soft text-accent-strong">
-                <Hash className="h-4 w-4" aria-hidden="true" />
-              </span>
-              {isEditing ? (
-                <>
-                  <label htmlFor={nameInputId} className="sr-only">Topic name</label>
-                  <input
-                    id={nameInputId}
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                    maxLength={50}
-                    placeholder="Topic name..."
-                    className="w-full min-w-0 flex-1 h-10 rounded-lg border border-border-moderate bg-bg-base px-3 text-xl font-semibold text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
-                  />
-                </>
-              ) : (
-                <h1 className="min-w-0 truncate font-serif text-2xl font-bold text-text-primary">
-                  {topic.name}
-                </h1>
-              )}
-            </div>
             {isEditing ? (
-              <>
-                <label htmlFor={descInputId} className="sr-only">Topic description</label>
-                <textarea
-                  id={descInputId}
-                  value={description}
-                  onChange={(event) => setDescription(event.target.value)}
-                  rows={4}
-                  maxLength={500}
-                  className="w-full rounded-lg border border-border-moderate bg-bg-base px-3 py-2.5 text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
-                  placeholder="Describe what belongs in this topic..."
-                />
-              </>
+              <input
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                maxLength={50}
+                placeholder="Topic name..."
+                aria-label="Topic name"
+                className="w-full rounded-control border border-border-subtle bg-bg-base px-3 py-2 text-subtitle font-semibold text-text-primary focus:outline-none focus:ring-2 focus:ring-focus"
+              />
             ) : (
-              <p className="ml-11 text-body text-text-secondary whitespace-pre-wrap">
+              <h2 className="text-2xl font-bold text-text-primary">
+                {topic.name}
+              </h2>
+            )}
+            {isEditing ? (
+              <textarea
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+                rows={4}
+                maxLength={500}
+                className="w-full rounded-control border border-border-subtle bg-bg-base px-3 py-2 text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-focus"
+                placeholder="Describe what belongs in this topic..."
+                aria-label="Topic description"
+              />
+            ) : (
+              <p className="text-body text-text-secondary whitespace-pre-wrap">
                 {topic.description ||
                   "Add a description to guide your future self."}
               </p>
@@ -310,7 +371,7 @@ export function TopicDetailView({
               <div className="flex gap-2">
                 <button
                   onClick={handleSave}
-                  className="inline-flex h-10 items-center gap-2 rounded-lg bg-accent-strong px-3.5 text-small font-semibold text-accent-contrast shadow-lift transition-all hover:-translate-y-0.5 hover:opacity-95"
+                  className="inline-flex items-center gap-2 rounded-control bg-primary-500 px-3 py-2 text-bg-base transition-colors hover:bg-primary-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
                 >
                   <Save className="w-4 h-4" aria-hidden="true" />
                   Save
@@ -321,7 +382,7 @@ export function TopicDetailView({
                     setName(topic.name);
                     setDescription(topic.description || "");
                   }}
-                  className="inline-flex h-10 items-center gap-2 rounded-lg bg-bg-elevated px-3.5 text-small font-medium text-text-secondary transition-colors hover:bg-bg-base"
+                  className="inline-flex items-center gap-2 rounded-control bg-bg-elevated px-3 py-2 text-text-secondary transition-colors hover:bg-bg-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
                 >
                   <XCircle className="w-4 h-4" aria-hidden="true" />
                   Cancel
@@ -332,7 +393,7 @@ export function TopicDetailView({
                 <DropdownMenu.Root>
                   <DropdownMenu.Trigger asChild>
                     <button
-                      className="inline-flex h-10 items-center gap-2 rounded-lg bg-bg-elevated px-3.5 text-small font-medium text-text-secondary transition-colors hover:bg-bg-base"
+                      className="inline-flex items-center gap-2 rounded-control bg-bg-elevated px-3 py-2 text-text-secondary transition-colors hover:bg-bg-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
                       title="Export topic"
                       aria-label="Export topic"
                     >
@@ -342,25 +403,25 @@ export function TopicDetailView({
                   </DropdownMenu.Trigger>
                   <DropdownMenu.Portal>
                     <DropdownMenu.Content
-                      className="min-w-[160px] bg-bg-surface border border-border-moderate rounded-lg shadow-lg p-1 z-50 animate-in fade-in zoom-in-95"
+                      className="z-dropdown min-w-40 rounded-control border border-border-subtle bg-bg-surface p-1 shadow-md animate-in fade-in zoom-in-95"
                       align="end"
                     >
                       <DropdownMenu.Item
-                        className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-small text-text-primary hover:bg-bg-elevated cursor-pointer outline-none"
+                        className="flex cursor-pointer items-center gap-2 rounded-control px-2 py-1.5 text-small text-text-primary outline-none hover:bg-bg-elevated focus-visible:bg-bg-elevated"
                         onSelect={() => handleExport("markdown")}
                       >
                         <FileText className="w-4 h-4 text-text-secondary" />
                         Markdown
                       </DropdownMenu.Item>
                       <DropdownMenu.Item
-                        className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-small text-text-primary hover:bg-bg-elevated cursor-pointer outline-none"
+                        className="flex cursor-pointer items-center gap-2 rounded-control px-2 py-1.5 text-small text-text-primary outline-none hover:bg-bg-elevated focus-visible:bg-bg-elevated"
                         onSelect={() => handleExport("csv")}
                       >
                         <Table className="w-4 h-4 text-text-secondary" />
                         CSV
                       </DropdownMenu.Item>
                       <DropdownMenu.Item
-                        className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-small text-text-primary hover:bg-bg-elevated cursor-pointer outline-none"
+                        className="flex cursor-pointer items-center gap-2 rounded-control px-2 py-1.5 text-small text-text-primary outline-none hover:bg-bg-elevated focus-visible:bg-bg-elevated"
                         onSelect={() => handleExport("json")}
                       >
                         <FileJson className="w-4 h-4 text-text-secondary" />
@@ -371,14 +432,14 @@ export function TopicDetailView({
                 </DropdownMenu.Root>
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="inline-flex h-10 items-center gap-2 rounded-lg bg-bg-elevated px-3.5 text-small font-medium text-text-secondary transition-colors hover:bg-bg-base"
+                  className="inline-flex items-center gap-2 rounded-control bg-bg-elevated px-3 py-2 text-text-secondary transition-colors hover:bg-bg-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
                 >
                   <Pencil className="w-4 h-4" />
                   Edit
                 </button>
                 <button
                   onClick={handleDelete}
-                  className="inline-flex h-10 items-center gap-2 rounded-lg bg-coral-soft px-3.5 text-small font-semibold text-coral-strong transition-colors hover:opacity-90"
+                  className="inline-flex items-center gap-2 rounded-control bg-destructive-bg px-3 py-2 text-destructive transition-colors hover:bg-destructive/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
                 >
                   <Trash2 className="w-4 h-4" />
                   Delete
@@ -388,19 +449,19 @@ export function TopicDetailView({
           </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="rounded-lg border border-border-subtle bg-bg-elevated p-3 shadow-sm">
+          <div className="p-3 bg-bg-elevated rounded-lg border border-border-subtle">
             <p className="text-caption text-text-secondary">Created</p>
             <p className="text-small font-semibold text-text-primary">
               {new Date(topic.created_at).toLocaleDateString()}
             </p>
           </div>
-          <div className="rounded-lg border border-border-subtle bg-bg-elevated p-3 shadow-sm">
+          <div className="p-3 bg-bg-elevated rounded-lg border border-border-subtle">
             <p className="text-caption text-text-secondary">Last updated</p>
             <p className="text-small font-semibold text-text-primary">
               {new Date(topic.updated_at).toLocaleString()}
             </p>
           </div>
-          <div className="rounded-lg border border-border-subtle bg-bg-elevated p-3 shadow-sm">
+          <div className="p-3 bg-bg-elevated rounded-lg border border-border-subtle">
             <p className="text-caption text-text-secondary">Total links</p>
             <p className="text-small font-semibold text-text-primary">
               {topic.note_count + topic.paper_count + topic.idea_count}
@@ -409,63 +470,160 @@ export function TopicDetailView({
         </div>
       </div>
 
-      <div className="surface-panel">
+      <div className="bg-bg-surface border border-border-subtle rounded-xl shadow-sm">
         <div className="px-6 py-4 border-b border-border-subtle flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-text-primary">
+            <h3 className="text-lg font-semibold text-text-primary">
+              Topic Quests
+            </h3>
+            <p className="text-caption text-text-secondary">
+              Small challenges to keep this topic moving.
+            </p>
+          </div>
+          <button
+            onClick={() => void refreshQuests()}
+            disabled={questsLoading}
+            aria-label="Refresh topic quests"
+            className="inline-flex items-center gap-2 rounded-control bg-bg-elevated px-3 py-2 text-small text-text-secondary transition-colors hover:bg-bg-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {questsLoading ? "Refreshing…" : "Refresh"}
+          </button>
+        </div>
+        <div className="divide-y divide-border-subtle">
+          {questsLoading && topicQuests.length === 0 ? (
+            <div
+              className="space-y-2 px-6 py-4"
+              role="status"
+              aria-label="Loading quests"
+            >
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-1.5 w-full" />
+            </div>
+          ) : topicQuests.length === 0 ? (
+            <p className="px-6 py-4 text-caption text-text-tertiary">
+              No quests for this topic yet.
+            </p>
+          ) : (
+            topicQuests.map((quest) => {
+              const progressPercent =
+                quest.target_count > 0
+                  ? Math.min(
+                      100,
+                      Math.round(
+                        (quest.progress_count / quest.target_count) * 100,
+                      ),
+                    )
+                  : 0;
+              return (
+                <div key={quest.id} className="space-y-3 px-6 py-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0 space-y-1">
+                      <p className="text-body font-medium text-text-primary">
+                        {quest.objective}
+                      </p>
+                      <p className="text-small text-text-secondary">
+                        {quest.progress_count} of {quest.target_count}{" "}
+                        {quest.target_count === 1 ? "item" : "items"}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <Badge variant={questStatusVariant[quest.status]}>
+                        {quest.status.charAt(0).toUpperCase() +
+                          quest.status.slice(1)}
+                      </Badge>
+                      {quest.status === "active" && (
+                        <button
+                          type="button"
+                          onClick={() => void advanceQuest(topic.id)}
+                          disabled={questsLoading}
+                          className="inline-flex items-center gap-1 rounded-control bg-bg-elevated px-2.5 py-1.5 text-small font-medium text-text-secondary transition-colors hover:bg-bg-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          Mark progress
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div
+                    className="h-1.5 w-full overflow-hidden rounded-full bg-bg-elevated"
+                    role="progressbar"
+                    aria-label={`Progress for ${quest.objective}`}
+                    aria-valuemin={0}
+                    aria-valuemax={quest.target_count}
+                    aria-valuenow={quest.progress_count}
+                  >
+                    <div
+                      className="h-full bg-primary-500"
+                      style={{ width: `${progressPercent}%` }}
+                    />
+                  </div>
+                  {quest.due_date && (
+                    <p className="text-caption text-text-tertiary">
+                      Due {new Date(quest.due_date).toLocaleDateString()}
+                    </p>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      <div className="bg-bg-surface border border-border-subtle rounded-xl shadow-sm">
+        <div className="px-6 py-4 border-b border-border-subtle flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-text-primary">
               Connected work
-            </h2>
+            </h3>
             <p className="text-caption text-text-secondary">
               Jump back into the work linked to this topic.
             </p>
           </div>
           <button
             onClick={() => void loadAssociations()}
-            className="inline-flex h-10 items-center gap-2 rounded-lg bg-bg-elevated px-3.5 text-small font-medium text-text-secondary transition-colors hover:bg-bg-base"
+            disabled={loadingAssociations}
+            className="inline-flex items-center gap-2 rounded-control bg-bg-elevated px-3 py-2 text-small text-text-secondary transition-colors hover:bg-bg-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Refresh
+            {loadingAssociations ? "Refreshing…" : "Refresh"}
           </button>
         </div>
         <div className="divide-y divide-border-subtle">
           {associationSummary.map(
-            ({ label, count, items, icon: Icon, view }) => (
+            ({ label, recordedCount, displayCount, error, items, icon: Icon, view }) => (
               <div key={label} className="px-6 py-4">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <span
-                      className={`icon-tile h-8 w-8 ${
-                        label === "Notes"
-                          ? "bg-blue-soft text-blue-strong"
-                          : label === "Papers"
-                            ? "bg-violet-soft text-violet-strong"
-                            : "bg-gold-soft text-gold-strong"
-                      }`}
-                    >
-                      <Icon className="h-4 w-4" aria-hidden="true" />
-                    </span>
-                    <h3 className="text-small font-semibold text-text-primary">
+                    <Icon className="w-4 h-4 text-primary-500" aria-hidden="true" />
+                    <h4 className="text-small font-semibold text-text-primary">
                       {label}{" "}
                       <span className="text-text-tertiary font-normal">
-                        ({count})
+                        ({displayCount})
                       </span>
-                    </h3>
+                    </h4>
                   </div>
-                  {count > 0 && (
+                  {items[0] && (
                     <button
                       onClick={() => {
                         if (items[0]) {
                           handleNavigate(view, items[0]);
                         }
                       }}
-                      className="inline-flex items-center gap-1 text-caption font-medium text-accent-strong hover:text-accent"
+                      className="inline-flex items-center gap-1 text-caption text-primary-500 hover:text-primary-600"
                     >
                       Open latest <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   )}
                 </div>
                 {loadingAssociations ? (
-                  <p className="text-caption text-text-tertiary">Loading...</p>
-                ) : count === 0 ? (
+                  <div className="space-y-2" role="status" aria-label={`Loading linked ${label.toLowerCase()}`}>
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-4/5" />
+                  </div>
+                ) : error ? (
+                  <InlineError
+                    message={`Could not load linked ${label.toLowerCase()}. ${error}`}
+                    onRetry={() => void loadAssociations()}
+                  />
+                ) : displayCount === 0 ? (
                   <p className="text-caption text-text-tertiary">
                     No {label.toLowerCase()} linked yet.
                   </p>
@@ -475,7 +633,7 @@ export function TopicDetailView({
                       <li key={item.id}>
                         <button
                           onClick={() => handleNavigate(view, item)}
-                          className="w-full rounded-lg bg-bg-elevated px-4 py-2.5 text-left transition-colors hover:bg-accent-soft"
+                          className="w-full text-left px-4 py-2 bg-bg-elevated hover:bg-primary-500/10 rounded-md transition-colors"
                         >
                           <p className="text-small font-medium text-text-primary line-clamp-1">
                             {"title" in item && item.title
@@ -496,9 +654,14 @@ export function TopicDetailView({
                         </button>
                       </li>
                     ))}
-                    {count > 3 && (
+                    {recordedCount !== displayCount && (
                       <li className="text-caption text-text-tertiary">
-                        {count - 3} more {label.toLowerCase()} linked
+                        Showing {displayCount} available {label.toLowerCase()}; the stored count will reconcile on the next topic refresh.
+                      </li>
+                    )}
+                    {displayCount > 3 && (
+                      <li className="text-caption text-text-tertiary">
+                        {displayCount - 3} more {label.toLowerCase()} linked
                       </li>
                     )}
                   </ul>
