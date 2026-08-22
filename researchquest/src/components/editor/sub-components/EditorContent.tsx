@@ -16,7 +16,7 @@ interface EditorContentProps {
   viewMode: ViewMode;
   effectiveTheme: string;
   editorViewRef: React.MutableRefObject<EditorView | null>;
-  previewRef: React.RefObject<HTMLDivElement>;
+  previewRef: React.RefObject<HTMLDivElement | null>;
   applyFormatting: (format: "bold" | "italic" | "code" | "list" | "heading") => void;
   openLinkDialog: () => void;
   setCitationPickerOpen: (open: boolean) => void;

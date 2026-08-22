@@ -130,7 +130,7 @@ export function AppShell({ children }: AppShellProps) {
       {!isZenMode && (
         <div
           className="hidden min-h-[100dvh] shrink-0 lg:block"
-          {...(isMobileSidebarOpen ? { inert: "" } : {})}
+          {...(isMobileSidebarOpen ? { inert: true } : {})}
         >
           <Sidebar />
         </div>
@@ -171,7 +171,7 @@ export function AppShell({ children }: AppShellProps) {
       <div
         data-testid="app-shell-content"
         className="flex min-w-0 flex-1 flex-col overflow-hidden"
-        {...(isMobileSidebarOpen ? { inert: "" } : {})}
+        {...(isMobileSidebarOpen ? { inert: true } : {})}
       >
         {/* Mobile Header */}
         {!isZenMode && (
@@ -216,7 +216,7 @@ export function AppShell({ children }: AppShellProps) {
           data-testid="right-panel"
           aria-label="Context panel"
           className="hidden min-h-[100dvh] w-80 shrink-0 border-l border-border-subtle bg-bg-surface xl:flex"
-          {...(isMobileSidebarOpen ? { inert: "" } : {})}
+          {...(isMobileSidebarOpen ? { inert: true } : {})}
         >
           <div className="h-full w-full min-w-0">
             <RightSidebar />

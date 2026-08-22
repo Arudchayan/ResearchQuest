@@ -516,7 +516,6 @@ class DemoQuery {
     }
 
     if (this.operation === "update") {
-      const tableRows = tables[this.tableName] ?? [];
       const matching = this.filteredRows();
       const updated: Row[] = [];
       for (const row of matching) {
@@ -565,7 +564,7 @@ class DemoQuery {
       } catch (error) {
         reject(error);
       }
-    }).then(onFulfilled, onRejected);
+    }).then(onFulfilled as ((value: unknown) => TResult1 | PromiseLike<TResult1>) | null | undefined, onRejected);
   }
 
   catch<TResult = never>(
@@ -724,7 +723,6 @@ const demoFunctions = {
 
 const demoRealtime = {
   channel(name: string): DemoChannel {
-    const callbacks: Array<ChannelSubscription["callback"]> = [];
     return {
       on(event: string, config: { table: string; filter?: string }, callback: ChannelSubscription["callback"]) {
         if (event === "postgres_changes") {

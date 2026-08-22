@@ -11,7 +11,7 @@ import type { SaveState } from "./useMarkdownEditor";
 interface EditorActionOptions {
   readonly content: string;
   readonly title: string;
-  readonly previewRef: RefObject<HTMLDivElement>;
+  readonly previewRef: RefObject<HTMLDivElement | null>;
   readonly selectedNote: Note | null;
   readonly userId: string | undefined;
   readonly updateNote: (noteId: string, updates: Partial<Note>) => Promise<boolean>;

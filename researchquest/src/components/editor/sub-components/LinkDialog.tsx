@@ -9,7 +9,7 @@ interface LinkDialogProps {
   linkUrl: string;
   setLinkUrl: (url: string) => void;
   error: string | null;
-  inputRef: React.RefObject<HTMLInputElement>;
+  inputRef: React.RefObject<HTMLInputElement | null>;
 }
 
 export function LinkDialog({

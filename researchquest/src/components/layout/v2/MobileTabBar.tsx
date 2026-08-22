@@ -122,7 +122,7 @@ export function MobileTabBar() {
       <nav
         aria-label="Primary"
         className="fixed inset-x-0 bottom-0 z-30 min-h-12 border-t border-border-subtle bg-bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden"
-        {...(isBarInert ? { inert: "" } : {})}
+        {...(isBarInert ? { inert: true } : {})}
       >
         <div className="grid min-h-12 grid-cols-5 items-center px-2">
           {tabs.map((tab) => (

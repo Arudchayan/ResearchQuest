@@ -236,7 +236,7 @@ export function useEntityCrud<
       const cfg = configRef.current;
       const chain = supabase
         .from(cfg.tableName)
-        .update(payload)
+        .update(payload as T)
         .eq("id", id)
         .eq("user_id", cfg.userId);
       if (!cfg.updateReturnsData) {

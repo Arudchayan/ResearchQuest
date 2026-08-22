@@ -36,6 +36,7 @@ const TAB_DESCRIPTIONS: Record<keyof typeof TAB_LABELS, string> = {
 export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: AddPaperViewProps) {
   const [activeTab, setActiveTab] = useState<"doi" | "search" | "manual" | "import">("doi");
   const [successMessage, setSuccessMessage] = useState("");
+  const [isAdding, setIsAdding] = useState(false);
   const setSelectedPaper = useAppStore((state) => state.setSelectedPaper);
 
   const {
@@ -105,6 +106,7 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
 
   const handleAddDoiResult = async () => {
     if (!doiResult) return;
+    setIsAdding(true);
     try {
       const created = await onAdd(buildPaperPayload(doiResult));
       if (created) {
@@ -114,6 +116,8 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
       }
     } catch (err) {
       setSearchError("Failed to add paper.");
+    } finally {
+      setIsAdding(false);
     }
   };
 
@@ -128,6 +132,7 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
 
   const handleAddSelectedResult = async () => {
     if (!selectedResult) return;
+    setIsAdding(true);
     try {
       const created = await onAdd(buildPaperPayload(selectedResult));
       if (created) {
@@ -138,6 +143,8 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
       }
     } catch (err) {
       setSearchError("Failed to add paper.");
+    } finally {
+      setIsAdding(false);
     }
   };
 
@@ -291,6 +298,7 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
               onSearch={handleDOISearchAction}
               onAdd={handleAddDoiResult}
               loading={searchLoading}
+              isAdding={isAdding}
               doiResult={doiResult}
               isValidUrl={isValidUrl}
             />
@@ -304,6 +312,7 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
               onSearch={handleQuerySearchAction}
               onAdd={handleAddSelectedResult}
               loading={searchLoading}
+              isAdding={isAdding}
               searchResults={searchResults}
               selectedResult={selectedResult}
               setSelectedResult={setSelectedResult}

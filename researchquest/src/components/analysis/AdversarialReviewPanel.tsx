@@ -18,7 +18,7 @@ import {
 } from "../../utils/adversarialAnalysis";
 import { performDeepResearch } from "../../utils/deepResearch";
 import { useAppStore } from "../../store/appStore";
-import type { Note, Paper, Idea, TopicWithCounts } from "../../types/database";
+import type { TopicWithCounts } from "../../types/database";
 
 interface AdversarialReviewPanelProps {
   open: boolean;
