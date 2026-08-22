@@ -9,9 +9,7 @@ import type {
   TopicEntityType,
   TopicQuestWithTopic,
 } from "../types/database";
-import type { PostgrestError } from "@supabase/supabase-js";
 import { useShallow } from "zustand/react/shallow";
-import { recordSprintEvent } from "../store/sprintStore";
 
 interface TopicRow extends TopicWithCounts {
   topic_notes?: { count: number | null }[];
@@ -64,7 +62,7 @@ function mapTopicRow(row: TopicRow): TopicWithCounts {
     id: row.id,
     user_id: row.user_id,
     name: row.name,
-    description: row.description,
+    ...(row.description !== undefined ? { description: row.description } : {}),
     created_at: row.created_at,
     updated_at: row.updated_at,
     note_count: coerceCount(row.topic_notes),
@@ -77,11 +75,11 @@ function isTopicRow(value: unknown): value is TopicRow {
   if (!value || typeof value !== "object") return false;
   const record = value as Record<string, unknown>;
   return (
-    typeof record.id === "string" &&
-    typeof record.user_id === "string" &&
-    typeof record.name === "string" &&
-    typeof record.created_at === "string" &&
-    typeof record.updated_at === "string"
+    typeof record["id"] === "string" &&
+    typeof record["user_id"] === "string" &&
+    typeof record["name"] === "string" &&
+    typeof record["created_at"] === "string" &&
+    typeof record["updated_at"] === "string"
   );
 }
 
@@ -90,6 +88,14 @@ function isTopicRowArray(value: unknown): value is TopicRow[] {
 }
 
 function mapQuestRow(row: TopicQuestRow): TopicQuestWithTopic {
+  const resolvedTopic = row.topics
+    ? {
+        id: row.topics.id,
+        name: row.topics.name,
+        updated_at: row.topics.updated_at,
+      }
+    : row.topic;
+
   return {
     id: row.id,
     user_id: row.user_id,
@@ -97,28 +103,48 @@ function mapQuestRow(row: TopicQuestRow): TopicQuestWithTopic {
     objective: row.objective,
     target_count: row.target_count,
     progress_count: row.progress_count,
-    due_date: row.due_date,
+    ...(row.due_date !== undefined ? { due_date: row.due_date } : {}),
     status: row.status,
     created_at: row.created_at,
     updated_at: row.updated_at,
-    topic: row.topics
-      ? {
-          id: row.topics.id,
-          name: row.topics.name,
-          updated_at: row.topics.updated_at,
-        }
-      : row.topic,
+    ...(resolvedTopic ? { topic: resolvedTopic } : {}),
   };
 }
 
 function getDueDate(daysAhead: number): string {
   const date = new Date();
   date.setDate(date.getDate() + daysAhead);
-  return date.toISOString().split("T")[0];
+  return date.toISOString().split("T")[0]!;
 }
 
-export function useTopics(userId: string | undefined) {
-  const { topicsRecord, setTopics, upsertTopic, removeTopic, setSelectedTopic, setTopicsLoading, setDataSyncError } =
+export interface UseTopicsOptions {
+  /**
+   * OWNERSHIP: topics (sole owner)
+   *
+   * The owner instance is the exclusive producer of the canonical Zustand
+   * topics list: it hydrates on mount, listens to the store-level retry
+   * counter (retryDataSync("topics")), and force-refreshes after a cache
+   * reset. Non-owner consumers (TopicsView, TopicSelector) read the same
+   * canonical list without issuing their own list fetches.
+   */
+  owner?: boolean;
+}
+
+export function useTopics(
+  userId: string | undefined,
+  { owner = true }: UseTopicsOptions = {},
+) {
+  const {
+    topicsRecord,
+    setTopics,
+    upsertTopic,
+    removeTopic,
+    setSelectedTopic,
+    setTopicsLoading,
+    setDataSyncError,
+    topicsRetryVersion,
+    storeTopicsLoading,
+  } =
     useAppStore(
       useShallow((state) => ({
         topicsRecord: state.topics,
@@ -128,6 +154,8 @@ export function useTopics(userId: string | undefined) {
         setSelectedTopic: state.setSelectedTopic,
         setTopicsLoading: state.setTopicsLoading,
         setDataSyncError: state.setDataSyncError,
+        topicsRetryVersion: state.dataSyncRetryCounters?.topics ?? 0,
+        storeTopicsLoading: state.topicsLoading,
       })),
     );
 
@@ -136,25 +164,22 @@ export function useTopics(userId: string | undefined) {
       a.updated_at > b.updated_at ? -1 : a.updated_at < b.updated_at ? 1 : 0
     );
   }, [topicsRecord]);
-  const [loading, setLoading] = useState(true);
+  const [localTopicsLoading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [quests, setQuests] = useState<TopicQuestWithTopic[]>([]);
   const [questsLoading, setQuestsLoading] = useState(false);
 
-  const supportsCountsRef = useRef(true);
-  const isRelationshipError = useCallback((err: PostgrestError | null) => {
-    if (!err) return false;
-    const match = err.message
-      ?.toLowerCase()
-      .includes("could not find a relationship");
-    if (match) {
-      supportsCountsRef.current = false;
-    }
-    return Boolean(match);
-  }, []);
+  const previousRetryVersion = useRef(topicsRetryVersion);
+  // Stale-response guards: every list fetch bumps the generation; only the
+  // latest generation for the current user may commit results, so late
+  // in-flight responses cannot overwrite newer topic state or another user's.
+  const topicFetchGeneration = useRef(0);
+  const userIdRef = useRef(userId);
+  userIdRef.current = userId;
 
   const fetchTopics = useCallback(
     async (force = false) => {
+      if (!owner) return;
       if (!userId) {
         setTopics([]);
         setLoading(false);
@@ -177,23 +202,25 @@ export function useTopics(userId: string | undefined) {
         }
       }
 
+      // Capture the request identity so a late response is discarded if a
+      // newer fetch or a user switch happened while it was in flight.
+      const generation = ++topicFetchGeneration.current;
+      const requestUserId = userId;
+
       setLoading(true);
       setTopicsLoading(true);
-      const selectColumns = supportsCountsRef.current ? TOPIC_SELECT : "*";
-      let { data, error: fetchError } = await supabase
+      const { data, error: fetchError } = await supabase
         .from("topics")
-        .select(selectColumns)
+        .select(TOPIC_SELECT)
         .eq("user_id", userId)
         .order("updated_at", { ascending: false });
 
-      if (fetchError && isRelationshipError(fetchError)) {
-        const fallback = await supabase
-          .from("topics")
-          .select("*")
-          .eq("user_id", userId)
-          .order("updated_at", { ascending: false });
-        data = fallback.data;
-        fetchError = fallback.error;
+      if (
+        generation !== topicFetchGeneration.current ||
+        requestUserId !== userIdRef.current
+      ) {
+        // Stale response — a newer fetch or user switch superseded it.
+        return;
       }
 
       if (fetchError) {
@@ -218,31 +245,19 @@ export function useTopics(userId: string | undefined) {
       setLoading(false);
       setTopicsLoading(false);
     },
-    [isRelationshipError, setTopics, setTopicsLoading, setDataSyncError, userId],
+    [owner, setTopics, setTopicsLoading, setDataSyncError, userId],
   );
 
   const fetchTopicById = useCallback(
     async (topicId: string) => {
       if (!userId) return;
 
-      const selectColumns = supportsCountsRef.current ? TOPIC_SELECT : "*";
-      let { data, error: fetchError } = await supabase
+      const { data, error: fetchError } = await supabase
         .from("topics")
-        .select(selectColumns)
+        .select(TOPIC_SELECT)
         .eq("user_id", userId)
         .eq("id", topicId)
         .maybeSingle();
-
-      if (fetchError && isRelationshipError(fetchError)) {
-        const fallback = await supabase
-          .from("topics")
-          .select("*")
-          .eq("user_id", userId)
-          .eq("id", topicId)
-          .maybeSingle();
-        data = fallback.data;
-        fetchError = fallback.error;
-      }
 
       if (fetchError) {
         logger.error(
@@ -261,7 +276,7 @@ export function useTopics(userId: string | undefined) {
         }
       }
     },
-    [isRelationshipError, setSelectedTopic, upsertTopic, userId],
+    [setSelectedTopic, upsertTopic, userId],
   );
 
   const fetchQuests = useCallback(async () => {
@@ -300,6 +315,7 @@ export function useTopics(userId: string | undefined) {
       a.updated_at > b.updated_at ? 1 : a.updated_at < b.updated_at ? -1 : 0
     );
     const targetTopic = sortedTopics[0];
+    if (!targetTopic) return;
     const objective = `Review and enrich "${targetTopic.name}"`;
     const { data, error: insertError } = await supabase
       .from("topic_quests")
@@ -331,10 +347,18 @@ export function useTopics(userId: string | undefined) {
   const prevImportVersion = useRef(importRefreshVersion);
 
   useEffect(() => {
+    if (!owner) return;
     const isForce = importRefreshVersion !== prevImportVersion.current;
     prevImportVersion.current = importRefreshVersion;
     void fetchTopics(isForce);
-  }, [fetchTopics, importRefreshVersion]);
+  }, [fetchTopics, importRefreshVersion, owner]);
+
+  useEffect(() => {
+    if (!owner) return;
+    if (topicsRetryVersion === previousRetryVersion.current) return;
+    previousRetryVersion.current = topicsRetryVersion;
+    void fetchTopics(true);
+  }, [fetchTopics, owner, topicsRetryVersion]);
 
   useEffect(() => {
     void fetchQuests();
@@ -388,9 +412,7 @@ export function useTopics(userId: string | undefined) {
       toast.success("Topic created");
       await awardXP(userId, XP_REWARDS.CREATE_TOPIC, "create_topic");
       void ensureActiveQuest();
-      if (supportsCountsRef.current) {
-        void fetchTopicById(mapped.id);
-      }
+      void fetchTopicById(mapped.id);
       return mapped;
     },
     [ensureActiveQuest, fetchTopicById, setSelectedTopic, upsertTopic, userId],
@@ -464,7 +486,6 @@ export function useTopics(userId: string | undefined) {
             XP_REWARDS.COMPLETE_TOPIC_QUEST,
             "complete_topic_quest",
           );
-          recordSprintEvent("quest", XP_REWARDS.COMPLETE_TOPIC_QUEST);
           toast.success("Topic quest completed!");
         }
       }
@@ -494,10 +515,10 @@ export function useTopics(userId: string | undefined) {
 
       const payload: Record<string, unknown> = {};
       if (typeof updates.name === "string") {
-        payload.name = updates.name.trim();
+        payload["name"] = updates.name.trim();
       }
       if (typeof updates.description === "string") {
-        payload.description = updates.description.trim() || null;
+        payload["description"] = updates.description.trim() || null;
       }
 
       const { error: updateError } = await supabase
@@ -626,14 +647,12 @@ export function useTopics(userId: string | undefined) {
       const table = ENTITY_TABLE[entityType];
       const column = ENTITY_COLUMN[entityType];
 
-      const query = supabase
+      const { error: deleteError } = await supabase
         .from(table)
         .delete()
         .eq("topic_id", topicId)
         .eq(column, entityId)
         .eq("user_id", userId);
-
-      const { error: deleteError } = await query;
 
       if (deleteError) {
         logger.error(
@@ -672,13 +691,11 @@ export function useTopics(userId: string | undefined) {
 
       const table = ENTITY_TABLE[entityType];
       const column = ENTITY_COLUMN[entityType];
-      const query = supabase
+      const { data, error: fetchError } = await supabase
         .from(table)
         .select("topic_id")
         .eq(column, entityId)
         .eq("user_id", userId);
-
-      const { data, error: fetchError } = await query;
 
       if (fetchError) {
         logger.error(
@@ -704,6 +721,10 @@ export function useTopics(userId: string | undefined) {
     () => quests.find((quest) => quest.status === "active") || null,
     [quests],
   );
+
+  // Non-owners surface the canonical store loading state (set by the owner);
+  // the owner keeps its own local state, unchanged.
+  const loading = owner ? localTopicsLoading : storeTopicsLoading;
 
   return {
     topics,

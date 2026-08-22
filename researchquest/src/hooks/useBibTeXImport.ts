@@ -70,6 +70,7 @@ export function useBibTeXImport(
     } else {
       for (let i = 0; i < entriesToImport.length; i++) {
         const entry = entriesToImport[i];
+        if (!entry) continue;
         try {
           await onAdd(buildPaperPayloadFromBibTeX(entry));
           successCount++;

@@ -81,6 +81,49 @@ describe("CommandPalette", () => {
     });
   });
 
+  it("fix: does not open when Cmd+K is pressed while an editable target has focus", async () => {
+    render(<CommandPalette />);
+
+    const ta = document.createElement("textarea");
+    document.body.appendChild(ta);
+    fireEvent.keyDown(ta, { key: "k", metaKey: true });
+    ta.remove();
+
+    expect(
+      screen.queryByPlaceholderText("Type a command or search..."),
+    ).not.toBeInTheDocument();
+  });
+
+  it("opens when Cmd+K is pressed while a non-editable target has focus", async () => {
+    render(
+      <>
+        <CommandPalette />
+        <button type="button">Palette Trigger</button>
+      </>,
+    );
+
+    fireEvent.keyDown(screen.getByRole("button", { name: "Palette Trigger" }), {
+      key: "k",
+      metaKey: true,
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByPlaceholderText("Type a command or search..."),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("keeps the palette within the 320px reflow width and exposes a visible focus ring", async () => {
+    render(<CommandPalette />);
+    fireEvent.keyDown(document, { key: "k", metaKey: true });
+
+    await screen.findByRole("dialog", { name: "Command Menu" });
+    const palette = document.querySelector("[cmdk-root]");
+    expect(palette).toHaveClass("w-[calc(100vw-2rem)]", "max-w-xl");
+    expect(screen.getByPlaceholderText("Type a command or search...")).toHaveClass("focus-visible:outline-2");
+  });
+
   it("renders navigation commands", async () => {
     render(<CommandPalette />);
     fireEvent.keyDown(document, { key: "k", metaKey: true });

@@ -1,6 +1,5 @@
-import { useEffect, useCallback, useRef, useState, lazy, Suspense } from "react";
+import { useEffect, useCallback, useRef, useState } from "react";
 import type { EditorView } from "@codemirror/view";
-import { FileText } from "lucide-react";
 import { CitationPicker } from "./CitationPicker";
 import { TopicSelector } from "../topics/TopicSelector";
 
@@ -15,22 +14,13 @@ import { EditorHeader } from "./sub-components/EditorHeader";
 import { EditorToolbar } from "./sub-components/EditorToolbar";
 import { EditorFooter } from "./sub-components/EditorFooter";
 import { LinkDialog } from "./sub-components/LinkDialog";
+import EditorContent from "./sub-components/EditorContent";
 
-const LazyEditorContent = lazy(() => import("./sub-components/EditorContent"));
-
-function EditorSkeleton() {
-  return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-bg-surface animate-pulse p-6 space-y-3">
-      <div className="shimmer h-5 bg-bg-muted rounded-lg w-3/4" />
-      <div className="h-5 bg-bg-muted rounded-lg w-1/2" />
-      <div className="h-5 bg-bg-muted rounded-lg w-5/6" />
-      <div className="h-5 bg-bg-muted rounded-lg w-2/3" />
-      <div className="h-5 bg-bg-muted rounded-lg w-3/4" />
-    </div>
-  );
+interface MarkdownEditorProps {
+  readonly onBackToList?: () => void;
 }
 
-export function MarkdownEditor() {
+export function MarkdownEditor({ onBackToList }: MarkdownEditorProps) {
   const editorViewRef = useRef<EditorView | null>(null);
   const previewRef = useRef<HTMLDivElement>(null);
   const [citationPickerOpen, setCitationPickerOpen] = useState(false);
@@ -44,8 +34,8 @@ export function MarkdownEditor() {
     debouncedContent,
     viewMode,
     setViewMode,
-    saving,
-    setSaving,
+    saveState,
+    setSaveState,
     wordCount,
     readingTime,
     effectiveTheme,
@@ -57,7 +47,7 @@ export function MarkdownEditor() {
 
   const { applyFormatting, handleCitationSelect } = useFormatting(editorViewRef);
   const { linkDialogOpen, openLinkDialog, closeLinkDialog, handleLinkSubmit, linkTextValue, setLinkTextValue, linkUrlValue, setLinkUrlValue, linkError, linkUrlInputRef } = useLinkDialog(editorViewRef);
-  const { handleCopyMarkdown, handleCopyRichText, handleExport, handlePrint, saveNote } = useEditorActions(content, title, previewRef, selectedNote, userId, updateNote, setSaving);
+  const { handleCopyMarkdown, handleCopyRichText, handleExport, handlePrint, saveNote } = useEditorActions({ content, title, previewRef, selectedNote, userId, updateNote, setSaveState });
 
   // Auto-save
   useEffect(() => {
@@ -86,21 +76,16 @@ export function MarkdownEditor() {
   if (!selectedNote) {
     return (
       <div className="h-screen-dynamic flex items-center justify-center bg-bg-base">
-        <div className="animate-rise surface-card flex flex-col items-center px-8 py-10 text-center">
-          <span className="icon-tile h-14 w-14 rounded-2xl bg-blue-soft text-blue-strong">
-            <FileText className="h-7 w-7" aria-hidden="true" />
-          </span>
-          <p className="mt-4 max-w-xs text-body text-text-secondary">
-            Select a note or create a new one to start editing
-          </p>
+        <div className="text-center text-text-tertiary">
+          <p className="text-body">Select a note or create a new one to start editing</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-screen-dynamic flex flex-col bg-bg-base">
-      <EditorHeader title={title} setTitle={setTitle} saving={saving} />
+    <div className="flex h-full min-h-0 flex-col bg-bg-base">
+       <EditorHeader title={title} setTitle={setTitle} saveState={saveState} {...(onBackToList ? { onBackToList } : {})} />
 
       <EditorToolbar
         applyFormatting={applyFormatting}
@@ -116,12 +101,11 @@ export function MarkdownEditor() {
         setViewMode={setViewMode}
       />
 
-      <div className="border-b border-border-subtle bg-bg-surface px-6 py-4">
+       <div className="border-b border-border-subtle bg-bg-surface px-4 py-3 sm:px-6 sm:py-4">
         <TopicSelector entityId={selectedNote.id} entityType="note" />
       </div>
 
-      <Suspense fallback={<EditorSkeleton />}>
-        <LazyEditorContent
+       <EditorContent
           content={content}
           setContent={setContent}
           debouncedContent={debouncedContent}
@@ -134,8 +118,7 @@ export function MarkdownEditor() {
           setCitationPickerOpen={setCitationPickerOpen}
           setViewMode={setViewMode}
           toggleZenMode={toggleZenMode}
-        />
-      </Suspense>
+       />
 
       <EditorFooter wordCount={wordCount} readingTime={readingTime} />
 

@@ -97,6 +97,9 @@ interface AppState {
   /** Sum of `duration_seconds` for the signed-in user's focus sessions completed today (local midnight). */
   focusSessionSecondsToday: number;
   setFocusSessionSecondsToday: (seconds: number) => void;
+  /** XP earned today from daily_logs (updated by useDataSync). */
+  todayXP: number;
+  setTodayXP: (xp: number) => void;
   setNotesLoading: (loading: boolean) => void;
   setPapersLoading: (loading: boolean) => void;
   setIdeasLoading: (loading: boolean) => void;
@@ -105,6 +108,9 @@ interface AppState {
   setDataSyncError: (resource: DataSyncResource, message: string) => void;
   clearDataSyncError: (resource: DataSyncResource) => void;
   clearDataSyncErrors: () => void;
+  /** Monotonic per-resource retry counters; incremented by retryDataSync so owner hooks refetch. */
+  dataSyncRetryCounters: Record<DataSyncResource, number>;
+  retryDataSync: (resource: DataSyncResource) => void;
 
   // Lightweight dashboard previews/counts. These do not imply full collections are loaded.
   dashboardLibrary: DashboardLibrarySnapshot;
@@ -130,7 +136,7 @@ interface AppState {
 
 export const useAppStore = create<AppState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       // Theme
       theme: "auto",
       effectiveTheme: "light",
@@ -177,6 +183,8 @@ export const useAppStore = create<AppState>()(
       focusSessionSecondsToday: 0,
       setFocusSessionSecondsToday: (focusSessionSecondsToday) =>
         set({ focusSessionSecondsToday }),
+      todayXP: 0,
+      setTodayXP: (todayXP) => set({ todayXP }),
       notesLoading: false,
       papersLoading: false,
       ideasLoading: false,
@@ -188,6 +196,13 @@ export const useAppStore = create<AppState>()(
         ideas: null,
         tasks: null,
         topics: null,
+      },
+      dataSyncRetryCounters: {
+        notes: 0,
+        papers: 0,
+        ideas: 0,
+        tasks: 0,
+        topics: 0,
       },
       setNotes: (notes) => set({ notes }),
       setPapers: (papers) => set({ papers }),
@@ -222,6 +237,17 @@ export const useAppStore = create<AppState>()(
             topics: null,
           },
         }),
+      retryDataSync: (resource) =>
+        set((state) => ({
+          dataSyncErrors: {
+            ...state.dataSyncErrors,
+            [resource]: null,
+          },
+          dataSyncRetryCounters: {
+            ...state.dataSyncRetryCounters,
+            [resource]: state.dataSyncRetryCounters[resource] + 1,
+          },
+        })),
 
       dashboardLibrary: createEmptyDashboardLibrary(),
       setDashboardLibrary: (dashboardLibrary) => set({ dashboardLibrary }),
@@ -282,7 +308,7 @@ if (typeof window !== "undefined") {
   // Listen for system theme changes
   window
     .matchMedia("(prefers-color-scheme: dark)")
-    .addEventListener("change", (e) => {
+    .addEventListener("change", () => {
       const currentTheme = useAppStore.getState().theme;
       if (currentTheme === "auto") {
         useAppStore.getState().setTheme("auto");

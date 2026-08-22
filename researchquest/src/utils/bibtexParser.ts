@@ -45,10 +45,10 @@ export function parseBibTeX(input: string): BibTeXEntry[] {
       continue;
     }
 
-    const type = typeMatch[1].toLowerCase();
+    const type = typeMatch[1]!.toLowerCase();
 
     // Move pos to after '{'
-    pos += typeMatch[0].length;
+    pos += typeMatch[0]!.length;
 
     // Find the end of the entry (matching brace)
     let braceCount = 1;
@@ -119,7 +119,7 @@ function parseFields(body: string, entry: BibTeXEntry) {
 
   while (cursor < body.length) {
     // Skip whitespace and commas
-    while (cursor < body.length && /[\s,]/.test(body[cursor])) cursor++;
+    while (cursor < body.length && /[\s,]/.test(body[cursor]!)) cursor++;
     if (cursor >= body.length) break;
 
     // Parse key
@@ -130,11 +130,11 @@ function parseFields(body: string, entry: BibTeXEntry) {
       continue;
     }
 
-    const key = keyMatch[1].toLowerCase();
-    cursor += keyMatch[0].length;
+    const key = keyMatch[1]!.toLowerCase();
+    cursor += keyMatch[0]!.length;
 
     // Skip whitespace after =
-    while (cursor < body.length && /\s/.test(body[cursor])) cursor++;
+    while (cursor < body.length && /\s/.test(body[cursor]!)) cursor++;
 
     if (cursor >= body.length) break;
 
@@ -179,7 +179,7 @@ function parseFields(body: string, entry: BibTeXEntry) {
       // Standard says: run of chars not containing space, comma, brace, quote, equals
       // But here we rely on simple delimiter scan
       let end = cursor;
-      while (end < body.length && !/[\s,}]/.test(body[end])) {
+      while (end < body.length && !/[\s,}]/.test(body[end]!)) {
         end++;
       }
       value = body.substring(cursor, end);

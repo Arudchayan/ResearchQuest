@@ -37,7 +37,7 @@ export function AddIdeaDialog({
 
     onConfirm({
       title: title.trim(),
-      description: description.trim() || undefined,
+      ...(description.trim() ? { description: description.trim() } : {}),
     });
   };
 
@@ -48,7 +48,7 @@ export function AddIdeaDialog({
       onSubmit={handleSubmit}
       title="New Idea"
       description="Capture a new concept, hypothesis, or research direction."
-      icon={<Lightbulb className="h-5 w-5 text-accent-strong" aria-hidden="true" />}
+      icon={<Lightbulb className="h-6 w-6 text-primary-500" />}
       submitText="Create Idea"
       isLoading={isLoading}
       isSubmitDisabled={!title.trim()}
@@ -56,9 +56,9 @@ export function AddIdeaDialog({
       <div>
         <label
           htmlFor="idea-title"
-          className="block text-small font-medium text-text-primary mb-1.5"
+          className="mb-2 block text-small font-medium text-text-primary"
         >
-          Title <span aria-hidden="true">*</span>
+          Title *
         </label>
         <input
           ref={firstInputRef}
@@ -67,7 +67,7 @@ export function AddIdeaDialog({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="E.g., Neural network pruning technique"
-          className="w-full h-10 rounded-lg border border-border-moderate bg-bg-base px-3.5 text-body text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-accent transition-shadow"
+          className="w-full rounded-control border border-border-subtle bg-bg-base px-3 py-2 text-body text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-focus transition-shadow"
           required
           disabled={isLoading}
           maxLength={255}
@@ -77,7 +77,7 @@ export function AddIdeaDialog({
       <div>
         <label
           htmlFor="idea-description"
-          className="block text-small font-medium text-text-primary mb-1.5"
+          className="mb-2 block text-small font-medium text-text-primary"
         >
           Description
         </label>
@@ -87,7 +87,7 @@ export function AddIdeaDialog({
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Optional details about this idea..."
           rows={4}
-          className="w-full rounded-lg border border-border-moderate bg-bg-base px-3.5 py-2.5 text-body text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-accent resize-none transition-shadow"
+          className="w-full resize-none rounded-control border border-border-subtle bg-bg-base px-3 py-2 text-body text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-focus transition-shadow"
           disabled={isLoading}
           maxLength={5000}
         />

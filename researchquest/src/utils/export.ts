@@ -138,8 +138,16 @@ export function convertPapersToBibTeX(papers: Paper[]): string {
   return papers.map(generateBibTeX).join("\n\n");
 }
 
+function toJSON(value: unknown): string {
+  return JSON.stringify(value, null, 2);
+}
+
+function toCSV(headers: string[], rows: (string | null | undefined)[][]): string {
+  return [headers.join(","), ...rows.map((r) => r.map(escapeCSV).join(","))].join("\n");
+}
+
 export function convertPapersToJSON(papers: Paper[]): string {
-  return JSON.stringify(papers, null, 2);
+  return toJSON(papers);
 }
 
 export function convertPapersToCSV(papers: Paper[]): string {
@@ -162,21 +170,21 @@ export function convertPapersToCSV(papers: Paper[]): string {
     }
 
     return [
-      escapeCSV(p.title),
-      escapeCSV(p.authors?.join("; ")),
-      escapeCSV(year),
-      escapeCSV(p.doi),
-      escapeCSV(p.source_url),
-      escapeCSV(p.abstract),
-      escapeCSV(p.created_at),
+      p.title,
+      p.authors?.join("; "),
+      year,
+      p.doi,
+      p.source_url,
+      p.abstract,
+      p.created_at,
     ];
   });
 
-  return [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+  return toCSV(headers, rows);
 }
 
 export function convertNotesToJSON(notes: Note[]): string {
-  return JSON.stringify(notes, null, 2);
+  return toJSON(notes);
 }
 
 export function convertNotesToCSV(notes: Note[]): string {
@@ -191,15 +199,15 @@ export function convertNotesToCSV(notes: Note[]): string {
 
   const rows = notes.map((n) => {
     return [
-      escapeCSV(n.title),
-      escapeCSV(n.markdown_body),
-      escapeCSV(n.tags.join("; ")),
-      escapeCSV(n.created_at),
-      escapeCSV(n.updated_at),
+      n.title,
+      n.markdown_body,
+      n.tags.join("; "),
+      n.created_at,
+      n.updated_at,
     ];
   });
 
-  return [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+  return toCSV(headers, rows);
 }
 
 export function convertNotesToMarkdown(notes: Note[]): string {
@@ -216,7 +224,7 @@ export function convertNotesToMarkdown(notes: Note[]): string {
 }
 
 export function convertIdeasToJSON(ideas: Idea[]): string {
-  return JSON.stringify(ideas, null, 2);
+  return toJSON(ideas);
 }
 
 export function convertIdeasToCSV(ideas: Idea[]): string {
@@ -231,15 +239,15 @@ export function convertIdeasToCSV(ideas: Idea[]): string {
 
   const rows = ideas.map((i) => {
     return [
-      escapeCSV(i.title),
-      escapeCSV(i.description),
-      escapeCSV(i.stage),
-      escapeCSV(i.created_at),
-      escapeCSV(i.updated_at),
+      i.title,
+      i.description,
+      i.stage,
+      i.created_at,
+      i.updated_at,
     ];
   });
 
-  return [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+  return toCSV(headers, rows);
 }
 
 export function convertIdeasToMarkdown(ideas: Idea[]): string {
@@ -256,7 +264,7 @@ export function convertIdeasToMarkdown(ideas: Idea[]): string {
 }
 
 export function convertTasksToJSON(tasks: Task[]): string {
-  return JSON.stringify(tasks, null, 2);
+  return toJSON(tasks);
 }
 
 export function convertTasksToCSV(tasks: Task[]): string {
@@ -273,17 +281,17 @@ export function convertTasksToCSV(tasks: Task[]): string {
 
   const rows = tasks.map((t) => {
     return [
-      escapeCSV(t.title),
-      escapeCSV(t.description),
-      escapeCSV(t.completed ? "Completed" : "Pending"),
-      escapeCSV(t.priority),
-      escapeCSV(t.category),
-      escapeCSV(t.due_date),
-      escapeCSV(t.created_at),
+      t.title,
+      t.description,
+      t.completed ? "Completed" : "Pending",
+      t.priority,
+      t.category,
+      t.due_date,
+      t.created_at,
     ];
   });
 
-  return [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+  return toCSV(headers, rows);
 }
 
 export function convertTasksToMarkdown(tasks: Task[]): string {
@@ -303,7 +311,7 @@ export function convertTasksToMarkdown(tasks: Task[]): string {
 }
 
 export function convertTopicsToJSON(topics: Topic[] | (Topic & { note_count: number; paper_count: number; idea_count: number })[]): string {
-  return JSON.stringify(topics, null, 2);
+  return toJSON(topics);
 }
 
 export function convertTopicsToCSV(topics: Topic[] | (Topic & { note_count: number; paper_count: number; idea_count: number })[]): string {
@@ -320,17 +328,17 @@ export function convertTopicsToCSV(topics: Topic[] | (Topic & { note_count: numb
 
   const rows = topics.map((t) => {
     return [
-      escapeCSV(t.name),
-      escapeCSV(t.description),
-      escapeCSV(("note_count" in t ? t.note_count : 0).toString()),
-      escapeCSV(("paper_count" in t ? t.paper_count : 0).toString()),
-      escapeCSV(("idea_count" in t ? t.idea_count : 0).toString()),
-      escapeCSV(t.created_at),
-      escapeCSV(t.updated_at),
+      t.name,
+      t.description,
+      ("note_count" in t ? t.note_count : 0).toString(),
+      ("paper_count" in t ? t.paper_count : 0).toString(),
+      ("idea_count" in t ? t.idea_count : 0).toString(),
+      t.created_at,
+      t.updated_at,
     ];
   });
 
-  return [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+  return toCSV(headers, rows);
 }
 
 export function convertTopicsToMarkdown(topics: Topic[] | (Topic & { note_count: number; paper_count: number; idea_count: number })[]): string {

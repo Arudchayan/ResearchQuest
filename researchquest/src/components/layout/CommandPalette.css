@@ -1,33 +1,31 @@
 [cmdk-root] {
-  max-width: 640px;
+  max-width: 36rem;
   width: 100%;
   background: var(--bg-surface);
-  border-radius: 14px;
+  border-radius: 8px; /* xl / surface token */
   padding: 8px 0;
   font-family: var(--font-sans);
-  box-shadow: var(--shadow-lift);
+  box-shadow: 0 16px 70px rgb(0 0 0 / 20%);
   border: 1px solid var(--border-subtle);
   position: relative;
   overflow: hidden;
 }
 
 [cmdk-dialog] {
-  z-index: 9999;
+  z-index: 60; /* matches zIndex.tooltip token */
   position: fixed;
   left: 50%;
   top: 50%;
   transform: translateX(-50%) translateY(-50%);
-  width: 100%;
-  max-width: 640px;
+  width: calc(100vw - 2rem);
+  max-width: 36rem;
 }
 
 [cmdk-overlay] {
-  z-index: 9998;
+  z-index: 50; /* matches zIndex.overlay/modal token */
   position: fixed;
   inset: 0;
-  background: rgba(11, 16, 22, 0.52);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: rgba(17, 17, 17, 0.5); /* mirrors --overlay light value */
 }
 
 [cmdk-input] {
@@ -72,7 +70,7 @@
   content-visibility: auto;
   cursor: pointer;
   height: 48px;
-  border-radius: 10px;
+  border-radius: 6px; /* lg token */
   font-size: 14px;
   display: flex;
   align-items: center;
@@ -85,13 +83,12 @@
 }
 
 [cmdk-item][data-selected='true'] {
-  background: var(--accent-soft);
-  color: var(--accent-strong);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent);
+  background: var(--primary-500);
+  color: #fff;
 }
 
 [cmdk-item][data-selected='true'] svg {
-  color: var(--accent-strong);
+  color: #fff;
 }
 
 [cmdk-item][data-disabled='true'] {
@@ -120,5 +117,5 @@
 }
 
 .dark [cmdk-item][data-selected='true'] {
-  background: var(--accent-soft);
+  background: var(--primary-600);
 }

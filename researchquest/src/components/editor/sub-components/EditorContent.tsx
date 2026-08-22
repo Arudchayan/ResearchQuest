@@ -1,7 +1,7 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { EditorView, keymap } from "@codemirror/view";
-import type { Extension } from "@codemirror/state";
+import { markdown } from "@codemirror/lang-markdown";
 import { githubLight, githubDark } from "@uiw/codemirror-theme-github";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -16,7 +16,7 @@ interface EditorContentProps {
   viewMode: ViewMode;
   effectiveTheme: string;
   editorViewRef: React.MutableRefObject<EditorView | null>;
-  previewRef: React.RefObject<HTMLDivElement>;
+  previewRef: React.RefObject<HTMLDivElement | null>;
   applyFormatting: (format: "bold" | "italic" | "code" | "list" | "heading") => void;
   openLinkDialog: () => void;
   setCitationPickerOpen: (open: boolean) => void;
@@ -41,17 +41,10 @@ export default function EditorContent({
   setViewMode,
   toggleZenMode,
 }: EditorContentProps) {
-  const [markdownExt, setMarkdownExt] = useState<Extension | null>(null);
-
-  useEffect(() => {
-    void import("@codemirror/lang-markdown").then(({ markdown }) => {
-      setMarkdownExt(markdown());
-    });
-  }, []);
-
   const extensions = useMemo(
     () => [
-      ...(markdownExt ? [markdownExt] : []),
+      markdown(),
+      EditorView.contentAttributes.of({ "aria-label": "Note editor" }),
       EditorView.lineWrapping,
       keymap.of([
         { key: "Mod-b", run: () => { applyFormatting("bold"); return true; } },
@@ -67,12 +60,12 @@ export default function EditorContent({
         { key: "Mod-Shift-f", run: () => { toggleZenMode(); return true; } },
       ]),
     ],
-    [applyFormatting, openLinkDialog, setCitationPickerOpen, setViewMode, toggleZenMode, markdownExt],
+    [applyFormatting, openLinkDialog, setCitationPickerOpen, setViewMode, toggleZenMode],
   );
 
   return (
-    <div className={`flex-1 flex overflow-hidden ${viewMode === "split" ? "flex-col lg:flex-row" : "flex-col"}`}>
-      <div className={`${viewMode === "split" ? "lg:w-3/5" : "w-full"} ${viewMode === "preview" ? "hidden" : "block"} h-full bg-bg-surface`}>
+    <div className={`flex min-h-0 flex-1 overflow-hidden ${viewMode === "split" ? "flex-col lg:flex-row" : "flex-col"}`}>
+      <div className={`${viewMode === "split" ? "lg:w-3/5" : "w-full"} ${viewMode === "preview" ? "hidden" : "block"} h-full min-h-0 bg-bg-surface`}>
         <div className="h-full overflow-auto">
           <CodeMirror
             value={content}
@@ -81,7 +74,7 @@ export default function EditorContent({
             extensions={extensions}
             onChange={setContent}
             className="h-full font-mono text-code"
-            onCreateEditor={(view) => { editorViewRef.current = view; }}
+            onCreateEditor={(view: EditorView) => { editorViewRef.current = view; }}
             basicSetup={{
               lineNumbers: true,
               foldGutter: true,
@@ -97,12 +90,15 @@ export default function EditorContent({
 
       {viewMode === "split" && <div className="hidden lg:block w-px bg-border-subtle flex-shrink-0" />}
 
-      <div className={`${viewMode === "split" ? "lg:w-2/5" : "w-full"} ${viewMode === "edit" ? "hidden" : "block"} h-full overflow-auto bg-bg-base p-6`}>
-        <div
-          ref={previewRef}
-          className="prose prose-sm max-w-none dark:prose-invert prose-headings:font-serif prose-headings:font-bold prose-headings:text-text-primary prose-a:text-accent prose-a:no-underline hover:prose-a:underline prose-strong:text-text-primary prose-code:rounded prose-code:bg-bg-elevated prose-code:px-1 prose-code:py-0.5 prose-code:text-coral-strong prose-pre:bg-bg-surface prose-pre:border prose-pre:border-border-subtle"
-        >
-          <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS}>
+      <div className={`${viewMode === "split" ? "lg:w-2/5" : "w-full"} ${viewMode === "edit" ? "hidden" : "block"} h-full min-h-0 overflow-auto bg-bg-base p-4 sm:p-6`}>
+        <div ref={previewRef} className="prose prose-sm max-w-none dark:prose-invert">
+          <ReactMarkdown
+            remarkPlugins={REMARK_PLUGINS}
+            rehypePlugins={REHYPE_PLUGINS}
+            components={{
+              pre: (props) => <pre {...props} tabIndex={0} />,
+            }}
+          >
             {debouncedContent || "*Start typing to see preview...*"}
           </ReactMarkdown>
         </div>

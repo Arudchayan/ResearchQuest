@@ -1,6 +1,9 @@
 import { X } from "lucide-react";
-import { useEffect, useRef, useId } from "react";
+import { useEffect, useRef } from "react";
+import * as Dialog from "@radix-ui/react-dialog";
 import type { ReactNode, FormEvent } from "react";
+
+import { Button } from "@/components/ui/button";
 
 export interface FormDialogProps {
   isOpen: boolean;
@@ -30,148 +33,114 @@ export function FormDialog({
   isSubmitDisabled = false,
 }: FormDialogProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
-  const titleId = useId();
-  const descriptionId = useId();
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const el = dialogRef.current;
-    if (!el) return;
-
-    const focusable = el.querySelectorAll<HTMLElement>(
-      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-    );
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-
-    const handleTab = (e: KeyboardEvent) => {
-      if (e.key !== "Tab") return;
-      if (focusable.length === 0) { e.preventDefault(); return; }
-      if (e.shiftKey) {
-        if (document.activeElement === first) {
-          e.preventDefault();
-          last?.focus();
-        }
-      } else {
-        if (document.activeElement === last) {
-          e.preventDefault();
-          first?.focus();
-        }
-      }
-    };
-
-    window.addEventListener("keydown", handleTab);
-    return () => window.removeEventListener("keydown", handleTab);
-  }, [isOpen]);
-
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (isOpen) {
-      // Lock body scroll
-      document.body.style.overflow = "hidden";
-      return () => {
-        document.body.style.overflow = "unset";
-      };
+      previouslyFocusedRef.current = document.activeElement as HTMLElement;
     }
   }, [isOpen]);
 
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen && !isLoading) {
-        onClose();
-      }
-    };
-
-    window.addEventListener("keydown", handleEscape);
-    return () => window.removeEventListener("keydown", handleEscape);
-  }, [isOpen, isLoading, onClose]);
-
-  if (!isOpen) return null;
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md animate-in fade-in duration-200"
-      onClick={onClose}
+    <Dialog.Root
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open && !isLoading) onClose();
+      }}
     >
-      <div
-        ref={dialogRef}
-        className="surface-panel w-full max-w-md shadow-lift animate-in zoom-in-95 duration-200"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        aria-describedby={description ? descriptionId : undefined}
-      >
-        <form onSubmit={onSubmit}>
-          {/* Header */}
-          <div className="flex items-start gap-4 p-6 pb-4">
-            {icon && (
-              <div className="icon-tile h-12 w-12 shrink-0 rounded-xl bg-accent-soft text-accent-strong">
-                {icon}
-              </div>
-            )}
-
-            <div className="flex-1 min-w-0 mt-1">
-              <h3
-                id={titleId}
-                className="font-serif text-lg font-bold text-text-primary mb-1"
-              >
-                {title}
-              </h3>
-              {description && (
-                <p
-                  id={descriptionId}
-                  className="text-body text-text-secondary"
-                >
-                  {description}
-                </p>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-modal-stacked bg-overlay animate-in fade-in duration-fast" />
+        <Dialog.Content
+          ref={dialogRef}
+          aria-modal="true"
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
+            dialogRef.current
+              ?.querySelector<HTMLElement>(
+                'input:not([disabled]), select:not([disabled]), textarea:not([disabled])',
+              )
+              ?.focus();
+          }}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            previouslyFocusedRef.current?.focus();
+          }}
+          className="fixed left-1/2 top-1/2 z-modal-stacked w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-surface bg-bg-surface shadow-lg border border-border-moderate animate-in zoom-in-95 duration-fast"
+        >
+          <form onSubmit={onSubmit}>
+            {/* Header */}
+            <div className="flex items-start gap-4 p-6 pb-4">
+              {icon && (
+                <div className="w-12 h-12 rounded-control bg-info-bg flex items-center justify-center flex-shrink-0">
+                  {icon}
+                </div>
               )}
+
+              <div className="flex-1 min-w-0 mt-1">
+                <Dialog.Title
+                  id="form-dialog-title"
+                  className="text-lg font-serif font-semibold text-text-primary mb-1"
+                >
+                  {title}
+                </Dialog.Title>
+                {description && (
+                  <Dialog.Description
+                    id="form-dialog-description"
+                    className="text-body text-text-secondary"
+                  >
+                    {description}
+                  </Dialog.Description>
+                )}
+              </div>
+
+              <Button
+                type="button"
+                onClick={onClose}
+                disabled={isLoading}
+                variant="ghost"
+                size="icon"
+                className="text-text-tertiary hover:text-text-primary"
+                aria-label="Close dialog"
+              >
+                <X className="w-5 h-5" aria-hidden="true" />
+              </Button>
             </div>
 
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isLoading}
-              className="icon-btn rounded-lg text-text-tertiary hover:text-text-primary disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
-              aria-label="Close dialog"
-            >
-              <X className="w-5 h-5" aria-hidden="true" />
-            </button>
-          </div>
+            {/* Body */}
+            <div className="px-6 py-2 space-y-4">{children}</div>
 
-          {/* Body */}
-          <div className="px-6 py-2 space-y-4">{children}</div>
+            {/* Actions */}
+            <div className="flex gap-3 px-6 py-6 mt-2">
+              <Button
+                type="button"
+                onClick={onClose}
+                disabled={isLoading}
+                variant="outline"
+                className="flex-1"
+              >
+                {cancelText}
+              </Button>
 
-          {/* Actions */}
-          <div className="flex gap-3 px-6 py-6 mt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isLoading}
-              className="flex-1 h-10 rounded-lg border border-border-moderate bg-bg-surface px-4 text-small font-medium text-text-primary shadow-sm transition-all hover:border-border-strong hover:bg-bg-base disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
-            >
-              {cancelText}
-            </button>
-
-            <button
-              type="submit"
-              disabled={isSubmitDisabled || isLoading}
-              aria-live="polite"
-              aria-atomic="true"
-              className="flex-1 h-10 rounded-lg bg-accent-strong px-4 text-small font-semibold text-accent-contrast shadow-lift transition-all hover:-translate-y-0.5 hover:opacity-95 disabled:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
-            >
-              {isLoading ? (
-                <>
-                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" aria-hidden="true" />
-                  Processing...
-                </>
-              ) : (
-                submitText
-              )}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+              <Button
+                type="submit"
+                disabled={isSubmitDisabled || isLoading}
+                aria-live="polite"
+                aria-atomic="true"
+                className="flex-1"
+              >
+                {isLoading ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-border-subtle border-t-current rounded-full animate-spin" aria-hidden="true" />
+                    Processing...
+                  </>
+                ) : (
+                  submitText
+                )}
+              </Button>
+            </div>
+          </form>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }

@@ -17,6 +17,7 @@ vi.mock("sonner", () => ({
 // Mock gamification utils
 vi.mock("../../utils/gamification", () => ({
   awardXP: vi.fn().mockResolvedValue(true),
+  notifyGamificationResult: vi.fn(),
   XP_REWARDS: {
     CREATE_NOTE: 10,
     UPDATE_NOTE: 5,
@@ -89,7 +90,7 @@ describe("useNotes Security", () => {
       );
 
       expect(hasIdCheck).toBe(true);
-      expect(hasUserIdCheck).toBe(true); // This should fail currently
+      expect(hasUserIdCheck).toBe(true); // Confirmed: user_id filter is included in deleteNote
     });
 
     it("should include user_id check in updateNote", async () => {
@@ -127,7 +128,7 @@ describe("useNotes Security", () => {
       );
 
       expect(hasIdCheck).toBe(true);
-      expect(hasUserIdCheck).toBe(true); // This should fail currently
+      expect(hasUserIdCheck).toBe(true); // Confirmed: user_id filter is included in updateNote
     });
 
     it("should enforce user_id in restoreNote payload", async () => {
@@ -172,6 +173,75 @@ describe("useNotes Security", () => {
       expect(capturedPayloads.length).toBe(1);
       // Ideally, we want the payload to have overwritten user_id with the current user's ID
       expect(capturedPayloads[0].user_id).toBe("test-user-id");
+    });
+  });
+
+  describe("Optimistic Delete Revert Dedup", () => {
+    it("should not duplicate note id on deleteNote error recovery when realtime re-inserted the note", async () => {
+      const noteId = "dedup-test-note";
+      let resolveDelete!: (value: any) => void;
+      const deletePromise = new Promise((resolve) => {
+        resolveDelete = resolve;
+      });
+
+      const mockBuilder = createMockBuilder();
+      const eqSpy = vi.spyOn(mockBuilder, "eq");
+      eqSpy.mockReturnValue(mockBuilder);
+      mockBuilder.then = ((onFulfilled?: (value: any) => any) => {
+        return deletePromise.then(onFulfilled);
+      }) as any;
+
+      mockSupabaseClient.from.mockImplementation((tableName: string) => {
+        if (tableName === "notes") {
+          return createMockBuilder({
+            delete: vi.fn().mockReturnValue(mockBuilder),
+          });
+        }
+        return createMockBuilder();
+      });
+
+      const { result } = renderHook(() => useNotes("test-user-id"));
+
+      // Initial state: one note in the store
+      const originalNote = { ...mockNote, id: noteId, title: "Original" };
+      useAppStore.setState({ notes: [originalNote] });
+
+      // Start delete (optimistic remove happens synchronously, then awaits supabase)
+      let deleteOutcome: boolean | undefined;
+      const deleteCallPromise = act(async () => {
+        deleteOutcome = await result.current.deleteNote(noteId);
+      });
+
+      // Flush microtasks so optimistic removal is reflected
+      await act(async () => {});
+
+      // Verify optimistic removal happened
+      expect(
+        useAppStore.getState().notes.find((n) => n.id === noteId),
+      ).toBeUndefined();
+
+      // Simulate realtime re-insertion during the async gap
+      const realtimeUpdatedNote = {
+        ...mockNote,
+        id: noteId,
+        title: "Realtime Updated During Gap",
+      };
+      useAppStore.setState({ notes: [realtimeUpdatedNote] });
+
+      // Resolve the delete with an error
+      resolveDelete!({ data: null, error: { message: "Delete failed" } });
+
+      // Wait for deleteNote to complete
+      await deleteCallPromise;
+
+      // Verify: only one instance of the note ID exists in the store
+      const notes = useAppStore.getState().notes;
+      const matchingNotes = notes.filter((n) => n.id === noteId);
+      expect(matchingNotes).toHaveLength(1);
+
+      // The realtime version should take precedence over the stale snapshot
+      expect(matchingNotes[0]?.title).toBe("Realtime Updated During Gap");
+      expect(deleteOutcome).toBe(false);
     });
   });
 

@@ -3,17 +3,18 @@ import { render, screen } from "@testing-library/react";
 import { PapersView } from "../../components/papers/PapersView";
 import type { Paper } from "../../types/database";
 
-// Mock @tanstack/react-virtual to work in JSDOM
 vi.mock("@tanstack/react-virtual", () => ({
-  useVirtualizer: (opts: any) => ({
+  useVirtualizer: ({ count, estimateSize }: { count: number; estimateSize: () => number }) => ({
     getVirtualItems: () =>
-      Array.from({ length: opts.count ?? 0 }, (_, index) => ({
-        index,
-        key: index,
-        start: index * 220,
-        size: 220,
+      Array.from({ length: count }, (_, i) => ({
+        index: i,
+        key: i,
+        size: estimateSize(),
+        start: i * estimateSize(),
+        lane: 0,
       })),
-    getTotalSize: () => (opts.count ?? 0) * 220,
+    getTotalSize: () => count * estimateSize(),
+    measure: () => {},
   }),
 }));
 
@@ -110,8 +111,7 @@ describe("PapersView", () => {
 
     render(<PapersView />);
 
-    const detailPanel = screen.getByText("Paper Details").closest("div")
-      ?.parentElement?.parentElement;
+    const detailPanel = screen.getByText("Paper Details").closest("div")?.parentElement?.parentElement;
 
     expect(detailPanel).toHaveClass("w-full");
     expect(detailPanel).toHaveClass("lg:w-[500px]");

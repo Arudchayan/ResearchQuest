@@ -9,15 +9,21 @@ import { useGamificationStore } from "./store/gamificationStore";
 import { AppShell } from "./components/layout/v2/AppShell";
 import { AppLoadingSkeleton } from "./components/ui/Skeleton";
 import { Toaster } from "sonner";
+import { AlertCircle, Home } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { usePapers } from "./hooks/usePapers";
 import { useIdeas } from "./hooks/useIdeas";
 import { useTopics } from "./hooks/useTopics";
 import { useNotes } from "./hooks/useNotes";
+import { useTasks } from "./hooks/useTasks";
 import { useDataSync } from "./hooks/useDataSync";
 import { AuthScreen } from "./components/auth/AuthScreen";
 import { SupabaseConfigErrorScreen } from "./components/auth/SupabaseConfigErrorScreen";
 import { TooltipProvider } from "./components/ui/tooltip";
+import {
+  parseRoute,
+  selectEntityForRoute,
+} from "./lib/router";
 
 const DashboardLazy = lazy(() =>
   import("./components/dashboard/Dashboard").then((module) => ({
@@ -61,18 +67,6 @@ const FocusWorkspace = lazy(() =>
   })),
 );
 
-const FeedsView = lazy(() =>
-  import("./components/feeds/FeedsView").then((module) => ({
-    default: module.FeedsView,
-  })),
-);
-
-const AnalysisView = lazy(() =>
-  import("./components/analysis/AnalysisView").then((module) => ({
-    default: module.AnalysisView,
-  })),
-);
-
 const OnboardingGuide = lazy(() =>
   import("./components/layout/OnboardingGuide").then((module) => ({
     default: module.OnboardingGuide,
@@ -93,9 +87,8 @@ const ShortcutsDialog = lazy(() =>
 
 function RouteLoadingFallback() {
   return (
-    <div className="flex h-full min-h-[320px] items-center justify-center px-6 py-10">
-      <div className="h-8 w-8 animate-pulse rounded-full bg-border-moderate" aria-hidden="true" />
-      <span className="sr-only">Loading…</span>
+    <div className="flex h-full min-h-[320px] items-center justify-center px-6 py-10 text-sm text-text-secondary">
+      Loading view…
     </div>
   );
 }
@@ -103,18 +96,15 @@ function RouteLoadingFallback() {
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(false);
   const [userId, setUserId] = useState<string | undefined>(undefined);
   const [pendingPath, setPendingPath] = useState<string | null>(null);
-  // Use useShallow to prevent unnecessary re-renders
+  // ⚡ Optimization: Use useShallow with an object selector to prevent the App component
+  // from unnecessarily re-rendering on unrelated state changes in the global appStore.
   const {
     setUser: setUserProfile,
     currentView,
-    effectiveTheme,
     setCurrentView,
-    selectedPaper,
-    selectedIdea,
-    setSelectedIdea,
-    setSelectedPaper,
     notes,
     notesLoading,
     topics,
@@ -125,12 +115,7 @@ function App() {
     useShallow((state) => ({
       setUser: state.setUser,
       currentView: state.currentView,
-      effectiveTheme: state.effectiveTheme,
       setCurrentView: state.setCurrentView,
-      selectedPaper: state.selectedPaper,
-      selectedIdea: state.selectedIdea,
-      setSelectedIdea: state.setSelectedIdea,
-      setSelectedPaper: state.setSelectedPaper,
       notes: state.notes,
       notesLoading: state.notesLoading,
       topics: state.topics,
@@ -144,14 +129,15 @@ function App() {
   );
 
   // Sync data centrally (lazy-loads based on currentView)
-  useDataSync(userId, currentView);
+  useDataSync(userId);
 
   // Get hooks for CRUD operations (data comes from store now)
   const { papers, loading: papersLoading } = usePapers(userId);
   const { ideas, loading: ideasLoading } = useIdeas(userId);
-  // Fetch topics early at App level for deep-link hydration (has fetch-deduplication guard)
-  useTopics(userId);
+  // Fetch topics early at App level for deep-link hydration (sole owner; has fetch-deduplication guard)
+  useTopics(userId, { owner: true });
   useNotes(userId);
+  useTasks(userId, { owner: true });
 
   useEffect(() => {
     if (typeof window !== 'undefined' && (window as any).__TEST_USER__) {
@@ -173,6 +159,9 @@ function App() {
       .then(({ data: { session } }) => {
         setUser(session?.user ?? null);
         setUserId(session?.user?.id);
+        if (session?.user) {
+          setProfileLoading(true);
+        }
       })
       .finally(() => setLoading(false));
 
@@ -182,41 +171,57 @@ function App() {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       setUserId(session?.user?.id);
+      if (session?.user) {
+        setProfileLoading(true);
+      } else {
+        setProfileLoading(false);
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
-    if (user) {
-      // Fetch user profile
-      supabase
-        .from("user_profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single()
-        .then(({ data }) => {
+    async function loadProfile() {
+      if (user) {
+        // Fetch user profile — profileLoading was already set to true
+        // in the auth effect, so the try/finally clears it.
+        try {
+          const { data } = await supabase
+            .from("user_profiles")
+            .select("*")
+            .eq("id", user.id)
+            .single();
           if (data) {
             setUserProfile(data);
             hydrateGamification(data);
           }
+        } finally {
+          setProfileLoading(false);
+        }
+      } else {
+        setUserProfile(null);
+        hydrateGamification({
+          streak_freeze_tokens: 0,
+          rest_days: 0,
+          active_boost: null,
         });
-    } else {
-      setUserProfile(null);
-      hydrateGamification({
-        streak_freeze_tokens: 0,
-        rest_days: 0,
-        active_boost: null,
-      });
+        setProfileLoading(false);
+      }
     }
+    void loadProfile();
   }, [user, setUserProfile, hydrateGamification]);
+
+  // -- Route error recovery state --
+
+  const [routeError, setRouteError] = useState<string | null>(null);
 
   // Save deep-link target path before redirecting unauthenticated user to auth screen
   useEffect(() => {
     if (!loading && !user) {
-      const path = window.location.pathname;
-      if (path !== "/" && path !== "") {
-        setPendingPath(path);
+      const route = parseRoute(window.location.pathname);
+      if (route.isValid && route.view !== "dashboard") {
+        setPendingPath(window.location.pathname);
       }
     }
   }, [loading, user]);
@@ -225,12 +230,9 @@ function App() {
   useEffect(() => {
     if (user && pendingPath) {
       window.history.pushState(null, "", pendingPath);
-      const pathParts = pendingPath.slice(1).split("/");
-      const view = pathParts[0] as typeof currentView;
-      if (
-        ["dashboard", "notes", "papers", "ideas", "tasks", "topics", "focus", "feeds"].includes(view)
-      ) {
-        setCurrentView(view);
+      const route = parseRoute(pendingPath);
+      if (route.isValid && route.view) {
+        setCurrentView(route.view);
       } else {
         setCurrentView("dashboard");
       }
@@ -238,43 +240,23 @@ function App() {
     }
   }, [user, pendingPath, setCurrentView]);
 
-  // URL-based routing - handle initial load and navigation
+  // URL-based routing — handle initial load, popstate, and invalid-route recovery
   useEffect(() => {
-    // Handle route changes
     const handleRouteChange = () => {
-      const path = window.location.pathname;
+      const route = parseRoute(window.location.pathname);
 
-      // Handle root path
-      if (path === "/" || path === "") {
-        setCurrentView("dashboard");
-        return;
-      }
-
-      // Parse URL: /view or /view/itemId
-      const pathParts = path.slice(1).split("/");
-      const view = pathParts[0] as typeof currentView;
-      const itemId = pathParts[1];
-
-      // Validate view
-      if (
-        ["dashboard", "notes", "papers", "ideas", "tasks", "topics", "focus", "feeds", "analysis"].includes(
-          view,
-        )
-      ) {
-        setCurrentView(view);
+      if (route.isValid && route.view) {
+        setCurrentView(route.view);
+        setRouteError(null);
       } else {
-        // Invalid route, redirect to dashboard
-        window.history.replaceState(null, "", "/");
-        setCurrentView("dashboard");
+        // Deliberate recovery contract: show the URL the user typed (don't
+        // silently replace) and present a recovery UI instead.
+        setRouteError("not-found");
       }
     };
 
-    // Handle initial load
     handleRouteChange();
-
-    // Listen for back/forward navigation
     window.addEventListener("popstate", handleRouteChange);
-
     return () => window.removeEventListener("popstate", handleRouteChange);
   }, [setCurrentView]);
 
@@ -290,62 +272,35 @@ function App() {
   useEffect(() => {
     if (!userId) return;
 
-    const path = window.location.pathname;
-    const pathParts = path.slice(1).split("/");
-    const view = pathParts[0];
-    const itemId = pathParts[1];
+    const route = parseRoute(window.location.pathname);
+    if (!route.isValid || !route.itemId) return;
 
-    if (!itemId) {
-      return;
-    }
-
-    // Wait for data to load
-    if (view === "papers" && papersLoading) return;
-    if (view === "ideas" && ideasLoading) return;
-    if (view === "notes" && notesLoading) return;
-    if (view === "topics" && topicsLoading) return;
-    if (view === "tasks" && tasksLoading) return;
-
-    // Try to find and select the item based on URL
-    if (view === "papers" && papers.length >= 0) {
-      const paper = papers.find((p) => p.id === itemId);
-      if (paper) {
-        useAppStore.getState().setSelectedPaper(paper);
-      } else if (!papersLoading) {
-        useAppStore.getState().setSelectedPaper(null);
-      }
-    } else if (view === "ideas" && ideas.length >= 0) {
-      const idea = ideas.find((i) => i.id === itemId);
-      if (idea) {
-        useAppStore.getState().setSelectedIdea(idea);
-      } else if (!ideasLoading) {
-        useAppStore.getState().setSelectedIdea(null);
-      }
-    } else if (view === "notes") {
-      const note = notes.find((n) => n.id === itemId);
-      if (note) {
-        useAppStore.getState().setSelectedNote(note);
-      } else if (!notesLoading) {
-        useAppStore.getState().setSelectedNote(null);
-      }
-    } else if (view === "topics") {
-      const topic = topics[itemId];
-      if (topic) {
-        useAppStore.getState().setSelectedTopic(topic);
-      } else if (!topicsLoading) {
-        useAppStore.getState().setSelectedTopic(null);
-      }
-    } else if (view === "tasks") {
-      const task = tasks.find((t) => t.id === itemId);
-      if (task) {
-        useAppStore.getState().setSelectedTask(task);
-      } else if (!tasksLoading) {
-        useAppStore.getState().setSelectedTask(null);
-      }
-    }
+    const state = useAppStore.getState();
+    selectEntityForRoute(
+      route,
+      {
+        papers: state.papers,
+        papersLoading: state.papersLoading,
+        ideas: state.ideas,
+        ideasLoading: state.ideasLoading,
+        notes: state.notes,
+        notesLoading: state.notesLoading,
+        topics: state.topics,
+        topicsLoading: state.topicsLoading,
+        tasks: state.tasks,
+        tasksLoading: state.tasksLoading,
+      },
+      {
+        setSelectedPaper: state.setSelectedPaper,
+        setSelectedIdea: state.setSelectedIdea,
+        setSelectedNote: state.setSelectedNote,
+        setSelectedTopic: state.setSelectedTopic,
+        setSelectedTask: state.setSelectedTask,
+      },
+    );
   }, [currentView, ideas, ideasLoading, notes, notesLoading, papers, papersLoading, tasks, tasksLoading, topics, topicsLoading, userId]);
 
-  if (loading) {
+  if (loading || profileLoading) {
     return <AppLoadingSkeleton />;
   }
 
@@ -355,6 +310,36 @@ function App() {
 
   if (!user) {
     return <AuthScreen />;
+  }
+
+  // Invalid-route recovery: show a deliberate error UI instead of silently
+  // redirecting to the dashboard. The URL is preserved so the user can see
+  // what they typed; recovery buttons allow them to navigate back.
+  if (routeError) {
+    return (
+      <div className="flex h-full min-h-[400px] items-center justify-center p-6">
+        <div className="text-center max-w-md">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/20 mb-4">
+            <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" aria-hidden="true" />
+          </div>
+          <h2 className="text-xl font-bold text-text-primary mb-2">Page Not Found</h2>
+          <p className="text-text-secondary mb-6">
+            The page "<span className="font-mono text-text-primary">{window.location.pathname}</span>" doesn't exist.
+          </p>
+          <button
+            onClick={() => {
+              window.history.pushState(null, "", "/");
+              setCurrentView("dashboard");
+              setRouteError(null);
+            }}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors"
+          >
+            <Home className="w-4 h-4" aria-hidden="true" />
+            Go Home
+          </button>
+        </div>
+      </div>
+    );
   }
 
   const routeContent =
@@ -382,12 +367,6 @@ function App() {
         <OnboardingGuide storageKey="rq_focus_onboarding_bridge" />
         <FocusWorkspace userId={userId} />
       </div>
-    ) : currentView === "feeds" ? (
-      <FeedsView />
-    ) : currentView === "analysis" ? (
-      <div className="h-full overflow-auto">
-        <AnalysisView />
-      </div>
     ) : null;
 
   return (
@@ -399,13 +378,15 @@ function App() {
         </Suspense>
 
         <Toaster
+          // "KeyNone" is not a valid key; disables sonner's hotkey (empty array would match every keydown)
+          hotkey={["KeyNone"]}
           position="top-right"
           richColors
           expand={false}
           duration={2500}
           offset={16}
           visibleToasts={3}
-          theme={effectiveTheme}
+          theme={useAppStore.getState().effectiveTheme}
           closeButton
           toastOptions={{ duration: 2500 }}
         />

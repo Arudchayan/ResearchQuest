@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, act, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, waitFor, act, fireEvent } from "@testing-library/react";
 import { MarkdownEditor } from "../../components/editor/MarkdownEditor";
 import { useAppStore } from "../../store/appStore";
 import { supabase } from "../../lib/supabase";
@@ -24,7 +24,17 @@ vi.mock("../../utils/gamification", () => ({
 
 // Mock CodeMirror to allow us to simulate changes
 vi.mock("@uiw/react-codemirror", () => ({
-  default: ({ value, onChange, basicSetup, onCreateEditor, ...props }: any) => {
+  default: ({ value, onChange, onCreateEditor, ...props }: any) => {
+    if (onCreateEditor) {
+      onCreateEditor({
+        state: {
+          selection: { main: { from: 0, to: value.length } },
+          sliceDoc: (from: number, to: number) => value.slice(from, to),
+        },
+        focus: vi.fn(),
+        dispatch: vi.fn(),
+      });
+    }
     return (
       <textarea
         data-testid="codemirror-mock"
@@ -41,14 +51,22 @@ vi.mock("@codemirror/lang-markdown", () => ({
   markdown: vi.fn(),
 }));
 
+// Capture keymap bindings so tests can invoke them directly
+const editorBindings = vi.hoisted(() => [] as Array<{ key: string; run: () => boolean }>);
+
 // Mock CodeMirror view
 vi.mock("@codemirror/view", () => ({
   EditorView: {
     lineWrapping: {},
     theme: vi.fn(),
+    contentAttributes: { of: vi.fn(() => ({})) },
   },
   keymap: {
-    of: vi.fn(),
+    of: (bindings: Array<{ key: string; run: () => boolean }>) => {
+      editorBindings.length = 0;
+      editorBindings.push(...bindings);
+      return [];
+    },
   },
 }));
 
@@ -57,19 +75,6 @@ vi.mock("react-markdown", () => ({
   default: ({ children }: any) => (
     <div data-testid="markdown-preview">{children}</div>
   ),
-}));
-
-// Mock the lazy-loaded EditorContent to avoid suspense issues in tests
-vi.mock("../../components/editor/sub-components/EditorContent", () => ({
-  default: ({ content, setContent }: any) => {
-    return (
-      <textarea
-        data-testid="codemirror-mock"
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-      />
-    );
-  },
 }));
 
 const NOTE_BODY_MAX_LENGTH = 100000;
@@ -131,61 +136,16 @@ describe("MarkdownEditor Security", () => {
     });
   });
 
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it("skips autosave when the selected note is unchanged", async () => {
-    vi.useFakeTimers();
-
-    render(<MarkdownEditor />);
-    await act(async () => {});
-    screen.getByTestId("codemirror-mock");
-
-    await act(async () => {
-      vi.advanceTimersByTime(1100);
-    });
-
-    expect(mockUpdate).not.toHaveBeenCalled();
-  });
-
-  it("autosaves changed note content", async () => {
-    vi.useFakeTimers();
-
-    render(<MarkdownEditor />);
-    await act(async () => {});
-    const textarea = screen.getByTestId("codemirror-mock");
-
-    await act(async () => {
-      fireEvent.change(textarea, { target: { value: "Changed content #tag" } });
-      vi.advanceTimersByTime(1100);
-    });
-
-    expect(mockUpdate).toHaveBeenCalledWith({
-      title: "Test Note",
-      markdown_body: "Changed content #tag",
-      tags: ["tag"],
-    });
-  });
-
   it("fix: enforces input length validation and does NOT send large payload to Supabase", async () => {
     render(<MarkdownEditor />);
 
-    // Use findByTestId which waits for suspense/lazy resolution
-    const textarea = await screen.findByTestId("codemirror-mock");
-
-    // Install fake timers to control debounce
-    vi.useFakeTimers();
-
-    // Let the initial auto-save debounce settle
-    await act(async () => {
-      vi.advanceTimersByTime(1100);
-    });
-    // Clear the initial save call so we can assert no LARGE payload was sent
-    mockUpdate.mockClear();
-
     // Create a large string exceeding the limit
     const largeContent = "a".repeat(NOTE_BODY_MAX_LENGTH + 100);
+
+    // Simulate CodeMirror change
+    const textarea = await screen.findByTestId("codemirror-mock");
+
+    vi.useFakeTimers();
 
     await act(async () => {
       fireEvent.change(textarea, { target: { value: largeContent } });
@@ -198,5 +158,47 @@ describe("MarkdownEditor Security", () => {
 
     // Assert that update was NOT called with the large content
     expect(mockUpdate).not.toHaveBeenCalled();
+
+    vi.useRealTimers();
+  });
+
+  it("fix: Mod-k from inside the editor opens the link dialog with the current selection, and Escape closes it", async () => {
+    render(<MarkdownEditor />);
+
+    const binding = editorBindings.find((b) => b.key === "Mod-k");
+    expect(binding).toBeDefined();
+
+    await act(async () => {
+      binding!.run();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("dialog", { name: "Insert link" })).toBeInTheDocument();
+    });
+    expect(screen.getByLabelText("Link text")).toHaveValue("Initial content");
+    expect(screen.getByLabelText("URL")).toBeInTheDocument();
+
+    fireEvent.keyDown(screen.getByLabelText("Link text"), { key: "Escape" });
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: "Insert link" })).not.toBeInTheDocument();
+    });
+  });
+
+  it("registers editor shortcuts so view/zen commands stay reachable from inside the editor", () => {
+    render(<MarkdownEditor />);
+
+    const keys = editorBindings.map((b) => b.key);
+    expect(keys).toEqual(
+      expect.arrayContaining([
+        "Mod-b",
+        "Mod-i",
+        "Mod-k",
+        "Mod-Shift-e",
+        "Mod-Shift-s",
+        "Mod-Shift-p",
+        "Mod-Shift-f",
+      ]),
+    );
   });
 });

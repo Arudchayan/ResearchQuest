@@ -15,23 +15,20 @@ import {
   Database,
   LayoutDashboard,
   Hash,
-  Inbox,
-  ShieldCheck,
 } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
-import type { AppView } from "../../store/appStore";
 import { useShallow } from "zustand/react/shallow";
 import { useNotes } from "../../hooks/useNotes";
 import { usePapers } from "../../hooks/usePapers";
 import { useIdeas } from "../../hooks/useIdeas";
+import { useTasks } from "../../hooks/useTasks";
 import { exportData } from "../../utils/export";
 import "./CommandPalette.css";
 
-const SEARCH_RESULTS_LIMIT = 50;
-
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
-  const [searchValue, setSearchValue] = useState("");
+
+  // ⚡ PERFORMANCE OPTIMIZATION:
   // Using useShallow with an object selector to prevent CommandPalette from
   // unnecessarily re-rendering on unrelated state changes in the global appStore.
   const {
@@ -42,9 +39,9 @@ export function CommandPalette() {
     setSelectedPaper,
     setSelectedIdea,
     setSelectedTopic,
+    setSelectedTask,
     user,
     topics,
-    tasks,
   } = useAppStore(
     useShallow((state) => ({
       setTheme: state.setTheme,
@@ -54,9 +51,9 @@ export function CommandPalette() {
       setSelectedPaper: state.setSelectedPaper,
       setSelectedIdea: state.setSelectedIdea,
       setSelectedTopic: state.setSelectedTopic,
+      setSelectedTask: state.setSelectedTask,
       user: state.user,
       topics: state.topics,
-      tasks: state.tasks,
     }))
   );
 
@@ -66,20 +63,23 @@ export function CommandPalette() {
   const { notes } = useNotes(user?.id);
   const { papers } = usePapers(user?.id);
   const { ideas } = useIdeas(user?.id);
+  const { tasks } = useTasks(user?.id, { owner: false });
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isEditable =
+        !!target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable);
+
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
+        if (isEditable) return;
         e.preventDefault();
         setOpen((open) => !open);
       } else if (e.key === "/") {
-        const target = e.target as HTMLElement;
-        const isInput =
-          target.tagName === "INPUT" ||
-          target.tagName === "TEXTAREA" ||
-          target.isContentEditable;
-
-        if (!isInput) {
+        if (!isEditable) {
           e.preventDefault();
           setOpen((open) => !open);
         }
@@ -100,7 +100,9 @@ export function CommandPalette() {
   }, []);
 
   // Navigation handlers using App's custom routing
-  const handleNavigate = (view: AppView) => {
+  const handleNavigate = (
+    view: "dashboard" | "notes" | "papers" | "ideas" | "tasks" | "topics" | "focus",
+  ) => {
     setCurrentView(view);
     window.history.pushState(null, "", view === "dashboard" ? "/" : `/${view}`);
     // Trigger popstate event for other listeners if needed (App.tsx listens to it)
@@ -134,6 +136,7 @@ export function CommandPalette() {
 
   const handleSelectTask = (task: any) => {
     setCurrentView("tasks");
+    setSelectedTask(task);
     window.history.pushState(null, "", `/tasks`);
     window.dispatchEvent(new PopStateEvent("popstate"));
     setOpen(false);
@@ -168,7 +171,7 @@ export function CommandPalette() {
       id: t.id,
       user_id: t.user_id,
       name: t.name,
-      description: t.description,
+      ...(t.description !== undefined ? { description: t.description } : {}),
       created_at: t.created_at,
       updated_at: t.updated_at,
     }));
@@ -192,88 +195,34 @@ export function CommandPalette() {
 
   // Memoize search items
   const searchItems = useMemo(() => {
-    const results: any[] = [];
-    const safeNotes = notes || [];
-    for (let i = 0; i < safeNotes.length; i++) {
-      results.push({
+    return [
+      ...notes.map((n) => ({
         type: "note",
-        item: safeNotes[i],
-        label: safeNotes[i].title || "Untitled Note",
-      });
-    }
-
-    const safePapers = papers || [];
-    for (let i = 0; i < safePapers.length; i++) {
-      results.push({
-        type: "paper",
-        item: safePapers[i],
-        label: safePapers[i].title,
-      });
-    }
-
-    const safeIdeas = ideas || [];
-    for (let i = 0; i < safeIdeas.length; i++) {
-      results.push({
-        type: "idea",
-        item: safeIdeas[i],
-        label: safeIdeas[i].title,
-      });
-    }
-
-    const safeTasks = tasks || [];
-    for (let i = 0; i < safeTasks.length; i++) {
-      results.push({
-        type: "task",
-        item: safeTasks[i],
-        label: safeTasks[i].title,
-      });
-    }
-
-    const safeTopicsArray = topicsArray || [];
-    for (let i = 0; i < safeTopicsArray.length; i++) {
-      results.push({
-        type: "topic",
-        item: safeTopicsArray[i],
-        label: safeTopicsArray[i].name,
-      });
-    }
-
-    return results;
+        item: n,
+        label: n.title || "Untitled Note",
+      })),
+      ...papers.map((p) => ({ type: "paper", item: p, label: p.title })),
+      ...ideas.map((i) => ({ type: "idea", item: i, label: i.title })),
+      ...tasks.map((t) => ({ type: "task", item: t, label: t.title })),
+      ...(topicsArray || []).map((t) => ({ type: "topic", item: t, label: t.name })),
+    ];
   }, [notes, papers, ideas, tasks, topicsArray]);
 
-  const visibleSearchItems = useMemo(() => {
-    const normalizedSearch = searchValue.trim().toLowerCase();
-
-    if (!normalizedSearch) {
-      return searchItems.slice(0, SEARCH_RESULTS_LIMIT);
-    }
-
-    const results = [];
-    for (let i = 0; i < searchItems.length; i++) {
-      if (results.length === SEARCH_RESULTS_LIMIT) break;
-      const entry = searchItems[i];
-      if (
-        `${entry.type}: ${entry.label}`
-          .toLowerCase()
-          .includes(normalizedSearch)
-      ) {
-        results.push(entry);
-      }
-    }
-    return results;
-  }, [searchItems, searchValue]);
-
   return (
-    <Command.Dialog open={open} onOpenChange={setOpen} label="Command Menu">
+    <Command.Dialog
+      className="w-[calc(100vw-2rem)] max-w-xl"
+      open={open}
+      onOpenChange={setOpen}
+      label="Command Menu"
+    >
       <div
         className="flex items-center border-b border-border-subtle px-3"
         cmdk-input-wrapper=""
       >
-        <Search className="w-5 h-5 text-text-tertiary mr-2" aria-hidden="true" />
+        <Search className="w-5 h-5 text-text-tertiary mr-2" />
         <Command.Input
+          className="focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
           placeholder="Type a command or search..."
-          value={searchValue}
-          onValueChange={setSearchValue}
         />
       </div>
 
@@ -305,17 +254,9 @@ export function CommandPalette() {
             <Hash />
             <span>Go to Topics</span>
           </Command.Item>
-          <Command.Item onSelect={() => handleNavigate("feeds")}>
-            <Inbox />
-            <span>Go to Feeds</span>
-          </Command.Item>
           <Command.Item onSelect={() => handleNavigate("focus")}>
             <Target />
             <span>Go to Focus</span>
-          </Command.Item>
-          <Command.Item onSelect={() => handleNavigate("analysis")}>
-            <ShieldCheck />
-            <span>Go to Adversarial Analysis</span>
           </Command.Item>
         </Command.Group>
 
@@ -367,7 +308,7 @@ export function CommandPalette() {
 
           <Command.Item onSelect={handleOpenDataManagement}>
             <Database />
-            <span>Data & API Settings...</span>
+            <span>Data Management...</span>
           </Command.Item>
 
           <Command.Item onSelect={handleExport}>
@@ -392,7 +333,7 @@ export function CommandPalette() {
         </Command.Group>
 
         <Command.Group heading="Search Results">
-          {visibleSearchItems.map((entry) => (
+          {searchItems.map((entry) => (
             <Command.Item
               key={`${entry.type}-${entry.item.id}`}
               onSelect={() => {
@@ -405,17 +346,17 @@ export function CommandPalette() {
               value={`${entry.type}: ${entry.label}`}
             >
               {entry.type === "note" && (
-                <FileText className="text-blue-strong" />
+                <FileText className="text-primary-500" />
               )}
-              {entry.type === "paper" && <BookOpen className="text-violet-strong" />}
+              {entry.type === "paper" && <BookOpen className="text-blue-500" />}
               {entry.type === "idea" && (
-                <Lightbulb className="text-gold-strong" />
+                <Lightbulb className="text-yellow-500" />
               )}
               {entry.type === "task" && (
-                <CheckSquare className="text-coral-strong" />
+                <CheckSquare className="text-green-500" />
               )}
               {entry.type === "topic" && (
-                <Hash className="text-accent-strong" />
+                <Hash className="text-purple-500" />
               )}
               <div className="flex flex-col">
                 <span>{entry.label}</span>

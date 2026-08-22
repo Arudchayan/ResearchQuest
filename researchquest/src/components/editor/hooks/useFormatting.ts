@@ -70,7 +70,7 @@ export function useFormatting(editorViewRef: React.MutableRefObject<EditorView |
         const text = line.text;
         const match = text.match(/^(#{1,3})\s/);
 
-        if (match) {
+        if (match && match[1]) {
           const level = match[1].length;
           if (level === 3) {
             return { from: line.from, to: line.from + 4, insert: "" };
@@ -95,7 +95,8 @@ export function useFormatting(editorViewRef: React.MutableRefObject<EditorView |
     if (!view) return;
 
     const { state } = view;
-    const [range] = state.selection.ranges;
+    const range = state.selection.ranges[0];
+    if (!range) return;
 
     if (state.selection.ranges.length === 1 && range.from === range.to) {
       const line = state.doc.lineAt(range.from);

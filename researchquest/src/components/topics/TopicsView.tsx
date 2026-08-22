@@ -2,16 +2,17 @@ import { useAppStore } from "../../store/appStore";
 import { useShallow } from "zustand/react/shallow";
 import { TopicList } from "./TopicList";
 import { TopicDetailView } from "./TopicDetailView";
-import { Hash, Plus, Download, FileText, Table, FileJson, Search, X, ArrowUpDown } from "lucide-react";
+import { ArrowLeft, ArrowUpDown, Download, FileJson, FileText, Hash, Plus, Search, Table, X } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { useTopics } from "../../hooks/useTopics";
-import type { TopicWithCounts } from "../../types/database";
 import { toast } from "sonner";
 import { convertTopicsToCSV, convertTopicsToJSON, convertTopicsToMarkdown, downloadFile } from "../../utils/export";
 import { logger } from "../../utils/logger";
+import { Button } from "../ui/button";
 import { InlineError } from "../ui/ErrorFallback";
-import { UNDO_WINDOW_MS } from "../../lib/constants";
+
+const UNDO_WINDOW_MS = 6000;
 
 type SortOption =
   | "name_asc"
@@ -32,16 +33,17 @@ export function TopicsView() {
     }))
   );
 
-  const { topics, loading, createTopic, updateTopic, deleteTopic } = useTopics(user?.id);
+  const { topics, loading, createTopic, updateTopic, deleteTopic } = useTopics(user?.id, { owner: false });
   const topicsSyncError = dataSyncErrors?.topics ?? null;
   const [isCreating, setIsCreating] = useState(false);
+  const [isSubmittingTopic, setIsSubmittingTopic] = useState(false);
   const [newTopicName, setNewTopicName] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOption, setSortOption] = useState<SortOption>("updated_desc");
   const [hiddenTopicIds, setHiddenTopicIds] = useState<Set<string>>(new Set());
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Performance: Pre-compute derived text fields for faster searching
+  // ⚡ PERFORMANCE OPTIMIZATION: Pre-compute derived text fields for faster searching
   const searchableTopics = useMemo(() => {
     return (topics || []).map((topic) => ({
       topic,
@@ -57,23 +59,22 @@ export function TopicsView() {
       return topics || [];
     }
 
-    const resultTopics = [];
-    const query = searchQuery?.toLowerCase() || "";
-    const hasHidden = hiddenTopicIds.size > 0;
-    const safeSearchableTopics = searchableTopics || [];
+    let resultTopics = topics || [];
 
-    for (let i = 0; i < safeSearchableTopics.length; i++) {
-      const st = safeSearchableTopics[i];
-      if (hasHidden && hiddenTopicIds.has(st.topic.id)) {
-        continue;
-      }
-      if (query && !st.searchText.includes(query)) {
-        continue;
-      }
-      resultTopics.push(st.topic);
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+
+      resultTopics = searchableTopics
+        .filter((st) => st.searchText.includes(query))
+        .map((st) => st.topic);
     }
 
-    return resultTopics.sort((a, b) => {
+    const visibleTopics =
+      hiddenTopicIds.size > 0
+        ? resultTopics.filter((topic) => !hiddenTopicIds.has(topic.id))
+        : resultTopics;
+
+    return [...visibleTopics].sort((a, b) => {
       switch (sortOption) {
         case "name_asc":
           return a.name.localeCompare(b.name);
@@ -100,17 +101,16 @@ export function TopicsView() {
 
   const handleCreateTopic = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTopicName.trim()) return;
-
+    if (!newTopicName.trim() || isSubmittingTopic) return;
+    setIsSubmittingTopic(true);
     try {
-      const success = await createTopic({ name: newTopicName.trim() });
-      if (success) {
+      const topic = await createTopic({ name: newTopicName.trim() });
+      if (topic) {
         setNewTopicName("");
         setIsCreating(false);
-        // toast.success("Topic created"); // createTopic already shows a toast
       }
-    } catch (error) {
-      toast.error("Failed to create topic");
+    } finally {
+      setIsSubmittingTopic(false);
     }
   };
 
@@ -143,14 +143,16 @@ export function TopicsView() {
         return next;
       });
 
-      const currentSelected = useAppStore.getState().selectedTopic;
-      if (currentSelected?.id === topicId) {
+      const shouldRestoreSelection =
+        useAppStore.getState().selectedTopic?.id === topicId;
+      if (shouldRestoreSelection) {
         setSelectedTopic(null);
       }
 
       // If there's an existing pending deletion for this topic (shouldn't happen, but safe), clear it
-      if (pendingDeletionsRef.current.has(topicId)) {
-        clearTimeout(pendingDeletionsRef.current.get(topicId)!);
+      const existingTimeout = pendingDeletionsRef.current.get(topicId);
+      if (existingTimeout !== undefined) {
+        clearTimeout(existingTimeout);
       }
 
       const toastId = toast.success("Topic deleted", {
@@ -161,7 +163,7 @@ export function TopicsView() {
           onClick: () => {
             // Cancel deletion
             const timeoutId = pendingDeletionsRef.current.get(topicId);
-            if (timeoutId) {
+            if (timeoutId !== undefined) {
               clearTimeout(timeoutId);
               pendingDeletionsRef.current.delete(topicId);
             }
@@ -173,9 +175,9 @@ export function TopicsView() {
               return next;
             });
 
-            // Optionally restore selection if it was the only thing unselected?
-            // Since we cleared it above, we could set it back.
-            setSelectedTopic(topic);
+            if (shouldRestoreSelection) {
+              setSelectedTopic(topic);
+            }
             toast.dismiss(toastId);
           },
         },
@@ -204,7 +206,7 @@ export function TopicsView() {
     [deleteTopic, setSelectedTopic],
   );
 
-  const handleExport = useCallback((format: "markdown" | "csv" | "json") => {
+  const handleExport = (format: "markdown" | "csv" | "json") => {
     if (filteredTopics.length === 0) {
       toast.error("No topics to export");
       return;
@@ -242,71 +244,58 @@ export function TopicsView() {
       logger.error("Export failed", err);
       toast.error("Failed to export topics");
     }
-  }, [filteredTopics]);
-
-  useEffect(() => {
-    const handleExportShortcut = () => {
-      handleExport("markdown");
-    };
-
-    document.addEventListener("export-current-view", handleExportShortcut);
-    return () => {
-      document.removeEventListener("export-current-view", handleExportShortcut);
-    };
-  }, [handleExport]);
+  };
 
   return (
-    <div className="h-full flex flex-col md:flex-row bg-bg-base text-text-primary overflow-hidden">
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-bg-base md:flex-row">
       {/* List Panel */}
       <div
-        className={`w-full md:w-80 flex-shrink-0 border-r border-border-subtle bg-bg-surface flex flex-col transition-all duration-300 ${
+        className={`flex min-h-0 w-full flex-1 flex-shrink-0 flex-col border-b border-border-subtle bg-bg-elevated/60 transition-colors duration-theme md:h-full md:w-80 md:flex-none md:border-b-0 md:border-r ${
           selectedTopic ? "hidden md:flex" : "flex"
         }`}
       >
-        <div className="p-4 border-b border-border-subtle space-y-4">
+        <div className="space-y-4 border-b border-border-subtle p-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 min-w-0">
-              <span className="icon-tile bg-accent-soft text-accent-strong">
-                <Hash className="h-4 w-4" aria-hidden="true" />
-              </span>
-              <h1 className="truncate font-serif text-xl font-bold text-text-primary">
-                Topics
-              </h1>
-            </div>
+            <h1 className="flex items-center gap-2 font-serif text-subtitle font-bold text-text-primary">
+              <Hash className="h-5 w-5 text-primary-500" />
+              Topics
+            </h1>
             <div className="flex items-center gap-2">
               <DropdownMenu.Root>
                 <DropdownMenu.Trigger asChild>
-                  <button
-                    className="icon-btn rounded-lg"
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
                     title="Export topics"
                     aria-label="Export topics"
                   >
                     <Download className="w-5 h-5" aria-hidden="true" />
-                  </button>
+                  </Button>
                 </DropdownMenu.Trigger>
                 <DropdownMenu.Portal>
                   <DropdownMenu.Content
-                    className="min-w-[180px] bg-bg-surface rounded-lg shadow-lg border border-border-moderate p-1 z-50 animate-in fade-in-0 zoom-in-95"
+                    className="z-dropdown min-w-44 rounded-surface border border-border-subtle bg-bg-surface p-1 shadow-md animate-in fade-in-0 zoom-in-95"
                     align="start"
                     sideOffset={5}
                   >
                     <DropdownMenu.Item
                       onSelect={() => handleExport("markdown")}
-                      className="flex items-center gap-2 rounded-lg px-3 py-2 text-small text-text-secondary hover:bg-bg-elevated hover:text-text-primary cursor-pointer outline-none"
+                      className="flex cursor-pointer items-center gap-2 rounded-control px-3 py-2 text-small text-text-secondary outline-none transition-colors hover:bg-bg-elevated hover:text-text-primary focus-visible:bg-bg-elevated"
                     >
                       <FileText className="w-4 h-4" />
                       Markdown (.md)
                     </DropdownMenu.Item>
                     <DropdownMenu.Item
                       onSelect={() => handleExport("csv")}
-                      className="flex items-center gap-2 rounded-lg px-3 py-2 text-small text-text-secondary hover:bg-bg-elevated hover:text-text-primary cursor-pointer outline-none"
+                      className="flex cursor-pointer items-center gap-2 rounded-control px-3 py-2 text-small text-text-secondary outline-none transition-colors hover:bg-bg-elevated hover:text-text-primary focus-visible:bg-bg-elevated"
                     >
                       <Table className="w-4 h-4" />
                       CSV (.csv)
                     </DropdownMenu.Item>
                     <DropdownMenu.Item
                       onSelect={() => handleExport("json")}
-                      className="flex items-center gap-2 rounded-lg px-3 py-2 text-small text-text-secondary hover:bg-bg-elevated hover:text-text-primary cursor-pointer outline-none"
+                      className="flex cursor-pointer items-center gap-2 rounded-control px-3 py-2 text-small text-text-secondary outline-none transition-colors hover:bg-bg-elevated hover:text-text-primary focus-visible:bg-bg-elevated"
                     >
                       <FileJson className="w-4 h-4" />
                       JSON (.json)
@@ -315,71 +304,78 @@ export function TopicsView() {
                 </DropdownMenu.Portal>
               </DropdownMenu.Root>
 
-              <button
+              <Button
+                type="button"
                 onClick={() => setIsCreating(!isCreating)}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-accent-soft text-accent-strong shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lift"
-                aria-label="New Topic"
+                variant="default"
+                size="icon"
+                aria-label={isCreating ? "Close new topic form" : "New Topic"}
               >
                 <Plus className="w-4 h-4" />
-              </button>
+              </Button>
             </div>
           </div>
 
           {isCreating && (
-            <form onSubmit={handleCreateTopic} className="flex gap-2">
-              <label htmlFor="new-topic-name" className="sr-only">Topic name</label>
+            <form onSubmit={handleCreateTopic} className="flex min-w-0 gap-2" aria-busy={isSubmittingTopic}>
               <input
-                id="new-topic-name"
                 type="text"
                 value={newTopicName}
                 onChange={(e) => setNewTopicName(e.target.value)}
                 placeholder="Topic name..."
-                className="flex-1 h-10 rounded-lg border border-border-moderate bg-bg-base px-3 text-small text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-accent"
+                aria-label="Topic name"
+                className="min-h-11 min-w-0 flex-1 rounded-control border border-border-moderate bg-bg-surface px-3 py-2 text-small text-text-primary shadow-sm placeholder:text-text-tertiary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:cursor-not-allowed disabled:opacity-60 md:min-h-0"
                 autoFocus
+                disabled={isSubmittingTopic}
               />
-              <button
+              <Button
                 type="submit"
-                disabled={!newTopicName.trim()}
-                className="h-10 rounded-lg bg-accent-strong px-3.5 text-small font-semibold text-accent-contrast shadow-lift transition-all hover:-translate-y-0.5 hover:opacity-95 disabled:translate-y-0 disabled:opacity-50"
+                variant="default"
+                size="sm"
+                disabled={!newTopicName.trim() || isSubmittingTopic}
+                className="shrink-0"
               >
-                Add
-              </button>
+                {isSubmittingTopic ? "Adding…" : "Add"}
+              </Button>
             </form>
           )}
           <div className="flex flex-col gap-2">
             <div className="relative">
               <label htmlFor="topics-search-input" className="sr-only">Search topics</label>
-              <Search className="absolute left-3 top-2.5 w-4 h-4 text-text-tertiary" />
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-tertiary" aria-hidden="true" />
               <input
                 id="topics-search-input"
                 ref={searchInputRef}
-                type="text"
+                type="search"
                 placeholder="Search topics..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full h-10 rounded-lg border border-border-moderate bg-bg-base pl-9 pr-10 text-small text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-accent"
+                className="min-h-11 w-full rounded-control border border-border-moderate bg-bg-surface py-2 pl-10 pr-12 text-small text-text-primary shadow-sm placeholder:text-text-tertiary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus md:min-h-0"
                 aria-label="Search topics"
               />
               {searchQuery && (
-                <button
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
                   onClick={() => {
                     setSearchQuery("");
                     searchInputRef.current?.focus();
                   }}
-                  className="icon-btn absolute right-1.5 top-1/2 h-8 w-8 -translate-y-1/2 rounded-full"
+                  className="absolute right-1 top-1/2 -translate-y-1/2"
                   aria-label="Clear search"
                 >
                   <X className="w-3 h-3" aria-hidden="true" />
-                </button>
+                </Button>
               )}
             </div>
 
             <div className="flex items-center gap-2">
-              <ArrowUpDown className="w-4 h-4 text-text-tertiary flex-shrink-0" />
+              <ArrowUpDown className="h-4 w-4 flex-shrink-0 text-text-tertiary" aria-hidden="true" />
               <select
                 value={sortOption}
                 onChange={(e) => setSortOption(e.target.value as SortOption)}
-                className="w-full h-10 rounded-lg border border-border-moderate bg-bg-base px-3 text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
+                className="min-h-11 w-full cursor-pointer rounded-control border border-border-moderate bg-bg-surface px-3 py-2 text-small text-text-primary shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus md:min-h-0"
                 aria-label="Sort topics"
               >
                 <option value="updated_desc">Last Updated (Newest)</option>
@@ -394,7 +390,7 @@ export function TopicsView() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="min-h-0 flex-1 overflow-y-auto p-4">
           {topicsSyncError && <InlineError message={topicsSyncError.message} />}
           <TopicList
             topics={filteredTopics}
@@ -407,24 +403,50 @@ export function TopicsView() {
       </div>
 
       {/* Detail Panel */}
-      <div className="flex-1 min-w-0 bg-bg-surface overflow-y-auto">
+      <div className={`min-h-0 min-w-0 flex-1 flex-col overflow-y-auto bg-bg-surface ${selectedTopic ? "flex" : "hidden md:flex"}`}>
         {selectedTopic ? (
-          <TopicDetailView
-            topic={selectedTopic}
-            onUpdate={handleUpdateTopic}
-            onDelete={handleDeleteWithUndo}
-          />
-        ) : (
-          <div className="hero-ambient h-full flex flex-col items-center justify-center text-text-secondary space-y-4 p-8">
-            <div className="icon-tile h-16 w-16 rounded-xl bg-accent-soft text-accent-strong">
-              <Hash className="h-7 w-7" aria-hidden="true" />
+          <>
+            <div className="flex shrink-0 items-center gap-3 border-b border-border-subtle bg-bg-surface p-4 md:hidden">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => setSelectedTopic(null)}
+                aria-label="Back to topics"
+              >
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+              </Button>
+              <span className="font-serif text-small font-semibold text-text-primary">
+                Topics
+              </span>
             </div>
-            <p className="text-lg font-medium text-text-primary">
-              Select a topic
-            </p>
-            <p className="text-small max-w-sm text-center">
-              Choose a topic from the list to view its details, connected notes, papers, and ideas.
-            </p>
+            <TopicDetailView
+              topic={selectedTopic}
+              onUpdate={handleUpdateTopic}
+              onDelete={handleDeleteWithUndo}
+            />
+          </>
+        ) : (
+          <div
+            role="status"
+            aria-live="polite"
+            className="flex h-full min-h-0 flex-col items-center justify-center gap-4 p-6 text-center"
+          >
+            <div
+              aria-hidden="true"
+              className="flex h-12 w-12 items-center justify-center rounded-control bg-bg-elevated text-text-tertiary"
+            >
+              <Hash className="h-6 w-6" />
+            </div>
+            <div className="flex flex-col gap-2">
+              <h3 className="font-serif text-body-lg font-semibold text-text-primary">
+                Select a topic
+              </h3>
+              <p className="text-body text-text-secondary">
+                Choose a topic from the list to view its details, connected
+                notes, papers, and ideas.
+              </p>
+            </div>
           </div>
         )}
       </div>

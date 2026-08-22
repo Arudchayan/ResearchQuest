@@ -3,12 +3,10 @@ import { useEffect, useState, useMemo } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Trophy, X, Flame, Star, Medal, Award, Calendar } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
-import { useShallow } from "zustand/react/shallow";
 import { supabase } from "../../lib/supabase";
 import {
   ACHIEVEMENTS,
   getLevelTitle,
-  getXPForLevel,
 } from "../../utils/gamification";
 import type { Achievement } from "../../types/database";
 import { Skeleton } from "../../components/ui/Skeleton";
@@ -19,6 +17,7 @@ interface ProfileDialogProps {
 }
 
 export function ProfileDialog({ open, onClose }: ProfileDialogProps) {
+  // ⚡ PERFORMANCE OPTIMIZATION:
   // Using a direct selector for a single property instead of subscribing to the entire store.
   // This prevents ProfileDialog from unnecessarily re-rendering on other state changes.
   const user = useAppStore((state) => state.user);
@@ -68,7 +67,6 @@ export function ProfileDialog({ open, onClose }: ProfileDialogProps) {
 
   const currentLevel = user?.current_level || 1;
   const totalXP = user?.total_xp || 0;
-  const xpForNextLevel = getXPForLevel(currentLevel);
   const xpInLevel = totalXP % 500; // Assuming 500 XP per level as per gamification.ts
   const progressPercent = Math.min(100, (xpInLevel / 500) * 100);
 
@@ -103,17 +101,17 @@ export function ProfileDialog({ open, onClose }: ProfileDialogProps) {
   return (
     <Dialog.Root open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm animate-in fade-in duration-200" />
-        <Dialog.Content className="fixed left-[50%] top-[50%] z-[60] w-full max-w-4xl translate-x-[-50%] translate-y-[-50%] rounded-xl bg-bg-surface shadow-lg border border-border-subtle overflow-hidden outline-none animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+        <Dialog.Overlay className="fixed inset-0 z-[60] bg-overlay backdrop-blur-sm animate-in fade-in duration-fast" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-[60] max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-4xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-surface border border-border-subtle bg-bg-surface shadow-lg outline-none animate-in zoom-in-95 duration-fast">
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-5 border-b border-border-subtle bg-bg-elevated sticky top-0 z-10">
+          <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-border-subtle bg-bg-elevated px-4 py-4 sm:px-6">
             <div className="flex items-center gap-3">
-              <div className="icon-tile h-10 w-10 rounded-full bg-gold-soft text-gold-strong">
-                <Trophy className="w-5 h-5" aria-hidden="true" />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-primary-500 text-bg-surface shadow-sm">
+                <Trophy className="w-5 h-5" />
               </div>
               <div>
                 <Dialog.Title className="text-xl font-bold text-text-primary">
-                  Researcher Profile
+                  Researcher profile
                 </Dialog.Title>
                 <Dialog.Description className="text-sm text-text-secondary">
                   Your progress, stats, and badges
@@ -122,7 +120,7 @@ export function ProfileDialog({ open, onClose }: ProfileDialogProps) {
             </div>
             <Dialog.Close asChild>
               <button
-                className="icon-btn"
+                className="p-2 rounded-full text-text-secondary hover:text-text-primary hover:bg-bg-base transition-colors"
                 aria-label="Close profile"
               >
                 <X className="w-5 h-5" aria-hidden="true" />
@@ -130,16 +128,16 @@ export function ProfileDialog({ open, onClose }: ProfileDialogProps) {
             </Dialog.Close>
           </div>
 
-          <div className="p-6 space-y-8">
+          <div className="space-y-6 p-4 sm:space-y-8 sm:p-6">
             {/* Stats Section */}
             <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Level Card */}
-              <div className="surface-card p-4 flex flex-col gap-3">
+              <div className="flex flex-col gap-3 rounded-surface border border-border-subtle bg-bg-base p-4">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-semibold text-text-secondary">
                     Current Rank
                   </span>
-                  <Star className="w-4 h-4 text-gold fill-gold" aria-hidden="true" />
+                  <Star className="h-4 w-4 fill-warning text-warning" />
                 </div>
                 <div>
                   <div className="text-2xl font-bold text-text-primary">
@@ -155,7 +153,7 @@ export function ProfileDialog({ open, onClose }: ProfileDialogProps) {
                     <span>500 XP</span>
                   </div>
                   <div
-                    className="progress-track h-2 w-full"
+                    className="h-2 bg-bg-elevated rounded-full overflow-hidden"
                     role="progressbar"
                     aria-valuenow={xpInLevel}
                     aria-valuemin={0}
@@ -163,7 +161,7 @@ export function ProfileDialog({ open, onClose }: ProfileDialogProps) {
                     aria-label="Level Progress"
                   >
                     <div
-                      className="progress-fill"
+                      className="h-full bg-primary-500 transition-all duration-500"
                       style={{ width: `${progressPercent}%` }}
                     />
                   </div>
@@ -171,12 +169,12 @@ export function ProfileDialog({ open, onClose }: ProfileDialogProps) {
               </div>
 
               {/* Streak Card */}
-              <div className="surface-card p-4 flex flex-col gap-3">
+              <div className="flex flex-col gap-3 rounded-surface border border-border-subtle bg-bg-base p-4">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-semibold text-text-secondary">
                     Consistency
                   </span>
-                  <Flame className="w-4 h-4 text-coral fill-coral" aria-hidden="true" />
+                  <Flame className="h-4 w-4 fill-warning text-warning" />
                 </div>
                 <div>
                   <div className="text-2xl font-bold text-text-primary">
@@ -189,19 +187,18 @@ export function ProfileDialog({ open, onClose }: ProfileDialogProps) {
                 <div className="mt-auto text-caption text-text-secondary">
                   Longest streak:{" "}
                   <span className="font-semibold">
-                    {user?.longest_streak || 0}{" "}
-                    {(user?.longest_streak || 0) === 1 ? "day" : "days"}
+                    {user?.longest_streak || 0} days
                   </span>
                 </div>
               </div>
 
               {/* Total XP Card */}
-              <div className="surface-card p-4 flex flex-col gap-3">
+              <div className="flex flex-col gap-3 rounded-surface border border-border-subtle bg-bg-base p-4">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-semibold text-text-secondary">
                     Lifetime Impact
                   </span>
-                  <Award className="w-4 h-4 text-violet-strong" aria-hidden="true" />
+                  <Award className="h-4 w-4 text-purple" />
                 </div>
                 <div>
                   <div className="text-2xl font-bold text-text-primary">
@@ -220,7 +217,7 @@ export function ProfileDialog({ open, onClose }: ProfileDialogProps) {
             {/* Achievements Section */}
             <section>
               <h3 className="text-lg font-semibold text-text-primary mb-4 flex items-center gap-2">
-                <Medal className="w-5 h-5 text-gold-strong" aria-hidden="true" />
+                <Medal className="w-5 h-5 text-primary-500" />
                 Achievements
                 <span className="text-sm font-normal text-text-tertiary ml-2">
                   ({earnedAchievements.size} / {allAchievements.length}{" "}
@@ -240,24 +237,24 @@ export function ProfileDialog({ open, onClose }: ProfileDialogProps) {
                       <article
                         key={achievement.type}
                         aria-label={`${achievement.title} - ${isUnlocked ? "Unlocked" : "Locked"}`}
-                        className={`surface-card relative p-4 transition-all duration-200 ${
+                        className={`relative p-4 rounded-xl border transition-all duration-200 ${
                           isUnlocked
-                            ? "bg-accent-soft border-border-moderate"
-                            : "bg-bg-elevated border-border-subtle opacity-70 grayscale-[0.5]"
+                        ? "bg-bg-surface border-border-moderate shadow-sm"
+                            : "bg-bg-base/50 border-border-subtle opacity-70 grayscale-[0.5]"
                         }`}
                       >
                         <div className="flex items-start justify-between gap-3 mb-2">
                           <div
                             className={`p-2 rounded-lg ${
                               isUnlocked
-                                ? "bg-accent-soft text-accent-strong"
+                                ? "bg-primary-100 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400"
                                 : "bg-bg-elevated text-text-tertiary"
                             }`}
                           >
-                            <Medal className="w-5 h-5" aria-hidden="true" />
+                            <Medal className="w-5 h-5" />
                           </div>
                           {isUnlocked && (
-                            <span className="status-chip bg-success-bg text-success">
+                            <span className="text-xs font-bold px-2 py-1 rounded-full bg-success-bg text-success border border-success/20">
                               Unlocked
                             </span>
                           )}
@@ -274,13 +271,13 @@ export function ProfileDialog({ open, onClose }: ProfileDialogProps) {
 
                         <div className="flex items-center justify-between text-caption pt-3 border-t border-border-subtle/50">
                           <span
-                            className={`font-semibold ${isUnlocked ? "text-accent-strong" : "text-text-tertiary"}`}
+                            className={`font-semibold ${isUnlocked ? "text-primary-500" : "text-text-tertiary"}`}
                           >
                             +{achievement.xp} XP
                           </span>
                           {isUnlocked && earnedDate && (
                             <span className="text-text-tertiary flex items-center gap-1">
-                              <Calendar className="w-3 h-3" aria-hidden="true" />
+                              <Calendar className="w-3 h-3" />
                               {new Date(earnedDate).toLocaleDateString()}
                             </span>
                           )}

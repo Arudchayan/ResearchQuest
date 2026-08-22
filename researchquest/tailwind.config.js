@@ -26,6 +26,10 @@ module.exports = {
 			},
 		},
 		extend: {
+			screens: {
+				// DESIGN.md: 2xl container is 1440px — match breakpoint
+				'2xl': '1440px',
+			},
 			colors: {
 				// Luxe Scholar Brand Colors
 				primary: {
@@ -52,42 +56,87 @@ module.exports = {
 				success: {
 					DEFAULT: 'var(--success)',
 					bg: 'var(--success-bg)',
+					hover: 'var(--success-hover)',
+					foreground: 'var(--success-foreground)',
 				},
 				warning: {
 					DEFAULT: 'var(--warning)',
 					bg: 'var(--warning-bg)',
+					hover: 'var(--warning-hover)',
+					foreground: 'var(--warning-foreground)',
 				},
 				purple: {
 					DEFAULT: 'var(--purple)',
 					bg: 'var(--purple-bg)',
+					hover: 'var(--purple-hover)',
+					foreground: 'var(--purple-foreground)',
 				},
-				accent: {
-					DEFAULT: 'var(--accent)',
-					strong: 'var(--accent-strong)',
-					soft: 'var(--accent-soft)',
-					contrast: 'var(--accent-contrast)',
+				stage: {
+					seed: {
+						DEFAULT: 'var(--stage-seed)',
+						bg: 'var(--stage-seed-bg)',
+						hover: 'var(--stage-seed-hover)',
+						foreground: 'var(--stage-seed-foreground)',
+					},
+					developing: {
+						DEFAULT: 'var(--stage-developing)',
+						bg: 'var(--stage-developing-bg)',
+						hover: 'var(--stage-developing-hover)',
+						foreground: 'var(--stage-developing-foreground)',
+					},
+					supported: {
+						DEFAULT: 'var(--stage-supported)',
+						bg: 'var(--stage-supported-bg)',
+						hover: 'var(--stage-supported-hover)',
+						foreground: 'var(--stage-supported-foreground)',
+					},
+					mature: {
+						DEFAULT: 'var(--stage-mature)',
+						bg: 'var(--stage-mature-bg)',
+						hover: 'var(--stage-mature-hover)',
+						foreground: 'var(--stage-mature-foreground)',
+					},
 				},
-				gold: {
-					DEFAULT: 'var(--gold)',
-					strong: 'var(--gold-strong)',
-					soft: 'var(--gold-soft)',
+				priority: {
+					high: {
+						DEFAULT: 'var(--priority-high)',
+						bg: 'var(--priority-high-bg)',
+						hover: 'var(--priority-high-hover)',
+						foreground: 'var(--priority-high-foreground)',
+					},
+					medium: {
+						DEFAULT: 'var(--priority-medium)',
+						bg: 'var(--priority-medium-bg)',
+						hover: 'var(--priority-medium-hover)',
+						foreground: 'var(--priority-medium-foreground)',
+					},
+					low: {
+						DEFAULT: 'var(--priority-low)',
+						bg: 'var(--priority-low-bg)',
+						hover: 'var(--priority-low-hover)',
+						foreground: 'var(--priority-low-foreground)',
+					},
+					overdue: {
+						DEFAULT: 'var(--priority-overdue)',
+						bg: 'var(--priority-overdue-bg)',
+						hover: 'var(--priority-overdue-hover)',
+						foreground: 'var(--priority-overdue-foreground)',
+					},
 				},
-				coral: {
-					DEFAULT: 'var(--coral)',
-					strong: 'var(--coral-strong)',
-					soft: 'var(--coral-soft)',
+				destructive: {
+					DEFAULT: 'var(--destructive)',
+					bg: 'var(--destructive-bg)',
+					hover: 'var(--destructive-hover)',
+					foreground: 'var(--destructive-foreground)',
 				},
-				violet: {
-					DEFAULT: 'var(--violet)',
-					strong: 'var(--violet-strong)',
-					soft: 'var(--violet-soft)',
+				info: {
+					DEFAULT: 'var(--info)',
+					bg: 'var(--info-bg)',
+					hover: 'var(--info-hover)',
+					foreground: 'var(--info-foreground)',
 				},
-				blue: {
-					DEFAULT: 'var(--blue)',
-					strong: 'var(--blue-strong)',
-					soft: 'var(--blue-soft)',
-				},
-				'bg-muted': 'var(--bg-muted)',
+				focus: 'var(--focus)',
+				overlay: 'var(--overlay)',
 			},
 			fontFamily: {
 				sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
@@ -95,13 +144,13 @@ module.exports = {
 				serif: ['Playfair Display', 'Merriweather', 'Georgia', 'Times New Roman', 'serif'], // Added serif for Luxe Scholar
 			},
 			fontSize: {
-				hero: ['3.5rem', { lineHeight: '1.05', letterSpacing: '0' }],
-				title: ['2.25rem', { lineHeight: '1.15', letterSpacing: '0' }],
-				subtitle: ['1.5rem', { lineHeight: '1.3', letterSpacing: '0' }],
+				hero: ['3.5rem', { lineHeight: '1.05', letterSpacing: '-0.03em' }],
+				title: ['2.25rem', { lineHeight: '1.15', letterSpacing: '-0.02em' }],
+				subtitle: ['1.5rem', { lineHeight: '1.3', letterSpacing: '-0.01em' }],
 				'body-lg': ['1.125rem', { lineHeight: '1.65' }],
 				body: ['1rem', { lineHeight: '1.6' }],
-				small: ['0.875rem', { lineHeight: '1.5', letterSpacing: '0' }],
-				caption: ['0.75rem', { lineHeight: '1.4', letterSpacing: '0' }],
+				small: ['0.875rem', { lineHeight: '1.5', letterSpacing: '0.01em' }],
+				caption: ['0.75rem', { lineHeight: '1.4', letterSpacing: '0.02em' }],
 				code: ['0.875rem', { lineHeight: '1.4' }],
 			},
 			// 8-point spacing system
@@ -125,26 +174,41 @@ module.exports = {
 				'80': '20rem',     // 320px - right sidebar
 			},
 			borderRadius: {
-				// Refined radii for the high-fidelity surface system
-				sm: '0.5rem',        // 8px
-				md: '0.625rem',      // 10px
-				lg: '0.75rem',       // 12px
-				xl: '1rem',          // 16px
+				// Sharper borders for editorial feel
+				sm: '0.125rem',      // 2px
+				md: '0.25rem',       // 4px
+				lg: '0.375rem',      // 6px
+				xl: '0.5rem',        // 8px
+				control: '0.25rem',
+				surface: '0.5rem',
 				full: '9999px',
+			},
+			zIndex: {
+				base: '0',
+				dropdown: '40',
+				overlay: '50',
+				modal: '50',
+				'modal-stacked': '70',
+				tooltip: '60',
+				'skip-link': '100',
 			},
 			boxShadow: {
 				sm: 'var(--shadow-sm)',
 				md: 'var(--shadow-md)',
 				lg: 'var(--shadow-lg)',
 				hover: 'var(--shadow-hover)',
-				card: 'var(--shadow-card)',
-				lift: 'var(--shadow-lift)',
-				glow: 'var(--shadow-glow)',
 			},
 			animation: {
 				'fade-in': 'fadeIn 200ms ease-out',
 				'slide-in': 'slideIn 300ms cubic-bezier(0.16, 1, 0.3, 1)',
 				'xp-gain': 'xpGain 600ms ease-in-out',
+			},
+			transitionDuration: {
+				fast: '200ms',
+				theme: '300ms',
+			},
+			transitionTimingFunction: {
+				'editorial-out': 'cubic-bezier(0.16, 1, 0.3, 1)',
 			},
 			keyframes: {
 				fadeIn: {

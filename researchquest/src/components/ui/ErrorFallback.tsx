@@ -1,5 +1,7 @@
 import { AlertTriangle, RefreshCw, Home } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
+
 interface ErrorFallbackProps {
   error: Error;
   resetError?: () => void;
@@ -57,13 +59,13 @@ export function ErrorFallback({
       <div className="w-full max-w-md">
         {/* Error Icon */}
         <div className="flex justify-center mb-6">
-          <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
-            <AlertTriangle className="w-8 h-8 text-red-600 dark:text-red-400" />
+          <div className="w-16 h-16 rounded-control bg-destructive-bg flex items-center justify-center">
+            <AlertTriangle className="w-8 h-8 text-destructive" aria-hidden="true" />
           </div>
         </div>
 
         {/* Error Title */}
-        <h2 className="text-xl font-bold text-text-primary text-center mb-3">
+        <h2 className="font-serif text-xl font-bold text-text-primary text-center mb-3">
           {title}
         </h2>
 
@@ -73,12 +75,12 @@ export function ErrorFallback({
         </p>
 
         {/* Technical Details (Collapsible) */}
-        <details className="mb-6 p-4 bg-bg-elevated rounded-lg border border-border-subtle">
-          <summary className="text-small font-medium text-text-secondary cursor-pointer hover:text-text-primary transition-colors">
+        <details className="mb-6 p-4 bg-bg-elevated rounded-lg border border-border-moderate">
+          <summary className="text-small font-medium text-text-secondary cursor-pointer hover:text-text-primary transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2">
             Technical Details
           </summary>
           <div className="mt-3 space-y-2">
-            <p className="text-caption font-mono text-red-600 dark:text-red-400 break-words">
+            <p className="text-caption font-mono text-destructive break-words">
               {error.message}
             </p>
             
@@ -87,22 +89,25 @@ export function ErrorFallback({
 
         {/* Action Buttons */}
         <div className="flex gap-3">
-          <button
+          <Button
+            type="button"
             onClick={handleRetry}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors font-medium"
+            className="flex-1"
           >
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className="w-4 h-4" aria-hidden="true" />
             Try Again
-          </button>
+          </Button>
 
           {showHomeButton && (
-            <button
+            <Button
+              type="button"
               onClick={handleGoHome}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-bg-elevated text-text-primary border border-border-subtle rounded-md hover:bg-bg-surface transition-colors font-medium"
+              variant="outline"
+              className="flex-1"
             >
-              <Home className="w-4 h-4" />
+              <Home className="w-4 h-4" aria-hidden="true" />
               Go Home
-            </button>
+            </Button>
           )}
         </div>
 
@@ -111,7 +116,7 @@ export function ErrorFallback({
           If the problem persists, please{" "}
           <a
             href="mailto:support@researchquest.com"
-            className="text-primary-500 hover:text-primary-600 underline"
+            className="inline-flex min-h-11 items-center text-primary-500 hover:text-primary-600 underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
           >
             contact support
           </a>
@@ -137,21 +142,24 @@ export function InlineError({
 }: InlineErrorProps) {
   return (
     <div
-      className={`p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 ${className}`}
+        className={`p-4 rounded-surface bg-destructive-bg border border-destructive ${className}`}
     >
       <div className="flex items-start gap-3">
-        <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+        <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
         <div className="flex-1">
-          <p className="text-small text-red-800 dark:text-red-200 mb-2">
+          <p className="text-small text-destructive mb-2">
             {message}
           </p>
           {onRetry && (
-            <button
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
               onClick={onRetry}
-              className="text-caption text-red-700 dark:text-red-300 hover:text-red-900 dark:hover:text-red-100 font-medium underline"
+              className="px-2 text-destructive hover:bg-destructive-bg hover:text-destructive-hover underline"
             >
               Try again
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -165,11 +173,11 @@ export function InlineError({
 export function NetworkError({ onRetry }: { onRetry?: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center p-8 text-center">
-      <div className="w-16 h-16 rounded-full bg-orange-100 dark:bg-orange-900/20 flex items-center justify-center mb-4">
-        <AlertTriangle className="w-8 h-8 text-orange-600 dark:text-orange-400" />
+        <div className="w-16 h-16 rounded-control bg-warning-bg flex items-center justify-center mb-4">
+          <AlertTriangle className="w-8 h-8 text-warning" aria-hidden="true" />
       </div>
 
-      <h3 className="text-lg font-semibold text-text-primary mb-2">
+      <h3 className="font-serif text-lg font-semibold text-text-primary mb-2">
         Connection Lost
       </h3>
 
@@ -178,13 +186,14 @@ export function NetworkError({ onRetry }: { onRetry?: () => void }) {
       </p>
 
       {onRetry && (
-        <button
+        <Button
+          type="button"
           onClick={onRetry}
-          className="flex items-center gap-2 px-6 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors font-medium"
+          className="px-6"
         >
-          <RefreshCw className="w-4 h-4" />
+          <RefreshCw className="w-4 h-4" aria-hidden="true" />
           Retry Connection
-        </button>
+        </Button>
       )}
     </div>
   );

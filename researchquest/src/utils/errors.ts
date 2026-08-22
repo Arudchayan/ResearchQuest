@@ -4,6 +4,8 @@ export function extractFunctionErrorMessage(
 ): string {
   if (!error) return fallback;
 
+  if (typeof error === "string" && error.trim()) return error;
+
   const candidates: any[] = [];
 
   if (error.context) {

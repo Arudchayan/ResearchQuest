@@ -1,5 +1,9 @@
 import { AlertTriangle, X } from "lucide-react";
-import { useEffect, useRef, useState, useCallback, useId } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
+import * as Dialog from "@radix-ui/react-dialog";
+
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -12,6 +16,24 @@ interface ConfirmDialogProps {
   variant?: "danger" | "warning" | "info";
   isLoading?: boolean;
 }
+
+const VARIANT_STYLES = {
+  danger: {
+    icon: "text-destructive",
+    iconBg: "bg-destructive-bg",
+    button: "bg-destructive text-destructive-foreground hover:bg-destructive-hover",
+  },
+  warning: {
+    icon: "text-warning",
+    iconBg: "bg-warning-bg",
+    button: "bg-warning text-warning-foreground hover:bg-warning-hover",
+  },
+  info: {
+    icon: "text-info",
+    iconBg: "bg-info-bg",
+    button: "bg-info text-info-foreground hover:bg-info-hover",
+  },
+} as const;
 
 export function ConfirmDialog({
   isOpen,
@@ -26,100 +48,14 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   const confirmButtonRef = useRef<HTMLButtonElement>(null);
   const cancelButtonRef = useRef<HTMLButtonElement>(null);
-  const dialogRef = useRef<HTMLDivElement>(null);
-  const titleId = useId();
-  const descriptionId = useId();
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+  const styles = VARIANT_STYLES[variant];
 
   useEffect(() => {
     if (isOpen) {
-      const trigger = document.activeElement as HTMLElement;
-
-      // Focus cancel button for destructive/warning actions, confirm for others
-      if (variant === "danger" || variant === "warning") {
-        cancelButtonRef.current?.focus();
-      } else {
-        confirmButtonRef.current?.focus();
-      }
-
-      // Lock body scroll
-      document.body.style.overflow = "hidden";
-
-      return () => {
-        document.body.style.overflow = "unset";
-        // Restore focus
-        if (trigger && document.body.contains(trigger)) {
-          trigger.focus();
-        }
-      };
+      previouslyFocusedRef.current = document.activeElement as HTMLElement;
     }
-  }, [isOpen, variant]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Tab") {
-        const focusableElements = dialogRef.current?.querySelectorAll(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-        );
-        if (!focusableElements || focusableElements.length === 0) return;
-
-        const firstElement = focusableElements[0] as HTMLElement;
-        const lastElement = focusableElements[
-          focusableElements.length - 1
-        ] as HTMLElement;
-
-        if (e.shiftKey) {
-          if (document.activeElement === firstElement) {
-            e.preventDefault();
-            lastElement.focus();
-          }
-        } else {
-          if (document.activeElement === lastElement) {
-            e.preventDefault();
-            firstElement.focus();
-          }
-        }
-      }
-
-      if (e.key === "Escape" && !isLoading) {
-        onClose();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, isLoading, onClose]);
-
-  if (!isOpen) return null;
-
-  const getVariantStyles = () => {
-    switch (variant) {
-      case "danger":
-        return {
-          icon: "text-coral-strong",
-          iconBg: "bg-coral-soft",
-          button:
-            "bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800",
-        };
-      case "warning":
-        return {
-          icon: "text-gold-strong",
-          iconBg: "bg-gold-soft",
-          button:
-            "bg-amber-600 hover:bg-amber-700 dark:bg-amber-700 dark:hover:bg-amber-800",
-        };
-      case "info":
-        return {
-          icon: "text-accent-strong",
-          iconBg: "bg-accent-soft",
-          button:
-            "bg-accent-strong hover:bg-accent text-accent-contrast dark:bg-accent dark:hover:bg-accent-strong",
-        };
-    }
-  };
-
-  const styles = getVariantStyles();
+  }, [isOpen]);
 
   const handleConfirm = () => {
     if (!isLoading) {
@@ -128,82 +64,103 @@ export function ConfirmDialog({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md animate-in fade-in duration-200"
-      onClick={onClose}
+    <Dialog.Root
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open && !isLoading) onClose();
+      }}
     >
-      <div
-        ref={dialogRef}
-        className="surface-panel w-full max-w-md shadow-lift overflow-hidden animate-in zoom-in-95 duration-200"
-        onClick={(e) => e.stopPropagation()}
-        role="alertdialog"
-        aria-labelledby={titleId}
-        aria-describedby={descriptionId}
-      >
-        {/* Header */}
-        <div className="flex items-start gap-4 p-6 pb-4">
-          <div
-            className={`w-12 h-12 rounded-xl ${styles.iconBg} flex items-center justify-center flex-shrink-0`}
-          >
-            <AlertTriangle className={`w-6 h-6 ${styles.icon}`} aria-hidden="true" />
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-modal-stacked bg-overlay animate-in fade-in duration-fast" />
+        <Dialog.Content
+          role="alertdialog"
+          aria-modal="true"
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
+            const target =
+              variant === "danger" || variant === "warning"
+                ? cancelButtonRef.current
+                : confirmButtonRef.current;
+            target?.focus();
+          }}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            previouslyFocusedRef.current?.focus();
+          }}
+          className="fixed left-1/2 top-1/2 z-modal-stacked w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-surface bg-bg-surface shadow-lg border border-border-moderate animate-in zoom-in-95 duration-fast"
+        >
+          {/* Header */}
+          <div className="flex items-start gap-4 p-6 pb-4">
+            <div
+              className={`w-12 h-12 rounded-control ${styles.iconBg} flex items-center justify-center flex-shrink-0`}
+            >
+              <AlertTriangle className={`w-6 h-6 ${styles.icon}`} aria-hidden="true" />
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <Dialog.Title
+                id="dialog-title"
+                className="text-lg font-serif font-semibold text-text-primary mb-2"
+              >
+                {title}
+              </Dialog.Title>
+              <Dialog.Description
+                id="dialog-description"
+                className="text-body text-text-secondary"
+              >
+                {message}
+              </Dialog.Description>
+            </div>
+
+            <Button
+              type="button"
+              onClick={onClose}
+              disabled={isLoading}
+              variant="ghost"
+              size="icon"
+              className="text-text-tertiary hover:text-text-primary"
+              aria-label="Close dialog"
+            >
+              <X className="w-5 h-5" aria-hidden="true" />
+            </Button>
           </div>
 
-          <div className="flex-1 min-w-0">
-            <h3
-              id={titleId}
-              className="font-serif text-lg font-bold text-text-primary mb-2"
+          {/* Actions */}
+          <div className="flex gap-3 px-6 py-4 bg-bg-elevated border-t border-border-subtle">
+            <Button
+              ref={cancelButtonRef}
+              type="button"
+              onClick={onClose}
+              disabled={isLoading}
+              variant="outline"
+              className="flex-1"
             >
-              {title}
-            </h3>
-            <p
-              id={descriptionId}
-              className="text-body text-text-secondary"
+              {cancelText}
+            </Button>
+
+            <Button
+              ref={confirmButtonRef}
+              type="button"
+              onClick={handleConfirm}
+              disabled={isLoading}
+              aria-live="polite"
+              aria-atomic="true"
+              variant={variant === "danger" ? "destructive" : "default"}
+              className={cn("flex-1", styles.button)}
             >
-              {message}
-            </p>
+              {isLoading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="w-4 h-4 border-2 border-border-subtle border-t-current rounded-full animate-spin" aria-hidden="true" />
+                  Loading...
+                </span>
+              ) : (
+                confirmText
+              )}
+            </Button>
           </div>
-
-          <button
-            onClick={onClose}
-            disabled={isLoading}
-            className="icon-btn rounded-lg text-text-tertiary hover:text-text-primary disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
-            aria-label="Close dialog"
-          >
-            <X className="w-5 h-5" aria-hidden="true" />
-          </button>
-        </div>
-
-        {/* Actions */}
-        <div className="flex gap-3 px-6 py-4 bg-bg-elevated border-t border-border-subtle">
-          <button
-            ref={cancelButtonRef}
-            onClick={onClose}
-            disabled={isLoading}
-            className="flex-1 h-10 rounded-lg border border-border-moderate bg-bg-surface px-4 text-small font-medium text-text-primary shadow-sm transition-all hover:border-border-strong hover:bg-bg-base disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
-          >
-            {cancelText}
-          </button>
-
-          <button
-            ref={confirmButtonRef}
-            onClick={handleConfirm}
-            disabled={isLoading}
-            aria-live="polite"
-            aria-atomic="true"
-            className={`flex-1 h-10 rounded-lg px-4 text-small font-semibold text-white shadow-lift transition-all hover:-translate-y-0.5 hover:opacity-95 disabled:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 ${styles.button}`}
-          >
-            {isLoading ? (
-              <span className="flex items-center justify-center gap-2">
-                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" aria-hidden="true" />
-                Loading...
-              </span>
-            ) : (
-              confirmText
-            )}
-          </button>
-        </div>
-      </div>
-    </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
 

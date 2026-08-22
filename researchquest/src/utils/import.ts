@@ -25,12 +25,12 @@ function validateImportPayload(parsed: unknown):
 
   const record = parsed as Record<string, unknown>;
 
-  if (!record.metadata || typeof record.metadata !== "object") {
+  if (!record["metadata"] || typeof record["metadata"] !== "object") {
     return { ok: false, error: "Missing required field: metadata" };
   }
 
-  const meta = record.metadata as Record<string, unknown>;
-  if (typeof meta.appName !== "string") {
+  const meta = record["metadata"] as Record<string, unknown>;
+  if (typeof meta["appName"] !== "string") {
     return { ok: false, error: "Missing required field: metadata.appName" };
   }
 
@@ -92,24 +92,36 @@ export async function importData(
   let imported = 0;
   let skipped = 0;
 
-  const upsertOnId = async (table: string, rows: Record<string, unknown>[]) => {
-    if (rows.length === 0) return;
-    const { data: insertedRows, error } = await supabase
-      .from(table)
-      .upsert(rows, {
-        onConflict: "id",
-        ignoreDuplicates: true,
-      })
-      .select("id");
+  const upsertOnId = async (table: string, rows: Record<string, unknown>[]): Promise<{ imported: number; skipped: number }> => {
+    if (rows.length === 0) return { imported: 0, skipped: 0 };
+
+    // Count rows that already exist (will be skipped by ignoreDuplicates: true)
+    const ids = rows.map((r) => r["id"]).filter((id): id is NonNullable<typeof id> => id != null);
+    let existingCount = 0;
+    if (ids.length > 0) {
+      const { count, error: countError } = await supabase
+        .from(table)
+        .select("*", { count: "exact", head: true })
+        .in("id", ids);
+      if (countError) {
+        logger.error(`[RQ] import count query failed: ${table}`, countError);
+        throw countError;
+      }
+      existingCount = count ?? 0;
+    }
+
+    const { error } = await supabase.from(table).upsert(rows, {
+      onConflict: "id",
+      ignoreDuplicates: true,
+    });
     if (error) {
       logger.error(`[RQ] import upsert failed: ${table}`, error);
       throw error;
     }
-    const insertedCount = Array.isArray(insertedRows)
-      ? insertedRows.length
-      : rows.length;
-    imported += insertedCount;
-    skipped += rows.length - insertedCount;
+    const tableImported = rows.length - existingCount;
+    imported += tableImported;
+    skipped += existingCount;
+    return { imported: tableImported, skipped: existingCount };
   };
 
   try {
@@ -163,11 +175,7 @@ export async function importData(
       await upsertOnId("topic_ideas", rows);
     }
 
-    const duplicateSummary =
-      skipped > 0 ? `; skipped ${skipped} duplicates` : "";
-    toast.success(`Imported ${imported} rows${duplicateSummary}`, {
-      id: toastId,
-    });
+    toast.success(`Imported ${imported} rows${skipped > 0 ? ` (${skipped} skipped)` : ""}`, { id: toastId });
     return { success: true, imported, skipped };
   } catch (error) {
     logger.error("Import failed", error);

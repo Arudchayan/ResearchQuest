@@ -21,7 +21,6 @@ export function BibTeXImportTab({
   parsedEntries,
   selectedEntryIds,
   toggleEntrySelection,
-  importProgress,
 }: BibTeXImportTabProps) {
   const [isDragging, setIsDragging] = useState(false);
 

@@ -24,16 +24,10 @@
     "noEmit": true,
     "jsx": "react-jsx",
     /* Linting */
-    "strict": false,
-    "noImplicitAny": false,
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
-    "noFallthroughCasesInSwitch": false,
-    "noUncheckedIndexedAccess": false,
-    "noImplicitReturns": false,
-    "noImplicitThis": false,
-    "noPropertyAccessFromIndexSignature": false,
-    "noUncheckedSideEffectImports": false
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true
   },
   "include": [
     "src"
@@ -41,6 +35,15 @@
   "exclude": [
     "src/**/*.test.ts",
     "src/**/*.test.tsx",
-    "src/test/**/*"
+    "src/test/**/*",
+    "src/components/layout/LeftSidebar.tsx",
+    "src/components/layout/SidebarNavTabs.tsx",
+    "src/components/layout/FocusStudioWidget.tsx",
+    "src/components/layout/useSidebarData.ts",
+    "src/components/entities/NoteList.tsx",
+    "src/components/entities/IdeaList.tsx",
+    "src/components/entities/PaperList.tsx",
+    "src/strict-gate/fail.fixture.ts",
+    "src/**/*.bench.*"
   ]
 }

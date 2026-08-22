@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useRef } from "react";
 import { Loader, Search, X, Plus } from "lucide-react";
 import type { CrossrefPaper } from "../../../types/database";
 import { Tooltip, TooltipTrigger, TooltipContent } from "../../ui/tooltip";
@@ -28,7 +28,6 @@ export function DOISearchTab({
   loading,
   isAdding,
   doiResult,
-  isValidUrl,
 }: DOISearchTabProps) {
   const doiInputRef = useRef<HTMLInputElement>(null);
 

@@ -3,7 +3,6 @@ import { supabase } from "../lib/supabase";
 import { useAppStore } from "../store/appStore";
 import { deriveTitleFromMarkdown } from "../utils/text";
 import { logger } from "../utils/logger";
-import { getTopN } from "../utils/collections";
 
 export interface RelatedItem {
   id: string;
@@ -18,6 +17,14 @@ interface RelatedLink {
   type: "note" | "paper" | "idea";
   topicCount: number;
 }
+
+const LINK_CONFIG = [
+  { type: "note", table: "topic_notes", idColumn: "note_id" },
+  { type: "paper", table: "topic_papers", idColumn: "paper_id" },
+  { type: "idea", table: "topic_ideas", idColumn: "idea_id" },
+] as const;
+
+const PLACEHOLDER_UUID = "00000000-0000-0000-0000-000000000000";
 
 export function useRelatedItems(
   entityId: string | null,
@@ -63,7 +70,6 @@ export function useRelatedItems(
       const { data: currentTopics, error: topicsError } = await supabase
         .from(topicTable)
         .select("topic_id")
-        .eq("user_id", userId)
         .eq(entityColumn, entityId);
 
       if (topicsError || !currentTopics || currentTopics.length === 0) {
@@ -76,102 +82,40 @@ export function useRelatedItems(
 
       // Now find other entities that share these topics
       const linkMap = new Map<string, RelatedLink>();
+
+      // ⚡ PERFORMANCE OPTIMIZATION:
       // We fetch only the IDs. We do NOT hydrate with store data here.
       // This allows us to keep this effect independent of store updates.
       // Additionally, we use Promise.all to fetch related items concurrently.
 
-      const [notesResult, papersResult, ideasResult] = await Promise.all([
-        supabase
-          .from("topic_notes")
-          .select("note_id, topic_id")
-          .eq("user_id", userId)
-          .in("topic_id", topicIds)
-          .neq(
-            "note_id",
-            entityType === "note"
-              ? entityId
-              : "00000000-0000-0000-0000-000000000000",
-          ),
-
-        supabase
-          .from("topic_papers")
-          .select("paper_id, topic_id")
-          .eq("user_id", userId)
-          .in("topic_id", topicIds)
-          .neq(
-            "paper_id",
-            entityType === "paper"
-              ? entityId
-              : "00000000-0000-0000-0000-000000000000",
-          ),
-
-        supabase
-          .from("topic_ideas")
-          .select("idea_id, topic_id")
-          .eq("user_id", userId)
-          .in("topic_id", topicIds)
-          .neq(
-            "idea_id",
-            entityType === "idea"
-              ? entityId
-              : "00000000-0000-0000-0000-000000000000",
-          ),
-      ]);
-
-      // Find related notes
-      const { data: relatedNotes, error: notesError } = notesResult;
-
-      if (!notesError && relatedNotes) {
-        for (const link of relatedNotes) {
-          const key = `note-${link.note_id}`;
-          if (linkMap.has(key)) {
-            linkMap.get(key)!.topicCount++;
-          } else {
-            linkMap.set(key, { id: link.note_id, type: "note", topicCount: 1 });
-          }
-        }
-      }
-
-      // Find related papers
-      const { data: relatedPapers, error: papersError } = papersResult;
-
-      if (!papersError && relatedPapers) {
-        for (const link of relatedPapers) {
-          const key = `paper-${link.paper_id}`;
-          if (linkMap.has(key)) {
-            linkMap.get(key)!.topicCount++;
-          } else {
-            linkMap.set(key, {
-              id: link.paper_id,
-              type: "paper",
-              topicCount: 1,
-            });
-          }
-        }
-      }
-
-      // Find related ideas
-      const { data: relatedIdeas, error: ideasError } = ideasResult;
-
-      if (!ideasError && relatedIdeas) {
-        for (const link of relatedIdeas) {
-          const key = `idea-${link.idea_id}`;
-          if (linkMap.has(key)) {
-            linkMap.get(key)!.topicCount++;
-          } else {
-            linkMap.set(key, { id: link.idea_id, type: "idea", topicCount: 1 });
-          }
-        }
-      }
-
-      // Cap before hydration — UI only previews a handful; unbounded maps hurt large graphs.
-      const RELATED_LINKS_CAP = 50;
-      const capped = getTopN(
-        Array.from(linkMap.values()),
-        RELATED_LINKS_CAP,
-        (a, b) => b.topicCount - a.topicCount
+      const results = await Promise.all(
+        LINK_CONFIG.map(({ type, table, idColumn }) =>
+          supabase
+            .from(table)
+            .select(`${idColumn}, topic_id`)
+            .in("topic_id", topicIds)
+            .neq(idColumn, entityType === type ? entityId : PLACEHOLDER_UUID),
+        ),
       );
-      setRelatedLinks(capped);
+
+      for (let i = 0; i < LINK_CONFIG.length; i++) {
+        const { type, idColumn } = LINK_CONFIG[i]!;
+        const { data, error } = results[i]!;
+
+        if (!error && data) {
+          // ponytail: rows are typed per-table by the dynamic select string; index by column name
+          for (const link of data as { [key: string]: string }[]) {
+            const key = `${type}-${link[idColumn]}`;
+            if (linkMap.has(key)) {
+              linkMap.get(key)!.topicCount++;
+            } else {
+              linkMap.set(key, { id: link[idColumn], type, topicCount: 1 });
+            }
+          }
+        }
+      }
+
+      setRelatedLinks(Array.from(linkMap.values()));
     } catch (error) {
       logger.error("Error fetching related items", error);
       setRelatedLinks([]);
@@ -190,36 +134,32 @@ export function useRelatedItems(
     if (relatedLinks.length === 0) return [];
 
     const results: RelatedItem[] = [];
+
+    // ⚡ PERFORMANCE OPTIMIZATION:
     // Pre-compute Map lookups (O(1)) instead of repeated array scans (O(N*M)) when hydrating links from the store.
-    const notesMap = new Map();
-    for (let i = 0; i < notes.length; i++) notesMap.set(notes[i].id, notes[i]);
-
-    const papersMap = new Map();
-    for (let i = 0; i < papers.length; i++) papersMap.set(papers[i].id, papers[i]);
-
-    const ideasMap = new Map();
-    for (let i = 0; i < ideas.length; i++) ideasMap.set(ideas[i].id, ideas[i]);
+    const notesMap = new Map(notes.map((n) => [n.id, n]));
+    const papersMap = new Map(papers.map((p) => [p.id, p]));
+    const ideasMap = new Map(ideas.map((i) => [i.id, i]));
 
     for (const link of relatedLinks) {
-      let fullItem: any = null;
       let title = "";
       let updated_at = "";
 
       if (link.type === "note") {
-        fullItem = notesMap.get(link.id);
+        const fullItem = notesMap.get(link.id);
         if (fullItem) {
           title =
             fullItem.title || deriveTitleFromMarkdown(fullItem.markdown_body);
           updated_at = fullItem.updated_at;
         }
       } else if (link.type === "paper") {
-        fullItem = papersMap.get(link.id);
+        const fullItem = papersMap.get(link.id);
         if (fullItem) {
           title = fullItem.title;
           updated_at = fullItem.updated_at;
         }
       } else if (link.type === "idea") {
-        fullItem = ideasMap.get(link.id);
+        const fullItem = ideasMap.get(link.id);
         if (fullItem) {
           title = fullItem.title;
           updated_at = fullItem.updated_at;
@@ -227,7 +167,7 @@ export function useRelatedItems(
       }
 
       // Only include if found in store
-      if (fullItem) {
+      if (title) {
         results.push({
           id: link.id,
           title,
@@ -243,7 +183,7 @@ export function useRelatedItems(
       if (b.sharedTopics !== a.sharedTopics) {
         return b.sharedTopics - a.sharedTopics;
       }
-      // Performance: String comparison for ISO dates
+      // ⚡ PERFORMANCE OPTIMIZATION: String comparison for ISO dates
       if (b.updated_at > a.updated_at) return 1;
       if (b.updated_at < a.updated_at) return -1;
       return 0;
