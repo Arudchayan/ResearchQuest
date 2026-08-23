@@ -17,7 +17,7 @@ vi.mock("sonner", () => ({
 
 // Mock gamification utils
 vi.mock("../../utils/gamification", () => ({
-  awardXP: vi.fn().mockResolvedValue(true),
+  awardXP: vi.fn().mockResolvedValue(null),
   notifyGamificationResult: vi.fn(),
   XP_REWARDS: {
     CREATE_PAPER: 10,

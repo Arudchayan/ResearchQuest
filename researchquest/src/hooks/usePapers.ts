@@ -578,8 +578,8 @@ export function usePapers(userId: string | undefined) {
               leveledUp: acc.leveledUp || result.leveledUp,
               streak: Math.max(acc.streak, result.streak),
               achievementsEarned: [
-                ...acc.achievementsEarned,
-                ...result.achievementsEarned,
+                ...(acc.achievementsEarned ?? []),
+                ...(result.achievementsEarned ?? []),
               ],
             };
           },
