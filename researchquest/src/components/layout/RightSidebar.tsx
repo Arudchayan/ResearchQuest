@@ -151,6 +151,7 @@ export function RightSidebar() {
           if (data) {
             setSelectedNote(data);
             window.history.pushState(null, "", `/notes/${itemId}`);
+            window.dispatchEvent(new PopStateEvent("popstate"));
           }
         } catch (error) {
           logger.error("Error navigating to note:", error);
@@ -170,6 +171,7 @@ export function RightSidebar() {
           if (data) {
             setSelectedPaper(data);
             window.history.pushState(null, "", `/papers/${itemId}`);
+            window.dispatchEvent(new PopStateEvent("popstate"));
           }
         } catch (error) {
           logger.error("Error navigating to paper:", error);
@@ -189,6 +191,7 @@ export function RightSidebar() {
           if (data) {
             setSelectedIdea(data);
             window.history.pushState(null, "", `/ideas/${itemId}`);
+            window.dispatchEvent(new PopStateEvent("popstate"));
           }
         } catch (error) {
           logger.error("Error navigating to idea:", error);
