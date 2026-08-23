@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { Plus, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "../../lib/supabase";
@@ -13,6 +13,8 @@ interface TopicSelectorProps {
 
 export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
   const storeUserId = useAppStore((state) => state.user?.id);
+  const selectId = useId();
+  const inputId = useId();
   const [userId, setUserId] = useState<string | undefined>(storeUserId);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [loadingLinks, setLoadingLinks] = useState(false);
@@ -145,12 +147,12 @@ export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
 
       {availableTopics.length > 0 && (
         <div>
-          <label className="block text-caption text-text-secondary mb-1">
+          <label htmlFor={selectId} className="block text-caption text-text-secondary mb-1">
             Add an existing topic
           </label>
           <div className="flex gap-2">
             <select
-              aria-label="Add an existing topic"
+              id={selectId}
               className="flex-1 rounded-control border border-border-subtle bg-bg-base px-3 py-2 text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-focus"
               onChange={(event) => {
                 const topic = topicsMap.get(event.target.value);
@@ -172,12 +174,12 @@ export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
       )}
 
       <div className="pt-3 border-t border-border-subtle">
-        <label htmlFor="new-topic-input" className="block text-caption text-text-secondary mb-1">
+        <label htmlFor={inputId} className="block text-caption text-text-secondary mb-1">
           Create and link new topic
         </label>
         <div className="flex gap-2">
           <input
-            id="new-topic-input"
+            id={inputId}
             value={newTopicName}
             onChange={(event) => setNewTopicName(event.target.value)}
             placeholder="e.g. Literature Review"
