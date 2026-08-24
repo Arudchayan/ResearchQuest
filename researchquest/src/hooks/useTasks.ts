@@ -30,6 +30,16 @@ const selectTasksLoading = (state: AppStoreState) => state.tasksLoading;
 const selectSelectedTask = (state: AppStoreState) => state.selectedTask;
 const selectSetSelectedTask = (state: AppStoreState) => state.setSelectedTask;
 
+/**
+ * Refcounted shared realtime channel per tasks stream. Multiple mounted
+ * useTasks hooks (same userId) must share ONE supabase channel; the channel
+ * is torn down only when the last hook unmounts. Restored after #688.
+ */
+const tasksRealtimeChannels = new Map<
+  string,
+  { count: number; unsubscribe: () => void }
+>();
+
 function sortTasksByDueDate(taskList: Task[]): Task[] {
   return [...taskList].sort((a, b) => {
     const aDue = parseDateInput(a.due_date)?.getTime() ?? null;
@@ -220,10 +230,14 @@ export function useTasks(
       }
     });
 
-    // Subscribe to realtime updates
-    const subscription = supabase
-      .channel(`tasks_realtime_${userId}`)
-      .on(
+    // Subscribe to realtime updates — shared channel, refcounted so N mounted
+    // hooks produce exactly one subscription (test contract + prod hygiene).
+    const channelName = `tasks_realtime_${userId}`;
+    let shared = tasksRealtimeChannels.get(channelName);
+    if (!shared) {
+      const subscription = supabase
+        .channel(channelName)
+        .on(
         "postgres_changes",
         {
           event: "*",
@@ -263,9 +277,22 @@ export function useTasks(
       )
       .subscribe();
 
+      shared = {
+        count: 0,
+        unsubscribe: () => subscription.unsubscribe(),
+      };
+      tasksRealtimeChannels.set(channelName, shared);
+    }
+
+    shared.count += 1;
+
     return () => {
       retryUnsub();
-      subscription.unsubscribe();
+      shared!.count -= 1;
+      if (shared!.count === 0) {
+        shared!.unsubscribe();
+        tasksRealtimeChannels.delete(channelName);
+      }
     };
   }, [
     fetchTasks,
