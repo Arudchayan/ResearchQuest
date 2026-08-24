@@ -51,7 +51,7 @@ describe("NotesView Empty State", () => {
     render(<NotesView />);
 
     // Should show "No notes yet"
-    expect(screen.getByText("No notes yet")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "No notes yet" })).toBeInTheDocument();
     expect(
       screen.getByText("Create your first note to get started"),
     ).toBeInTheDocument();
@@ -71,7 +71,7 @@ describe("NotesView Empty State", () => {
     const searchInput = screen.getByPlaceholderText("Search notes...");
     await user.type(searchInput, "something");
 
-    expect(screen.getByText("No matches found")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "No matches found" })).toBeInTheDocument();
     expect(
       screen.getByText("Try a different keyword or clear your search."),
     ).toBeInTheDocument();

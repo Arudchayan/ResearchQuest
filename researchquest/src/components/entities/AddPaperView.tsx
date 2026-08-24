@@ -26,6 +26,8 @@ const TAB_LABELS: Record<"doi" | "search" | "import" | "manual", string> = {
   manual: "Manual Entry",
 };
 
+const TAB_ORDER: Array<keyof typeof TAB_LABELS> = ["doi", "search", "import", "manual"];
+
 const TAB_DESCRIPTIONS: Record<keyof typeof TAB_LABELS, string> = {
   doi: "Look up a known DOI and review the Crossref record before adding it.",
   search: "Search Crossref by title or keywords, then select the result you want to save.",
@@ -242,8 +244,28 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
         className="flex gap-2 mb-6 border-b border-border-subtle overflow-x-auto"
         role="tablist"
         aria-label="Add paper methods"
+        onKeyDown={(event) => {
+          const currentIndex = TAB_ORDER.indexOf(activeTab);
+          let nextTab: (typeof TAB_ORDER)[number] | null = null;
+          if (event.key === "ArrowRight") {
+            nextTab = TAB_ORDER[(currentIndex + 1) % TAB_ORDER.length]!;
+          } else if (event.key === "ArrowLeft") {
+            nextTab = TAB_ORDER[(currentIndex - 1 + TAB_ORDER.length) % TAB_ORDER.length]!;
+          } else if (event.key === "Home") {
+            nextTab = TAB_ORDER[0]!;
+          } else if (event.key === "End") {
+            nextTab = TAB_ORDER[TAB_ORDER.length - 1]!;
+          }
+          if (nextTab) {
+            event.preventDefault();
+            setSearchError("");
+            setImportError("");
+            setActiveTab(nextTab);
+            document.getElementById(`tab-${nextTab}`)?.focus();
+          }
+        }}
       >
-        {(["doi", "search", "import", "manual"] as const).map((tab) => (
+        {TAB_ORDER.map((tab) => (
           <button
             key={tab}
             type="button"
@@ -251,6 +273,7 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
             aria-selected={activeTab === tab}
             aria-controls={`tabpanel-${tab}`}
             id={`tab-${tab}`}
+            tabIndex={activeTab === tab ? 0 : -1}
             onClick={() => {
               setSearchError("");
               setImportError("");

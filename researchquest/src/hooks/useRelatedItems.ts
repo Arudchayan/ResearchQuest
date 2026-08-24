@@ -70,7 +70,8 @@ export function useRelatedItems(
       const { data: currentTopics, error: topicsError } = await supabase
         .from(topicTable)
         .select("topic_id")
-        .eq(entityColumn, entityId);
+        .eq(entityColumn, entityId)
+        .eq("user_id", userId);
 
       if (topicsError || !currentTopics || currentTopics.length === 0) {
         setRelatedLinks([]);
@@ -94,6 +95,7 @@ export function useRelatedItems(
             .from(table)
             .select(`${idColumn}, topic_id`)
             .in("topic_id", topicIds)
+            .eq("user_id", userId)
             .neq(idColumn, entityType === type ? entityId : PLACEHOLDER_UUID),
         ),
       );
