@@ -37,3 +37,4 @@ core
 /playwright/.cache/
 .vercel
 NUL
+e2e/snapshots/
