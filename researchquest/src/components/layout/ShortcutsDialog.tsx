@@ -118,13 +118,24 @@ export function ShortcutsDialog() {
       const isInput =
         target.tagName === "INPUT" ||
         target.tagName === "TEXTAREA" ||
-        target.isContentEditable;
+        target.isContentEditable ||
+        target.getAttribute?.("contenteditable") === "true";
 
       if (isInput) return;
 
       if (e.key === "?" && e.shiftKey) {
         e.preventDefault();
         setOpen((prev) => !prev);
+      }
+
+      // Export current view (Mod+E) on export-capable route
+      if (
+        isMod &&
+        e.key === "e" &&
+        useAppStore.getState().currentView === "notes"
+      ) {
+        e.preventDefault();
+        document.dispatchEvent(new CustomEvent("export-current-view"));
       }
     };
 

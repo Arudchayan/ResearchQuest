@@ -99,13 +99,11 @@ export function ConfirmDialog({
 
             <div className="flex-1 min-w-0">
               <Dialog.Title
-                id="dialog-title"
                 className="text-lg font-serif font-semibold text-text-primary mb-2"
               >
                 {title}
               </Dialog.Title>
               <Dialog.Description
-                id="dialog-description"
                 className="text-body text-text-secondary"
               >
                 {message}
