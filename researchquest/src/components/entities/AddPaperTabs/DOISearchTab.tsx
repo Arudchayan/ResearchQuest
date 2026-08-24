@@ -78,7 +78,7 @@ export function DOISearchTab({
             disabled={loading || !doiInput.trim()}
             className="px-6 py-3 bg-primary-500 text-white rounded-lg flex items-center gap-2 hover:bg-primary-600 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 disabled:opacity-70 disabled:cursor-not-allowed"
           >
-            {loading ? <Loader className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
+            {loading ? <Loader className="w-5 h-5 animate-spin" aria-hidden="true" /> : <Search className="w-5 h-5" aria-hidden="true" />}
             Search
           </button>
         </div>
