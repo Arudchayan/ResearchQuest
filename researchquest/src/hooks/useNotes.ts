@@ -1,6 +1,7 @@
 import { useCallback, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { XP_REWARDS } from "../utils/gamification";
+import { useAppStore } from "../store/appStore";
 import { useEntityCrud, type AppStoreState } from "./useEntityCrud";
 import type { Note } from "../types/database";
 
@@ -30,8 +31,20 @@ export function useNotes(userId: string | undefined) {
     entityPlural: "notes",
     createVerb: "create",
     tableName: "notes",
-    onSnapshotMissing: () => {
-      void fetchNotesRef.current();
+    update: async (id, payload) => {
+      const res = await supabase
+        .from("notes")
+        .update(payload)
+        .eq("id", id)
+        .eq("user_id", userId);
+      // Stale snapshot: the update targeted a note missing from the store.
+      if (
+        res.error &&
+        !useAppStore.getState().notes.some((note) => note.id === id)
+      ) {
+        void fetchNotesRef.current();
+      }
+      return { data: null, error: res.error };
     },
     prepareCreate: (noteData, uid, fail) => {
       if (noteData.markdown_body === undefined) {

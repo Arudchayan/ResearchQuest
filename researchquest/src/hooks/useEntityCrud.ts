@@ -80,13 +80,6 @@ export interface EntityCrudConfig<
     fail: (message: string) => void,
   ) => Partial<T> | null;
 
-  /** Optimistic entity placed in the store; default `{...current, ...payload, updated_at: now}`. */
-  buildOptimisticEntity?: (
-    current: T,
-    payload: Partial<T>,
-    updates: Partial<T>,
-  ) => T;
-
   /** Insert/update/delete/restore primitives. Defaults use `tableName` against supabase. */
   tableName: string;
   insert?: (payload: Record<string, unknown>) => Promise<CrudResult<T>>;
@@ -100,13 +93,8 @@ export interface EntityCrudConfig<
   /** When the update returns the confirmed row, replace the optimistic entity with it. */
   updateReturnsData?: boolean;
 
-  /** "before" (default): auth checked before the optimistic write. "after": write first, revert if unauthenticated. */
-  updateGuard?: "before" | "after";
-
   /** Re-sync the selected entity when a failed delete is reverted. */
   resyncSelectedOnDeleteRevert?: boolean;
-  /** Refetch when an update targets an id not present in the store. */
-  onSnapshotMissing?: () => void;
 
   /** Per-op error feedback; defaults to `Failed to {verb} {label}: {message}` (restore is toast-only). */
   onError?: (
@@ -114,9 +102,6 @@ export interface EntityCrudConfig<
     error: CrudError | null,
     setError: (message: string | null) => void,
   ) => void;
-
-  /** Insert succeeded but returned no row (ideas RPC). */
-  onCreateNullData?: (setError: (message: string | null) => void) => void;
 
   /** Success-side hooks. */
   afterCreate?: (userId: string, entity: T) => void;
@@ -289,10 +274,7 @@ export function useEntityCrud<
         handleError("create", result.error);
         return null;
       }
-      if (!result.data) {
-        cfg.onCreateNullData?.(setError);
-        return null;
-      }
+      if (!result.data) return null;
 
       toast.success(
         `${cfg.entityLabel} ${cfg.createVerb === "add" ? "added" : "created"} successfully`,
@@ -327,7 +309,7 @@ export function useEntityCrud<
       const itemsBefore = currentItems();
       const current = itemsBefore.find((item) => item.id === id) ?? null;
 
-      if ((cfg.updateGuard ?? "before") !== "after" && !cfg.userId) {
+      if (!cfg.userId) {
         guardFail("update");
         return false;
       }
@@ -335,33 +317,13 @@ export function useEntityCrud<
       const payload = cfg.prepareUpdate(current, updates, fail);
       if (payload === null) return false;
 
-      let merged: T | null = null;
-      if (cfg.buildOptimisticEntity) {
-        if (current) merged = cfg.buildOptimisticEntity(current, payload, updates);
-      } else if (current) {
-        merged = {
-          ...current,
-          ...payload,
-          updated_at: new Date().toISOString(),
-        };
+      if (current) {
+        const merged = { ...current, ...payload, updated_at: new Date().toISOString() } as T;
+        setItemsStore(applySort(
+          itemsBefore.map((item) => (item.id === id ? merged : item)),
+        ));
+        syncSelected(merged);
       }
-
-      setItemsStore(
-        applySort(
-          itemsBefore.map((item) =>
-            item.id === id && merged ? merged : item,
-          ),
-        ),
-      );
-      if (merged) syncSelected(merged);
-
-      if (cfg.updateGuard === "after" && !cfg.userId) {
-        setItemsStore(itemsBefore);
-        if (current) syncSelected(current);
-        return false;
-      }
-
-      if (!cfg.userId) return false;
 
       const result = await (cfg.update ?? updatePrimitive)(id, payload);
       if (result.error) {
@@ -372,8 +334,6 @@ export function useEntityCrud<
             applySort(fresh.map((item) => (item.id === id ? current : item))),
           );
           syncSelected(current);
-        } else {
-          cfg.onSnapshotMissing?.();
         }
         return false;
       }
