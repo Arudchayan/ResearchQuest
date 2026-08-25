@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import { BookOpen, CheckCircle2, Info, LoaderCircle } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
 import type { CrossrefPaper, Paper, PaperDraft } from "../../types/database";
@@ -39,6 +39,9 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
   const [activeTab, setActiveTab] = useState<"doi" | "search" | "manual" | "import">("doi");
   const [successMessage, setSuccessMessage] = useState("");
   const [isAdding, setIsAdding] = useState(false);
+  // ARU-657 re-entry lock: `isAdding` flushes async, so two rapid clicks can
+  // both pass the pre-re-render check; this ref blocks the second synchronously.
+  const addInFlightRef = useRef(false);
   const setSelectedPaper = useAppStore((state) => state.setSelectedPaper);
 
   const {
@@ -107,7 +110,8 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
   };
 
   const handleAddDoiResult = async () => {
-    if (!doiResult) return;
+    if (!doiResult || addInFlightRef.current) return;
+    addInFlightRef.current = true;
     setIsAdding(true);
     try {
       const created = await onAdd(buildPaperPayload(doiResult));
@@ -119,6 +123,7 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
     } catch (err) {
       setSearchError("Failed to add paper.");
     } finally {
+      addInFlightRef.current = false;
       setIsAdding(false);
     }
   };
@@ -133,7 +138,8 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
   };
 
   const handleAddSelectedResult = async () => {
-    if (!selectedResult) return;
+    if (!selectedResult || addInFlightRef.current) return;
+    addInFlightRef.current = true;
     setIsAdding(true);
     try {
       const created = await onAdd(buildPaperPayload(selectedResult));
@@ -146,6 +152,7 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
     } catch (err) {
       setSearchError("Failed to add paper.");
     } finally {
+      addInFlightRef.current = false;
       setIsAdding(false);
     }
   };
@@ -163,6 +170,8 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
       return;
     }
     setManualError("");
+    if (addInFlightRef.current) return;
+    addInFlightRef.current = true;
     setManualLoading(true);
     try {
       const paperData: PaperDraft = {
@@ -179,6 +188,7 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
     } catch (err) {
       setManualError("Failed to add paper.");
     } finally {
+      addInFlightRef.current = false;
       setManualLoading(false);
     }
   };

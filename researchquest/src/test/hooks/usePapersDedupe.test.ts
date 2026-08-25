@@ -159,6 +159,31 @@ describe("usePapers server-side DOI dedupe (ARU-657)", () => {
       expect(toast.success).toHaveBeenCalledWith("Paper added successfully");
     });
 
+    it("persists the canonical (normalized) DOI in the inserted payload", async () => {
+      const newPaper = {
+        ...mockPaper,
+        id: "canonical-doi-id",
+        doi: "10.1357/canonical",
+      } as Paper;
+      const { capturedInserts } = buildPapersMock({
+        doiRows: [],
+        singleResult: { data: newPaper, error: null },
+      });
+
+      const { result } = renderHook(() => usePapers("test-user-id"));
+      const created = await result.current.createPaper({
+        title: "Canonical DOI Paper",
+        authors: [],
+        doi: "HTTPS://DOI.ORG/10.1357/CANONICAL",
+      } as any);
+
+      expect(created).toEqual(newPaper);
+      expect(capturedInserts).toHaveLength(1);
+      expect((capturedInserts[0] as { doi: string }).doi).toBe(
+        "10.1357/canonical",
+      );
+    });
+
     it("fails open when the duplicate check errors (creation still allowed)", async () => {
       const newPaper = {
         ...mockPaper,

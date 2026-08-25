@@ -140,7 +140,9 @@ function cleanPaperDraft(
   };
 
   if (paperData.doi && paperData.doi.trim())
-    cleanData.doi = paperData.doi.trim();
+    // ARU-657: persist the canonical (normalized) DOI so stored values match
+    // what the dedupe check compares against (and the DB unique index).
+    cleanData.doi = normalizeDoi(paperData.doi);
   if (paperData.source_url && paperData.source_url.trim()) {
     const url = paperData.source_url.trim();
     if (isValidUrl(url)) {
