@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState, type ComponentType } from "react";
 import {
   hasSupabaseConfig,
   supabase,
@@ -25,64 +25,52 @@ import {
   selectEntityForRoute,
 } from "./lib/router";
 
-const DashboardLazy = lazy(() =>
-  import("./components/dashboard/Dashboard").then((module) => ({
-    default: module.Dashboard,
-  })),
-);
+function lazyView<M extends Record<string, unknown>>(
+  loader: () => Promise<M>,
+  name: keyof M & string,
+) {
+  return lazy(async () => {
+    const module = await loader();
+    return { default: module[name] as ComponentType<Record<string, unknown>> };
+  });
+}
 
-const NotesView = lazy(() =>
-  import("./components/notes/NotesView").then((module) => ({
-    default: module.NotesView,
-  })),
+const DashboardLazy = lazyView(
+  () => import("./components/dashboard/Dashboard"),
+  "Dashboard",
 );
-
-const PapersView = lazy(() =>
-  import("./components/papers/PapersView").then((module) => ({
-    default: module.PapersView,
-  })),
+const NotesView = lazyView(() => import("./components/notes/NotesView"), "NotesView");
+const PapersView = lazyView(
+  () => import("./components/papers/PapersView"),
+  "PapersView",
 );
-
-const IdeasBoard = lazy(() =>
-  import("./components/ideas/IdeasBoard").then((module) => ({
-    default: module.IdeasBoard,
-  })),
+const IdeasBoard = lazyView(
+  () => import("./components/ideas/IdeasBoard"),
+  "IdeasBoard",
 );
-
-const TopicsView = lazy(() =>
-  import("./components/topics/TopicsView").then((module) => ({
-    default: module.TopicsView,
-  })),
+const TopicsView = lazyView(
+  () => import("./components/topics/TopicsView"),
+  "TopicsView",
 );
-
-const TaskManager = lazy(() =>
-  import("./components/tasks/TaskManager").then((module) => ({
-    default: module.TaskManager,
-  })),
+const TaskManager = lazyView(
+  () => import("./components/tasks/TaskManager"),
+  "TaskManager",
 );
-
-const FocusWorkspace = lazy(() =>
-  import("./components/focus/FocusWorkspace").then((module) => ({
-    default: module.FocusWorkspace,
-  })),
+const FocusWorkspace = lazyView(
+  () => import("./components/focus/FocusWorkspace"),
+  "FocusWorkspace",
 );
-
-const OnboardingGuide = lazy(() =>
-  import("./components/layout/OnboardingGuide").then((module) => ({
-    default: module.OnboardingGuide,
-  })),
+const OnboardingGuide = lazyView(
+  () => import("./components/layout/OnboardingGuide"),
+  "OnboardingGuide",
 );
-
-const CommandPalette = lazy(() =>
-  import("./components/layout/CommandPalette").then((module) => ({
-    default: module.CommandPalette,
-  })),
+const CommandPalette = lazyView(
+  () => import("./components/layout/CommandPalette"),
+  "CommandPalette",
 );
-
-const ShortcutsDialog = lazy(() =>
-  import("./components/layout/ShortcutsDialog").then((module) => ({
-    default: module.ShortcutsDialog,
-  })),
+const ShortcutsDialog = lazyView(
+  () => import("./components/layout/ShortcutsDialog"),
+  "ShortcutsDialog",
 );
 
 function RouteLoadingFallback() {

@@ -17,12 +17,6 @@
     "src/**/*.bench.ts",
     "src/**/*.bench.tsx",
     "src/strict-gate/fail.fixture.ts",
-    "src/components/layout/LeftSidebar.tsx",
-    "src/components/layout/SidebarNavTabs.tsx",
-    "src/components/layout/FocusStudioWidget.tsx",
-    "src/components/layout/useSidebarData.ts",
-    "src/components/entities/NoteList.tsx",
-    "src/components/entities/IdeaList.tsx",
     "e2e/**/*"
   ]
 }

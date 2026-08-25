@@ -37,11 +37,10 @@ export function useIdeas(userId: string | undefined) {
     entityPlural: "ideas",
     createVerb: "create",
     tableName: "ideas",
-    // Ideas keep insertion order (no updated_at sort).
-    sort: (items) => items,
-    updateGuard: "after",
     updateReturnsData: true,
     resyncSelectedOnDeleteRevert: true,
+    // Ideas keep insertion order (no updated_at sort).
+    sort: (items) => items,
     insert: async (payload) => {
       const res = await supabase.rpc(IDEA_TRANSACTION_RPC, payload);
       return { data: res.data ?? null, error: res.error };
@@ -142,29 +141,10 @@ export function useIdeas(userId: string | undefined) {
         return null;
       }
 
-      return mergedForRPC;
-    },
-    buildOptimisticEntity: (current, _payload, updates) => {
-      const rawDescription = mergedDescription(current, updates);
-      const merged: Idea = {
-        ...current,
-        ...updates,
-        title: (updates.title ?? current.title).trim(),
-        ...(rawDescription !== undefined
-          ? { description: rawDescription }
-          : {}),
-        stage: updates.stage ?? current.stage,
-        linked_note_ids: updates.linked_note_ids ?? current.linked_note_ids ?? [],
-        linked_paper_ids:
-          updates.linked_paper_ids ?? current.linked_paper_ids ?? [],
-        updated_at: new Date().toISOString(),
-      };
-      return merged;
-    },
-    onCreateNullData: (setError) => {
-      setError("Idea could not be created. Please try again.");
-      toast.error("Idea could not be created. Please try again.");
-      void fetchIdeasRef.current();
+      // The merged idea doubles as the optimistic entity: the RPC payload
+      // already normalizes title/description/links, so the default
+      // `{...current, ...payload}` spread reproduces buildOptimisticEntity.
+      return { ...mergedForRPC, updated_at: new Date().toISOString() };
     },
     afterUpdateSuccess: (uid, payload, _snapshot, oldStage) => {
       const stage = payload.stage;
@@ -244,7 +224,7 @@ export function useIdeas(userId: string | undefined) {
   };
 }
 
-/** Normalize the merged description for an idea update (shared by payload + optimistic builds). */
+/** Normalize the merged description for an idea update (used by the RPC payload). */
 function mergedDescription(
   current: Idea,
   updates: Partial<Idea>,
