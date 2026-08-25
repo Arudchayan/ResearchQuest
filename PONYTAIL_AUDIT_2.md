@@ -1,17 +1,20 @@
-# ponytail-audit — ResearchQuest (round 2)
+# ponytail-audit — ResearchQuest
 
-Fresh scan post-iteration-1 (commit `f87f304` + pending tree). Ranked, biggest cut first.
-Verified by import-graph scan (`grep -rln` across `src`); iteration-1 findings excluded.
+1. `shrink:` Demo-mode Supabase clone: full Postgrest filter/select parser, realtime + RPC emulation (demoSupabase.ts) plus seeded tables (demoData.ts), reachable only via `VITE_DEMO_MODE=1` which `.env.example` leaves empty. Delete both, or demo on a staging Supabase project. [-1,534 lines] [researchquest/src/lib/demoSupabase.ts, researchquest/src/lib/demoData.ts]
+2. `delete:` Prod-build-in-Vitest harness: `viteProductionBuild.test.ts` runs full Vite builds inside Vitest just to assert a dev-only source-marker plugin is absent, plus its private config and the `test:build` script. Nothing. [-74 lines] [researchquest/src/test/viteProductionBuild.test.ts, researchquest/vitest.build.config.ts, researchquest/package.json]
+3. `delete:` `useGamificationDashboard` hook, zero importers anywhere in src/. Nothing. [-80 lines] [researchquest/src/hooks/useGamificationDashboard.ts]
+4. `delete:` `NotFound.tsx` (`NotFound` + `ItemNotFound`), zero importers; App.tsx already renders its own inline recovery UI. Nothing. [-94 lines] [researchquest/src/components/ui/NotFound.tsx]
+5. `yagni:` Gamification store actions `activateBoost`, `consumeFreeze`, `useRestDay` — zero call sites; consumption happens implicitly in utils/gamification.ts while RightSidebar reads state only. Keep hydrate + read state; delete actions and countdown plumbing. [-70 lines] [researchquest/src/store/gamificationStore.ts]
+6. `yagni:` Parallel strictness regime: `tsconfig.strict.json` + `typecheck:strict` script + `strict-gate/pass.ts`/`fail.fixture.ts` canaries, wired into no CI. Turn the flags on in tsconfig.app.json and fix once. [-45 lines] [researchquest/tsconfig.strict.json, researchquest/src/strict-gate/]
+7. `native:` DOMPurify re-sanitizing HTML already emitted by react-markdown + rehype-sanitize in copy/print handlers. Assign `previewRef.current.innerHTML` directly; drop `dompurify`. [-1 dep, ~10 lines] [researchquest/src/components/editor/hooks/useEditorActions.ts]
+8. `native:` CVA + Radix Slot for one button: label.tsx uses `cva` with zero variants, `<Button asChild>` never used. Flat class-string map + plain forwardRef button; drop `class-variance-authority` and `@radix-ui/react-slot`. [-2 deps, ~20 lines] [researchquest/src/components/ui/button.tsx, researchquest/src/components/ui/label.tsx]
+9. `native:` Second icon library: `@radix-ui/react/icons` imported in only 4 files alongside lucide-react everywhere else. Convert ~12 imports to lucide-react; drop `@radix-ui/react-icons`. [-1 dep] [researchquest/src/components/dashboard/Dashboard.tsx, src/components/auth/AuthScreen.tsx, src/components/layout/v2/Sidebar.tsx]
+10. `delete:` `build:prod`/`BUILD_MODE` twin of `build` — no source reads `BUILD_MODE` or branches on `import.meta.env.MODE`, no prod env file. Plain `build`. [-2 lines] [researchquest/package.json]
+11. `yagni:` `usePaperSearchInternal.ts`, 70-line hook with exactly one caller (AddPaperView). Inline into caller. [-65 lines] [researchquest/src/hooks/usePaperSearchInternal.ts]
+12. `shrink:` Router over-infrastructure: `selectEntityForRoute` is a 5-way near-identical find-by-id switch; `ParsedRoute.isValid` derivable from `view !== null`. `Record<AppView, selector>` map + smaller parse. [-60 lines] [researchquest/src/lib/router.ts]
+13. `delete:` Dead UI exports: `CardTitle`/`CardDescription`/`CardFooter` never rendered; `secondary` button variant never set; `DEMO_USER_PASSWORD` never read. Nothing. [-35 lines] [researchquest/src/components/ui/card.tsx, src/components/ui/button.tsx, src/lib/demoData.ts]
+14. `shrink:` Every npm script prefixes `pnpm install --prefer-offline` (7 scripts) — the package manager's job, not the scripts'. Bare commands. [-7 lines] [researchquest/package.json]
+15. `delete:` Config residue: pnpm.overrides pin `@codemirror/state`/`view` identical to direct deps; unused `deno` devDep + its `onlyBuiltDependencies` entry; `.env.example` documents an `ANALYZE` var for rollup-plugin-visualizer which isn't installed. Remove entries; nothing else. [-1 dep, ~12 lines] [researchquest/package.json, researchquest/.env.example]
+16. `shrink:` Competing coverage threshold systems: per-file block pinning security.ts at 100% branches/functions in vitest.config.ts, plus a `test:coverage:threshold` script re-specifying global thresholds via CLI flags. One global `coverage.thresholds` block. [-10 lines] [researchquest/vitest.config.ts, researchquest/package.json]
 
-- `delete:` 27 tracked `.wt/*` gitlink entries (mode 160000, no `.gitmodules`) — worktree-scratch submodule pointers that clone as empty dirs. Nothing. [/.wt/]
-- `delete:` `useGamificationDashboard` — zero callers anywhere (Dashboard/App read the gamification store directly); no test imports it. Nothing. [-80 lines] [researchquest/src/hooks/useGamificationDashboard.ts]
-- `yagni:` `usePaperSearchInternal.ts` — 70-line stateful wrapper with exactly one caller (AddPaperView); fold its five useState blocks into that caller or into `usePapers`. Inline it. [~-40 lines] [researchquest/src/hooks/usePaperSearchInternal.ts]
-- `delete:` Second Playwright config `playwright.redesign.config.ts` — no script, workflow, or doc invokes it; `e2e/redesign-visual.spec.ts` already runs (and self-skips) under the default config. Use `playwright.config.ts`. [-32 lines] [researchquest/playwright.redesign.config.ts]
-- `yagni:` Strict-gate canary fixtures + `typecheck:strict` script enforced by nothing — `fail.fixture.ts`/`pass.ts` prove a gate CI never runs. Wire `pnpm run typecheck:strict` into `ci.yml`, or delete the fixtures and the script. [-30 lines if dropped] [researchquest/src/strict-gate/, researchquest/package.json]
-- `yagni:` Triple SPA-rewrite configs shipped for three different hosts (`_redirects` Netlify, `vercel.json`, `.htaccess` Apache) — only one can be the real deploy target. Keep the matching one. [~-20 lines] [researchquest/public/]
-- `yagni:` `pnpm-workspace.yaml` `onlyBuiltDependencies` still lists `deno` and `supabase` after both packages left `package.json` (keep `esbuild`). Drop the two stale entries. [-2 lines] [researchquest/pnpm-workspace.yaml]
-- `delete:` Stray screenshot `auth-gate-mobile.png` at repo root — referenced by no doc, code, or workflow. Nothing. [/auth-gate-mobile.png]
-
-Kept deliberately: `demoSupabase`/`demoData` (README-documented demo mode), cmdk/radix/virtual/dompurify/rehype-sanitize (all imported), `@fontsource/playfair-display` (backs `font-serif` classes), zen-mode store slice (editor + shell use it), `components.json` (shadcn CLI).
-
-net: -200 lines, -0 deps possible.
+net: -2160 lines, -6 deps possible.
