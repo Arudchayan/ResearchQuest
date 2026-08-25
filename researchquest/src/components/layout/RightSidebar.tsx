@@ -77,28 +77,40 @@ export function RightSidebar() {
   );
 
   const upcomingDeadlines = useMemo(() => {
+    // ⚡ PERFORMANCE OPTIMIZATION:
+    // Replaced chained .filter().sort().slice().map() with single-pass processing
+    // and limited output collection to avoid intermediate array allocations.
     const now = new Date();
     const horizon = new Date();
     horizon.setDate(now.getDate() + 7);
-    return storeTasks
-      .filter((t) => {
-        if (!t.due_date) return false;
-        if ("completed" in t && t.completed) return false;
-        if ("status" in t && (t.status === "completed" || t.status === "done"))
-          return false;
-        const due = new Date(t.due_date);
-        return due >= now && due <= horizon;
-      })
-      .sort(
-        (a, b) =>
-          new Date(a.due_date!).getTime() - new Date(b.due_date!).getTime(),
-      )
-      .slice(0, 5)
-      .map((t) => ({
+
+    const filteredTasks = [];
+    for (let i = 0; i < storeTasks.length; i++) {
+      const t = storeTasks[i];
+      if (!t.due_date) continue;
+      if ("completed" in t && t.completed) continue;
+      if ("status" in t && (t.status === "completed" || t.status === "done")) continue;
+      const due = new Date(t.due_date);
+      if (due >= now && due <= horizon) {
+        filteredTasks.push(t);
+      }
+    }
+
+    filteredTasks.sort(
+      (a, b) => new Date(a.due_date!).getTime() - new Date(b.due_date!).getTime()
+    );
+
+    const results = [];
+    for (let i = 0; i < filteredTasks.length; i++) {
+      if (results.length === 5) break;
+      const t = filteredTasks[i];
+      results.push({
         id: t.id,
         title: t.title,
         due_date: t.due_date as string,
-      }));
+      });
+    }
+    return results;
   }, [storeTasks]);
 
   // Determine current entity
