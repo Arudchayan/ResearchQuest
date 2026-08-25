@@ -289,56 +289,75 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   ]);
 
   const quickTargets = useMemo(() => {
+    // ⚡ PERFORMANCE OPTIMIZATION:
+    // Replace chained .filter().slice(0, 4).map() with single-pass loops
+    // that collect up to 4 elements and exit early. This eliminates O(N) array
+    // traversals and intermediate array allocations for large datasets.
+    const noteItems = [];
+    for (let i = 0; i < notes.length; i++) {
+      if (noteItems.length === 4) break;
+      const note = notes[i];
+      noteItems.push({
+        id: note.id,
+        title: extractNoteSummary(note),
+        meta: new Date(note.updated_at).toLocaleDateString(),
+      });
+    }
+
+    const paperItems = [];
+    for (let i = 0; i < papers.length; i++) {
+      if (paperItems.length === 4) break;
+      const paper = papers[i];
+      if (paper.status === "To Read" || paper.status === "Reading") {
+        paperItems.push({
+          id: paper.id,
+          title: paper.title,
+          meta: paper.publication_date
+            ? (parseInt(paper.publication_date.substring(0, 4)) || "No year").toString()
+            : "No year",
+        });
+      }
+    }
+
+    const taskItems = [];
+    for (let i = 0; i < tasks.length; i++) {
+      if (taskItems.length === 4) break;
+      const task = tasks[i];
+      if (!task.completed) {
+        taskItems.push({
+          id: task.id,
+          title: task.title,
+          meta: task.due_date
+            ? new Date(task.due_date).toLocaleString(undefined, {
+                month: "short",
+                day: "numeric",
+              })
+            : "No due date",
+        });
+      }
+    }
+
     return [
       {
         type: "note" as FocusTargetType,
         title: "Notes",
         description: "Recently edited notes ready for synthesis",
         icon: FileText,
-        items: notes.slice(0, 4).map((note) => ({
-          id: note.id,
-          title: extractNoteSummary(note),
-          meta: new Date(note.updated_at).toLocaleDateString(),
-        })),
+        items: noteItems,
       },
       {
         type: "paper" as FocusTargetType,
         title: "Papers",
         description: "Papers waiting for a close read or annotation",
         icon: BookOpen,
-        items: papers
-          .filter(
-            (paper) => paper.status === "To Read" || paper.status === "Reading",
-          )
-          .slice(0, 4)
-          .map((paper) => ({
-            id: paper.id,
-            title: paper.title,
-            meta: paper.publication_date
-              ? (
-                  parseInt(paper.publication_date.substring(0, 4)) || "No year"
-                ).toString()
-              : "No year",
-          })),
+        items: paperItems,
       },
       {
         type: "task" as FocusTargetType,
         title: "Tasks",
         description: "Upcoming commitments that benefit from deep work",
         icon: CheckSquare,
-        items: tasks
-          .filter((task) => !task.completed)
-          .slice(0, 4)
-          .map((task) => ({
-            id: task.id,
-            title: task.title,
-            meta: task.due_date
-              ? new Date(task.due_date).toLocaleString(undefined, {
-                  month: "short",
-                  day: "numeric",
-                })
-              : "No due date",
-          })),
+        items: taskItems,
       },
     ];
   }, [notes, papers, tasks]);
