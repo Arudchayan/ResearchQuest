@@ -142,6 +142,10 @@ describe("TopicDetailView first-run loop", () => {
     expect(
       screen.getByRole("button", { name: /Focus Studio/i }),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Export topic/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/Topic Quests/i)).not.toBeInTheDocument();
 
     await waitFor(() => {
       expect(
