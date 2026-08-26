@@ -1,6 +1,6 @@
 import { ConfirmDialog, useConfirmDialog } from "../ui/ConfirmDialog";
 import { logger } from "../../utils/logger";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "../../lib/supabase";
 import { useAppStore } from "../../store/appStore";
@@ -27,6 +27,7 @@ import {
   Download,
   Table,
   FileJson,
+  Target,
 } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
@@ -88,6 +89,8 @@ export function TopicDetailView({
   const [associationErrors, setAssociationErrors] =
     useState<AssociationLoadErrors>(EMPTY_ASSOCIATION_ERRORS);
   const [userId, setUserId] = useState<string | null>(null);
+  const [sessionNoteDraft, setSessionNoteDraft] = useState("");
+  const sessionNoteRef = useRef<HTMLTextAreaElement>(null);
 
   const { quests, questsLoading, refreshQuests, advanceQuest } = useTopics(
     userId ?? undefined,
@@ -207,6 +210,49 @@ export function TopicDetailView({
   useEffect(() => {
     void loadAssociations();
   }, [loadAssociations, topic.idea_count, topic.note_count, topic.paper_count]);
+
+  const emptySessionNote = useMemo(
+    () => notes.find((note) => !note.markdown_body?.trim()) ?? null,
+    [notes],
+  );
+
+  useLayoutEffect(() => {
+    if (!emptySessionNote) return;
+    setSessionNoteDraft(emptySessionNote.markdown_body ?? "");
+    sessionNoteRef.current?.focus();
+  }, [emptySessionNote]);
+
+  const handleOpenFocusStudio = useCallback(() => {
+    setCurrentView("focus");
+    window.history.pushState(null, "", "/focus");
+  }, [setCurrentView]);
+
+  const handleSessionNoteChange = useCallback(
+    (value: string) => {
+      setSessionNoteDraft(value);
+      if (!emptySessionNote) return;
+      setNotes((prev) =>
+        prev.map((note) =>
+          note.id === emptySessionNote.id
+            ? { ...note, markdown_body: value }
+            : note,
+        ),
+      );
+    },
+    [emptySessionNote],
+  );
+
+  const handleSessionNoteBlur = useCallback(async () => {
+    if (!emptySessionNote) return;
+    const { error } = await supabase
+      .from("notes")
+      .update({ markdown_body: sessionNoteDraft })
+      .eq("id", emptySessionNote.id);
+    if (error) {
+      logger.error("Failed to save session note", error);
+      toast.error("Could not save note");
+    }
+  }, [emptySessionNote, sessionNoteDraft]);
 
   const handleSave = async () => {
     const success = await onUpdate(topic.id, { name, description });
@@ -389,7 +435,15 @@ export function TopicDetailView({
                 </button>
               </div>
             ) : (
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleOpenFocusStudio}
+                  className="inline-flex items-center gap-2 rounded-control bg-primary-500 px-3 py-2 text-bg-base transition-colors hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+                >
+                  <Target className="w-4 h-4" aria-hidden="true" />
+                  Focus Studio
+                </button>
                 <DropdownMenu.Root>
                   <DropdownMenu.Trigger asChild>
                     <button
@@ -469,6 +523,34 @@ export function TopicDetailView({
           </div>
         </div>
       </div>
+
+      {emptySessionNote && (
+        <div className="bg-bg-surface border border-border-subtle rounded-xl shadow-sm p-4 sm:p-6 space-y-3">
+          <div>
+            <h3 className="text-lg font-semibold text-text-primary">Your note</h3>
+            <p className="text-caption text-text-secondary">
+              Capture what matters for this topic. The caret is ready.
+            </p>
+          </div>
+          <label htmlFor="topic-session-note" className="sr-only">
+            Session note
+          </label>
+          <textarea
+            id="topic-session-note"
+            ref={sessionNoteRef}
+            value={sessionNoteDraft}
+            onChange={(event) => handleSessionNoteChange(event.target.value)}
+            onBlur={() => {
+              void handleSessionNoteBlur();
+            }}
+            rows={8}
+            autoFocus
+            className="w-full rounded-control border border-border-subtle bg-bg-base px-3 py-2 text-body text-text-primary focus:outline-none focus:ring-2 focus:ring-focus"
+            placeholder="Start writing…"
+            aria-label="Session note"
+          />
+        </div>
+      )}
 
       <div className="bg-bg-surface border border-border-subtle rounded-xl shadow-sm">
         <div className="px-6 py-4 border-b border-border-subtle flex items-center justify-between">

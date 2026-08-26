@@ -63,65 +63,14 @@ describe("AuthScreen Security", () => {
     });
   });
 
-  it("validates password strength during signup", async () => {
+  it("does not offer Submit application / sign-up from the auth gate", () => {
     render(<AuthScreen />);
 
-    // Switch to Sign Up
-    const toggleButton = screen.getByText(
-      /New scholar\? Submit application\./i,
-    );
-    fireEvent.click(toggleButton);
-
-    // Fill form with weak password
-    const emailInput = screen.getByPlaceholderText(/scholar@university\.edu/i);
-    const passwordInput = screen.getByPlaceholderText(/••••••••/i);
-
-    fireEvent.change(emailInput, { target: { value: "newuser@example.com" } });
-    fireEvent.change(passwordInput, { target: { value: "weak" } }); // Too short
-
-    const submitButton = screen.getByRole("button", {
-      name: /Create Account/i,
-    });
-    fireEvent.click(submitButton);
-
-    // Expect validation error
-    await waitFor(() => {
-      expect(
-        screen.getByText(/Password must be at least 8 characters long\./i),
-      ).toBeInTheDocument();
-    });
-
-    // Ensure signUp was NOT called
-    expect(mockSupabaseClient.auth.signUp).not.toHaveBeenCalled();
-  });
-
-  it("allows signup with strong password", async () => {
-    render(<AuthScreen />);
-
-    // Switch to Sign Up
-    const toggleButton = screen.getByText(
-      /New scholar\? Submit application\./i,
-    );
-    fireEvent.click(toggleButton);
-
-    // Fill form with strong password
-    const emailInput = screen.getByPlaceholderText(/scholar@university\.edu/i);
-    const passwordInput = screen.getByPlaceholderText(/••••••••/i);
-
-    fireEvent.change(emailInput, { target: { value: "newuser@example.com" } });
-    fireEvent.change(passwordInput, { target: { value: "StrongP@ss1" } });
-
-    const submitButton = screen.getByRole("button", {
-      name: /Create Account/i,
-    });
-    fireEvent.click(submitButton);
-
-    // Expect signUp to be called
-    await waitFor(() => {
-      expect(mockSupabaseClient.auth.signUp).toHaveBeenCalledWith({
-        email: "newuser@example.com",
-        password: "StrongP@ss1",
-      });
-    });
+    expect(
+      screen.queryByText(/New scholar\? Submit application\./i),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Create Account/i }),
+    ).not.toBeInTheDocument();
   });
 });

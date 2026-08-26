@@ -10,6 +10,11 @@ export const DEMO_USER_EMAIL = "demo@researchquest.app";
 export const DEMO_USER_PASSWORD = "ResearchQuest!2026";
 export const DEMO_USERNAME = "Ada Scholar";
 
+/** First-run demo lands on this topic (three papers + empty note). */
+export const DEMO_FIRST_RUN_TOPIC_ID = "topic-ai-agents";
+export const DEMO_FIRST_RUN_NOTE_ID = "note-first-run";
+export const DEMO_FIRST_RUN_PATH = `/topics/${DEMO_FIRST_RUN_TOPIC_ID}`;
+
 export type Row = Record<string, unknown>;
 type TableMap = Record<string, Row[]>;
 
@@ -41,7 +46,7 @@ export function buildDemoTables(): TableMap {
     rest_days: 1,
     auto_create_reading_tasks: true,
     theme_preference: "light",
-    notes_count: 9,
+    notes_count: 10,
     papers_count: 7,
     tasks_completed_count: 14,
     papers_with_insights_count: 3,
@@ -197,6 +202,16 @@ export function buildDemoTables(): TableMap {
   ];
 
   const notes: Row[] = [
+    {
+      id: DEMO_FIRST_RUN_NOTE_ID,
+      user_id: DEMO_USER_ID,
+      title: "",
+      markdown_body: "",
+      tags: [],
+      linked_entity_ids: [DEMO_FIRST_RUN_TOPIC_ID],
+      created_at: iso(0, 7, 0),
+      updated_at: iso(0, 7, 0),
+    },
     {
       id: "note-0001",
       user_id: DEMO_USER_ID,
@@ -679,9 +694,7 @@ export function buildDemoTables(): TableMap {
     });
 
   const topicNotes = topicLinks("topic_notes", [
-    ["topic-ai-agents", "note-0001"],
-    ["topic-ai-agents", "note-0004"],
-    ["topic-ai-agents", "note-0008"],
+    [DEMO_FIRST_RUN_TOPIC_ID, DEMO_FIRST_RUN_NOTE_ID],
     ["topic-memory", "note-0004"],
     ["topic-hci", "note-0005"],
     ["topic-repro", "note-0003"],
@@ -690,8 +703,9 @@ export function buildDemoTables(): TableMap {
   ]);
 
   const topicPapers = topicLinks("topic_papers", [
-    ["topic-ai-agents", "paper-0001"],
-    ["topic-ai-agents", "paper-0007"],
+    [DEMO_FIRST_RUN_TOPIC_ID, "paper-0001"],
+    [DEMO_FIRST_RUN_TOPIC_ID, "paper-0004"],
+    [DEMO_FIRST_RUN_TOPIC_ID, "paper-0007"],
     ["topic-memory", "paper-0002"],
     ["topic-memory", "paper-0004"],
     ["topic-hci", "paper-0002"],
