@@ -39,6 +39,7 @@ import {
 import { InlineError } from "../ui/ErrorFallback";
 import { Skeleton } from "../ui/Skeleton";
 import { DEMO_FIRST_RUN_TOPIC_ID } from "../../lib/demoData";
+import { isDemoMode } from "../../lib/supabase";
 
 type AssociationKind = "notes" | "papers" | "ideas";
 
@@ -216,7 +217,9 @@ export function TopicDetailView({
     () => notes.find((note) => !note.markdown_body?.trim()) ?? null,
     [notes],
   );
-  const isFirstRunTopic = topic.id === DEMO_FIRST_RUN_TOPIC_ID;
+  /** Demo stranger landing only — never strip chrome for real signed-in users. */
+  const isFirstRunTopic =
+    isDemoMode && topic.id === DEMO_FIRST_RUN_TOPIC_ID;
 
   useLayoutEffect(() => {
     if (!emptySessionNote) return;
@@ -367,6 +370,91 @@ export function TopicDetailView({
     ],
   );
 
+  if (isFirstRunTopic) {
+    return (
+      <div className="p-4 sm:p-8 max-w-3xl mx-auto space-y-8">
+        <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-2 min-w-0">
+            <h1 className="font-serif text-2xl font-bold text-text-primary">
+              {topic.name}
+            </h1>
+            <p className="text-body text-text-secondary">
+              {topic.description ||
+                "One topic. Three papers. A note. A focus session."}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleOpenFocusStudio}
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-control bg-black px-4 py-2 text-white transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+          >
+            <Target className="w-4 h-4" aria-hidden="true" />
+            Focus Studio
+          </button>
+        </header>
+
+        <section className="space-y-3" aria-label="Papers">
+          <h2 className="text-small font-semibold uppercase tracking-wide text-text-secondary">
+            Three papers
+          </h2>
+          {loadingAssociations ? (
+            <div className="space-y-2" role="status" aria-label="Loading papers">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-4/5" />
+              <Skeleton className="h-10 w-3/4" />
+            </div>
+          ) : associationErrors.papers ? (
+            <InlineError
+              message={`Could not load papers. ${associationErrors.papers}`}
+              onRetry={() => void loadAssociations()}
+            />
+          ) : (
+            <ul className="space-y-2">
+              {papers.map((paper) => (
+                <li
+                  key={paper.id}
+                  className="rounded-control border border-border-subtle bg-bg-surface px-4 py-3"
+                >
+                  <p className="text-small font-medium text-text-primary">
+                    {paper.title}
+                  </p>
+                  {paper.authors?.length ? (
+                    <p className="text-caption text-text-secondary mt-1">
+                      {paper.authors.join(", ")}
+                    </p>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="space-y-3" aria-label="Your note">
+          <h2 className="text-small font-semibold uppercase tracking-wide text-text-secondary">
+            Your note
+          </h2>
+          <label htmlFor="topic-session-note" className="sr-only">
+            Session note
+          </label>
+          <textarea
+            id="topic-session-note"
+            ref={sessionNoteRef}
+            value={sessionNoteDraft}
+            onChange={(event) => handleSessionNoteChange(event.target.value)}
+            onBlur={() => {
+              void handleSessionNoteBlur();
+            }}
+            rows={8}
+            autoFocus
+            className="w-full rounded-control border border-border-subtle bg-bg-base px-3 py-2 text-body text-text-primary focus:outline-none focus:ring-2 focus:ring-focus"
+            placeholder="Start writing…"
+            aria-label="Session note"
+          />
+        </section>
+      </div>
+    );
+  }
+
   return (
     <>
       <ConfirmDialog
@@ -446,48 +534,46 @@ export function TopicDetailView({
                   <Target className="w-4 h-4" aria-hidden="true" />
                   Focus Studio
                 </button>
-                {!isFirstRunTopic && (
-                  <DropdownMenu.Root>
-                    <DropdownMenu.Trigger asChild>
-                      <button
-                        className="inline-flex items-center gap-2 rounded-control bg-bg-elevated px-3 py-2 text-text-secondary transition-colors hover:bg-bg-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
-                        title="Export topic"
-                        aria-label="Export topic"
+                <DropdownMenu.Root>
+                  <DropdownMenu.Trigger asChild>
+                    <button
+                      className="inline-flex items-center gap-2 rounded-control bg-bg-elevated px-3 py-2 text-text-secondary transition-colors hover:bg-bg-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+                      title="Export topic"
+                      aria-label="Export topic"
+                    >
+                      <Download className="w-4 h-4" />
+                      Export
+                    </button>
+                  </DropdownMenu.Trigger>
+                  <DropdownMenu.Portal>
+                    <DropdownMenu.Content
+                      className="z-dropdown min-w-40 rounded-control border border-border-subtle bg-bg-surface p-1 shadow-md animate-in fade-in zoom-in-95"
+                      align="end"
+                    >
+                      <DropdownMenu.Item
+                        className="flex cursor-pointer items-center gap-2 rounded-control px-2 py-1.5 text-small text-text-primary outline-none hover:bg-bg-elevated focus-visible:bg-bg-elevated"
+                        onSelect={() => handleExport("markdown")}
                       >
-                        <Download className="w-4 h-4" />
-                        Export
-                      </button>
-                    </DropdownMenu.Trigger>
-                    <DropdownMenu.Portal>
-                      <DropdownMenu.Content
-                        className="z-dropdown min-w-40 rounded-control border border-border-subtle bg-bg-surface p-1 shadow-md animate-in fade-in zoom-in-95"
-                        align="end"
+                        <FileText className="w-4 h-4 text-text-secondary" />
+                        Markdown
+                      </DropdownMenu.Item>
+                      <DropdownMenu.Item
+                        className="flex cursor-pointer items-center gap-2 rounded-control px-2 py-1.5 text-small text-text-primary outline-none hover:bg-bg-elevated focus-visible:bg-bg-elevated"
+                        onSelect={() => handleExport("csv")}
                       >
-                        <DropdownMenu.Item
-                          className="flex cursor-pointer items-center gap-2 rounded-control px-2 py-1.5 text-small text-text-primary outline-none hover:bg-bg-elevated focus-visible:bg-bg-elevated"
-                          onSelect={() => handleExport("markdown")}
-                        >
-                          <FileText className="w-4 h-4 text-text-secondary" />
-                          Markdown
-                        </DropdownMenu.Item>
-                        <DropdownMenu.Item
-                          className="flex cursor-pointer items-center gap-2 rounded-control px-2 py-1.5 text-small text-text-primary outline-none hover:bg-bg-elevated focus-visible:bg-bg-elevated"
-                          onSelect={() => handleExport("csv")}
-                        >
-                          <Table className="w-4 h-4 text-text-secondary" />
-                          CSV
-                        </DropdownMenu.Item>
-                        <DropdownMenu.Item
-                          className="flex cursor-pointer items-center gap-2 rounded-control px-2 py-1.5 text-small text-text-primary outline-none hover:bg-bg-elevated focus-visible:bg-bg-elevated"
-                          onSelect={() => handleExport("json")}
-                        >
-                          <FileJson className="w-4 h-4 text-text-secondary" />
-                          JSON
-                        </DropdownMenu.Item>
-                      </DropdownMenu.Content>
-                    </DropdownMenu.Portal>
-                  </DropdownMenu.Root>
-                )}
+                        <Table className="w-4 h-4 text-text-secondary" />
+                        CSV
+                      </DropdownMenu.Item>
+                      <DropdownMenu.Item
+                        className="flex cursor-pointer items-center gap-2 rounded-control px-2 py-1.5 text-small text-text-primary outline-none hover:bg-bg-elevated focus-visible:bg-bg-elevated"
+                        onSelect={() => handleExport("json")}
+                      >
+                        <FileJson className="w-4 h-4 text-text-secondary" />
+                        JSON
+                      </DropdownMenu.Item>
+                    </DropdownMenu.Content>
+                  </DropdownMenu.Portal>
+                </DropdownMenu.Root>
                 <button
                   onClick={() => setIsEditing(true)}
                   className="inline-flex items-center gap-2 rounded-control bg-bg-elevated px-3 py-2 text-text-secondary transition-colors hover:bg-bg-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
@@ -556,7 +642,6 @@ export function TopicDetailView({
         </div>
       )}
 
-      {!isFirstRunTopic && (
       <div className="bg-bg-surface border border-border-subtle rounded-xl shadow-sm">
         <div className="px-6 py-4 border-b border-border-subtle flex items-center justify-between">
           <div>
@@ -654,7 +739,6 @@ export function TopicDetailView({
           )}
         </div>
       </div>
-      )}
 
       <div className="bg-bg-surface border border-border-subtle rounded-xl shadow-sm">
         <div className="px-6 py-4 border-b border-border-subtle flex items-center justify-between">

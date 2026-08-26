@@ -5,6 +5,17 @@ import { useTopics } from "../../../hooks/useTopics";
 import { mockSupabaseClient } from "../../mocks/supabase";
 
 vi.mock("../../../hooks/useTopics");
+vi.mock("../../../lib/supabase", async () => {
+  const { mockSupabaseClient: client } = await import("../../mocks/supabase");
+  return {
+    isDemoMode: true,
+    hasSupabaseConfig: true,
+    supabaseConfigErrorMessage: "demo",
+    DEMO_MODE_STORAGE_KEY: "rq_demo_mode",
+    enableDemoModeAndReload: vi.fn(),
+    supabase: client,
+  };
+});
 vi.mock("../../../components/ui/ConfirmDialog", () => ({
   ConfirmDialog: () => null,
   useConfirmDialog: () => ({
@@ -130,7 +141,7 @@ describe("TopicDetailView first-run loop", () => {
     mockAssociationQueries();
   });
 
-  it("shows three papers, a Focus Studio control, and focuses the empty note", async () => {
+  it("shows only the first-run loop: title, papers, empty note, Focus Studio", async () => {
     render(
       <TopicDetailView
         topic={mockTopic}
@@ -146,6 +157,14 @@ describe("TopicDetailView first-run loop", () => {
       screen.queryByRole("button", { name: /Export topic/i }),
     ).not.toBeInTheDocument();
     expect(screen.queryByText(/Topic Quests/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Connected work/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Total links/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Edit$/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Delete$/i }),
+    ).not.toBeInTheDocument();
 
     await waitFor(() => {
       expect(
