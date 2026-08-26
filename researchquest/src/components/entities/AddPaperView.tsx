@@ -242,12 +242,42 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
         className="flex gap-2 mb-6 border-b border-border-subtle overflow-x-auto"
         role="tablist"
         aria-label="Add paper methods"
+        onKeyDown={(event) => {
+          const tabs = ["doi", "search", "import", "manual"] as const;
+          const currentIndex = tabs.indexOf(activeTab);
+          let nextIndex = currentIndex;
+
+          switch (event.key) {
+            case "ArrowRight":
+              nextIndex = (currentIndex + 1) % tabs.length;
+              break;
+            case "ArrowLeft":
+              nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+              break;
+            case "Home":
+              nextIndex = 0;
+              break;
+            case "End":
+              nextIndex = tabs.length - 1;
+              break;
+            default:
+              return;
+          }
+
+          event.preventDefault();
+          const nextTab = tabs[nextIndex]!;
+          setSearchError("");
+          setImportError("");
+          setActiveTab(nextTab);
+          document.getElementById(`tab-${nextTab}`)?.focus();
+        }}
       >
         {(["doi", "search", "import", "manual"] as const).map((tab) => (
           <button
             key={tab}
             type="button"
             role="tab"
+            tabIndex={activeTab === tab ? 0 : -1}
             aria-selected={activeTab === tab}
             aria-controls={`tabpanel-${tab}`}
             id={`tab-${tab}`}

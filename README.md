@@ -1,13 +1,12 @@
 # ResearchQuest
 
 [![CI](https://github.com/Arudchayan/ResearchQuest/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/Arudchayan/ResearchQuest/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/github/actions/workflow/status/Arudchayan/ResearchQuest/ci.yml?branch=master&label=tests&logo=vitest&logoColor=white)](https://github.com/Arudchayan/ResearchQuest/actions/workflows/ci.yml)
-[![Lint](https://img.shields.io/github/actions/workflow/status/Arudchayan/ResearchQuest/ci.yml?branch=master&label=lint&logo=eslint&logoColor=white)](https://github.com/Arudchayan/ResearchQuest/actions/workflows/ci.yml)
-[![Build](https://img.shields.io/github/actions/workflow/status/Arudchayan/ResearchQuest/ci.yml?branch=master&label=build&logo=vite&logoColor=white)](https://github.com/Arudchayan/ResearchQuest/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Security Policy](https://img.shields.io/badge/Security-Policy-blue.svg)](SECURITY.md)
 
 A research management dashboard for tracking papers, notes, ideas, topics, and reading tasks — all synced to Supabase.
 
-**Status:** Alpha — functional but evolving.
+**Status:** Alpha — functional but evolving. Live demo: [research-quest-wine.vercel.app](https://research-quest-wine.vercel.app)
 
 ## Features
 
@@ -17,7 +16,7 @@ A research management dashboard for tracking papers, notes, ideas, topics, and r
 - **Topics** — Organize entities into topics with automatic count tracking.
 - **Tasks** — Reading tasks created automatically when you add papers. Manual task creation with priorities and due dates.
 - **Focus Studio** — Timer-based focus sessions with XP tracking.
-- **Feeds (alpha)** — Triage ingested `feed_items` and promote leads into papers, tasks, or notes. Feed source/RSS management UI and scheduled ingest are still incomplete and primarily agent-API oriented.
+- **Feeds (alpha)** — Triage ingested `feed_items` and promote leads into papers, tasks, or notes. Feed source/RSS management UI and scheduled ingest are still incomplete.
 - **Gamification** — XP, levels, streaks, and achievements for research activity.
 - **Zen Mode** — Distraction-free workspace (Ctrl+Shift+F).
 - **Command Palette** — Quick search and navigation (Ctrl+K).
@@ -28,9 +27,9 @@ A research management dashboard for tracking papers, notes, ideas, topics, and r
 
 ### Prerequisites
 
-- **Node.js 20+**
-- **pnpm** (`npm install -g pnpm@10`)
-- **Supabase project** (free tier works) — or run without Supabase to see the auth screen
+- **Node.js 22+** (see `.nvmrc`)
+- **pnpm 10** (`corepack enable` or `npm install -g pnpm@10`)
+- **Supabase project** (free tier works) — or use **demo mode** with no backend
 
 ### Setup
 
@@ -42,7 +41,7 @@ cd ResearchQuest
 # Install dependencies
 cd researchquest && pnpm install
 
-# Configure Supabase
+# Configure (optional for demo)
 cp .env.example .env
 # Edit .env with your Supabase project credentials:
 #   VITE_SUPABASE_URL=https://your-project.supabase.co
@@ -57,8 +56,12 @@ pnpm run dev
 
 ResearchQuest ships with a fully local demo workspace. It seeds papers, notes,
 ideas, topics, tasks, feeds, focus sessions, XP, streaks, quests, and
-achievements into an in-memory Supabase-compatible client, so every view is
-interactive without a Supabase project.
+achievements into an in-memory Supabase-compatible client.
+
+**Easiest path:** run `pnpm run dev`, then click **Use demo workspace** on the
+auth screen (or the config-error screen if Supabase env vars are missing).
+
+Or set the flag explicitly:
 
 ```bash
 cd researchquest
@@ -67,12 +70,13 @@ cp .env.example .env
 pnpm run dev
 ```
 
-Sign in with any email and password, or use the **Use demo workspace** button on
-the auth screen.
+Sign in with any email and password once demo mode is active.
 
 ### Without Supabase
 
-The app shows a config error screen and the Supabase auth UI — useful for testing auth flow. Set `PLAYWRIGHT_TEST_NO_SUPABASE=1` to force this mode.
+Without credentials and without demo mode, the app shows a config screen with a
+demo CTA and setup instructions. Set `PLAYWRIGHT_TEST_NO_SUPABASE=1` to force
+this mode in tests.
 
 ## Scripts
 
@@ -94,7 +98,7 @@ The app shows a config error screen and the Supabase auth UI — useful for test
 
 | Layer | Choice |
 |-------|--------|
-| Framework | React 18 + TypeScript |
+| Framework | React 19 + TypeScript |
 | Build | Vite 6 |
 | UI | Radix UI primitives + Tailwind CSS 3 |
 | State | Zustand (client) + Supabase (server) |
@@ -143,6 +147,15 @@ All config is through environment variables. Copy `.env.example` to `.env`.
 |----------|----------|-------------|
 | `VITE_SUPABASE_URL` | Yes (for DB) | Supabase project URL |
 | `VITE_SUPABASE_ANON_KEY` | Yes (for DB) | Supabase anon/public key |
+| `VITE_DEMO_MODE` | No | Set to `1` for local seeded demo (no Supabase) |
+| `VITE_TEST_EMAIL` / `VITE_TEST_PASSWORD` | No | Dev-only test login button |
+| `PLAYWRIGHT_TEST_NO_SUPABASE` | No | Force config-error screen for E2E |
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for private vulnerability reporting. Do not commit
+`.env` files or service-role keys. The privileged `create-admin-user` edge
+function must not be deployed casually — see its README.
 
 ## Performance Notes
 
@@ -164,7 +177,7 @@ Edge functions in `supabase/functions/` (Deno runtime):
 - `api` — Agent API gateway for scoped entity, feed, and key management
 - `fetch-paper` — Crossref DOI/query search
 - `deep-research` — Deep research orchestration
-- `create-admin-user` — Admin user bootstrap
+- `create-admin-user` — **Privileged** admin bootstrap (keep undeployed by default)
 
 ## Tests
 
@@ -179,23 +192,25 @@ pnpm run test:coverage
 pnpm run test:e2e
 ```
 
-~60 test files covering unit, integration, security, accessibility, performance, and E2E.
+~90 test files covering unit, integration, security, accessibility, performance, and E2E.
 
 ## Contributing
 
 1. Fork and clone
-2. Create a feature branch
-3. Make changes with tests
-4. Run `pnpm run test:run` and `pnpm run build`
-5. Open a PR
+2. Prefer **demo mode** for UI work (`Use demo workspace` or `VITE_DEMO_MODE=1`)
+3. Create a feature branch
+4. Make changes with tests
+5. Run `pnpm run test:run` and `pnpm run build`
+6. Open a PR
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 ## Roadmap
 
 - [ ] Offline support / PWA
 - [ ] Collaborative research sessions
 - [ ] Feed source/RSS management UI and scheduled ingest
+- [ ] Analysis / adversarial review workspace (experimental code exists, not productized)
 - [ ] Zotero/ Mendeley import
 - [ ] Bibliography export (BibTeX, CSL)
 - [ ] Mobile-optimized view

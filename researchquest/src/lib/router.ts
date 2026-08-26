@@ -11,7 +11,8 @@ export type AppView =
   | "ideas"
   | "tasks"
   | "focus"
-  | "topics";
+  | "topics"
+  | "feeds";
 
 /** Every valid top-level view name. */
 export const VALID_VIEWS: readonly AppView[] = [
@@ -22,6 +23,7 @@ export const VALID_VIEWS: readonly AppView[] = [
   "tasks",
   "topics",
   "focus",
+  "feeds",
 ] as const;
 
 /** Views that support deep-link item selection via `/[view]/[itemId]`. */

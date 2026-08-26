@@ -70,7 +70,7 @@ describe("CommandPalette Data & API Settings", () => {
     fireEvent.keyDown(document, { key: "k", metaKey: true });
 
     await waitFor(() => {
-      expect(screen.getByText("Data & API Settings...")).toBeInTheDocument();
+      expect(screen.getByText("Data Management...")).toBeInTheDocument();
     });
   });
 
@@ -90,7 +90,7 @@ describe("CommandPalette Data & API Settings", () => {
     const dispatchEventSpy = vi.spyOn(document, "dispatchEvent");
 
     await waitFor(() => {
-      const item = screen.getByText("Data & API Settings...");
+      const item = screen.getByText("Data Management...");
       fireEvent.click(item);
     });
 

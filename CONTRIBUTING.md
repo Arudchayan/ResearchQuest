@@ -2,12 +2,20 @@
 
 Thanks for considering contributing to ResearchQuest.
 
+Please read the [Code of Conduct](CODE_OF_CONDUCT.md). Security issues belong in
+[SECURITY.md](SECURITY.md), not public issues.
+
 ## Getting Started
 
 1. Fork the repo and clone locally.
-2. Run `pnpm install` in `researchquest/`.
-3. Copy `.env.example` to `.env` and add Supabase credentials (optional for UI development).
-4. Run `pnpm run dev` to start the dev server.
+2. Use **Node 22** (`.nvmrc`) and **pnpm 10**.
+3. Run `pnpm install` in `researchquest/`.
+4. Prefer **demo mode** for UI work:
+   - `pnpm run dev`, then click **Use demo workspace**, or
+   - set `VITE_DEMO_MODE=1` in `.env` (copy from `.env.example`).
+5. For a real backend, add Supabase URL + anon key to `.env`.
+
+Do **not** commit `.env`, API keys, or local agent folders (`.omo/`, `.jules/`, `.wt/`).
 
 ## Code Style
 
@@ -17,6 +25,8 @@ Thanks for considering contributing to ResearchQuest.
 - Tailwind CSS for styling. No CSS modules or styled-components.
 - Prefer `useShallow` from Zustand for store selectors to prevent re-renders.
 - Custom hooks should return plain objects, not JSX.
+- Top-level views live in `src/lib/router.ts` (`AppView` / `VALID_VIEWS`). Keep
+  the store, sidebar, and `App.tsx` route switch in sync when adding a view.
 
 ## Testing
 
@@ -25,6 +35,7 @@ Thanks for considering contributing to ResearchQuest.
 - Use Playwright for E2E tests.
 - Run `pnpm run test:run` before pushing.
 - Run `pnpm run build` to verify TypeScript and build.
+- Run `pnpm run lint` for ESLint.
 
 ## Pull Requests
 
@@ -40,7 +51,7 @@ Thanks for considering contributing to ResearchQuest.
 src/
 ├── components/     # React components, grouped by domain
 │   ├── ui/         # Reusable primitives (button, card, input, etc.)
-│   ├── layout/     # App shell, sidebar, navigation
+│   ├── layout/     # App shell, sidebar, navigation (v2 is current)
 │   ├── auth/       # Authentication screens
 │   ├── dashboard/  # Dashboard
 │   ├── papers/     # Paper management
@@ -48,22 +59,25 @@ src/
 │   ├── ideas/      # Idea board
 │   ├── topics/     # Topic management
 │   ├── tasks/      # Task manager
+│   ├── feeds/      # Feed triage (alpha)
 │   ├── focus/      # Focus workspace
 │   ├── editor/     # Markdown editor
 │   ├── entities/   # Entity CRUD operations
+│   ├── analysis/   # Experimental analysis UI (not wired)
 │   └── settings/   # Data management
 ├── hooks/          # Custom React hooks (usePapers, useNotes, etc.)
 ├── store/          # Zustand stores
 ├── types/          # TypeScript type definitions
 ├── utils/          # Utilities (security, gamification, sort, etc.)
-└── lib/            # Library config (Supabase client, etc.)
+└── lib/            # Library config (Supabase client, router, demo)
 ```
 
 ## Development Tips
 
-- The build uses `pnpm install --prefer-offline` so first build may be slow.
+- Install once with `pnpm install` (or `pnpm run install-deps`); scripts do not
+  reinstall on every `dev`/`lint`/`build`.
 - Dev mode has hot module reload via Vite.
-- Set `PLAYWRIGHT_TEST_NO_SUPABASE=1` to skip Supabase config in dev/test.
+- Set `PLAYWRIGHT_TEST_NO_SUPABASE=1` to skip Supabase config in tests.
 - Tests use `happy-dom` by default, `jsdom` for some specific tests.
 - Do not commit `.env` files or API keys.
 

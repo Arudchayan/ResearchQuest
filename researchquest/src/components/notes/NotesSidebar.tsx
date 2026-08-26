@@ -99,7 +99,13 @@ export function NotesSidebar({
   });
 
   useEffect(() => {
-    if (!isMobileEditorOpen) requestAnimationFrame(() => rowVirtualizer.measure());
+    if (!isMobileEditorOpen) {
+      requestAnimationFrame(() => {
+        if (typeof rowVirtualizer.measure === "function") {
+          rowVirtualizer.measure();
+        }
+      });
+    }
   }, [isMobileEditorOpen, rowVirtualizer]);
 
   const handleExport = (format: "markdown" | "csv" | "json") => {

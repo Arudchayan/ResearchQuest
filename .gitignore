@@ -4,6 +4,13 @@
 .env
 .env.local
 
+# Private agent / worktree tooling — never ship in the public tree
+.omo/
+.jules/
+.wt/
+.codegraph/
+researchquest/.omo/
+
 # Cursor / MCP browser scratch logs
 .playwright-mcp/
 
@@ -15,6 +22,9 @@
 
 # Agent journals live only at repo root `.jules/` (merged from former `researchquest/.jules/`).
 researchquest/.jules/
+
+# Scratch screenshots at repo root
+/auth-gate-mobile.png
 
 # Generated audit reports from portfolio expert cron jobs
 researchquest/UI_UX_AUDIT.md

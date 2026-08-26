@@ -7,6 +7,8 @@ vi.mock("../../lib/supabase", () => ({
   isDemoMode: false,
   hasSupabaseConfig: true,
   supabaseConfigErrorMessage: "Missing Supabase environment variables",
+  DEMO_MODE_STORAGE_KEY: "rq_demo_mode",
+  enableDemoModeAndReload: vi.fn(),
   supabase: {
     auth: {
       signInWithPassword: vi.fn(),

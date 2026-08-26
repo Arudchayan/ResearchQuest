@@ -102,12 +102,13 @@ export function useEditorActions({ content, title, previewRef, selectedNote, use
           </style>
         </head>
         <body>
-          <h1>${documentTitle}</h1>
-          <div class="markdown-body">${htmlContent}</div>
+          <h1 id="print-title">${documentTitle}</h1>
+          <div id="print-content" class="markdown-body">${htmlContent}</div>
           <script>window.onload = function() { window.print(); window.close(); };</script>
         </body>
       </html>
     `);
+    printWindow.document.title = rawTitle;
     printWindow.document.close();
   }, [title, previewRef]);
 

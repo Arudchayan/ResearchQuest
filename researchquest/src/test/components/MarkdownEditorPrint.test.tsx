@@ -187,8 +187,12 @@ describe("MarkdownEditor Print", () => {
 
     const returnedWindow = mockOpen.mock.results[0].value;
     expect(returnedWindow.document.title).toBe("Test Note Title");
-    expect(returnedWindow.document.getElementById).toHaveBeenCalledWith("print-title");
-    expect(returnedWindow.document.getElementById).toHaveBeenCalledWith("print-content");
+    expect(mockWrite).toHaveBeenCalledWith(
+      expect.stringContaining('id="print-title"'),
+    );
+    expect(mockWrite).toHaveBeenCalledWith(
+      expect.stringContaining('id="print-content"'),
+    );
 
     // We can't directly check the mockElement's final state easily if it's the same object for both,
     // but verifying getElementById is called is enough for DOM injection logic.
