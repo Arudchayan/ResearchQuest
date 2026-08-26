@@ -44,8 +44,9 @@ describe("AuthScreen first-run", () => {
     });
     const signInButton = screen.getByRole("button", { name: /^Sign In$/i });
 
-    expect(demoButton.className).toMatch(/bg-primary-500|bg-black/);
-    expect(signInButton.className).not.toMatch(/bg-primary-500|bg-black/);
+    expect(demoButton.className).toMatch(/\bbg-black\b/);
+    expect(demoButton.className).not.toMatch(/bg-primary-500/);
+    expect(signInButton.className).not.toMatch(/\bbg-black\b|bg-primary-500/);
     expect(signInButton.className).toMatch(/border|ghost|bg-transparent|bg-bg-surface/);
   });
 

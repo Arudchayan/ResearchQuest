@@ -166,7 +166,7 @@ export function AuthScreen() {
                   type="button"
                   onClick={enableDemoModeAndReload}
                   disabled={isBusy}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-primary-500 text-bg-base rounded-sm hover:opacity-90 transition-opacity font-medium disabled:opacity-60"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-black text-white rounded-sm hover:opacity-90 transition-opacity font-medium disabled:opacity-60"
                 >
                   <FlaskConical className="w-4 h-4" aria-hidden="true" />
                   Use demo workspace
