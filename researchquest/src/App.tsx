@@ -1,8 +1,10 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import {
   hasSupabaseConfig,
+  isDemoMode,
   supabase,
 } from "./lib/supabase";
+import { DEMO_FIRST_RUN_PATH } from "./lib/demoData";
 import { useShallow } from "zustand/react/shallow";
 import { useAppStore } from "./store/appStore";
 import { useGamificationStore } from "./store/gamificationStore";
@@ -24,6 +26,14 @@ import {
   parseRoute,
   selectEntityForRoute,
 } from "./lib/router";
+
+function ensureDemoFirstRunPath(): boolean {
+  if (!isDemoMode || typeof window === "undefined") return false;
+  const path = window.location.pathname;
+  if (path !== "/" && path !== "") return false;
+  window.history.replaceState(null, "", DEMO_FIRST_RUN_PATH);
+  return true;
+}
 
 const DashboardLazy = lazy(() =>
   import("./components/dashboard/Dashboard").then((module) => ({
@@ -248,7 +258,11 @@ function App() {
 
   // URL-based routing — handle initial load, popstate, and invalid-route recovery
   useEffect(() => {
+    // Demo first-run: never leave a stranger on `/` / dashboard.
+    ensureDemoFirstRunPath();
+
     const handleRouteChange = () => {
+      ensureDemoFirstRunPath();
       const route = parseRoute(window.location.pathname);
 
       if (route.isValid && route.view) {

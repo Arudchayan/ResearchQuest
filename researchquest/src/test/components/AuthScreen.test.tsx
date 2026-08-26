@@ -24,65 +24,47 @@ describe("AuthScreen Security", () => {
     expect(screen.queryByText(/Continue with Google/i)).not.toBeInTheDocument();
   });
 
+<<<<<<< HEAD
   it("validates password strength during signup", async () => {
+=======
+  it('shows "Use Test Login" button when env vars are present', () => {
+    vi.stubEnv("VITE_TEST_EMAIL", "test@example.com");
+    vi.stubEnv("VITE_TEST_PASSWORD", "password123");
+
     render(<AuthScreen />);
 
-    // Switch to Sign Up
-    const toggleButton = screen.getByText(
-      /New scholar\? Submit application\./i,
-    );
-    fireEvent.click(toggleButton);
-
-    // Fill form with weak password
-    const emailInput = screen.getByPlaceholderText(/scholar@university\.edu/i);
-    const passwordInput = screen.getByPlaceholderText(/••••••••/i);
-
-    fireEvent.change(emailInput, { target: { value: "newuser@example.com" } });
-    fireEvent.change(passwordInput, { target: { value: "weak" } }); // Too short
-
-    const submitButton = screen.getByRole("button", {
-      name: /Create Account/i,
-    });
-    fireEvent.click(submitButton);
-
-    // Expect validation error
-    await waitFor(() => {
-      expect(
-        screen.getByText(/Password must be at least 8 characters long\./i),
-      ).toBeInTheDocument();
-    });
-
-    // Ensure signUp was NOT called
-    expect(mockSupabaseClient.auth.signUp).not.toHaveBeenCalled();
+    expect(screen.getByText(/Use Test Login/i)).toBeInTheDocument();
   });
 
-  it("allows signup with strong password", async () => {
+  it("uses configured credentials when test login is clicked", async () => {
+    const testEmail = "test@example.com";
+    const testPassword = "password123";
+
+    vi.stubEnv("VITE_TEST_EMAIL", testEmail);
+    vi.stubEnv("VITE_TEST_PASSWORD", testPassword);
+
     render(<AuthScreen />);
 
-    // Switch to Sign Up
-    const toggleButton = screen.getByText(
-      /New scholar\? Submit application\./i,
-    );
-    fireEvent.click(toggleButton);
+    const button = screen.getByText(/Use Test Login/i);
+    fireEvent.click(button);
 
-    // Fill form with strong password
-    const emailInput = screen.getByPlaceholderText(/scholar@university\.edu/i);
-    const passwordInput = screen.getByPlaceholderText(/••••••••/i);
-
-    fireEvent.change(emailInput, { target: { value: "newuser@example.com" } });
-    fireEvent.change(passwordInput, { target: { value: "StrongP@ss1" } });
-
-    const submitButton = screen.getByRole("button", {
-      name: /Create Account/i,
-    });
-    fireEvent.click(submitButton);
-
-    // Expect signUp to be called
     await waitFor(() => {
-      expect(mockSupabaseClient.auth.signUp).toHaveBeenCalledWith({
-        email: "newuser@example.com",
-        password: "StrongP@ss1",
+      expect(mockSupabaseClient.auth.signInWithPassword).toHaveBeenCalledWith({
+        email: testEmail,
+        password: testPassword,
       });
     });
+  });
+
+  it("does not offer Submit application / sign-up from the auth gate", () => {
+>>>>>>> 0596d8c (fix(first-run): demo click lands on seeded topic loop)
+    render(<AuthScreen />);
+
+    expect(
+      screen.queryByText(/New scholar\? Submit application\./i),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Create Account/i }),
+    ).not.toBeInTheDocument();
   });
 });

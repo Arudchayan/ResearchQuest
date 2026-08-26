@@ -6,7 +6,6 @@ import {
   isDemoMode,
   supabase,
 } from "../../lib/supabase";
-import { isStrongPassword } from "../../utils/security";
 
 type AuthMessage = {
   readonly type: "success" | "error";
@@ -18,32 +17,19 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export function AuthScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState<AuthMessage>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
-  const [passwordError, setPasswordError] = useState<string | null>(null);
 
   const emailRef = useRef<HTMLInputElement>(null);
   const messageId = "auth-message";
   const emailErrorId = "auth-email-error";
-  const passwordErrorId = "auth-password-error";
 
-  // Focus the email input on mount
   useEffect(() => {
     emailRef.current?.focus();
   }, []);
-
-  // Reset validation and messages when toggling between sign-in and sign-up
-  useEffect(() => {
-    setEmailError(null);
-    setPasswordError(null);
-    setMessage(null);
-    // Re-focus the email input after mode toggle
-    emailRef.current?.focus();
-  }, [isSignUp]);
 
   const validateEmail = useCallback((value: string): boolean => {
     if (value.length > 0 && !EMAIL_REGEX.test(value)) {
@@ -62,7 +48,6 @@ export function AuthScreen() {
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const value = e.target.value;
       setEmail(value);
-      // Re-validate only if already showing an error
       if (emailError !== null) {
         validateEmail(value);
       }
@@ -72,16 +57,9 @@ export function AuthScreen() {
 
   const handlePasswordChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      const value = e.target.value;
-      setPassword(value);
-      if (isSignUp && value.length > 0) {
-        const result = isStrongPassword(value);
-        setPasswordError(result.valid ? null : (result.message ?? null));
-      } else {
-        setPasswordError(null);
-      }
+      setPassword(e.target.value);
     },
-    [isSignUp],
+    [],
   );
 
   const handleAuth = useCallback(
@@ -89,44 +67,21 @@ export function AuthScreen() {
       e.preventDefault();
       setMessage(null);
 
-      // Client-side validation before submission
       if (!validateEmail(email)) {
         return;
-      }
-
-      if (isSignUp) {
-        const pwResult = isStrongPassword(password);
-        if (!pwResult.valid) {
-          setPasswordError(pwResult.message ?? null);
-          return;
-        }
       }
 
       setLoading(true);
 
       try {
-        if (isSignUp) {
-          const { error } = await supabase.auth.signUp({
-            email,
-            password,
-          });
-          if (error) throw error;
-          setMessage({
-            type: "success",
-            text: "Check your email for the confirmation link!",
-          });
-        } else {
-          const { error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          });
-          if (error) throw error;
-          // No success message on sign-in — auth state change redirects
-        }
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (error) throw error;
       } catch (error: unknown) {
         const errMsg =
           error instanceof Error ? error.message : "An error occurred";
-        // Normalize common Supabase error messages
         let displayMsg = errMsg;
         if (errMsg.includes("Invalid login credentials")) {
           displayMsg = "Invalid email or password. Please try again.";
@@ -139,7 +94,7 @@ export function AuthScreen() {
         setLoading(false);
       }
     },
-    [email, password, isSignUp, validateEmail],
+    [email, password, validateEmail],
   );
 
   const handlePasswordReset = useCallback(async () => {
@@ -186,7 +141,6 @@ export function AuthScreen() {
   return (
     <main className="min-h-screen flex items-center justify-center bg-bg-base transition-colors">
       <div className="w-full max-w-md p-8 bg-bg-surface border border-border-subtle rounded-md shadow-lg relative overflow-hidden">
-        {/* Subtle decorative top border */}
         <div className="absolute top-0 left-0 right-0 h-1 bg-primary-500" />
 
         <header className="text-center mb-8">
@@ -199,6 +153,9 @@ export function AuthScreen() {
           <p className="text-small text-text-secondary mt-2 tracking-widest uppercase">
             Scholar Access
           </p>
+          <p className="text-small text-text-secondary mt-3">
+            One topic. Three papers. A note. A focus session.
+          </p>
         </header>
 
         <form onSubmit={handleAuth} className="space-y-4" noValidate>
@@ -209,7 +166,7 @@ export function AuthScreen() {
                   type="button"
                   onClick={enableDemoModeAndReload}
                   disabled={isBusy}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-dashed border-border-moderate rounded-sm text-text-secondary font-medium hover:text-text-primary transition-colors disabled:opacity-60"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-primary-500 text-bg-base rounded-sm hover:opacity-90 transition-opacity font-medium disabled:opacity-60"
                 >
                   <FlaskConical className="w-4 h-4" aria-hidden="true" />
                   Use demo workspace
@@ -279,10 +236,6 @@ export function AuthScreen() {
                 required
                 maxLength={100}
                 disabled={isBusy}
-                aria-describedby={
-                  passwordError ? passwordErrorId : undefined
-                }
-                aria-invalid={passwordError ? true : undefined}
                 className="w-full px-4 py-2 bg-bg-base border border-border-moderate rounded-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 transition-shadow pr-10 disabled:opacity-50"
                 placeholder={"\u2022".repeat(8)}
               />
@@ -300,21 +253,6 @@ export function AuthScreen() {
                 )}
               </button>
             </div>
-            {passwordError && (
-              <p
-                id={passwordErrorId}
-                role="alert"
-                className="mt-1 text-caption text-warning"
-              >
-                {passwordError}
-              </p>
-            )}
-            {isSignUp && (
-              <p className="mt-1.5 text-caption text-text-tertiary leading-relaxed">
-                Password must be at least 8 characters and include uppercase,
-                lowercase, number, and special character.
-              </p>
-            )}
             <button
               type="button"
               onClick={handlePasswordReset}
@@ -345,7 +283,7 @@ export function AuthScreen() {
           <button
             type="submit"
             disabled={isBusy}
-            className="w-full px-4 py-2 bg-primary-500 text-bg-base rounded-sm hover:opacity-90 transition-opacity font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full px-4 py-2 border border-border-moderate bg-transparent text-text-secondary rounded-sm hover:bg-bg-elevated hover:text-text-primary transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {loading ? (
               <>
@@ -353,30 +291,13 @@ export function AuthScreen() {
                   className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"
                   aria-hidden="true"
                 />
-                {isSignUp ? "Creating account\u2026" : "Signing in\u2026"}
+                {"Signing in\u2026"}
               </>
-            ) : isSignUp ? (
-              "Create Account"
             ) : (
               "Sign In"
             )}
           </button>
         </form>
-
-        <div className="mt-6 text-center border-t border-border-subtle pt-6">
-          <button
-            onClick={() => {
-              setIsSignUp(!isSignUp);
-              setMessage(null);
-            }}
-            disabled={loading}
-            className="text-small font-serif italic text-text-secondary hover:text-text-primary transition-colors disabled:opacity-50"
-          >
-            {isSignUp
-              ? "Existing scholar? Sign in."
-              : "New scholar? Submit application."}
-          </button>
-        </div>
       </div>
     </main>
   );

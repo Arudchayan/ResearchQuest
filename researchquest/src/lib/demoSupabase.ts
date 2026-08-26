@@ -58,12 +58,6 @@ type QueryResult = {
 
 const tables: Record<TableName, Row[]> = buildDemoTables();
 
-let currentSession: Session | null = null;
-const authListeners: Array<(event: string, session: Session | null) => void> =
-  [];
-const channelSubscriptions: Array<ChannelSubscription & { channel: string }> =
-  [];
-
 function makeSession(email: string): Session {
   return {
     access_token: `demo-access-${Date.now()}`,
@@ -76,6 +70,13 @@ function makeSession(email: string): Session {
     },
   };
 }
+
+/** Demo mode starts signed in so first-run lands in the workspace, not auth. */
+let currentSession: Session | null = makeSession(DEMO_USER_EMAIL);
+const authListeners: Array<(event: string, session: Session | null) => void> =
+  [];
+const channelSubscriptions: Array<ChannelSubscription & { channel: string }> =
+  [];
 
 function emitAuth(event: string, session: Session | null) {
   authListeners.forEach((listener) => listener(event, session));
