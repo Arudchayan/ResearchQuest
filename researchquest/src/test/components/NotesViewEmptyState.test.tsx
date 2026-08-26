@@ -88,6 +88,6 @@ describe("NotesView Empty State", () => {
     const statusRegion = screen.getByRole("status");
     expect(statusRegion).toBeInTheDocument();
     expect(statusRegion).toHaveAttribute("aria-live", "polite");
-    expect(statusRegion).toHaveClass("sr-only");
+    expect(statusRegion).toHaveTextContent("No notes yet");
   });
 });

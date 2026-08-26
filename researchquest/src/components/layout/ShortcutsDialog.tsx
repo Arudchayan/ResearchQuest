@@ -2,6 +2,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { X, Keyboard } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAppStore } from "../../store/appStore";
+import type { AppView } from "../../lib/router";
 
 interface ShortcutItem {
   keys: string[];
@@ -13,8 +14,6 @@ interface ShortcutSection {
   shortcuts: ShortcutItem[];
 }
 
-type AppView = "dashboard" | "notes" | "papers" | "ideas" | "tasks" | "focus" | "topics";
-
 const NAVIGATION_SHORTCUTS: Record<string, { view: AppView; url: string }> = {
   "1": { view: "dashboard", url: "/" },
   "2": { view: "notes", url: "/notes" },
@@ -23,6 +22,7 @@ const NAVIGATION_SHORTCUTS: Record<string, { view: AppView; url: string }> = {
   "5": { view: "tasks", url: "/tasks" },
   "6": { view: "focus", url: "/focus" },
   "7": { view: "topics", url: "/topics" },
+  "8": { view: "feeds", url: "/feeds" },
 };
 
 const isMac =
@@ -114,13 +114,31 @@ export function ShortcutsDialog() {
       }
 
       // Ignore if typing in an input for other shortcuts
-      const target = e.target as HTMLElement;
-      const isInput =
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.isContentEditable;
+      const target = e.target;
+      const isEditableElement =
+        target instanceof HTMLElement &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable ||
+          target.getAttribute("contenteditable") === "true" ||
+          target.getAttribute("contenteditable") === "");
 
-      if (isInput) return;
+      if (isEditableElement) return;
+
+      if (isMod && (e.key === "e" || e.key === "E") && !e.shiftKey && !e.altKey) {
+        const { currentView } = useAppStore.getState();
+        const exportCapable =
+          currentView === "notes" ||
+          currentView === "papers" ||
+          currentView === "ideas" ||
+          currentView === "tasks" ||
+          currentView === "topics";
+        if (exportCapable) {
+          e.preventDefault();
+          document.dispatchEvent(new CustomEvent("export-current-view"));
+          return;
+        }
+      }
 
       if (e.key === "?" && e.shiftKey) {
         e.preventDefault();

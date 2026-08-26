@@ -80,6 +80,8 @@ vi.mock("lucide-react", () => {
     "Trash",
     "Loader",
     "PenLine",
+    "AlertTriangle",
+    "Database",
   ];
   return Object.fromEntries(icons.map((name) => [name, iconStub]));
 });

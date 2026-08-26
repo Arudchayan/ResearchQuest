@@ -9,6 +9,7 @@
  * Sidebar stats (right_sidebar_tasks) refresh deadline counts only.
  */
 import { useEffect, useState, useCallback } from "react";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase";
 import { XP_REWARDS } from "../utils/gamification";
 import { toast } from "sonner";
@@ -44,6 +45,106 @@ function sortTasksByDueDate(taskList: Task[]): Task[] {
     }
     return aDue - bDue;
   });
+}
+
+function applyTasksRealtimePayload(payload: {
+  eventType: "INSERT" | "UPDATE" | "DELETE";
+  new: Record<string, unknown>;
+  old: Record<string, unknown>;
+}) {
+  const setTasks = useAppStore.getState().setTasks;
+  const previousTasks = useAppStore.getState().tasks;
+
+  if (payload.eventType === "INSERT") {
+    const nextTask = payload.new as unknown as Task;
+    const exists = previousTasks.some((task) => task.id === nextTask.id);
+    if (exists) return;
+    setTasks(sortTasksByDueDate([...previousTasks, nextTask]));
+    return;
+  }
+
+  if (payload.eventType === "UPDATE") {
+    const updatedTask = payload.new as unknown as Task;
+    setTasks(
+      sortTasksByDueDate(
+        previousTasks.map((task) =>
+          task.id === updatedTask.id ? updatedTask : task,
+        ),
+      ),
+    );
+    return;
+  }
+
+  if (payload.eventType === "DELETE") {
+    const oldId = payload.old["id"];
+    if (typeof oldId === "string") {
+      setTasks(previousTasks.filter((task) => task.id !== oldId));
+    }
+  }
+}
+
+let tasksRealtimeChannel: RealtimeChannel | null = null;
+let tasksRealtimeUserId: string | null = null;
+let tasksRealtimeRefCount = 0;
+
+function acquireTasksRealtimeSubscription(userId: string) {
+  if (
+    tasksRealtimeChannel &&
+    tasksRealtimeUserId &&
+    tasksRealtimeUserId !== userId
+  ) {
+    void tasksRealtimeChannel.unsubscribe();
+    tasksRealtimeChannel = null;
+    tasksRealtimeUserId = null;
+    tasksRealtimeRefCount = 0;
+  }
+
+  tasksRealtimeRefCount += 1;
+
+  if (tasksRealtimeChannel && tasksRealtimeUserId === userId) {
+    return;
+  }
+
+  if (tasksRealtimeChannel) {
+    void tasksRealtimeChannel.unsubscribe();
+    tasksRealtimeChannel = null;
+    tasksRealtimeUserId = null;
+  }
+
+  tasksRealtimeUserId = userId;
+  tasksRealtimeChannel = supabase
+    .channel(`tasks_realtime_${userId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "tasks",
+        filter: `user_id=eq.${userId}`,
+      },
+      (payload) => {
+        applyTasksRealtimePayload(payload as {
+          eventType: "INSERT" | "UPDATE" | "DELETE";
+          new: Record<string, unknown>;
+          old: Record<string, unknown>;
+        });
+      },
+    )
+    .subscribe();
+}
+
+function releaseTasksRealtimeSubscription() {
+  tasksRealtimeRefCount = Math.max(0, tasksRealtimeRefCount - 1);
+
+  if (tasksRealtimeRefCount > 0) {
+    return;
+  }
+
+  if (tasksRealtimeChannel) {
+    void tasksRealtimeChannel.unsubscribe();
+    tasksRealtimeChannel = null;
+    tasksRealtimeUserId = null;
+  }
 }
 
 function normalizeDate(value: string): string {
@@ -146,13 +247,6 @@ export function useTasks(
     },
   });
 
-  const updateCommittedTasks = useCallback(
-    (updater: (previousTasks: Task[]) => Task[]) => {
-      setGlobalTasks(updater(useAppStore.getState().tasks));
-    },
-    [setGlobalTasks],
-  );
-
   const fetchTasks = useCallback(async () => {
     if (!owner || !userId) return;
 
@@ -220,59 +314,17 @@ export function useTasks(
       }
     });
 
-    // Subscribe to realtime updates
-    const subscription = supabase
-      .channel(`tasks_realtime_${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "tasks",
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload) => {
-          if (payload.eventType === "INSERT") {
-            // Skip if the task already exists (from an optimistic create)
-            updateCommittedTasks((prev) => {
-              const exists = prev.some(
-                (t) => t.id === (payload.new as Task).id,
-              );
-              return exists
-                ? prev
-                : sortTasksByDueDate([...prev, payload.new as Task]);
-            });
-          } else if (payload.eventType === "UPDATE") {
-            const updated = payload.new as Task;
-            updateCommittedTasks((prev) =>
-              sortTasksByDueDate(
-                prev.map((task) =>
-                  task.id === updated.id ? updated : task,
-                ),
-              ),
-            );
-          } else if (payload.eventType === "DELETE") {
-            const oldId = payload.old["id"];
-            updateCommittedTasks((prev) =>
-              typeof oldId === "string"
-                ? prev.filter((task) => task.id !== oldId)
-                : prev,
-            );
-          }
-        },
-      )
-      .subscribe();
+    acquireTasksRealtimeSubscription(userId);
 
     return () => {
       retryUnsub();
-      subscription.unsubscribe();
+      releaseTasksRealtimeSubscription();
     };
   }, [
     fetchTasks,
     owner,
     setGlobalTasks,
     setGlobalTasksLoading,
-    updateCommittedTasks,
     userId,
   ]);
 

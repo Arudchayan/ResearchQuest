@@ -9,18 +9,11 @@ import type {
   TopicWithCounts,
   Task,
 } from "../types/database";
+import type { AppView } from "../lib/router";
+
+export type { AppView };
 
 export type DataSyncResource = "notes" | "papers" | "ideas" | "tasks" | "topics";
-export type AppView =
-  | "dashboard"
-  | "notes"
-  | "papers"
-  | "ideas"
-  | "tasks"
-  | "focus"
-  | "topics"
-  | "feeds"
-  | "analysis";
 
 export interface DataSyncError {
   resource: DataSyncResource;

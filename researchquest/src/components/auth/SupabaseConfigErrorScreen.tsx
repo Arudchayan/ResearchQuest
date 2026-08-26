@@ -1,4 +1,7 @@
-import { supabaseConfigErrorMessage } from "../../lib/supabase";
+import {
+  enableDemoModeAndReload,
+  supabaseConfigErrorMessage,
+} from "../../lib/supabase";
 
 export function SupabaseConfigErrorScreen() {
   const handleReload = () => {
@@ -15,8 +18,17 @@ export function SupabaseConfigErrorScreen() {
           Supabase configuration required
         </h1>
         <p className="text-body text-text-secondary mt-3">
-          ResearchQuest needs Supabase credentials before it can start.
+          ResearchQuest needs Supabase credentials before it can start — or you
+          can explore a local demo workspace with no backend.
         </p>
+
+        <button
+          type="button"
+          onClick={enableDemoModeAndReload}
+          className="mt-5 w-full px-4 py-2 bg-primary-500 text-bg-base rounded-sm hover:opacity-90 transition-opacity font-medium"
+        >
+          Use demo workspace
+        </button>
 
         <div className="mt-5 rounded-sm border border-border-moderate bg-bg-elevated p-4">
           <p className="text-small font-medium text-text-primary">
@@ -55,8 +67,9 @@ VITE_SUPABASE_ANON_KEY=your-anon-key`}
         </p>
 
         <button
+          type="button"
           onClick={handleReload}
-          className="mt-5 w-full px-4 py-2 bg-primary-500 text-bg-base rounded-sm hover:opacity-90 transition-opacity font-medium"
+          className="mt-3 w-full px-4 py-2 border border-border-moderate text-text-primary rounded-sm hover:bg-bg-elevated transition-colors font-medium"
         >
           Reload app
         </button>

@@ -67,6 +67,12 @@ const FocusWorkspace = lazy(() =>
   })),
 );
 
+const FeedsView = lazy(() =>
+  import("./components/feeds/FeedsView").then((module) => ({
+    default: module.FeedsView,
+  })),
+);
+
 const OnboardingGuide = lazy(() =>
   import("./components/layout/OnboardingGuide").then((module) => ({
     default: module.OnboardingGuide,
@@ -366,6 +372,10 @@ function App() {
       <div className="p-6 h-full overflow-auto">
         <OnboardingGuide storageKey="rq_focus_onboarding_bridge" />
         <FocusWorkspace userId={userId} />
+      </div>
+    ) : currentView === "feeds" ? (
+      <div className="h-full overflow-auto">
+        <FeedsView />
       </div>
     ) : null;
 

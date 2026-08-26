@@ -13,6 +13,11 @@ describe("AuthScreen Security", () => {
     vi.unstubAllEnvs();
   });
 
+  it('shows "Use demo workspace" when not already in demo mode', () => {
+    render(<AuthScreen />);
+    expect(screen.getByText(/Use demo workspace/i)).toBeInTheDocument();
+  });
+
   it('does NOT show "Use Test Login" button when env vars are missing', () => {
     // Ensure env vars are not set
     vi.stubEnv("VITE_TEST_EMAIL", "");

@@ -75,6 +75,8 @@ export function ConfirmDialog({
         <Dialog.Content
           role="alertdialog"
           aria-modal="true"
+          aria-labelledby="dialog-title"
+          aria-describedby="dialog-description"
           onOpenAutoFocus={(event) => {
             event.preventDefault();
             const target =

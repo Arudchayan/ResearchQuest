@@ -193,7 +193,7 @@ export function CommandPalette() {
     setOpen(false);
   };
 
-  // Memoize search items
+  // Memoize search items (cap rendered matches for performance)
   const searchItems = useMemo(() => {
     return [
       ...notes.map((n) => ({
@@ -205,7 +205,7 @@ export function CommandPalette() {
       ...ideas.map((i) => ({ type: "idea", item: i, label: i.title })),
       ...tasks.map((t) => ({ type: "task", item: t, label: t.title })),
       ...(topicsArray || []).map((t) => ({ type: "topic", item: t, label: t.name })),
-    ];
+    ].slice(0, 50);
   }, [notes, papers, ideas, tasks, topicsArray]);
 
   return (
