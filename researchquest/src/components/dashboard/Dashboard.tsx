@@ -19,6 +19,7 @@ import { useAppStore } from "../../store/appStore";
 import { useShallow } from "zustand/react/shallow";
 import { getLevelTitle } from "../../utils/gamification";
 import { parseDateInput } from "../../utils/time";
+import { getTopN } from "../../utils/collections";
 import { isOverdue } from "../tasks/TaskCard";
 import { ListSkeleton } from "../ui/Skeleton";
 import { InlineError } from "../ui/ErrorFallback";
@@ -192,68 +193,39 @@ export function Dashboard() {
   }, [tasks]);
 
   const recentNotes = useMemo(() => {
-    return [...notes]
-      .sort((a, b) => {
-        // Optimization: Use direct string comparison for ISO dates instead of localeCompare
-        return b.updated_at > a.updated_at
-          ? 1
-          : b.updated_at < a.updated_at
-            ? -1
-            : 0;
-      })
-      .slice(0, 3);
+    return getTopN(notes, 3, (a, b) => {
+      return b.updated_at > a.updated_at ? 1 : b.updated_at < a.updated_at ? -1 : 0;
+    });
   }, [notes]);
 
   const readingList = useMemo(() => {
-    return papers
-      .filter((p) => p.status === "To Read")
-      .sort((a, b) => {
-        // Optimization: Use direct string comparison for ISO dates instead of localeCompare
-        return b.created_at > a.created_at
-          ? 1
-          : b.created_at < a.created_at
-            ? -1
-            : 0;
-      })
-      .slice(0, 3);
+    return getTopN(
+      papers,
+      3,
+      (a, b) => (b.created_at > a.created_at ? 1 : b.created_at < a.created_at ? -1 : 0),
+      (p) => p.status === "To Read"
+    );
   }, [papers]);
 
   const activeIdeas = useMemo(() => {
-    return [...ideas]
-      .sort((a, b) => {
-        // Optimization: Use direct string comparison for ISO dates instead of localeCompare
-        return b.updated_at > a.updated_at
-          ? 1
-          : b.updated_at < a.updated_at
-            ? -1
-            : 0;
-      })
-      .slice(0, 3);
+    return getTopN(ideas, 3, (a, b) => (b.updated_at > a.updated_at ? 1 : b.updated_at < a.updated_at ? -1 : 0));
   }, [ideas]);
 
   const activeTopics = useMemo(() => {
-    return Object.values(topics)
-      .sort((a, b) => {
-        // Optimization: Use direct string comparison for ISO dates instead of localeCompare
-        return b.updated_at > a.updated_at
-          ? 1
-          : b.updated_at < a.updated_at
-            ? -1
-            : 0;
-      })
-      .slice(0, 3);
+    return getTopN(Object.values(topics), 3, (a, b) => (b.updated_at > a.updated_at ? 1 : b.updated_at < a.updated_at ? -1 : 0));
   }, [topics]);
 
   const upcomingTasks = useMemo(() => {
-    return tasks
-      .filter((t) => !t.completed)
-      .sort((a, b) => {
+    return getTopN(
+      tasks,
+      3,
+      (a, b) => {
         if (!a.due_date) return 1;
         if (!b.due_date) return -1;
-        // Optimization: Use direct string comparison for ISO dates instead of localeCompare
         return a.due_date > b.due_date ? 1 : a.due_date < b.due_date ? -1 : 0;
-      })
-      .slice(0, 3);
+      },
+      (t) => !t.completed
+    );
   }, [tasks]);
 
   // "Today" deck — decision-first: the work that's waiting right now.
@@ -262,35 +234,41 @@ export function Dashboard() {
   const todayItems = useMemo((): TodayItem[] => {
     const now = new Date();
 
-    const overdueTasks = tasks
-      .filter((task) => !task.completed && isOverdue(task.due_date))
-      .sort((a, b) => {
+    const overdueTasks = getTopN(
+      tasks,
+      3,
+      (a, b) => {
         if (!a.due_date) return 1;
         if (!b.due_date) return -1;
         return a.due_date > b.due_date ? 1 : a.due_date < b.due_date ? -1 : 0;
-      })
-      .slice(0, 3);
+      },
+      (task) => !task.completed && isOverdue(task.due_date)
+    );
 
-    const dueTodayTasks = tasks
-      .filter((task) => !task.completed && isDueToday(task.due_date))
-      .sort((a, b) => {
+    const dueTodayTasks = getTopN(
+      tasks,
+      3,
+      (a, b) => {
         if (!a.due_date) return 1;
         if (!b.due_date) return -1;
         return a.due_date > b.due_date ? 1 : a.due_date < b.due_date ? -1 : 0;
-      })
-      .slice(0, 3);
+      },
+      (task) => !task.completed && isDueToday(task.due_date)
+    );
 
-    const stuckIdeas = ideas
-      .filter(
-        (idea) => idea.stage === "Seed" && daysBetween(idea.created_at, now) >= 14,
-      )
-      .sort((a, b) => (a.created_at > b.created_at ? 1 : a.created_at < b.created_at ? -1 : 0))
-      .slice(0, 2);
+    const stuckIdeas = getTopN(
+      ideas,
+      2,
+      (a, b) => (a.created_at > b.created_at ? 1 : a.created_at < b.created_at ? -1 : 0),
+      (idea) => idea.stage === "Seed" && daysBetween(idea.created_at, now) >= 14
+    );
 
-    const untaggedNotes = notes
-      .filter((note) => note.tags.length === 0)
-      .sort((a, b) => (b.updated_at > a.updated_at ? 1 : b.updated_at < a.updated_at ? -1 : 0))
-      .slice(0, 2);
+    const untaggedNotes = getTopN(
+      notes,
+      2,
+      (a, b) => (b.updated_at > a.updated_at ? 1 : b.updated_at < a.updated_at ? -1 : 0),
+      (note) => note.tags.length === 0
+    );
 
     return [
       ...overdueTasks.map((task) => ({
