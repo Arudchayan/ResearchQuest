@@ -43,4 +43,5 @@ Out of scope:
 - Do **not** deploy `supabase/functions/create-admin-user` to production unless you set a strong `ADMIN_API_KEY` and understand it creates users via the Admin API.
 - Apply all migrations under `supabase/migrations/` before exposing a project; early permissive policies are superseded by later hardening migrations.
 - Rotate keys if this repository’s history ever contained a live project URL or anon JWT.
-- Never set `VITE_TEST_EMAIL` / `VITE_TEST_PASSWORD` in production CI/CD — Vite embeds them in the client bundle and enables a one-click test login.
+- Treat every `VITE_*` value as public: Vite embeds it in the browser bundle. Never use this namespace for account passwords or privileged secrets.
+- After rewriting Git history to remove a secret, rotate or revoke the original credential and run the full-history secret scan successfully before publishing a repository.
