@@ -148,13 +148,14 @@ All config is through environment variables. Copy `.env.example` to `.env`.
 | `VITE_SUPABASE_URL` | Yes (for DB) | Supabase project URL |
 | `VITE_SUPABASE_ANON_KEY` | Yes (for DB) | Supabase anon/public key |
 | `VITE_DEMO_MODE` | No | Set to `1` for local seeded demo (no Supabase) |
-| `VITE_TEST_EMAIL` / `VITE_TEST_PASSWORD` | No | Dev-only test login button |
 | `PLAYWRIGHT_TEST_NO_SUPABASE` | No | Force config-error screen for E2E |
 
 ## Security
 
 See [SECURITY.md](SECURITY.md) for private vulnerability reporting. Do not commit
-`.env` files or service-role keys. The privileged `create-admin-user` edge
+`.env` files, credentials, or service-role keys. Vite embeds every `VITE_*`
+value in the browser bundle, so client configuration must never contain account
+passwords or privileged secrets. The privileged `create-admin-user` edge
 function must not be deployed casually — see its README.
 
 ## Performance Notes
