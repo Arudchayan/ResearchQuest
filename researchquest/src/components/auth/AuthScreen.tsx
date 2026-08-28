@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { EyeOpenIcon, EyeClosedIcon } from "@radix-ui/react-icons";
-import { FlaskConical, Wrench } from "lucide-react";
+import { FlaskConical } from "lucide-react";
 import {
   enableDemoModeAndReload,
   isDemoMode,
@@ -179,39 +179,6 @@ export function AuthScreen() {
     }
   }, [email]);
 
-  const handleTestLogin = useCallback(async () => {
-    setLoading(true);
-    setMessage(null);
-
-    const testEmail = import.meta.env["VITE_TEST_EMAIL"];
-    const testPassword = import.meta.env["VITE_TEST_PASSWORD"];
-
-    if (!testEmail || !testPassword) {
-      setMessage({ type: "error", text: "Test credentials not configured" });
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: testEmail,
-        password: testPassword,
-      });
-      if (error) throw error;
-    } catch (error: unknown) {
-      const errMsg =
-        error instanceof Error
-          ? error.message
-          : "An error occurred during test login";
-      setMessage({ type: "error", text: errMsg });
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const showTestLogin = !!(
-    import.meta.env["VITE_TEST_EMAIL"] && import.meta.env["VITE_TEST_PASSWORD"]
-  );
   const showDemoWorkspace = !isDemoMode;
 
   const isBusy = loading || resetting;
@@ -235,7 +202,7 @@ export function AuthScreen() {
         </header>
 
         <form onSubmit={handleAuth} className="space-y-4" noValidate>
-          {(showDemoWorkspace || showTestLogin) && (
+          {showDemoWorkspace && (
             <div className="space-y-3">
               {showDemoWorkspace && (
                 <button
@@ -246,18 +213,6 @@ export function AuthScreen() {
                 >
                   <FlaskConical className="w-4 h-4" aria-hidden="true" />
                   Use demo workspace
-                </button>
-              )}
-
-              {showTestLogin && (
-                <button
-                  type="button"
-                  onClick={handleTestLogin}
-                  disabled={isBusy}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-dashed border-border-moderate rounded-sm text-text-secondary font-medium hover:text-text-primary transition-colors disabled:opacity-60"
-                >
-                  <Wrench className="w-4 h-4" aria-hidden="true" />
-                  Use Test Login
                 </button>
               )}
 

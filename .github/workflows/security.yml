@@ -2,54 +2,65 @@ name: Hardened Security Workflow
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
   schedule:
-    - cron: '0 0 * * 1'
+    - cron: "0 0 * * 1"
+  workflow_dispatch:
 
 permissions: read-all
 
-# Scorecard publish_results validates the workflow: the job that runs ossf/scorecard-action may
-# only contain an allow-listed set of steps (checkout, scorecard, upload-sarif, upload-artifact,
-# harden-runner). TruffleHog, pnpm, and custom run steps must live in a separate job.
+concurrency:
+  group: security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
+# The Scorecard job is intentionally excluded from pull_request events because
+# SARIF publishing requires write permissions unavailable to untrusted forks.
 jobs:
   secret-scan-and-audit:
     name: TruffleHog & pnpm audit
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
       actions: read
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
+      - name: Checkout full history
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0
 
-      - name: Secret Scan
+      - name: Secret scan
         uses: trufflesecurity/trufflehog@bcfcf73aaf4759d4dadc2783177c245a02792318 # v3.97.0
         with:
           path: ./
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version: 22
-
       - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
         with:
-          version: 9.0.0
+          version: 10.12.1
 
-      - name: VEX Analysis (pnpm audit)
-        run: |
-          cd researchquest
-          pnpm install
-          pnpm audit --audit-level=high --json > pnpm-audit-vex.json
-          cat pnpm-audit-vex.json
+      - name: Setup Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: researchquest/pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: researchquest
+        run: pnpm install --frozen-lockfile
+
+      - name: Audit high-severity vulnerabilities
+        working-directory: researchquest
+        run: pnpm audit --audit-level=high
 
   scorecard:
     name: OpenSSF Scorecard
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       security-events: write
       id-token: write
@@ -58,8 +69,8 @@ jobs:
       pull-requests: read
       checks: read
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
+      - name: Checkout full history
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0
 
@@ -72,6 +83,6 @@ jobs:
 
       - name: Upload SARIF results
         continue-on-error: true
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4
         with:
           sarif_file: results.sarif
