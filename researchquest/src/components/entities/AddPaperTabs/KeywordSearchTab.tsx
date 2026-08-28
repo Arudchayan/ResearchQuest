@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useId } from "react";
 import { Loader, Search, X, BookOpen, Plus, ExternalLink } from "lucide-react";
 import type { CrossrefPaper } from "../../../types/database";
 import { Tooltip, TooltipTrigger, TooltipContent } from "../../ui/tooltip";
@@ -41,6 +41,7 @@ export function KeywordSearchTab({
   isValidUrl,
 }: KeywordSearchTabProps) {
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const idPrefix = useId();
 
   return (
     <div className="space-y-6" role="tabpanel" id="view-panel-search">
@@ -95,19 +96,28 @@ export function KeywordSearchTab({
           </button>
         </div>
         <div className="grid gap-3 sm:grid-cols-3">
-           <select value={resultLimit} onChange={(e) => setResultLimit(e.target.value)} aria-label="Result limit" className="bg-bg-base border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
-             <option value="10">10 Results</option>
-             <option value="25">25 Results</option>
-             <option value="50">50 Results</option>
-           </select>
-           <select value={sortField} onChange={(e) => setSortField(e.target.value)} aria-label="Sort field" className="bg-bg-base border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
-             <option value="score">Relevance</option>
-             <option value="published">Date</option>
-           </select>
-           <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} aria-label="Sort order" className="bg-bg-base border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
-             <option value="desc">Descending</option>
-             <option value="asc">Ascending</option>
-           </select>
+           <div>
+             <label htmlFor={`limit-${idPrefix}`} className="block text-sm font-medium mb-1 text-text-secondary">Result Limit</label>
+             <select id={`limit-${idPrefix}`} value={resultLimit} onChange={(e) => setResultLimit(e.target.value)} className="w-full bg-bg-base border border-border-subtle rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+               <option value="10">10 Results</option>
+               <option value="25">25 Results</option>
+               <option value="50">50 Results</option>
+             </select>
+           </div>
+           <div>
+             <label htmlFor={`field-${idPrefix}`} className="block text-sm font-medium mb-1 text-text-secondary">Sort By</label>
+             <select id={`field-${idPrefix}`} value={sortField} onChange={(e) => setSortField(e.target.value)} className="w-full bg-bg-base border border-border-subtle rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+               <option value="score">Relevance</option>
+               <option value="published">Date</option>
+             </select>
+           </div>
+           <div>
+             <label htmlFor={`order-${idPrefix}`} className="block text-sm font-medium mb-1 text-text-secondary">Sort Order</label>
+             <select id={`order-${idPrefix}`} value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} className="w-full bg-bg-base border border-border-subtle rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+               <option value="desc">Descending</option>
+               <option value="asc">Ascending</option>
+             </select>
+           </div>
         </div>
       </form>
 
