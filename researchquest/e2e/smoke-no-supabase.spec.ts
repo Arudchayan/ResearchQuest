@@ -7,9 +7,9 @@ test.describe("App shell without Supabase", () => {
       page.getByRole("heading", { name: "Supabase configuration required" }),
     ).toBeVisible();
     await expect(
-      page.getByText("ResearchQuest needs Supabase credentials before it can start."),
+      page.getByText("ResearchQuest needs Supabase credentials before it can start — or you can explore a local demo workspace with no backend."),
     ).toBeVisible();
-    await expect(page.getByText("VITE_SUPABASE_URL")).toBeVisible();
-    await expect(page.getByText("VITE_SUPABASE_ANON_KEY")).toBeVisible();
+    await expect(page.getByText("VITE_SUPABASE_URL").first()).toBeVisible();
+    await expect(page.getByText("VITE_SUPABASE_ANON_KEY").first()).toBeVisible();
   });
 });
