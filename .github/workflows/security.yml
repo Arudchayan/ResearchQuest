@@ -46,7 +46,7 @@ jobs:
         with:
           node-version: "22"
           cache: false
-- name: Install dependencies
+      - name: Install dependencies
         working-directory: researchquest
         run: pnpm install --frozen-lockfile
 
