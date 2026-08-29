@@ -60,7 +60,13 @@ export function TopicSelector({ entityId, entityType }: TopicSelectorProps) {
   // this prevents O(N*M) performance bottlenecks during hydration or rendering.
   // Impact: Significantly reduces CPU overhead and memory churn for large topic lists.
   const topicsMap = useMemo(
-    () => new Map(topics.map((t) => [t.id, t])),
+    () => {
+      const map = new Map();
+      for (let i = 0; i < topics.length; i++) {
+        map.set(topics[i].id, topics[i]);
+      }
+      return map;
+    },
     [topics],
   );
 
