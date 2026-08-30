@@ -220,7 +220,7 @@ async function synthesiseWithOpenAI(
     const data = await response.json();
     const content = data?.choices?.[0]?.message?.content;
     if (!content) {
-      console.error("[ERROR] OpenRouter response missing content:", JSON.stringify(data));
+      console.error("[ERROR] OpenRouter response missing content");
       return null;
     }
     return parseAIJson(content);
