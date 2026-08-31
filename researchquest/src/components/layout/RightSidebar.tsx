@@ -21,6 +21,7 @@ import { useBacklinks } from "../../hooks/useBacklinks";
 import { useRelatedItems } from "../../hooks/useRelatedItems";
 import { useShallow } from "zustand/react/shallow";
 import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
+import { getTopN } from "../../utils/collections";
 
 export function RightSidebar() {
   const {
@@ -80,25 +81,42 @@ export function RightSidebar() {
     const now = new Date();
     const horizon = new Date();
     horizon.setDate(now.getDate() + 7);
-    return storeTasks
-      .filter((t) => {
-        if (!t.due_date) return false;
-        if ("completed" in t && t.completed) return false;
-        if ("status" in t && (t.status === "completed" || t.status === "done"))
-          return false;
-        const due = new Date(t.due_date);
-        return due >= now && due <= horizon;
-      })
-      .sort(
-        (a, b) =>
-          new Date(a.due_date!).getTime() - new Date(b.due_date!).getTime(),
-      )
-      .slice(0, 5)
-      .map((t) => ({
-        id: t.id,
-        title: t.title,
-        due_date: t.due_date as string,
-      }));
+
+    // Pre-parse the current and horizon times
+    const nowTime = now.getTime();
+    const horizonTime = horizon.getTime();
+
+    // ⚡ PERFORMANCE OPTIMIZATION:
+    // 1. We map to include parsed due dates once, avoiding O(N log N) or O(N) repeated parsing during comparisons.
+    // 2. We use getTopN to find the top 5 elements in a single O(N) pass, avoiding full-array sorts.
+    // 3. We filter inline before pushing to getTopN to minimize intermediate objects.
+
+    type ParsedTask = typeof storeTasks[0] & { parsedDue: number };
+    const validTasks: ParsedTask[] = [];
+
+    for (let i = 0; i < storeTasks.length; i++) {
+      const t = storeTasks[i];
+      if (!t.due_date) continue;
+      if (("completed" in t && t.completed) || ("status" in t && (t.status === "completed" || t.status === "done"))) continue;
+
+      const parsedDue = new Date(t.due_date).getTime();
+      if (parsedDue >= nowTime && parsedDue <= horizonTime) {
+        validTasks.push({ ...t, parsedDue });
+      }
+    }
+
+    const filtered = getTopN(
+      validTasks,
+      5,
+      (a, b) => a.parsedDue - b.parsedDue
+    );
+
+    // getTopN maintains a sorted subarray, but we re-sort to ensure exact chronological order for the view
+    return filtered.sort((a, b) => a.parsedDue - b.parsedDue).map((t) => ({
+      id: t.id,
+      title: t.title,
+      due_date: t.due_date as string,
+    }));
   }, [storeTasks]);
 
   // Determine current entity
