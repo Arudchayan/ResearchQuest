@@ -140,11 +140,11 @@ export function AuthScreen() {
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-bg-base transition-colors">
-      <div className="w-full max-w-md p-8 bg-bg-surface border border-border-subtle rounded-md shadow-lg relative overflow-hidden">
+      <div className="w-full max-w-md p-8 bg-bg-elevated border border-border-subtle rounded-md shadow-lg relative overflow-hidden">
         <div className="absolute top-0 left-0 right-0 h-1 bg-primary-500" />
 
         <header className="text-center mb-8">
-          <div className="w-16 h-16 bg-bg-elevated border border-border-subtle rounded-md mx-auto mb-4 flex items-center justify-center text-text-primary font-serif font-bold text-2xl shadow-sm">
+          <div className="w-16 h-16 bg-bg-surface border border-border-subtle rounded-md mx-auto mb-4 flex items-center justify-center text-text-primary font-serif font-bold text-2xl shadow-sm">
             RQ
           </div>
           <h1 className="font-serif text-title font-bold text-text-primary">
