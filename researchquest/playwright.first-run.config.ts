@@ -1,26 +1,36 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const e2ePort = 4174;
+const e2ePort = 4175;
 const baseURL = `http://127.0.0.1:${e2ePort}`;
+const chromePath =
+  process.env.PLAYWRIGHT_CHROME ?? "/usr/bin/google-chrome-stable";
 
 /**
- * Default e2e: Scholar Access gate with stub Supabase (no prod writes).
- * First-run click receipt lives in e2e/first-run-demo.spec.ts.
- * Prefer `pnpm run test:first-run` for the Jules-style single-command receipt.
+ * First-run click receipt. Serves the app with stub Supabase env so the
+ * Scholar Access gate (not the missing-config wart) is the door under test.
  */
 export default defineConfig({
   testDir: "e2e",
-  fullyParallel: true,
+  testMatch: /first-run-demo\.spec\.ts/,
+  fullyParallel: false,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 2 : undefined,
+  retries: 0,
+  workers: 1,
   reporter: [["list"]],
+  timeout: 90_000,
   use: {
     baseURL,
     trace: "on-first-retry",
-    ...devices["Desktop Chrome"],
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    {
+      name: "chromium",
+      use: {
+        ...devices["Desktop Chrome"],
+        launchOptions: { executablePath: chromePath },
+      },
+    },
+  ],
   webServer: {
     command: `pnpm exec vite --host 127.0.0.1 --port ${e2ePort}`,
     url: baseURL,
@@ -28,8 +38,7 @@ export default defineConfig({
     timeout: 120_000,
     env: {
       ...process.env,
-      // Stub credentials so the Scholar Access gate renders (not the
-      // missing-config wart). Demo mode never writes to production.
+      // Stub only — demo mode never writes to production Supabase.
       VITE_SUPABASE_URL: "https://example.supabase.co",
       VITE_SUPABASE_ANON_KEY:
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24ifQ.stub",

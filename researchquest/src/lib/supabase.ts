@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { DEMO_FIRST_RUN_PATH } from "./demoData";
 import { demoSupabase } from "./demoSupabase";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -23,13 +24,14 @@ export const isDemoMode =
   import.meta.env.VITE_USE_DEMO === "1" ||
   hasRuntimeDemoFlag();
 
+/** Enter demo and land on the seeded first-run topic — never the dashboard. */
 export function enableDemoModeAndReload(): void {
   try {
     localStorage.setItem(DEMO_MODE_STORAGE_KEY, "1");
   } catch {
-    // Ignore quota / private-mode errors; reload still attempts env-based demo.
+    // Ignore quota / private-mode errors; navigation still attempts demo.
   }
-  window.location.reload();
+  window.location.assign(DEMO_FIRST_RUN_PATH);
 }
 
 export const hasSupabaseConfig =

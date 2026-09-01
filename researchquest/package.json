@@ -24,6 +24,7 @@
     "test:coverage:threshold": "vitest run --coverage --coverage.thresholds.lines=80 --coverage.thresholds.functions=80 --coverage.thresholds.branches=75 --coverage.thresholds.statements=80",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
+    "test:first-run": "playwright test -c playwright.first-run.config.ts",
     "typecheck:strict": "tsc -p tsconfig.strict.json --noEmit"
   },
   "dependencies": {

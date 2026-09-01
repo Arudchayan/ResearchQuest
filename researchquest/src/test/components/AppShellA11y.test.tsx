@@ -6,6 +6,7 @@ import { TooltipProvider } from "../../components/ui/tooltip";
 
 // Mock dependencies
 vi.mock("../../lib/supabase", () => ({
+  isDemoMode: false,
   supabase: {
     auth: {
       signOut: vi.fn(),

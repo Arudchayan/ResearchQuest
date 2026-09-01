@@ -3,6 +3,12 @@ import { demoSupabase } from "../../lib/demoSupabase";
 import { DEMO_USER_ID } from "../../lib/demoData";
 
 describe("demoSupabase", () => {
+  it("starts with an active demo session (first-run must not require a second sign-in)", async () => {
+    const { data } = await demoSupabase.auth.getSession();
+    expect(data.session?.user.id).toBe(DEMO_USER_ID);
+    expect(data.session?.access_token).toBeTruthy();
+  });
+
   it("signs in with a session and demo user", async () => {
     const { data } = await demoSupabase.auth.signInWithPassword({
       email: "demo@researchquest.app",
@@ -25,7 +31,7 @@ describe("demoSupabase", () => {
       .range(0, 2);
 
     expect(data).toHaveLength(3);
-    expect(count).toBe(9);
+    expect(count).toBe(10);
     expect(data?.[0]).toMatchObject({
       user_id: DEMO_USER_ID,
       title: "RAG design notes",
@@ -53,8 +59,8 @@ describe("demoSupabase", () => {
       .maybeSingle();
 
     expect(data?.id).toBe("topic-ai-agents");
-    expect(data?.topic_notes?.[0]?.count).toBe(3);
-    expect(data?.topic_papers?.[0]?.count).toBe(2);
+    expect(data?.topic_notes?.[0]?.count).toBe(1);
+    expect(data?.topic_papers?.[0]?.count).toBe(3);
     expect(data?.topic_ideas?.[0]?.count).toBe(2);
   });
 
