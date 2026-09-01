@@ -4,8 +4,9 @@ const e2ePort = 4174;
 const baseURL = `http://127.0.0.1:${e2ePort}`;
 
 /**
- * Smoke tests start Vite with empty Supabase env so the app shows the
- * configuration screen (no secrets required in CI).
+ * Default e2e: Scholar Access gate with stub Supabase (no prod writes).
+ * First-run click receipt lives in e2e/first-run-demo.spec.ts.
+ * Prefer `pnpm run test:first-run` for the Jules-style single-command receipt.
  */
 export default defineConfig({
   testDir: "e2e",
@@ -27,9 +28,13 @@ export default defineConfig({
     timeout: 120_000,
     env: {
       ...process.env,
-      PLAYWRIGHT_TEST_NO_SUPABASE: "1",
-      VITE_SUPABASE_URL: "",
-      VITE_SUPABASE_ANON_KEY: "",
+      // Stub credentials so the Scholar Access gate renders (not the
+      // missing-config wart). Demo mode never writes to production.
+      VITE_SUPABASE_URL: "https://example.supabase.co",
+      VITE_SUPABASE_ANON_KEY:
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24ifQ.stub",
+      VITE_DEMO_MODE: "",
+      VITE_USE_DEMO: "",
     },
   },
 });

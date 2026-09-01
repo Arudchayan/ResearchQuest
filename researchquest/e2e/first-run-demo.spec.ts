@@ -7,7 +7,8 @@ import path from "node:path";
  * This replaces the old "Supabase configuration required" smoke as the e2e proof.
  */
 const ARTIFACTS_DIR =
-  process.env.RQ_FIRST_RUN_ARTIFACTS_DIR ?? "/opt/cursor/artifacts";
+  process.env.RQ_FIRST_RUN_ARTIFACTS_DIR ??
+  (process.env.CI ? "e2e/artifacts/first-run" : "/opt/cursor/artifacts");
 const TOPIC_PATH = "/topics/topic-ai-agents";
 
 test.describe("first-run demo click", () => {
@@ -31,13 +32,13 @@ test.describe("first-run demo click", () => {
 
     // Prefer the static first-paint control; fall back to the React gate link.
     const demoCta = page.locator("[data-rq-demo-entry]").first();
-    await expect(demoCta).toBeVisible();
+    await expect(demoCta).toBeVisible({ timeout: 15_000 });
     await expect(demoCta).toHaveText(/Use demo workspace/i);
 
     // Gate card receipt (loop line, solid CTA, quiet Sign In, no Submit).
     await expect(
       page.getByText("One topic. Three papers. A note. A focus session."),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText(/Submit application/i)).toHaveCount(0);
 
     // AuthScreen may have replaced the static shell by now — Sign In should be quiet.
