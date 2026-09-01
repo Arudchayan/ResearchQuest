@@ -1,15 +1,14 @@
-import { expect, test } from "@playwright/test";
+import { test } from "@playwright/test";
 
-test.describe("App shell without Supabase", () => {
-  test("shows configuration required screen", async ({ page }) => {
-    await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Supabase configuration required" }),
-    ).toBeVisible();
-    await expect(
-      page.getByText("ResearchQuest needs Supabase credentials before it can start — or you can explore a local demo workspace with no backend."),
-    ).toBeVisible();
-    await expect(page.getByText("VITE_SUPABASE_URL").first()).toBeVisible();
-    await expect(page.getByText("VITE_SUPABASE_ANON_KEY").first()).toBeVisible();
-  });
+/**
+ * Former smoke asserted the missing-config screen. That screen is the wart for
+ * first-run strangers — the receipt is `first-run-demo.spec.ts` (click Use demo
+ * workspace → seeded topic). Keep this file as an explicit skip so CI does not
+ * treat the wart as green proof.
+ */
+test.describe("legacy no-supabase smoke (not the first-run receipt)", () => {
+  test.skip(
+    true,
+    "Replaced by e2e/first-run-demo.spec.ts — run: pnpm run test:first-run",
+  );
 });
