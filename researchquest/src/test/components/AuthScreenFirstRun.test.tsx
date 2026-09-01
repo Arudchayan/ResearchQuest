@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { AuthScreen } from "../../components/auth/AuthScreen";
+import { DEMO_FIRST_RUN_PATH } from "../../lib/demoData";
 
 vi.mock("../../lib/supabase", () => ({
   isDemoMode: false,
@@ -36,18 +37,22 @@ describe("AuthScreen first-run", () => {
     ).toBeInTheDocument();
   });
 
-  it("makes Use demo workspace the solid primary CTA and Sign In quiet", () => {
+  it("makes Use demo workspace a real link CTA (not gated on hydrate) and Sign In quiet", () => {
     render(<AuthScreen />);
 
-    const demoButton = screen.getByRole("button", {
+    const demoCta = screen.getByRole("link", {
       name: /Use demo workspace/i,
     });
     const signInButton = screen.getByRole("button", { name: /^Sign In$/i });
 
-    expect(demoButton.className).toMatch(/\bbg-black\b/);
-    expect(demoButton.className).not.toMatch(/bg-primary-500/);
+    expect(demoCta).toHaveAttribute("href", DEMO_FIRST_RUN_PATH);
+    expect(demoCta).toHaveAttribute("data-rq-demo-entry");
+    expect(demoCta.className).toMatch(/\bbg-black\b/);
+    expect(demoCta.className).not.toMatch(/bg-primary-500/);
     expect(signInButton.className).not.toMatch(/\bbg-black\b|bg-primary-500/);
-    expect(signInButton.className).toMatch(/border|ghost|bg-transparent|bg-bg-surface/);
+    expect(signInButton.className).toMatch(
+      /border|ghost|bg-transparent|bg-bg-surface/,
+    );
   });
 
   it("does not offer Submit application / sign-up on the first-run screen", () => {

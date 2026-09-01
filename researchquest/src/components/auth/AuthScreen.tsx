@@ -1,11 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { EyeOpenIcon, EyeClosedIcon } from "@radix-ui/react-icons";
 import { FlaskConical } from "lucide-react";
-import {
-  enableDemoModeAndReload,
-  isDemoMode,
-  supabase,
-} from "../../lib/supabase";
+import { DEMO_FIRST_RUN_PATH } from "../../lib/demoData";
+import { enableDemoModeAndReload, supabase } from "../../lib/supabase";
 
 type AuthMessage = {
   readonly type: "success" | "error";
@@ -134,8 +131,6 @@ export function AuthScreen() {
     }
   }, [email]);
 
-  const showDemoWorkspace = !isDemoMode;
-
   const isBusy = loading || resetting;
 
   return (
@@ -159,33 +154,38 @@ export function AuthScreen() {
         </header>
 
         <form onSubmit={handleAuth} className="space-y-4" noValidate>
-          {showDemoWorkspace && (
-            <div className="space-y-3">
-              {showDemoWorkspace && (
-                <button
-                  type="button"
-                  onClick={enableDemoModeAndReload}
-                  disabled={isBusy}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-black text-white rounded-sm hover:opacity-90 transition-opacity font-medium disabled:opacity-60"
-                >
-                  <FlaskConical className="w-4 h-4" aria-hidden="true" />
-                  Use demo workspace
-                </button>
-              )}
+          <div className="space-y-3">
+            {/*
+              Real link + data-rq-demo-entry: first click works even if React
+              handlers are late — index.html capture script arms demo mode,
+              then the browser navigates to the seeded topic.
+            */}
+            <a
+              href={DEMO_FIRST_RUN_PATH}
+              data-rq-demo-entry
+              onClick={(event) => {
+                event.preventDefault();
+                enableDemoModeAndReload();
+              }}
+              aria-disabled={isBusy || undefined}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-black text-white rounded-sm hover:opacity-90 transition-opacity font-medium"
+            >
+              <FlaskConical className="w-4 h-4" aria-hidden="true" />
+              Use demo workspace
+            </a>
 
-              <div className="flex items-center gap-3 text-small text-text-tertiary font-serif italic py-2">
-                <span
-                  className="h-px flex-1 bg-border-subtle"
-                  aria-hidden="true"
-                />
-                <span>or use email</span>
-                <span
-                  className="h-px flex-1 bg-border-subtle"
-                  aria-hidden="true"
-                />
-              </div>
+            <div className="flex items-center gap-3 text-small text-text-tertiary font-serif italic py-2">
+              <span
+                className="h-px flex-1 bg-border-subtle"
+                aria-hidden="true"
+              />
+              <span>or use email</span>
+              <span
+                className="h-px flex-1 bg-border-subtle"
+                aria-hidden="true"
+              />
             </div>
-          )}
+          </div>
 
           <div>
             <label

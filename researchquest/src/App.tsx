@@ -320,12 +320,18 @@ function App() {
     );
   }, [currentView, ideas, ideasLoading, notes, notesLoading, papers, papersLoading, tasks, tasksLoading, topics, topicsLoading, userId]);
 
-  if (loading || profileLoading) {
-    return <AppLoadingSkeleton />;
-  }
-
   if (!hasSupabaseConfig) {
     return <SupabaseConfigErrorScreen />;
+  }
+
+  // First-run door must not wait on auth hydrate — the demo CTA has to be
+  // clickable on first paint, not after getSession() resolves.
+  if (!isDemoMode && !user) {
+    return <AuthScreen />;
+  }
+
+  if (loading || profileLoading) {
+    return <AppLoadingSkeleton />;
   }
 
   if (!user) {

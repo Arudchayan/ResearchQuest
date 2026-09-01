@@ -22,13 +22,17 @@ export function SupabaseConfigErrorScreen() {
           can explore a local demo workspace with no backend.
         </p>
 
-        <button
-          type="button"
-          onClick={enableDemoModeAndReload}
-          className="mt-5 w-full px-4 py-2 bg-primary-500 text-bg-base rounded-sm hover:opacity-90 transition-opacity font-medium"
+        <a
+          href="/topics/topic-ai-agents"
+          data-rq-demo-entry
+          onClick={(event) => {
+            event.preventDefault();
+            enableDemoModeAndReload();
+          }}
+          className="mt-5 w-full flex items-center justify-center px-4 py-2 bg-primary-500 text-bg-base rounded-sm hover:opacity-90 transition-opacity font-medium"
         >
           Use demo workspace
-        </button>
+        </a>
 
         <div className="mt-5 rounded-sm border border-border-moderate bg-bg-elevated p-4">
           <p className="text-small font-medium text-text-primary">
