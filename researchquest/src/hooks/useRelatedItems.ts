@@ -139,9 +139,15 @@ export function useRelatedItems(
 
     // ⚡ PERFORMANCE OPTIMIZATION:
     // Pre-compute Map lookups (O(1)) instead of repeated array scans (O(N*M)) when hydrating links from the store.
-    const notesMap = new Map(notes.map((n) => [n.id, n]));
-    const papersMap = new Map(papers.map((p) => [p.id, p]));
-    const ideasMap = new Map(ideas.map((i) => [i.id, i]));
+    // Avoid intermediate array allocations by directly building the Map.
+    const notesMap = new Map();
+    for (let i = 0; i < notes.length; i++) notesMap.set(notes[i].id, notes[i]);
+
+    const papersMap = new Map();
+    for (let i = 0; i < papers.length; i++) papersMap.set(papers[i].id, papers[i]);
+
+    const ideasMap = new Map();
+    for (let i = 0; i < ideas.length; i++) ideasMap.set(ideas[i].id, ideas[i]);
 
     for (const link of relatedLinks) {
       let title = "";

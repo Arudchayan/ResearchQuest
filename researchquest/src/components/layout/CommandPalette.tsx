@@ -15,6 +15,7 @@ import {
   Database,
   LayoutDashboard,
   Hash,
+  Inbox,
 } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
 import { useShallow } from "zustand/react/shallow";
@@ -54,7 +55,7 @@ export function CommandPalette() {
       setSelectedTask: state.setSelectedTask,
       user: state.user,
       topics: state.topics,
-    }))
+    })),
   );
 
   const topicsArray = useMemo(() => Object.values(topics), [topics]);
@@ -95,13 +96,24 @@ export function CommandPalette() {
 
     return () => {
       document.removeEventListener("keydown", down);
-      document.removeEventListener("open-command-palette", handleOpenCommandPalette);
+      document.removeEventListener(
+        "open-command-palette",
+        handleOpenCommandPalette,
+      );
     };
   }, []);
 
   // Navigation handlers using App's custom routing
   const handleNavigate = (
-    view: "dashboard" | "notes" | "papers" | "ideas" | "tasks" | "topics" | "focus",
+    view:
+      | "dashboard"
+      | "notes"
+      | "papers"
+      | "ideas"
+      | "tasks"
+      | "topics"
+      | "feeds"
+      | "focus",
   ) => {
     setCurrentView(view);
     window.history.pushState(null, "", view === "dashboard" ? "/" : `/${view}`);
@@ -161,7 +173,8 @@ export function CommandPalette() {
   };
 
   const handleExport = async () => {
-    const { user, notes, papers, ideas, topics, tasks } = useAppStore.getState();
+    const { user, notes, papers, ideas, topics, tasks } =
+      useAppStore.getState();
     if (!user?.id) {
       setOpen(false);
       return;
@@ -204,7 +217,11 @@ export function CommandPalette() {
       ...papers.map((p) => ({ type: "paper", item: p, label: p.title })),
       ...ideas.map((i) => ({ type: "idea", item: i, label: i.title })),
       ...tasks.map((t) => ({ type: "task", item: t, label: t.title })),
-      ...(topicsArray || []).map((t) => ({ type: "topic", item: t, label: t.name })),
+      ...(topicsArray || []).map((t) => ({
+        type: "topic",
+        item: t,
+        label: t.name,
+      })),
     ].slice(0, 50);
   }, [notes, papers, ideas, tasks, topicsArray]);
 
@@ -227,7 +244,9 @@ export function CommandPalette() {
       </div>
 
       <Command.List>
-        <Command.Empty role="status" aria-live="polite">No results found.</Command.Empty>
+        <Command.Empty role="status" aria-live="polite">
+          No results found.
+        </Command.Empty>
 
         <Command.Group heading="Navigation">
           <Command.Item onSelect={() => handleNavigate("dashboard")}>
@@ -253,6 +272,10 @@ export function CommandPalette() {
           <Command.Item onSelect={() => handleNavigate("topics")}>
             <Hash />
             <span>Go to Topics</span>
+          </Command.Item>
+          <Command.Item onSelect={() => handleNavigate("feeds")}>
+            <Inbox />
+            <span>Go to Feeds</span>
           </Command.Item>
           <Command.Item onSelect={() => handleNavigate("focus")}>
             <Target />
@@ -355,9 +378,7 @@ export function CommandPalette() {
               {entry.type === "task" && (
                 <CheckSquare className="text-green-500" />
               )}
-              {entry.type === "topic" && (
-                <Hash className="text-purple-500" />
-              )}
+              {entry.type === "topic" && <Hash className="text-purple-500" />}
               <div className="flex flex-col">
                 <span>{entry.label}</span>
                 <span className="text-xs text-text-tertiary capitalize">

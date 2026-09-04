@@ -14,10 +14,147 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <title>ResearchQuest - Gamified Research Management</title>
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' https: wss:;">
+  <style>
+    #rq-static-gate {
+      box-sizing: border-box;
+      min-height: 100vh;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      background: #FDFDFB;
+      color: #111111;
+      font-family: "Playfair Display", Georgia, "Times New Roman", serif;
+    }
+    #rq-static-gate * { box-sizing: border-box; }
+    #rq-static-gate .rq-card {
+      width: 100%;
+      max-width: 28rem;
+      padding: 2rem;
+      background: #F7F7F4;
+      border: 1px solid #8C8C84;
+      border-radius: 0.375rem;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.04);
+    }
+    #rq-static-gate .rq-card::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+      background: #1C1C1A;
+    }
+    #rq-static-gate .rq-mark {
+      width: 4rem;
+      height: 4rem;
+      margin: 0 auto 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #8C8C84;
+      border-radius: 0.375rem;
+      background: #FFFFFF;
+      font-weight: 700;
+      font-size: 1.5rem;
+    }
+    #rq-static-gate h1 {
+      margin: 0;
+      text-align: center;
+      font-size: 1.75rem;
+      font-weight: 700;
+    }
+    #rq-static-gate .rq-eyebrow {
+      margin: 0.5rem 0 0;
+      text-align: center;
+      font-family: system-ui, sans-serif;
+      font-size: 0.75rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: #4A4A46;
+    }
+    #rq-static-gate .rq-line {
+      margin: 0.75rem 0 0;
+      text-align: center;
+      font-family: system-ui, sans-serif;
+      font-size: 0.875rem;
+      color: #4A4A46;
+    }
+    #rq-static-gate .rq-demo {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      margin-top: 1.75rem;
+      padding: 0.5rem 1rem;
+      border: 0;
+      border-radius: 0.125rem;
+      background: #000000;
+      color: #ffffff;
+      font-family: system-ui, sans-serif;
+      font-size: 0.95rem;
+      font-weight: 500;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    #rq-static-gate .rq-demo:hover { opacity: 0.9; }
+  </style>
 </head>
 
 <body>
-  <div id="root"></div>
+  <!--
+    Static first-run door: the demo CTA must be clickable before React mounts.
+    React replaces #root on boot; the capture script still arms demo mode.
+  -->
+  <div id="root">
+    <main id="rq-static-gate" aria-label="Scholar Access">
+      <div class="rq-card">
+        <div class="rq-mark" aria-hidden="true">RQ</div>
+        <h1>ResearchQuest</h1>
+        <p class="rq-eyebrow">Scholar Access</p>
+        <p class="rq-line">One topic. Three papers. A note. A focus session.</p>
+        <a
+          class="rq-demo"
+          data-rq-demo-entry
+          href="/topics/topic-ai-agents"
+        >Use demo workspace</a>
+      </div>
+    </main>
+  </div>
+  <script>
+    (function () {
+      var KEY = "rq_demo_mode";
+      var PATH = "/topics/topic-ai-agents";
+      function armDemo() {
+        try {
+          localStorage.setItem(KEY, "1");
+        } catch (e) {}
+      }
+      try {
+        if (location.pathname === PATH) {
+          armDemo();
+        }
+      } catch (e) {}
+      document.addEventListener(
+        "click",
+        function (event) {
+          var target = event.target;
+          if (!target || !target.closest) return;
+          var entry = target.closest("[data-rq-demo-entry]");
+          if (!entry) return;
+          armDemo();
+          // Real link: let navigation proceed after arming.
+          // Button fallback: assign explicitly.
+          if (entry.tagName !== "A") {
+            event.preventDefault();
+            location.assign(PATH);
+          }
+        },
+        true,
+      );
+    })();
+  </script>
   <script type="module" src="/src/main.tsx"></script>
 </body>
 
