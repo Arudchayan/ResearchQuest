@@ -162,10 +162,10 @@ describe("MarkdownEditor Security", () => {
     vi.useRealTimers();
   });
 
-  it("fix: Mod-k from inside the editor opens the link dialog with the current selection, and Escape closes it", async () => {
+  it("fix: Mod-Shift-k from inside the editor opens the link dialog with the current selection, and Escape closes it", async () => {
     render(<MarkdownEditor />);
 
-    const binding = editorBindings.find((b) => b.key === "Mod-k");
+    const binding = editorBindings.find((b) => b.key === "Mod-Shift-k");
     expect(binding).toBeDefined();
 
     await act(async () => {
@@ -193,7 +193,7 @@ describe("MarkdownEditor Security", () => {
       expect.arrayContaining([
         "Mod-b",
         "Mod-i",
-        "Mod-k",
+        "Mod-Shift-k",
         "Mod-Shift-e",
         "Mod-Shift-s",
         "Mod-Shift-p",

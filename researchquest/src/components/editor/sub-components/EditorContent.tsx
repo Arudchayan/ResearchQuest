@@ -52,7 +52,9 @@ export default function EditorContent({
         { key: "Mod-Shift-c", run: () => { applyFormatting("code"); return true; } },
         { key: "Mod-Shift-l", run: () => { applyFormatting("list"); return true; } },
         { key: "Mod-Shift-h", run: () => { applyFormatting("heading"); return true; } },
-        { key: "Mod-k", run: () => { openLinkDialog(); return true; } },
+        // Ctrl/⌘+K is reserved for the command palette (which now opens inside
+        // editors); Insert Link lives on Ctrl/⌘+Shift+K.
+        { key: "Mod-Shift-k", run: () => { openLinkDialog(); return true; } },
         { key: "Mod-Shift-r", run: () => { setCitationPickerOpen(true); return true; } },
         { key: "Mod-Shift-e", run: () => { setViewMode("edit"); return true; } },
         { key: "Mod-Shift-s", run: () => { setViewMode("split"); return true; } },

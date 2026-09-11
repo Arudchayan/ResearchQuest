@@ -23,11 +23,27 @@ vi.mock("../../hooks/useIdeas", () => ({
 }));
 
 // Mock exportData
-const mockExportData = vi.fn();
+const { mockExportData } = vi.hoisted(() => ({
+  mockExportData: vi.fn(),
+}));
 vi.mock("../../utils/export", () => ({
   exportData: vi.fn(async (data: unknown) => {
     mockExportData(data);
   }),
+}));
+
+// Palette RPC search is inert here (empty query), but stub it so no live
+// network attempt escapes when a query is ever typed.
+vi.mock("../../lib/supabase", () => ({
+  supabase: { rpc: vi.fn(async () => ({ data: null, error: null })) },
+  isDemoMode: true,
+}));
+
+const { mockToastSuccess } = vi.hoisted(() => ({
+  mockToastSuccess: vi.fn(),
+}));
+vi.mock("sonner", () => ({
+  toast: { success: mockToastSuccess, error: vi.fn() },
 }));
 
 describe("CommandPalette Data & API Settings", () => {
@@ -83,22 +99,20 @@ describe("CommandPalette Data & API Settings", () => {
     });
   });
 
-  it("dispatches open-data-management event when Data & API Settings is selected", async () => {
+  it("opens the Data Management dialog when Data Management is selected (no silent no-op)", async () => {
     render(<CommandPalette />);
     fireEvent.keyDown(document, { key: "k", metaKey: true });
-
-    const dispatchEventSpy = vi.spyOn(document, "dispatchEvent");
 
     await waitFor(() => {
       const item = screen.getByText("Data Management...");
       fireEvent.click(item);
     });
 
-    expect(dispatchEventSpy).toHaveBeenCalledWith(expect.any(CustomEvent));
-    const event = dispatchEventSpy.mock.calls.find(
-      (call) => (call[0] as CustomEvent).type === "open-data-management",
-    );
-    expect(event).toBeTruthy();
+    await waitFor(() => {
+      expect(
+        screen.getByRole("dialog", { name: "Data Management" }),
+      ).toBeInTheDocument();
+    });
   });
 
   it("calls exportData with topics when Quick Export is selected", async () => {
@@ -113,6 +127,7 @@ describe("CommandPalette Data & API Settings", () => {
     await waitFor(() => {
       expect(mockExportData).toHaveBeenCalled();
     });
+    expect(mockToastSuccess).toHaveBeenCalledWith("Backup download started");
     const callArgs = mockExportData.mock.calls[0][0] as {
       userId: string;
       topics: { name: string }[];
