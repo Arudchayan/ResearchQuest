@@ -52,8 +52,12 @@ function feedItemMatchesFilters(
     (status === "all" || item.status === status);
 }
 
-function getApiBaseUrl() {
-  return `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, "")}/functions/v1/api/v1`;
+export function getApiBaseUrl() {
+  const baseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, "");
+  if (!baseUrl) {
+    throw new Error("Supabase URL is not configured.");
+  }
+  return `${baseUrl}/functions/v1/api/v1`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

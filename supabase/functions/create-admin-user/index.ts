@@ -1,5 +1,9 @@
-import { getAllowedOrigins } from "../api/_shared/cors.ts";
-
+// create-admin-user — privileged bootstrap tool.
+//
+// UNDEPLOYED BY DEFAULT: do NOT include this function in default deploy-all
+// scripts or CI deploy jobs. Prefer the Supabase Dashboard / CLI for user
+// creation in normal setups. Deploy it temporarily only when bootstrapping,
+// behind a strong ADMIN_API_KEY, then remove it again. See README.md.
 const FETCH_TIMEOUT_MS = 10000; // 10 seconds timeout
 const RATE_LIMIT_MAX_REQUESTS = 5;
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -10,6 +14,71 @@ interface RateLimitBucket {
 }
 
 const rateLimitBuckets = new Map<string, RateLimitBucket>();
+
+// Inline CORS helper (intentionally self-contained: this bootstrap function
+// must not import ../api/_shared/cors.ts so it can be deployed — or excluded
+// from deploys — independently of the api gateway).
+const DEV_ORIGINS = [
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  "http://localhost:4173",
+  "http://127.0.0.1:4173",
+];
+
+function getAllowedOrigins(): string[] {
+  const fromEnv = Deno.env.get("ALLOWED_ORIGINS");
+  if (fromEnv && fromEnv.trim()) {
+    return fromEnv.split(",").map((o) => o.trim()).filter(Boolean);
+  }
+  return DEV_ORIGINS;
+}
+
+// Startup guard: ADMIN_API_KEY must be long and non-trivial. Checked once at
+// module load (fail-closed visibility in logs) and re-checked per request so
+// key rotation without a redeploy stays fail-closed too.
+const ADMIN_API_KEY_MIN_LENGTH = 32;
+
+function hasAdminKeyEntropy(key: string): boolean {
+  const trimmed = key.trim();
+  if (trimmed.length < ADMIN_API_KEY_MIN_LENGTH) return false;
+  if (new Set(trimmed).size < 16) return false;
+  const lower = trimmed.toLowerCase();
+  const weakSubstrings = [
+    "test",
+    "password",
+    "changeme",
+    "example",
+    "placeholder",
+    "admin123",
+    "123456",
+  ];
+  if (weakSubstrings.some((s) => lower.includes(s))) return false;
+  return true;
+}
+
+function getConfiguredAdminApiKey(): string | null {
+  const raw = Deno.env.get("ADMIN_API_KEY")?.trim();
+  if (!raw || !hasAdminKeyEntropy(raw)) return null;
+  return raw;
+}
+
+const adminApiKeyAtStartup = getConfiguredAdminApiKey();
+if (!adminApiKeyAtStartup) {
+  console.error(
+    `create-admin-user misconfigured: ADMIN_API_KEY must be at least ${ADMIN_API_KEY_MIN_LENGTH} chars with sufficient entropy. Requests will fail closed with CONFIG_ERROR until fixed.`,
+  );
+}
+
+// Role whitelist: reject arbitrary role values instead of storing free text.
+const ALLOWED_ROLES = ["authenticated"] as const;
+type AllowedRole = (typeof ALLOWED_ROLES)[number];
+
+function isAllowedRole(value: unknown): value is AllowedRole {
+  return (
+    typeof value === "string" &&
+    (ALLOWED_ROLES as readonly string[]).includes(value)
+  );
+}
 
 // This bootstrap function should remain undeployed or explicitly restricted in production.
 function buildCorsHeaders(req: Request): Record<string, string> {
@@ -126,12 +195,31 @@ Deno.serve(async (req) => {
 
   try {
     // Get parameters from request body
-    // Ensure caller is authorized using a secret key
+    // Ensure caller is authorized using a secret key.
+    // Fail closed when the server key itself is missing or too weak.
     const authHeader = req.headers.get("Authorization");
-    const expectedApiKey = Deno.env.get("ADMIN_API_KEY");
+    const expectedApiKey = getConfiguredAdminApiKey();
+
+    if (!expectedApiKey) {
+      console.error(
+        "create-admin-user misconfigured: missing or weak ADMIN_API_KEY",
+      );
+      return new Response(
+        JSON.stringify({
+          error: {
+            code: "CONFIG_ERROR",
+            message: "Server misconfigured",
+          },
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 500,
+        },
+      );
+    }
 
     if (
-      !expectedApiKey || !authHeader ||
+      !authHeader ||
       !secureCompare(authHeader, `Bearer ${expectedApiKey}`)
     ) {
       return new Response(
@@ -163,8 +251,23 @@ Deno.serve(async (req) => {
       );
     }
 
+    if (!isAllowedRole(role)) {
+      return new Response(
+        JSON.stringify({
+          error: {
+            code: "INVALID_ROLE",
+            message: `Role must be one of: ${ALLOWED_ROLES.join(", ")}`,
+          },
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 400,
+        },
+      );
+    }
+
     // Sentinel: Prevent DoS via excessively large inputs
-    if (email.length > 255 || password.length > 72 || role.length > 50) {
+    if (email.length > 255 || password.length > 72) {
       return new Response(
         JSON.stringify({
           error: {
