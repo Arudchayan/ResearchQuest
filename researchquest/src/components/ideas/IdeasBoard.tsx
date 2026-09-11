@@ -287,6 +287,19 @@ export function IdeasBoard() {
         return;
       }
 
+      // Item 77: link success to the created task instead of going silent.
+      toast.success("Task created from idea", {
+        action: {
+          label: "View task",
+          onClick: () => {
+            useAppStore.getState().setSelectedTask(task);
+            useAppStore.getState().setCurrentView("tasks");
+            window.history.pushState(null, "", "/tasks");
+            window.dispatchEvent(new PopStateEvent("popstate"));
+          },
+        },
+      });
+
       if (idea.stage !== "Mature") {
         const currentIndex = IDEA_STAGES.findIndex(
           ({ id }) => id === idea.stage,

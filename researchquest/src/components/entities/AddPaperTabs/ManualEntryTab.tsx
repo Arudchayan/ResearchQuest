@@ -31,7 +31,7 @@ export function ManualEntryTab({
   const manualTitleInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (error === "Title is required") {
+    if (error) {
       manualTitleInputRef.current?.focus();
     }
   }, [error]);
@@ -42,8 +42,8 @@ export function ManualEntryTab({
   };
 
   return (
-    <div className="space-y-6" role="tabpanel" id="view-panel-manual">
-      <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="space-y-6" id="view-panel-manual">
+      <form onSubmit={handleSubmit} noValidate className="space-y-4">
         <div>
           <label htmlFor="manual-title" className="block text-sm font-medium mb-1">
             Title <span aria-hidden="true">*</span>
@@ -52,9 +52,9 @@ export function ManualEntryTab({
             id="manual-title"
             ref={manualTitleInputRef}
             type="text"
-            required
-            aria-invalid={error === "Title is required"}
-            aria-describedby={error === "Title is required" ? "manual-error" : undefined}
+            aria-required="true"
+            aria-invalid={!!error}
+            aria-describedby={error ? "manual-error" : undefined}
             value={manualTitle}
             onChange={(e) => setManualTitle(e.target.value)}
             className="w-full p-3 bg-bg-base border rounded-lg"
@@ -98,6 +98,11 @@ export function ManualEntryTab({
           <div id="manual-error" role="alert" className="text-red-500 text-sm">
             {error}
           </div>
+        )}
+        {!error && !loading && !manualTitle.trim() && (
+          <p className="rounded-control bg-primary-50 p-3 text-small text-text-secondary dark:bg-primary-900/20" aria-live="polite">
+            Add a title first; authors, DOI, and source URL are optional but help keep the record traceable.
+          </p>
         )}
         <button
           type="submit"

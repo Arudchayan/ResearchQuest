@@ -32,6 +32,9 @@ describe("AddPaperView Component", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     reloadSpy.mockReset();
+    // Reset the real URL first: tab switches sync ?tab= via replaceState,
+    // which would otherwise leak into the location mock below.
+    window.history.replaceState(null, "", "/");
     const locationMock: Location = {
       ancestorOrigins: originalLocation.ancestorOrigins,
       hash: originalLocation.hash,
@@ -102,6 +105,52 @@ describe("AddPaperView Component", () => {
       expect(
         screen.getByPlaceholderText(/Enter paper title/i),
       ).toBeInTheDocument();
+    });
+
+    it("should deep-link to the tab from the ?tab= query param", () => {
+      Object.defineProperty(window, "location", {
+        configurable: true,
+        value: { ...window.location, search: "?tab=manual" },
+      });
+
+      render(
+        <TooltipProvider delayDuration={0}><AddPaperView
+          onAdd={mockOnAdd}
+          searchByDOI={mockSearchByDOI}
+          searchByQuery={mockSearchByQuery}
+        /></TooltipProvider>,
+      );
+
+      expect(
+        screen.getByRole("tab", { name: TAB_NAMES.manual }),
+      ).toHaveAttribute("aria-selected", "true");
+      expect(
+        screen.getByPlaceholderText(/Enter paper title/i),
+      ).toBeInTheDocument();
+    });
+
+    it("should show DOI lookup errors inside the DOI tab", async () => {
+      mockSearchByDOI.mockResolvedValue(null);
+
+      render(
+        <TooltipProvider delayDuration={0}><AddPaperView
+          onAdd={mockOnAdd}
+          searchByDOI={mockSearchByDOI}
+          searchByQuery={mockSearchByQuery}
+        /></TooltipProvider>,
+      );
+
+      const doiInput = screen.getByPlaceholderText(/e.g., 10.1038/i);
+      await userEvent.type(doiInput, "10.1234/notfound");
+      await userEvent.click(screen.getByRole("button", { name: /^search$/i }));
+
+      await waitFor(() => {
+        const tabPanel = screen
+          .getByPlaceholderText(/e.g., 10.1038/i)
+          .closest("div");
+        expect(tabPanel).not.toBeNull();
+        expect(screen.getByRole("alert")).toHaveTextContent(/paper not found/i);
+      });
     });
 
     it("supports roving keyboard navigation between tabs", async () => {
@@ -351,12 +400,67 @@ describe("AddPaperView Component", () => {
         expect(screen.getAllByText(mockCrossrefPaper.title)).not.toHaveLength(
           0,
         );
+        // Explicit confirm (item 70): results render, but the preview/add
+        // step requires selecting a result first.
+        expect(
+          screen.getByText(/select a result to preview/i),
+        ).toBeInTheDocument();
+        expect(
+          screen.queryByRole("button", { name: /add to library/i }),
+        ).not.toBeInTheDocument();
+      });
+
+      await userEvent.click(screen.getAllByText(mockCrossrefPaper.title)[0]);
+
+      await waitFor(() => {
         expect(
           screen.getByRole("button", { name: /add to library/i }),
         ).toBeInTheDocument();
         expect(screen.getByText(/view original source/i)).toBeInTheDocument();
         expect(
           screen.getByText(mockCrossrefPaper.abstract!),
+        ).toBeInTheDocument();
+      });
+    });
+
+    it("should not auto-select the first keyword result", async () => {
+      const mockResults = [
+        mockCrossrefPaper,
+        { ...mockCrossrefPaper, title: "Second Result Paper", doi: "10.1234/second" },
+      ];
+      mockSearchByQuery.mockResolvedValue(mockResults);
+
+      render(
+        <TooltipProvider delayDuration={0}><AddPaperView
+          onAdd={mockOnAdd}
+          searchByDOI={mockSearchByDOI}
+          searchByQuery={mockSearchByQuery}
+        /></TooltipProvider>,
+      );
+
+      const keywordTab = screen.getByRole("tab", { name: TAB_NAMES.search });
+      await userEvent.click(keywordTab);
+
+      const searchInput = screen.getByPlaceholderText(
+        /e.g., CRISPR gene editing/i,
+      );
+      await userEvent.type(searchInput, "quantum computing");
+
+      const searchButton = screen.getByRole("button", { name: /^search$/i });
+      await userEvent.click(searchButton);
+
+      await waitFor(() => {
+        expect(screen.getByText("Second Result Paper")).toBeInTheDocument();
+      });
+      expect(
+        screen.queryByRole("button", { name: /add to library/i }),
+      ).not.toBeInTheDocument();
+
+      await userEvent.click(screen.getByText("Second Result Paper"));
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole("button", { name: /add to library/i }),
         ).toBeInTheDocument();
       });
     });
@@ -389,6 +493,9 @@ describe("AddPaperView Component", () => {
           0,
         );
       });
+
+      // Select the result explicitly before adding (item 70).
+      await userEvent.click(screen.getAllByText(mockCrossrefPaper.title)[0]);
 
       const addToLibrary = screen.getByRole("button", {
         name: /add to library/i,

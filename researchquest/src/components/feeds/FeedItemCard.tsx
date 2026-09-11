@@ -10,6 +10,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
+import type { FeedBusyState } from "../../hooks/useFeedItems";
 import type { FeedItem, FeedItemType, FeedPromoteTarget } from "../../types/database";
 import { isValidUrl } from "../../utils/security";
 
@@ -80,6 +81,14 @@ function formatFeedDate(value?: string | null) {
   });
 }
 
+function invalidUrlReason(url: string): string {
+  const scheme = url.trim().split(":")[0]?.toLowerCase() ?? "";
+  if (["javascript", "data", "vbscript"].includes(scheme)) {
+    return `Blocked unsafe URL scheme ("${scheme}:")`;
+  }
+  return "Invalid source URL (expected an http:// or https:// link)";
+}
+
 function FeedSourceLink({
   compact,
   url,
@@ -87,13 +96,16 @@ function FeedSourceLink({
   compact: boolean;
   url?: string | null;
 }) {
-  if (compact || !url) {
+  if (!url) {
     return null;
   }
 
   if (!isValidUrl(url)) {
     return (
-      <span className="inline-flex items-center gap-1 text-caption font-medium text-text-tertiary">
+      <span
+        className="inline-flex items-center gap-1 text-caption font-medium text-text-tertiary"
+        title={invalidUrlReason(url)}
+      >
         Open source
       </span>
     );
@@ -104,6 +116,7 @@ function FeedSourceLink({
       href={url}
       target="_blank"
       rel="noopener noreferrer"
+      aria-label={compact ? `Open source for this item: ${url}` : undefined}
       className="inline-flex items-center gap-1 text-caption font-medium text-accent-strong hover:text-accent"
     >
       Open source
@@ -116,6 +129,7 @@ interface FeedItemCardProps {
   item: FeedItem;
   compact?: boolean;
   actionItemId?: string | null;
+  busyAction?: FeedBusyState | null;
   onArchive?: (itemId: string) => void | Promise<unknown>;
   onMarkTriaged?: (itemId: string) => void | Promise<unknown>;
   onPromote?: (
@@ -129,12 +143,22 @@ export function FeedItemCard({
   item,
   compact = false,
   actionItemId,
+  busyAction,
   onArchive,
   onMarkTriaged,
   onPromote,
   className,
 }: FeedItemCardProps) {
-  const isBusy = actionItemId === item.id;
+  const legacyBusy = actionItemId === item.id;
+  // Per-action busy (item 67): only the running action's button is disabled
+  // instead of freezing every button on the card.
+  const isActionBusy = (action: FeedBusyState["action"]) =>
+    busyAction
+      ? busyAction.itemId === item.id && busyAction.action === action
+      : legacyBusy;
+  const isArchiveBusy = isActionBusy("archive");
+  const isTriageBusy = isActionBusy("triage");
+  const isPromoteBusy = isActionBusy("promote");
   const dateLabel = formatFeedDate(item.published_at ?? item.created_at);
   const isArchived = item.status === "archived";
   const isPromoted = item.status === "promoted";
@@ -206,7 +230,8 @@ export function FeedItemCard({
           <button
             type="button"
             onClick={() => void onArchive(item.id)}
-            disabled={isBusy}
+            disabled={isArchiveBusy}
+            aria-busy={isArchiveBusy || undefined}
             className="inline-flex items-center gap-1 rounded-lg border border-border-moderate bg-bg-surface px-2.5 py-1 text-caption font-medium text-text-secondary shadow-sm transition-colors hover:border-border-strong hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
             aria-label={`Archive ${item.title}`}
           >
@@ -219,7 +244,8 @@ export function FeedItemCard({
           <button
             type="button"
             onClick={() => void onMarkTriaged(item.id)}
-            disabled={isBusy}
+            disabled={isTriageBusy}
+            aria-busy={isTriageBusy || undefined}
             className="inline-flex items-center gap-1 rounded-lg border border-border-moderate bg-bg-surface px-2.5 py-1 text-caption font-medium text-text-secondary shadow-sm transition-colors hover:border-border-strong hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
             aria-label={`Mark ${item.title} as triaged`}
           >
@@ -235,7 +261,8 @@ export function FeedItemCard({
                 key={target}
                 type="button"
                 onClick={() => void onPromote(item.id, target)}
-                disabled={isBusy}
+                disabled={isPromoteBusy}
+                aria-busy={isPromoteBusy || undefined}
                 className="inline-flex items-center gap-1 rounded-lg bg-text-primary px-2.5 py-1 text-caption font-medium text-bg-base shadow-sm transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
                 aria-label={`Promote ${item.title} to ${TARGET_LABELS[target]}`}
               >
