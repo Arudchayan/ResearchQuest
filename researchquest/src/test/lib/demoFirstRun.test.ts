@@ -53,4 +53,49 @@ describe("demo first-run seed and entry", () => {
     expect(DEMO_FIRST_RUN_PATH).toBe(`/topics/${DEMO_FIRST_RUN_TOPIC_ID}`);
     expect(DEMO_FIRST_RUN_PATH).not.toBe("/");
   });
+
+  it("aborts entry when unsaved changes are rejected (data-loss guard)", async () => {
+    const supabase = await vi.importActual<typeof import("../../lib/supabase")>(
+      "../../lib/supabase",
+    );
+
+    const assign = vi.fn();
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { assign, reload: vi.fn(), pathname: "/", href: "http://localhost/" },
+    });
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+
+    const entered = supabase.enableDemoModeAndReload({
+      hasUnsavedChanges: true,
+    });
+
+    expect(entered).toBe(false);
+    expect(confirm).toHaveBeenCalled();
+    expect(assign).not.toHaveBeenCalled();
+    expect(localStorage.getItem(supabase.DEMO_MODE_STORAGE_KEY)).not.toBe("1");
+  });
+
+  it("exits demo mode to the full workspace (no dead-end loop)", async () => {
+    const supabase = await vi.importActual<typeof import("../../lib/supabase")>(
+      "../../lib/supabase",
+    );
+
+    localStorage.setItem(supabase.DEMO_MODE_STORAGE_KEY, "1");
+    const assign = vi.fn();
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: {
+        assign,
+        reload: vi.fn(),
+        pathname: DEMO_FIRST_RUN_PATH,
+        href: `http://localhost${DEMO_FIRST_RUN_PATH}`,
+      },
+    });
+
+    supabase.disableDemoModeAndReload("/");
+
+    expect(localStorage.getItem(supabase.DEMO_MODE_STORAGE_KEY)).toBeNull();
+    expect(assign).toHaveBeenCalledWith("/");
+  });
 });
