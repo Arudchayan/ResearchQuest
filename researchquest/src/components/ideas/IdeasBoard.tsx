@@ -20,6 +20,7 @@ import { useAppStore } from "../../store/appStore";
 import { useShallow } from "zustand/react/shallow";
 import { highlightMatch } from "../../utils/highlight";
 import { useIdeas } from "../../hooks/useIdeas";
+import { useServerSearch } from "../../hooks/useServerSearch";
 import { useTasks } from "../../hooks/useTasks";
 import { IdeaDetailView } from "../entities/IdeaDetailView";
 import type { IdeaStage, Idea } from "../../types/database";
@@ -157,6 +158,15 @@ export function IdeasBoard() {
     });
   }, [ideas, searchQuery, sortOption, searchableIdeas]);
 
+  // Plan item 45: in live mode, debounced FTS (`search_ideas`, 20 rows)
+  // upgrades the instant client list once it resolves; demo/test/local
+  // filtering is unchanged.
+  const { results: visibleIdeas } = useServerSearch({
+    query: searchQuery,
+    entity: "ideas",
+    clientResults: filteredIdeas,
+  });
+
   const stageBuckets = useMemo(() => {
     const buckets: Record<IdeaStage, Idea[]> = {
       Seed: [],
@@ -167,11 +177,11 @@ export function IdeasBoard() {
     for (const stage of IDEA_STAGES) {
       buckets[stage.id] = [];
     }
-    for (const idea of filteredIdeas) {
+    for (const idea of visibleIdeas) {
       buckets[idea.stage].push(idea);
     }
     return buckets;
-  }, [filteredIdeas]);
+  }, [visibleIdeas]);
 
   useEffect(() => {
     return () => {
@@ -313,7 +323,7 @@ export function IdeasBoard() {
   };
 
   const handleExport = (format: "markdown" | "csv" | "json") => {
-    if (filteredIdeas.length === 0) {
+    if (visibleIdeas.length === 0) {
       toast.error("No ideas to export");
       return;
     }
@@ -326,17 +336,17 @@ export function IdeasBoard() {
     try {
       switch (format) {
         case "markdown":
-          content = convertIdeasToMarkdown(filteredIdeas);
+          content = convertIdeasToMarkdown(visibleIdeas);
           filename = `research-ideas-${timestamp}.md`;
           type = "text/markdown";
           break;
         case "csv":
-          content = convertIdeasToCSV(filteredIdeas);
+          content = convertIdeasToCSV(visibleIdeas);
           filename = `research-ideas-${timestamp}.csv`;
           type = "text/csv";
           break;
         case "json":
-          content = convertIdeasToJSON(filteredIdeas);
+          content = convertIdeasToJSON(visibleIdeas);
           filename = `research-ideas-${timestamp}.json`;
           type = "application/json";
           break;
@@ -344,7 +354,7 @@ export function IdeasBoard() {
 
       downloadFile(content, filename, type);
       toast.success(
-        `Exported ${filteredIdeas.length} ideas as ${format.toUpperCase()}`
+        `Exported ${visibleIdeas.length} ideas as ${format.toUpperCase()}`
       );
     } catch (err) {
       logger.error("Export failed", err);
@@ -478,8 +488,8 @@ export function IdeasBoard() {
             {IDEA_STAGES.map((stage) => {
               const stageIdeas = stageBuckets[stage.id];
               const share =
-                filteredIdeas.length > 0
-                  ? stageIdeas.length / filteredIdeas.length
+                visibleIdeas.length > 0
+                  ? stageIdeas.length / visibleIdeas.length
                   : 0;
 
               return (

@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from "react";
-import { getTopN } from "../../utils/collections";
+import { getDashboardSections } from "../../utils/collections";
 import {
   FileText,
   Plus,
@@ -20,7 +20,6 @@ import { useAppStore } from "../../store/appStore";
 import { useShallow } from "zustand/react/shallow";
 import { getLevelTitle } from "../../utils/gamification";
 import { parseDateInput } from "../../utils/time";
-import { isOverdue } from "../tasks/TaskCard";
 import { ListSkeleton } from "../ui/Skeleton";
 import { InlineError } from "../ui/ErrorFallback";
 import { Badge, type BadgeVariant } from "../ui/Badge";
@@ -71,18 +70,6 @@ const daysBetween = (from: string, to: Date) =>
       startOfLocalDay(parseDateInput(from) ?? to).getTime()) /
       MS_PER_DAY,
   );
-
-/** TaskCard semantics: a due date settles at end-of-day, so "due today" is still today until midnight. */
-const isDueToday = (dueDate: string | undefined): boolean => {
-  const parsed = parseDateInput(dueDate);
-  if (!parsed) return false;
-  const now = new Date();
-  return (
-    parsed.getFullYear() === now.getFullYear() &&
-    parsed.getMonth() === now.getMonth() &&
-    parsed.getDate() === now.getDate()
-  );
-};
 
 const formatDueDate = (dueDate: string | undefined) => {
   const parsed = parseDateInput(dueDate);
@@ -175,110 +162,40 @@ export function Dashboard() {
     [focusSessionSecondsToday],
   );
 
-  // ⚡ PERFORMANCE OPTIMIZATION:
-  // Compute multiple aggregate statistics in a single O(N) pass inside useMemo.
-  // This avoids chaining multiple .filter().length calls that create unnecessary
-  // intermediate arrays and trigger redundant iterations during render.
-  const { pendingTaskCount, completedTaskCount } = useMemo(() => {
-    let pending = 0;
-    let completed = 0;
-    for (const task of tasks) {
-      if (task.completed) {
-        completed++;
-      } else {
-        pending++;
-      }
-    }
-    return { pendingTaskCount: pending, completedTaskCount: completed };
-  }, [tasks]);
-
-  const recentNotes = useMemo(() => {
-    return getTopN(
-      notes,
-      3,
-      (a, b) => (b.updated_at > a.updated_at ? 1 : b.updated_at < a.updated_at ? -1 : 0)
-    );
-  }, [notes]);
-
-  const readingList = useMemo(() => {
-    return getTopN(
-      papers,
-      3,
-      (a, b) => (b.created_at > a.created_at ? 1 : b.created_at < a.created_at ? -1 : 0),
-      (p) => p.status === "To Read"
-    );
-  }, [papers]);
-
-  const activeIdeas = useMemo(() => {
-    return getTopN(
-      ideas,
-      3,
-      (a, b) => (b.updated_at > a.updated_at ? 1 : b.updated_at < a.updated_at ? -1 : 0)
-    );
-  }, [ideas]);
-
-  const activeTopics = useMemo(() => {
-    return getTopN(
-      Object.values(topics),
-      3,
-      (a, b) => (b.updated_at > a.updated_at ? 1 : b.updated_at < a.updated_at ? -1 : 0)
-    );
-  }, [topics]);
-
-  const upcomingTasks = useMemo(() => {
-    return getTopN(
-      tasks,
-      3,
-      (a, b) => {
-        if (!a.due_date) return 1;
-        if (!b.due_date) return -1;
-        return a.due_date > b.due_date ? 1 : a.due_date < b.due_date ? -1 : 0;
-      },
-      (t) => !t.completed
-    );
-  }, [tasks]);
+  // ⚡ PERFORMANCE OPTIMIZATION (plan item 41):
+  // All dashboard sections come from ONE selector — a single loop per
+  // collection — instead of 7+ independent getTopN full-array passes plus
+  // separate count loops.
+  const {
+    recentNotes,
+    readingList,
+    activeIdeas,
+    activeTopics,
+    upcomingTasks,
+    pendingTaskCount,
+    completedTaskCount,
+    overdueTasks,
+    dueTodayTasks,
+    stuckIdeas,
+    untaggedNotes,
+  } = useMemo(
+    () =>
+      getDashboardSections({
+        notes,
+        papers,
+        ideas,
+        tasks,
+        topics,
+        now: new Date(),
+      }),
+    [notes, papers, ideas, tasks, topics],
+  );
 
   // "Today" deck — decision-first: the work that's waiting right now.
   // Sourced in priority order (overdue → due today → stuck ideas → untagged
   // notes) and capped at 3 compact rows so the deck stays decision-first.
   const todayItems = useMemo((): TodayItem[] => {
     const now = new Date();
-
-    const overdueTasks = getTopN(
-      tasks,
-      3,
-      (a, b) => {
-        if (!a.due_date) return 1;
-        if (!b.due_date) return -1;
-        return a.due_date > b.due_date ? 1 : a.due_date < b.due_date ? -1 : 0;
-      },
-      (task) => !task.completed && isOverdue(task.due_date)
-    );
-
-    const dueTodayTasks = getTopN(
-      tasks,
-      3,
-      (a, b) => {
-        if (!a.due_date) return 1;
-        if (!b.due_date) return -1;
-        return a.due_date > b.due_date ? 1 : a.due_date < b.due_date ? -1 : 0;
-      },
-      (task) => !task.completed && isDueToday(task.due_date)
-    );
-
-    const stuckIdeas = getTopN(
-      ideas,
-      2,
-      (a, b) => (a.created_at > b.created_at ? 1 : a.created_at < b.created_at ? -1 : 0),
-      (idea) => idea.stage === "Seed" && daysBetween(idea.created_at, now) >= 14
-    );
-
-    const untaggedNotes = getTopN(
-      notes,
-      2,
-      (a, b) => (b.updated_at > a.updated_at ? 1 : b.updated_at < a.updated_at ? -1 : 0),
-      (note) => note.tags.length === 0
-    );
 
     return [
       ...overdueTasks.map((task) => ({
@@ -294,7 +211,7 @@ export function Dashboard() {
       })),
       ...untaggedNotes.map((note) => ({ kind: "note-untagged" as const, note })),
     ].slice(0, 3);
-  }, [tasks, ideas, notes]);
+  }, [overdueTasks, dueTodayTasks, stuckIdeas, untaggedNotes]);
 
   const navigateTo = useCallback(
     (view: DashboardView, path = `/${view}`) => {

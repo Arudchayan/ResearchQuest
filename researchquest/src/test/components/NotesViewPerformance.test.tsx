@@ -192,4 +192,41 @@ describe("NotesView Performance", () => {
     // Expect NO re-render (count should be same)
     expect(finalRenderCount).toBe(initialRenderCount);
   });
+
+  it("renders a 1k-note virtualized list within budget (item 96)", () => {
+    const thousand = Array.from({ length: 1000 }, (_, i) => ({
+      id: `bulk-${i}`,
+      title: `Bulk note ${i}`,
+      markdown_body: `Body ${i}`,
+      updated_at: "2023-01-01",
+    })) as any[];
+
+    useAppStore.setState({ notes: thousand });
+
+    const t0 = performance.now();
+    render(
+      <TooltipProvider delayDuration={0}>
+        <NotesView />
+      </TooltipProvider>,
+    );
+    const elapsed = performance.now() - t0;
+
+    // The virtualizer mock renders every row: all 1k cards mount exactly once.
+    expect(Object.keys(noteCardRenderCounts)).toHaveLength(1000);
+    expect(noteCardRenderCounts["bulk-0"]).toBe(1);
+    expect(noteCardRenderCounts["bulk-999"]).toBe(1);
+    expect(elapsed).toBeLessThan(8000);
+
+    // Targeted update at scale still re-renders only the edited card.
+    act(() => {
+      useAppStore.setState({
+        notes: thousand.map((n, i) =>
+          i === 500 ? { ...n, title: "Bulk note 500 edited" } : n,
+        ),
+      });
+    });
+    expect(noteCardRenderCounts["bulk-500"]).toBe(2);
+    expect(noteCardRenderCounts["bulk-0"]).toBe(1);
+    expect(noteCardRenderCounts["bulk-999"]).toBe(1);
+  });
 });

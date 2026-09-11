@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useFilteredList } from "../../hooks/useFilteredList";
+import { useServerSearch } from "../../hooks/useServerSearch";
 import { logger } from "../../utils/logger";
 import {
   convertNotesToCSV,
@@ -91,8 +92,16 @@ export function NotesSidebar({
     [selectedTag],
   );
   const filteredNotes = useFilteredList(notes, searchQuery, searchableFields, sortNotes, filterByTag);
+  // Plan item 45: in live mode, debounced FTS (`search_notes`, 20 rows)
+  // upgrades the instant client list once it resolves; demo/test/local
+  // filtering is unchanged.
+  const { results: visibleNotes } = useServerSearch({
+    query: searchQuery,
+    entity: "notes",
+    clientResults: filteredNotes,
+  });
   const rowVirtualizer = useVirtualizer({
-    count: filteredNotes.length,
+    count: visibleNotes.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 152,
     overscan: 5,
@@ -109,7 +118,7 @@ export function NotesSidebar({
   }, [isMobileEditorOpen, rowVirtualizer]);
 
   const handleExport = (format: "markdown" | "csv" | "json") => {
-    if (filteredNotes.length === 0) {
+    if (visibleNotes.length === 0) {
       toast.error("No notes to export");
       return;
     }
@@ -117,12 +126,12 @@ export function NotesSidebar({
     const timestamp = new Date().toISOString().split("T")[0];
     try {
       const exportData = {
-        markdown: { content: convertNotesToMarkdown(filteredNotes), extension: "md", type: "text/markdown" },
-        csv: { content: convertNotesToCSV(filteredNotes), extension: "csv", type: "text/csv" },
-        json: { content: convertNotesToJSON(filteredNotes), extension: "json", type: "application/json" },
+        markdown: { content: convertNotesToMarkdown(visibleNotes), extension: "md", type: "text/markdown" },
+        csv: { content: convertNotesToCSV(visibleNotes), extension: "csv", type: "text/csv" },
+        json: { content: convertNotesToJSON(visibleNotes), extension: "json", type: "application/json" },
       }[format];
       downloadFile(exportData.content, `research-notes-${timestamp}.${exportData.extension}`, exportData.type);
-      toast.success(`Exported ${filteredNotes.length} notes as ${format.toUpperCase()}`);
+      toast.success(`Exported ${visibleNotes.length} notes as ${format.toUpperCase()}`);
     } catch (error) {
       logger.error("Export failed", error);
       toast.error("Failed to export notes");
@@ -174,8 +183,8 @@ export function NotesSidebar({
       </div>
 
       <div ref={parentRef} className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
-        {notesSyncError ? <div className="p-4"><InlineError message={notesSyncError.message} /></div> : notesLoading ? <div className="p-4"><ListSkeleton count={6} itemType="note" /></div> : filteredNotes.length === 0 ? <NotesEmptyState searchQuery={searchQuery} isCreating={isCreating} onCreateNote={onCreateNote} /> : <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, position: "relative" }}>{rowVirtualizer.getVirtualItems().map((virtualRow) => {
-          const note = filteredNotes[virtualRow.index];
+        {notesSyncError ? <div className="p-4"><InlineError message={notesSyncError.message} /></div> : notesLoading ? <div className="p-4"><ListSkeleton count={6} itemType="note" /></div> : visibleNotes.length === 0 ? <NotesEmptyState searchQuery={searchQuery} isCreating={isCreating} onCreateNote={onCreateNote} /> : <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, position: "relative" }}>{rowVirtualizer.getVirtualItems().map((virtualRow) => {
+          const note = visibleNotes[virtualRow.index];
           return note ? <div key={note.id} ref={rowVirtualizer.measureElement} data-index={virtualRow.index} style={{ position: "absolute", top: 0, left: 0, width: "100%", transform: `translateY(${virtualRow.start}px)` }} className="border-b border-border-subtle"><NoteCard note={note} isSelected={selectedNote?.id === note.id} highlightQuery={searchQuery} onSelect={onSelectNote} onDelete={onDeleteNote} /></div> : null;
         })}</div>}
       </div>

@@ -9,15 +9,93 @@
  * Do NOT add tasks here — useTasks is the sole task owner.
  * daily_logs is consolidated here to eliminate duplicate subscriptions
  * from RightSidebar and useSidebarData.
+ *
+ * Fetch/realtime discipline (plan items 41, 46, 47):
+ * - Initial table fetches are bounded with `.limit(DATA_SYNC_ROW_LIMIT)`.
+ * - One initial load per table per user (module `loadedTables` set); mounts
+ *   for an already-loaded user skip the fetch, retries always refetch.
+ * - Concurrent duplicate fetches (StrictMode double-effect, two mounted
+ *   instances) share a single in-flight request; stale responses are
+ *   discarded via a per-table sequence guard.
+ * - Exactly one realtime channel per table per userId across all mounted
+ *   instances (module registry with ref-counting); channels unsubscribe
+ *   when the last instance unmounts.
  */
 import { useEffect } from "react";
 import { supabase } from "../lib/supabase";
+import { DATA_SYNC_ROW_LIMIT } from "../lib/pagination";
 import { useAppStore, type DataSyncResource } from "../store/appStore";
 import { useShallow } from "zustand/react/shallow";
 import { sortByUpdatedAt } from "../utils/sort";
 import { extractFunctionErrorMessage } from "../utils/errors";
 import type { Note, Paper, Idea } from "../types/database";
 import { dedupeById } from "../utils/collections";
+
+type Unsubscribable = { unsubscribe: () => unknown };
+
+interface ChannelEntry {
+  sub: Unsubscribable;
+  refCount: number;
+}
+
+// --- Module-level fetch dedupe (item 46) ----------------------------------
+/** Latest fetch sequence number per `${userId}:${table}`; older ones are stale. */
+const fetchSeqByKey = new Map<string, number>();
+/** Shared in-flight table requests so duplicate mounts issue one query. */
+const inflightByKey = new Map<
+  string,
+  Promise<{ data: unknown[] | null; error: unknown }>
+>();
+/** Tables with a completed initial load per `${userId}:${table}`. */
+const loadedTables = new Set<string>();
+
+// --- Module-level realtime registry (item 47) -------------------------------
+/** One entry per channel name (`<table>_realtime_sync_<userId>`). */
+const channelRegistry = new Map<string, ChannelEntry>();
+
+function acquireChannel(
+  name: string,
+  create: () => Unsubscribable,
+): ChannelEntry {
+  const existing = channelRegistry.get(name);
+  if (existing) {
+    existing.refCount += 1;
+    return existing;
+  }
+  const entry: ChannelEntry = { sub: create(), refCount: 1 };
+  channelRegistry.set(name, entry);
+  return entry;
+}
+
+function releaseChannel(name: string): void {
+  const entry = channelRegistry.get(name);
+  if (!entry) return;
+  entry.refCount -= 1;
+  if (entry.refCount <= 0) {
+    channelRegistry.delete(name);
+    try {
+      entry.sub.unsubscribe();
+    } catch {
+      // Releasing must never throw during unmount cleanup.
+    }
+  }
+}
+
+/** Test-only reset for the module registries (fetch dedupe + channels). */
+export function resetDataSyncModuleState(): void {
+  fetchSeqByKey.clear();
+  inflightByKey.clear();
+  loadedTables.clear();
+  for (const name of [...channelRegistry.keys()]) {
+    const entry = channelRegistry.get(name);
+    channelRegistry.delete(name);
+    try {
+      entry?.sub.unsubscribe();
+    } catch {
+      // ignore
+    }
+  }
+}
 
 export function useDataSync(userId: string | undefined) {
 
@@ -63,8 +141,12 @@ export function useDataSync(userId: string | undefined) {
       setIdeasLoading(false);
       setFocusSessionSecondsToday(0);
       clearDataSyncErrors();
+      // Fresh login must refetch even if a previous user loaded the same tables.
+      loadedTables.clear();
       return;
     }
+
+    let cancelled = false;
 
     // Generic fetch for the per-view tables (notes/papers/ideas): same
     // select-all-where-user_id query, loading flag, and error handling.
@@ -81,13 +163,42 @@ export function useDataSync(userId: string | undefined) {
         };
       },
     ) => {
+      const key = `${userId}:${table}`;
+      const seq = (fetchSeqByKey.get(key) ?? 0) + 1;
+      fetchSeqByKey.set(key, seq);
       opts.setLoading(true);
+
+      let req = inflightByKey.get(key);
+      if (!req) {
+        req = (async () => {
+          try {
+            const { data, error } = await supabase
+              .from(table)
+              .select("*")
+              .eq("user_id", userId)
+              .order("updated_at", { ascending: false })
+              .limit(DATA_SYNC_ROW_LIMIT);
+            return { data: data as unknown[] | null, error };
+          } catch (err) {
+            return { data: null as unknown[] | null, error: err };
+          }
+        })();
+        inflightByKey.set(key, req);
+        void req.then(() => {
+          if (inflightByKey.get(key) === req) inflightByKey.delete(key);
+        });
+      }
+
+      let isCurrent = true;
       try {
-        const { data, error } = await supabase
-          .from(table)
-          .select("*")
-          .eq("user_id", userId)
-          .order("updated_at", { ascending: false });
+        const { data, error } = await req;
+
+        // Abort stale: a newer fetch for this table already started, or the
+        // effect unmounted. Never commit stale rows over fresh state.
+        if (cancelled || fetchSeqByKey.get(key) !== seq) {
+          isCurrent = false;
+          return;
+        }
 
         if (error) {
           setDataSyncError(
@@ -98,8 +209,11 @@ export function useDataSync(userId: string | undefined) {
         }
 
         clearDataSyncError(table);
+        loadedTables.add(key);
         if (data) {
-          const items = opts.transform ? opts.transform(data) : data;
+          const items = opts.transform
+            ? opts.transform(data as T[])
+            : (data as T[]);
           opts.setItems(items);
 
           // Sync selected entity if it still exists in the fresh data
@@ -114,12 +228,16 @@ export function useDataSync(userId: string | undefined) {
           }
         }
       } catch (error) {
+        if (!isCurrent || cancelled || fetchSeqByKey.get(key) !== seq) {
+          isCurrent = false;
+          return;
+        }
         setDataSyncError(
           table,
           extractFunctionErrorMessage(error, opts.fallbackError),
         );
       } finally {
-        opts.setLoading(false);
+        if (isCurrent) opts.setLoading(false);
       }
     };
 
@@ -163,7 +281,7 @@ export function useDataSync(userId: string | undefined) {
         .eq("user_id", userId)
         .gte("completed_at", startOfDay.toISOString());
 
-      if (error) {
+      if (cancelled || error) {
         return;
       }
 
@@ -184,20 +302,23 @@ export function useDataSync(userId: string | undefined) {
         .eq("date", today)
         .maybeSingle();
 
-      if (!error) {
-        setTodayXP(data?.xp_earned ?? 0);
+      if (cancelled || error) {
+        return;
       }
+      setTodayXP(data?.xp_earned ?? 0);
     };
 
-    // Initial fetch (only what is needed for current view)
-    void fetchNotes();
-    void fetchPapers();
-    void fetchIdeas();
+    // Initial fetch — one load per table per user (item 46). Remounts for an
+    // already-loaded user reuse the store + realtime instead of refetching;
+    // Dashboard retry buttons bump counters and always refetch via `fetchTable`.
+    if (!loadedTables.has(`${userId}:notes`)) void fetchNotes();
+    if (!loadedTables.has(`${userId}:papers`)) void fetchPapers();
+    if (!loadedTables.has(`${userId}:ideas`)) void fetchIdeas();
     void fetchFocusSessionsToday();
     void fetchTodayXP();
 
-    // --- SUBSCRIPTIONS ---
-    const channels: ReturnType<typeof supabase.channel>[] = [];
+    // --- SUBSCRIPTIONS (item 47: single owner per table per userId) ---
+    const channelNames: string[] = [];
 
     // Generic realtime subscription for the per-view tables (notes/papers/ideas):
     // same postgres_changes listener; per-table merge logic via callbacks.
@@ -207,34 +328,46 @@ export function useDataSync(userId: string | undefined) {
       onInsert: (newItem: T) => void;
       onUpdate: (updated: T) => void;
       onDelete: (oldId: string) => void;
-    }) =>
-      supabase
-        .channel(opts.channelName)
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: opts.table,
-            filter: `user_id=eq.${userId}`,
-          },
-          (payload) => {
-            if (payload.eventType === "INSERT") {
-              opts.onInsert(payload.new as T);
-            } else if (payload.eventType === "UPDATE") {
-              opts.onUpdate(payload.new as T);
-            } else if (payload.eventType === "DELETE") {
-              const oldId = payload.old["id"];
-              if (typeof oldId === "string") {
-                opts.onDelete(oldId);
+    }) => {
+      channelNames.push(opts.channelName);
+      acquireChannel(opts.channelName, () =>
+        supabase
+          .channel(opts.channelName)
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: opts.table,
+              filter: `user_id=eq.${userId}`,
+            },
+            (payload) => {
+              if (payload.eventType === "INSERT") {
+                opts.onInsert(payload.new as T);
+              } else if (payload.eventType === "UPDATE") {
+                opts.onUpdate(payload.new as T);
+              } else if (payload.eventType === "DELETE") {
+                const oldId = payload.old["id"];
+                if (typeof oldId === "string") {
+                  opts.onDelete(oldId);
+                }
               }
-            }
-          },
-        )
-        .subscribe();
+            },
+          )
+          .subscribe(),
+      );
+    };
+
+    const subscribeRawChannel = (
+      channelName: string,
+      create: () => Unsubscribable,
+    ) => {
+      channelNames.push(channelName);
+      acquireChannel(channelName, create);
+    };
 
     // Notes Subscription
-    const notesSub = makeSubscription<Note>({
+    makeSubscription<Note>({
       table: "notes",
       channelName: `notes_realtime_sync_${userId}`,
       onInsert: (newNote) =>
@@ -249,7 +382,6 @@ export function useDataSync(userId: string | undefined) {
       onDelete: (oldId) =>
         setNotes(useAppStore.getState().notes.filter((n) => n.id !== oldId)),
     });
-    channels.push(notesSub);
 
     // Papers Subscription
     const syncSelectedPaper = (paper: Paper) => {
@@ -259,7 +391,7 @@ export function useDataSync(userId: string | undefined) {
       }
     };
 
-    const papersSub = makeSubscription<Paper>({
+    makeSubscription<Paper>({
       table: "papers",
       channelName: `papers_realtime_sync_${userId}`,
       onInsert: (newPaper) => {
@@ -284,7 +416,6 @@ export function useDataSync(userId: string | undefined) {
         }
       },
     });
-    channels.push(papersSub);
 
     // Ideas Subscription
     const syncSelectedIdea = (idea: Idea) => {
@@ -294,7 +425,7 @@ export function useDataSync(userId: string | undefined) {
       }
     };
 
-    const ideasSub = makeSubscription<Idea>({
+    makeSubscription<Idea>({
       table: "ideas",
       channelName: `ideas_realtime_sync_${userId}`,
       onInsert: (newIdea) => {
@@ -322,42 +453,43 @@ export function useDataSync(userId: string | undefined) {
         }
       },
     });
-    channels.push(ideasSub);
 
-    const focusSessionsSub = supabase
-      .channel(`focus_sessions_sync_${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "focus_sessions",
-          filter: `user_id=eq.${userId}`,
-        },
-        () => {
-          void fetchFocusSessionsToday();
-        },
-      )
-      .subscribe();
-    channels.push(focusSessionsSub);
+    subscribeRawChannel(`focus_sessions_sync_${userId}`, () =>
+      supabase
+        .channel(`focus_sessions_sync_${userId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "focus_sessions",
+            filter: `user_id=eq.${userId}`,
+          },
+          () => {
+            void fetchFocusSessionsToday();
+          },
+        )
+        .subscribe(),
+    );
 
     // daily_logs Subscription (consolidated — replaces RightSidebar + useSidebarData copies)
-    const dailyLogsSub = supabase
-      .channel(`daily_logs_sync_${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "daily_logs",
-          filter: `user_id=eq.${userId}`,
-        },
-        () => {
-          void fetchTodayXP();
-        },
-      )
-      .subscribe();
-    channels.push(dailyLogsSub);
+    subscribeRawChannel(`daily_logs_sync_${userId}`, () =>
+      supabase
+        .channel(`daily_logs_sync_${userId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "daily_logs",
+            filter: `user_id=eq.${userId}`,
+          },
+          () => {
+            void fetchTodayXP();
+          },
+        )
+        .subscribe(),
+    );
 
     // Retry signal: when retryDataSync bumps a per-resource counter, refetch
     // so the Dashboard retry buttons actually re-run the failed query.
@@ -384,8 +516,11 @@ export function useDataSync(userId: string | undefined) {
     });
 
     return () => {
+      cancelled = true;
       retryUnsub();
-      channels.forEach((sub) => sub.unsubscribe());
+      // Release (not force-unsubscribe): the channel closes only when the
+      // last mounted instance for this userId unmounts.
+      channelNames.forEach(releaseChannel);
     };
   }, [
     userId,

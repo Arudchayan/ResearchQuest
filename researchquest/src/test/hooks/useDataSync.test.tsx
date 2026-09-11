@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
-import { useDataSync } from "../../hooks/useDataSync";
+import { useDataSync, resetDataSyncModuleState } from "../../hooks/useDataSync";
 import { useAppStore } from "../../store/appStore";
 import { mockSupabaseClient } from "../mocks/supabase";
 
@@ -10,6 +10,7 @@ function queryResult<T>(result: { data: T[] | null; error: { message: string } |
   builder.eq = vi.fn().mockReturnValue(builder);
   builder.gte = vi.fn().mockReturnValue(builder);
   builder.order = vi.fn().mockReturnValue(builder);
+  builder.limit = vi.fn().mockReturnValue(builder);
   builder.maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
   builder.then = (onFulfilled?: (value: typeof result) => unknown) =>
     Promise.resolve(result).then(onFulfilled);
@@ -19,6 +20,7 @@ function queryResult<T>(result: { data: T[] | null; error: { message: string } |
 describe("useDataSync sync errors", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetDataSyncModuleState();
     useAppStore.setState({
       notes: [],
       papers: [],
