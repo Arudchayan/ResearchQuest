@@ -45,7 +45,9 @@ jobs:
         run: pnpm run test:run
 
       - name: Build
-        run: pnpm run build
+        # Exercise the prod build path (build:prod == tsc + vite build;
+        # dead BUILD_MODE/--mode prod flags removed, Vite defaults to production).
+        run: pnpm run build:prod
 
       - name: Install Playwright Chromium
         run: pnpm exec playwright install chromium --with-deps
