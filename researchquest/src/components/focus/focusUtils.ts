@@ -17,6 +17,8 @@ export const FOCUS_SESSION_STORAGE_KEY = "rq_focus_session";
 export interface FocusSessionSnapshot {
   version: 1;
   selectedTarget: SelectedTarget | null;
+  /** Last known display name of the target; kept so a deleted target still shows its name. */
+  selectedTargetName?: string | null;
   sessionLength: number;
   isRunning: boolean;
   startedAt: number | null;
@@ -58,6 +60,14 @@ function isFocusSessionSnapshot(value: unknown): value is FocusSessionSnapshot {
   const target = snapshot["selectedTarget"];
   if (target === null) return true;
   if (typeof target !== "object") return false;
+  const selectedTargetName = snapshot["selectedTargetName"];
+  if (
+    selectedTargetName !== undefined &&
+    selectedTargetName !== null &&
+    typeof selectedTargetName !== "string"
+  ) {
+    return false;
+  }
   const selected = target as Record<string, unknown>;
   return (
     (selected["type"] === "note" ||

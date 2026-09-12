@@ -33,7 +33,7 @@ export function CommandPalette() {
   // Using useShallow with an object selector to prevent CommandPalette from
   // unnecessarily re-rendering on unrelated state changes in the global appStore.
   const {
-    setTheme,
+    toggleTheme: storeToggleTheme,
     effectiveTheme,
     setCurrentView,
     setSelectedNote,
@@ -45,7 +45,7 @@ export function CommandPalette() {
     topics,
   } = useAppStore(
     useShallow((state) => ({
-      setTheme: state.setTheme,
+      toggleTheme: state.toggleTheme,
       effectiveTheme: state.effectiveTheme,
       setCurrentView: state.setCurrentView,
       setSelectedNote: state.setSelectedNote,
@@ -163,9 +163,10 @@ export function CommandPalette() {
   };
 
   const toggleTheme = () => {
-    const newTheme = effectiveTheme === "light" ? "dark" : "light";
+    // Delegate to the store so an `auto` preference is preserved (only the
+    // resolved effective theme flips); keep the transition class here.
     document.body.classList.add("theme-transitioning");
-    setTheme(newTheme);
+    storeToggleTheme();
     setTimeout(() => {
       document.body.classList.remove("theme-transitioning");
     }, 300);

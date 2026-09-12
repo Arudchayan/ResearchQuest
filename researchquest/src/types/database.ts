@@ -104,6 +104,8 @@ export interface Task {
   completed: boolean;
   category?: string;
   project_id?: string;
+  /** Optional link to a paper (e.g. auto-created reading tasks). */
+  paper_id?: string | null;
   created_at: string;
   updated_at: string;
 }

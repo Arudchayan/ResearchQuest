@@ -214,6 +214,9 @@ export function useTasks(
       if (taskData.project_id && taskData.project_id.trim()) {
         cleanData.project_id = taskData.project_id.trim();
       }
+      if (taskData.paper_id && taskData.paper_id.trim()) {
+        cleanData.paper_id = taskData.paper_id.trim();
+      }
       return cleanData;
     },
     prepareUpdate: (_current, updates, fail) => {
@@ -228,6 +231,12 @@ export function useTasks(
       const sanitized: Partial<Task> = { ...updates };
       if (typeof sanitized.due_date === "string" && sanitized.due_date.trim()) {
         sanitized.due_date = normalizeDate(sanitized.due_date.trim());
+      }
+      // Normalize paper links: blank strings become explicit null (unlink).
+      if ("paper_id" in sanitized) {
+        const paperId = sanitized.paper_id;
+        sanitized.paper_id =
+          typeof paperId === "string" ? paperId.trim() || null : (paperId ?? null);
       }
       return sanitized;
     },
