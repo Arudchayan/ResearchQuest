@@ -56,6 +56,12 @@ vi.mock("../../hooks/usePapers", () => ({
 vi.mock("../../hooks/useTasks", () => ({
   useTasks: () => ({ tasks: [], loading: false }),
 }));
+vi.mock("../../hooks/useIdeas", () => ({
+  useIdeas: () => ({ ideas: [], loading: false }),
+}));
+vi.mock("../../hooks/useTopics", () => ({
+  useTopics: () => ({ topics: [], loading: false }),
+}));
 vi.mock("../../store/appStore", () => ({
   useAppStore: vi.fn(),
 }));
@@ -93,6 +99,8 @@ describe("FocusWorkspace", () => {
       setFocusSessionSecondsToday: vi.fn(),
       setSelectedNote: vi.fn(),
       setSelectedPaper: vi.fn(),
+      setSelectedIdea: vi.fn(),
+      setSelectedTopic: vi.fn(),
       setCurrentView: vi.fn(),
     });
   });

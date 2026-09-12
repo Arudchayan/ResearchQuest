@@ -58,7 +58,6 @@ export function TaskManager() {
   const [categoryFilter, setCategoryFilter] = useState<"all" | TaskCategory>(
     "all",
   );
-  const [projectFilter, setProjectFilter] = useState<string>("all");
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -89,14 +88,9 @@ export function TaskManager() {
     });
   }, []);
 
-  const projectIdsInUse = useMemo(() => {
-    const ids = new Set<string>();
-    for (const t of tasks) {
-      const pid = t.project_id?.trim();
-      if (pid) ids.add(pid);
-    }
-    return Array.from(ids).sort((a, b) => a.localeCompare(b));
-  }, [tasks]);
+  // NOTE (PR17 IA): no Projects view/route exists and the old dropdown
+  // surfaced raw project_id strings, so the Projects filter was removed.
+  // project_id stays in the search index above, so search still finds it.
 
   const sortedTasks = useFilteredList(
     tasks,
@@ -152,10 +146,9 @@ export function TaskManager() {
       if (!matchesFilter) return false;
 
       if (categoryFilter !== "all" && (task.category || "") !== categoryFilter) return false;
-      if (projectFilter !== "all" && (task.project_id || "") !== projectFilter) return false;
 
       return true;
-    }, [filter, categoryFilter, projectFilter]),
+    }, [filter, categoryFilter]),
   );
 
   // Calculate progress
@@ -409,22 +402,6 @@ export function TaskManager() {
                 {CATEGORIES.map((c) => (
                   <option key={c} value={c}>
                     {c}
-                  </option>
-                ))}
-              </select>
-              <label htmlFor="task-filter-project" className="sr-only">
-                Filter by project
-              </label>
-              <select
-                id="task-filter-project"
-                value={projectFilter}
-                onChange={(e) => setProjectFilter(e.target.value)}
-                className="min-h-11 max-w-full rounded-control border border-border-moderate bg-bg-base px-3 py-2 text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-focus sm:max-w-56 md:min-h-0"
-              >
-                <option value="all">All projects</option>
-                {projectIdsInUse.map((id) => (
-                  <option key={id} value={id}>
-                    {id}
                   </option>
                 ))}
               </select>

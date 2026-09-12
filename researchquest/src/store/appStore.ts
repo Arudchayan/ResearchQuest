@@ -275,7 +275,13 @@ export const useAppStore = create<AppState>()(
 
       // UI state
       isMobileSidebarOpen: false,
-      isRightSidebarOpen: false,
+      // PR17 IA: open on xl viewports for first visits. The persisted
+      // preference (see partialize below) wins on later visits, and an
+      // explicit user close is always respected.
+      isRightSidebarOpen:
+        typeof window !== "undefined" &&
+        typeof window.matchMedia === "function" &&
+        window.matchMedia("(min-width: 1280px)").matches,
       isZenMode: false,
       setIsMobileSidebarOpen: (isMobileSidebarOpen) =>
         set({ isMobileSidebarOpen }),
@@ -288,6 +294,7 @@ export const useAppStore = create<AppState>()(
       name: "researchquest-storage",
       partialize: (state) => ({
         theme: state.theme,
+        isRightSidebarOpen: state.isRightSidebarOpen,
       }),
     },
   ),

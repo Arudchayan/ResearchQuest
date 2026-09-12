@@ -71,6 +71,8 @@ export function FocusTargetAside({
           {[
             { key: "note" as const, label: "Notes" },
             { key: "paper" as const, label: "Papers" },
+            { key: "idea" as const, label: "Ideas" },
+            { key: "topic" as const, label: "Topics" },
             { key: "task" as const, label: "Tasks" },
           ].map(({ key, label }) => (
             <Card key={key} className="space-y-4 p-4 sm:p-5">
@@ -87,8 +89,7 @@ export function FocusTargetAside({
                       ? "paper"
                       : "note"
                 }
-              />
-            </Card>
+              />            </Card>
           ))}
         </div>
       ) : (
@@ -183,14 +184,22 @@ export function FocusTargetAside({
                             ? "No notes yet"
                             : group.type === "paper"
                               ? "No papers to read"
-                              : "No active tasks"
+                              : group.type === "idea"
+                                ? "No ideas simmering"
+                                : group.type === "topic"
+                                  ? "No topics yet"
+                                  : "No active tasks"
                         }
                         description={
                           group.type === "note"
                             ? "Create a note to capture your thinking."
                             : group.type === "paper"
                               ? "Add a paper from the Papers view."
-                              : "Create a task to anchor your next sprint."
+                              : group.type === "idea"
+                                ? "Capture an idea from the Ideas view."
+                                : group.type === "topic"
+                                  ? "Create a topic to thread your work together."
+                                  : "Create a task to anchor your next sprint."
                         }
                       />
                     )}
@@ -206,18 +215,19 @@ export function FocusTargetAside({
                     variant="link"
                     type="button"
                     onClick={() => {
-                      const targetView =
-                        group.type === "task"
-                          ? "tasks"
-                          : group.type === "paper"
-                            ? "papers"
-                            : "notes";
-                      setCurrentView(targetView);
-                      window.history.pushState(
-                        null,
-                        "",
-                        `/${targetView}`,
-                      );
+                      const targetView: Record<
+                        FocusTargetType,
+                        "notes" | "papers" | "ideas" | "topics" | "tasks"
+                      > = {
+                        note: "notes",
+                        paper: "papers",
+                        idea: "ideas",
+                        topic: "topics",
+                        task: "tasks",
+                      };
+                      const view = targetView[group.type];
+                      setCurrentView(view);
+                      window.history.pushState(null, "", `/${view}`);
                     }}
                     className="h-auto min-h-11 px-0 py-0 text-small"
                     title={`Open all ${group.title.toLowerCase()}`}

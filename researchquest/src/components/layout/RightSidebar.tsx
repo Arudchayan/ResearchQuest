@@ -2,7 +2,6 @@ import {
   Sparkles,
   Snowflake,
   Coffee,
-  Flame,
   Heart,
   FileText,
   Lightbulb,
@@ -53,7 +52,6 @@ export function RightSidebar() {
     (state) => state.streakFreezeTokens,
   );
   const restDays = useGamificationStore((state) => state.restDays);
-  const todayXP = useAppStore((state) => state.todayXP);
   const storePapers = useAppStore((state) => state.papers);
   const storeIdeas = useAppStore((state) => state.ideas);
   const storeTasks = useAppStore((state) => state.tasks);
@@ -69,10 +67,11 @@ export function RightSidebar() {
     [storePapers],
   );
 
+  // Canonical IdeaStage taxonomy: Seed | Developing | Supported | Mature.
   const activeIdeas = useMemo(
     () =>
       storeIdeas.filter((i) =>
-        ["Seed", "Growing", "Blooming"].includes(i.stage),
+        ["Seed", "Developing", "Supported", "Mature"].includes(i.stage),
       ).length,
     [storeIdeas],
   );
@@ -393,31 +392,20 @@ export function RightSidebar() {
         )}
 
         <div className="pt-4 border-t border-border-subtle space-y-4">
+          {/* Weekly activity summary. XP and streak live in the
+              Sidebar and Dashboard only (PR17 help/XP dedupe). */}
           <div className="p-4 bg-bg-elevated rounded-lg border border-border-subtle space-y-3">
             <div className="flex items-center gap-2 text-text-primary">
               <Sparkles className="w-4 h-4 text-primary-500" />
               <h3 className="text-small font-semibold uppercase tracking-wide">
-                Today's wins
+                This week
               </h3>
             </div>
-            <div className="space-y-2 text-caption text-text-secondary">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-primary-500" />
-                <span>+{todayXP} XP collected today</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Flame className="w-4 h-4 text-success" />
-                <span>
-                  {user?.current_streak || 0} day streak · longest{" "}
-                  {user?.longest_streak || 0} days
-                </span>
-              </div>
-              <p className="text-text-tertiary">
-                This week: {weeklyPapers} paper{weeklyPapers === 1 ? "" : "s"}{" "}
-                touched · {activeIdeas} idea{activeIdeas === 1 ? "" : "s"}{" "}
-                simmering
-              </p>
-            </div>
+            <p className="text-caption text-text-tertiary">
+              This week: {weeklyPapers} paper{weeklyPapers === 1 ? "" : "s"}{" "}
+              touched · {activeIdeas} idea{activeIdeas === 1 ? "" : "s"}{" "}
+              simmering
+            </p>
           </div>
 
           <div className="p-4 bg-bg-elevated rounded-lg border border-border-subtle">
