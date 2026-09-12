@@ -219,7 +219,7 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <div className="mb-8 flex items-center gap-3">
-        <div className="p-3 bg-primary-100 dark:bg-primary-900/20 rounded-lg">
+        <div className="p-3 bg-primary-100 dark:bg-primary-900/20 rounded-control">
           <BookOpen className="w-6 h-6 text-primary-600" />
         </div>
         <div>
@@ -296,7 +296,7 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
         ))}
       </div>
 
-      <div className="bg-bg-surface rounded-lg border border-border-subtle shadow-sm p-6">
+      <div className="bg-bg-surface rounded-surface border border-border-subtle shadow-sm p-6">
         {searchError && (activeTab === "doi" || activeTab === "search") && (
           <div role="alert" className="mb-4 rounded-control border border-destructive bg-destructive-bg p-3 text-small text-destructive">
             {searchError}

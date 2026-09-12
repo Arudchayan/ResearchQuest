@@ -71,14 +71,14 @@ export function LinkDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-overlay backdrop-blur-sm p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="link-dialog-title"
       onKeyDown={handleKeyDown}
       ref={dialogRef}
     >
-      <div className="w-full max-w-md rounded-xl border border-border-moderate bg-bg-surface shadow-lift animate-fade-slide-in">
+      <div className="w-full max-w-md rounded-xl border border-border-moderate bg-bg-surface shadow-lg animate-fade-slide-in">
         <div className="border-b border-border-subtle p-6">
           <h2 id="link-dialog-title" className="font-serif text-lg font-semibold text-text-primary">Insert link</h2>
           <p className="mt-1 text-caption text-text-secondary">Wrap selection with a link label.</p>
@@ -92,7 +92,7 @@ export function LinkDialog({
               type="text"
               value={linkText}
               onChange={(e) => setLinkText(e.target.value)}
-              className="w-full rounded-lg border border-border-moderate bg-bg-surface px-3 py-2.5 text-small text-text-primary shadow-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+              className="w-full rounded-lg border border-border-moderate bg-bg-surface px-3 py-2.5 text-small text-text-primary shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
             />
           </div>
 
@@ -107,22 +107,22 @@ export function LinkDialog({
               required
               aria-invalid={!!error}
               aria-describedby={error ? "link-url-error" : undefined}
-              className="w-full rounded-lg border border-border-moderate bg-bg-surface px-3 py-2.5 text-small text-text-primary shadow-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+              className="w-full rounded-lg border border-border-moderate bg-bg-surface px-3 py-2.5 text-small text-text-primary shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
             />
-            {error && <p id="link-url-error" role="alert" className="mt-1.5 text-caption font-medium text-coral-strong">{error}</p>}
+            {error && <p id="link-url-error" role="alert" className="mt-1.5 text-caption font-medium text-destructive">{error}</p>}
           </div>
 
           <div className="flex justify-end gap-2 pt-1">
             <button
               type="button"
               onClick={onClose}
-              className="inline-flex h-10 items-center justify-center rounded-lg border border-border-moderate bg-bg-surface px-4 text-sm font-semibold text-text-secondary shadow-sm transition-all hover:-translate-y-0.5 hover:border-border-strong hover:bg-bg-elevated hover:text-text-primary hover:shadow-lift"
+              className="inline-flex h-10 items-center justify-center rounded-lg border border-border-moderate bg-bg-surface px-4 text-sm font-semibold text-text-secondary shadow-sm transition-all hover:border-border-strong hover:bg-bg-elevated hover:text-text-primary hover:shadow-md"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="inline-flex h-10 items-center justify-center rounded-lg bg-text-primary px-4 text-sm font-semibold text-bg-base shadow-lift transition-transform hover:-translate-y-0.5 hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
+              className="inline-flex h-10 items-center justify-center rounded-lg bg-text-primary px-4 text-sm font-semibold text-bg-base shadow-sm hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
             >
               Insert link
             </button>

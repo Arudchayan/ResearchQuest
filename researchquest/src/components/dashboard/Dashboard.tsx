@@ -519,7 +519,7 @@ export function Dashboard() {
                         </span>
                       </span>
                       {item.kind === "task-overdue" ? (
-                        <Badge variant="destructive" className="shrink-0 font-mono">
+                        <Badge variant="destructive" className="shrink-0">
                           {formatCount(item.daysOverdue, "day")} overdue
                         </Badge>
                       ) : (

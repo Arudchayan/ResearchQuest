@@ -81,14 +81,14 @@ export function CitationDialog({
   return (
     <Dialog.Root open={isOpen} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 animate-fade-in" />
+        <Dialog.Overlay className="fixed inset-0 bg-overlay backdrop-blur-sm z-50 animate-fade-in" />
         <Dialog.Content
-          className="fixed left-[50%] top-[50%] max-h-[85vh] w-[90vw] max-w-[600px] translate-x-[-50%] translate-y-[-50%] rounded-xl bg-bg-surface shadow-lift focus:outline-none z-50 animate-slide-in border border-border-moderate flex flex-col overflow-hidden"
+          className="fixed left-[50%] top-[50%] max-h-[85vh] w-[90vw] max-w-[600px] translate-x-[-50%] translate-y-[-50%] rounded-xl bg-bg-surface shadow-lg focus:outline-none z-50 animate-slide-in border border-border-moderate flex flex-col overflow-hidden"
           aria-describedby={undefined}
         >
           <div className="flex items-center justify-between p-6 pb-2">
             <div className="flex items-center gap-3">
-              <span className="icon-tile bg-violet-soft text-violet-strong">
+              <span className="icon-tile bg-purple-bg text-purple">
                 <Quote className="h-4 w-4" aria-hidden="true" />
               </span>
               <div>
@@ -117,7 +117,7 @@ export function CitationDialog({
                   <Tabs.Trigger
                     key={fmt}
                     value={fmt}
-                    className="border-b-2 border-transparent px-1 pb-3 text-sm font-medium text-text-secondary capitalize whitespace-nowrap outline-none transition-all hover:text-text-primary data-[state=active]:border-accent data-[state=active]:text-accent-strong"
+                    className="border-b-2 border-transparent px-1 pb-3 text-sm font-medium text-text-secondary capitalize whitespace-nowrap outline-none transition-all hover:text-text-primary data-[state=active]:border-primary-500 data-[state=active]:text-primary-500"
                   >
                     {fmt === "bibtex" ? "BibTeX" : fmt.toUpperCase()}
                   </Tabs.Trigger>
@@ -147,12 +147,12 @@ export function CitationDialog({
           </Tabs.Root>
 
           <div className="flex justify-end gap-2 border-t border-border-subtle p-6">
-            <Dialog.Close className="inline-flex h-10 items-center justify-center rounded-lg border border-border-moderate bg-bg-surface px-4 text-sm font-semibold text-text-secondary shadow-sm transition-all hover:-translate-y-0.5 hover:border-border-strong hover:bg-bg-elevated hover:text-text-primary hover:shadow-lift">
+            <Dialog.Close className="inline-flex h-10 items-center justify-center rounded-lg border border-border-moderate bg-bg-surface px-4 text-sm font-semibold text-text-secondary shadow-sm transition-all hover:border-border-strong hover:bg-bg-elevated hover:text-text-primary hover:shadow-md">
               Close
             </Dialog.Close>
             <button
               onClick={handleCopy}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-text-primary px-4 text-sm font-semibold text-bg-base shadow-lift transition-transform hover:-translate-y-0.5 hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-text-primary px-4 text-sm font-semibold text-bg-base shadow-sm hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
             >
               {copied ? (
                 <Check className="h-4 w-4" aria-hidden="true" />

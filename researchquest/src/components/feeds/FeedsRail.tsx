@@ -47,7 +47,7 @@ export function FeedsRail() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
-              <span className="icon-tile h-8 w-8 bg-accent-soft text-accent-strong">
+              <span className="icon-tile h-8 w-8 bg-primary-50 text-primary-500">
                 <Inbox className="h-4 w-4" aria-hidden="true" />
               </span>
               <div>
@@ -67,7 +67,7 @@ export function FeedsRail() {
           <button
             type="button"
             onClick={navigateToFeeds}
-            className="rounded-lg border border-border-moderate bg-bg-surface px-2.5 py-1 text-caption font-medium text-text-secondary shadow-sm transition-colors hover:border-border-strong hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+            className="rounded-lg border border-border-moderate bg-bg-surface px-2.5 py-1 text-caption font-medium text-text-secondary shadow-sm transition-colors hover:border-border-strong hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus"
           >
             View all
           </button>
@@ -80,9 +80,9 @@ export function FeedsRail() {
               type="button"
               onClick={() => setType(filter)}
               className={cn(
-                "rounded-full border px-2 py-1 text-caption font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent",
+                "rounded-full border px-2 py-1 text-caption font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus",
                 type === filter
-                  ? "border-accent bg-accent-soft text-accent-strong"
+                  ? "border-primary-500 bg-primary-50 text-primary-500"
                   : "border-border-subtle bg-bg-surface text-text-secondary hover:border-border-moderate hover:text-text-primary",
               )}
               aria-pressed={type === filter}

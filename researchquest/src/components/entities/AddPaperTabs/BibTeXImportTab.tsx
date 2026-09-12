@@ -57,7 +57,7 @@ export function BibTeXImportTab({
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          className={`border-2 border-dashed rounded-lg p-6 text-center relative transition-colors ${
+          className={`border-2 border-dashed rounded-surface p-6 text-center relative transition-colors ${
             isDragging
               ? "border-primary-500 bg-primary-50 dark:bg-primary-900/10"
               : "border-border-subtle hover:bg-bg-base"
@@ -85,7 +85,7 @@ export function BibTeXImportTab({
         <div
           id="bibtex-error"
           role="alert"
-          className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg flex items-center gap-2"
+          className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-control flex items-center gap-2"
         >
           <AlertCircle className="w-5 h-5" />
           {error}
@@ -97,7 +97,7 @@ export function BibTeXImportTab({
           <p className="text-sm text-text-secondary">
             {selectedEntryIds.size} papers selected
           </p>
-          <div className="max-h-[400px] overflow-y-auto border rounded-lg divide-y">
+          <div className="max-h-[400px] overflow-y-auto border rounded-surface divide-y">
             {parsedEntries.map((entry) => (
               <div key={entry.id} className="p-3 flex items-start gap-3 hover:bg-bg-base">
                 <input
@@ -118,7 +118,7 @@ export function BibTeXImportTab({
             type="button"
             onClick={onImport}
             disabled={loading || selectedEntryIds.size === 0}
-            className="w-full py-2 bg-primary-500 text-white rounded-lg flex justify-center items-center gap-2 hover:bg-primary-600 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 disabled:opacity-70 disabled:cursor-not-allowed"
+            className="w-full py-2 bg-primary-500 text-white rounded-control flex justify-center items-center gap-2 hover:bg-primary-600 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 disabled:opacity-70 disabled:cursor-not-allowed"
           >
             {loading ? <Loader className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
             Import Selected ({selectedEntryIds.size})

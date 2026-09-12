@@ -371,12 +371,12 @@ export function IdeaDetailView({
   return (
     <>
       <div className="p-4 sm:p-6 max-w-4xl mx-auto">
-        <div className="bg-bg-surface rounded-lg border border-border-subtle shadow-sm">
+        <div className="bg-bg-surface rounded-surface border border-border-subtle shadow-sm">
           {/* Header */}
           <div className="p-4 sm:p-6 border-b border-border-subtle">
             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-4">
               <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 flex-1">
-                <div className="p-3 bg-bg-elevated rounded-lg">
+                <div className="p-3 bg-bg-elevated rounded-control">
                   <Lightbulb className="w-6 h-6 text-primary-500" />
                 </div>
                 {isEditing ? (
@@ -664,7 +664,7 @@ export function IdeaDetailView({
         </div>
 
         {/* Tips Card */}
-        <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-lg">
+        <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-control">
           <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-2">
             💡 Tip: Develop Your Idea
           </h3>

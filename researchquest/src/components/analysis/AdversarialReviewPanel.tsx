@@ -27,9 +27,9 @@ interface AdversarialReviewPanelProps {
 }
 
 const SEVERITY_STYLES: Record<AdversarialFinding["severity"], string> = {
-  high: "bg-coral-soft text-coral-strong border border-coral/20",
-  medium: "bg-gold-soft text-gold-strong border border-gold/20",
-  low: "bg-blue-soft text-blue-strong border border-blue/20",
+  high: "bg-destructive-bg text-destructive border border-destructive/20",
+  medium: "bg-warning-bg text-warning border border-warning/20",
+  low: "bg-info-bg text-info border border-info/20",
 };
 
 function FindingCard({ finding }: { finding: AdversarialFinding }) {
@@ -44,7 +44,7 @@ function FindingCard({ finding }: { finding: AdversarialFinding }) {
             {categoryLabel(finding.category)} · {finding.title}
           </div>
           <p className="mt-1 text-small text-text-secondary">{finding.detail}</p>
-          <p className="mt-2 flex items-start gap-1.5 text-caption text-accent-strong">
+          <p className="mt-2 flex items-start gap-1.5 text-caption text-primary-500">
             <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
             {finding.suggestion}
           </p>
@@ -101,11 +101,11 @@ export function AdversarialReviewPanel({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/45 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 max-h-[88vh] w-[min(92vw,48rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-border-subtle bg-bg-surface shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95">
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-overlay backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 max-h-[88vh] w-[min(92vw,48rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-surface border border-border-subtle bg-bg-surface shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95">
           <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border-subtle bg-bg-surface/95 px-6 py-4 backdrop-blur">
             <div className="flex items-center gap-3">
-              <span className="icon-tile bg-coral-soft text-coral-strong">
+              <span className="icon-tile bg-destructive-bg text-destructive">
                 <ShieldAlert className="h-4 w-4" aria-hidden="true" />
               </span>
               <div>
@@ -125,7 +125,7 @@ export function AdversarialReviewPanel({
           </div>
 
           <div className="px-6 py-6">
-            <div className="mb-5 rounded-xl border border-border-subtle bg-bg-elevated p-4">
+            <div className="mb-5 rounded-surface border border-border-subtle bg-bg-elevated p-4">
               <div className="text-caption font-semibold uppercase tracking-wider text-text-secondary">
                 Under review
               </div>
@@ -136,7 +136,7 @@ export function AdversarialReviewPanel({
 
             {!review && !deepMode && (
               <div className="surface-card flex flex-col items-center gap-4 p-8 text-center">
-                <span className="icon-tile h-14 w-14 bg-coral-soft text-coral-strong">
+                <span className="icon-tile h-14 w-14 bg-destructive-bg text-destructive">
                   <ShieldAlert className="h-6 w-6" aria-hidden="true" />
                 </span>
                 <div>
@@ -150,7 +150,7 @@ export function AdversarialReviewPanel({
                 </div>
                 <button
                   onClick={runAnalysis}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-text-primary px-5 text-sm font-semibold text-bg-base shadow-lift transition-transform hover:-translate-y-0.5"
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-control bg-text-primary px-5 text-sm font-semibold text-bg-base shadow-sm"
                 >
                   <ShieldCheck className="h-4 w-4" aria-hidden="true" />
                   Run adversarial analysis
@@ -160,7 +160,7 @@ export function AdversarialReviewPanel({
 
             {review && !deepMode && (
               <div className="animate-rise space-y-6">
-                <div className="flex flex-col items-center gap-4 rounded-xl border border-border-subtle bg-bg-elevated p-5 sm:flex-row sm:justify-between">
+                <div className="flex flex-col items-center gap-4 rounded-surface border border-border-subtle bg-bg-elevated p-5 sm:flex-row sm:justify-between">
                   <div className="flex items-center gap-4">
                     <div className="relative flex h-20 w-20 items-center justify-center">
                       <svg width="80" height="80" className="-rotate-90">
@@ -177,7 +177,7 @@ export function AdversarialReviewPanel({
                           cy="40"
                           r="34"
                           fill="none"
-                          stroke={review.score >= 75 ? "var(--success)" : review.score >= 55 ? "var(--gold)" : "var(--coral)"}
+                          stroke={review.score >= 75 ? "var(--success)" : review.score >= 55 ? "var(--warning)" : "var(--destructive)"}
                           strokeWidth="7"
                           strokeLinecap="round"
                           strokeDasharray={2 * Math.PI * 34}
@@ -200,9 +200,9 @@ export function AdversarialReviewPanel({
                   <button
                     onClick={runDeepResearch}
                     disabled={deepLoading}
-                    className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-border-moderate bg-bg-surface px-4 text-small font-semibold text-text-primary transition-colors hover:border-accent disabled:opacity-50"
+                    className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-control border border-border-moderate bg-bg-surface px-4 text-small font-semibold text-text-primary transition-colors hover:border-primary-500 disabled:opacity-50"
                   >
-                    <Sparkles className="h-4 w-4 text-accent-strong" aria-hidden="true" />
+                    <Sparkles className="h-4 w-4 text-primary-500" aria-hidden="true" />
                     Deeper research
                   </button>
                 </div>
@@ -229,7 +229,7 @@ export function AdversarialReviewPanel({
                       {review.strengths.map((strength) => (
                         <div
                           key={strength}
-                          className="flex items-start gap-2.5 rounded-lg border border-success/20 bg-success-bg p-3 text-small text-success"
+                          className="flex items-start gap-2.5 rounded-control border border-success/20 bg-success-bg p-3 text-small text-success"
                         >
                           <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
                           {strength}
@@ -255,14 +255,14 @@ export function AdversarialReviewPanel({
                   </button>
                 </div>
                 {deepLoading ? (
-                  <div className="flex flex-col items-center gap-3 rounded-xl border border-border-subtle bg-bg-elevated p-10 text-center">
-                    <Loader2 className="h-7 w-7 animate-spin text-accent-strong" aria-hidden="true" />
+                  <div className="flex flex-col items-center gap-3 rounded-surface border border-border-subtle bg-bg-elevated p-10 text-center">
+                    <Loader2 className="h-7 w-7 animate-spin text-primary-500" aria-hidden="true" />
                     <p className="text-small text-text-secondary">Running deep research…</p>
                   </div>
                 ) : deepResult ? (
                   <div className="space-y-5">
-                    <div className="rounded-xl border border-border-subtle bg-bg-elevated p-4">
-                      <div className="mb-2 flex items-center gap-2 text-caption font-semibold uppercase tracking-wider text-accent-strong">
+                    <div className="rounded-surface border border-border-subtle bg-bg-elevated p-4">
+                      <div className="mb-2 flex items-center gap-2 text-caption font-semibold uppercase tracking-wider text-primary-500">
                         <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
                         Synthesis
                       </div>
@@ -276,7 +276,7 @@ export function AdversarialReviewPanel({
                         <ol className="space-y-2.5">
                           {deepResult.reasoningSteps.map((step, index) => (
                             <li key={step} className="flex items-start gap-3">
-                              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-soft text-caption font-bold text-accent-strong">
+                              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary-50 text-caption font-bold text-primary-500">
                                 {index + 1}
                               </span>
                               <span className="text-small text-text-secondary">{step}</span>
@@ -300,7 +300,7 @@ export function AdversarialReviewPanel({
                   </div>
                 ) : (
                   <div className="surface-card p-6 text-center">
-                    <AlertTriangle className="mx-auto h-6 w-6 text-coral-strong" aria-hidden="true" />
+                    <AlertTriangle className="mx-auto h-6 w-6 text-destructive" aria-hidden="true" />
                     <p className="mt-2 text-small text-text-secondary">Deep research could not run.</p>
                   </div>
                 )}

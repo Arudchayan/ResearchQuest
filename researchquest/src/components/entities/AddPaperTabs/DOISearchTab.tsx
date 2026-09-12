@@ -53,7 +53,7 @@ export function DOISearchTab({
               value={doiInput}
               onChange={(e) => setDoiInput(e.target.value)}
               placeholder="e.g., 10.1038/nature12373"
-              className="w-full px-4 py-3 bg-bg-base border border-border-subtle rounded-lg focus:ring-2 focus:ring-primary-500"
+              className="w-full px-4 py-3 bg-bg-base border border-border-subtle rounded-control focus:ring-2 focus:ring-primary-500"
             />
             {doiInput && (
               <Tooltip>
@@ -76,7 +76,7 @@ export function DOISearchTab({
           <button
             type="submit"
             disabled={loading || !doiInput.trim()}
-            className="px-6 py-3 bg-primary-500 text-white rounded-lg flex items-center gap-2 hover:bg-primary-600 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 disabled:opacity-70 disabled:cursor-not-allowed"
+            className="px-6 py-3 bg-primary-500 text-white rounded-control flex items-center gap-2 hover:bg-primary-600 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 disabled:opacity-70 disabled:cursor-not-allowed"
           >
             {loading ? <Loader className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
             Search
@@ -86,7 +86,7 @@ export function DOISearchTab({
 
       {doiResult && (
         <div className="space-y-4">
-          <div className="p-6 border-2 border-primary-500 rounded-lg bg-bg-elevated">
+          <div className="p-6 border-2 border-primary-500 rounded-surface bg-bg-elevated">
             <h3 className="text-lg font-semibold mb-2">{doiResult.title}</h3>
             <p className="text-sm text-text-secondary mb-3">
               {formatAuthorsLine(doiResult.authors)}
@@ -100,7 +100,7 @@ export function DOISearchTab({
           <button
             onClick={onAdd}
             disabled={loading || isAdding}
-            className="w-full py-4 bg-primary-500 text-white rounded-lg font-semibold flex justify-center items-center gap-2 hover:bg-primary-600 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 disabled:opacity-70 disabled:cursor-not-allowed"
+            className="w-full py-4 bg-primary-500 text-white rounded-control font-semibold flex justify-center items-center gap-2 hover:bg-primary-600 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 disabled:opacity-70 disabled:cursor-not-allowed"
             aria-live="polite"
             aria-atomic="true"
           >

@@ -73,7 +73,7 @@ export function SprintBoard() {
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border-subtle px-6 py-5">
         <div>
           <div className="flex items-center gap-2">
-            <span className="icon-tile bg-violet-soft text-violet-strong">
+            <span className="icon-tile bg-purple-bg text-purple">
               <CalendarDays className="h-4 w-4" aria-hidden="true" />
             </span>
             <h2 className="font-serif text-lg font-bold text-text-primary">
@@ -85,11 +85,11 @@ export function SprintBoard() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="rounded-lg border border-border-subtle bg-bg-elevated px-3 py-2 text-center">
+          <div className="rounded-control border border-border-subtle bg-bg-elevated px-3 py-2 text-center">
             <div className="text-lg font-bold text-text-primary">{weekXp} XP</div>
             <div className="text-caption text-text-tertiary">This week</div>
           </div>
-          <div className="rounded-lg border border-border-subtle bg-bg-elevated px-3 py-2 text-center">
+          <div className="rounded-control border border-border-subtle bg-bg-elevated px-3 py-2 text-center">
             <div className="text-lg font-bold text-text-primary">{weekMinutes} min</div>
             <div className="text-caption text-text-tertiary">Focus</div>
           </div>
@@ -106,9 +106,9 @@ export function SprintBoard() {
               return (
                 <div
                   key={day.date}
-                  className={`flex flex-col items-center gap-2 rounded-xl border p-2 ${
+                  className={`flex flex-col items-center gap-2 rounded-surface border p-2 ${
                     isToday
-                      ? "border-accent/40 bg-accent-soft shadow-glow"
+                      ? "border-primary-500/40 bg-primary-50 shadow-md"
                       : "border-border-subtle bg-bg-elevated"
                   }`}
                 >
@@ -118,7 +118,7 @@ export function SprintBoard() {
                   <div className="flex h-24 w-full items-end justify-center">
                     <div
                       className={`w-full max-w-6 rounded-t-md ${
-                        isToday ? "brand-gradient" : "bg-accent/35"
+                        isToday ? "bg-primary-500" : "bg-primary-500/35"
                       }`}
                       style={{ height }}
                       title={`${day.xp} XP`}
@@ -143,8 +143,8 @@ export function SprintBoard() {
           </div>
 
           {todayDay && todayDay.events.length > 0 && (
-            <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-border-subtle bg-bg-elevated p-3">
-              <TrendingUp className="h-4 w-4 shrink-0 text-accent-strong" aria-hidden="true" />
+            <div className="mt-4 flex flex-wrap items-center gap-2 rounded-surface border border-border-subtle bg-bg-elevated p-3">
+              <TrendingUp className="h-4 w-4 shrink-0 text-primary-500" aria-hidden="true" />
               <span className="text-caption font-medium text-text-secondary">
                 Today: {todayDay.xp} XP · {todayDay.minutes} focus minutes
               </span>
@@ -173,7 +173,7 @@ export function SprintBoard() {
             </div>
             <button
               onClick={() => setShowGoalForm((open) => !open)}
-              className="icon-btn bg-accent-soft text-accent-strong hover:bg-accent/20"
+              className="icon-btn bg-primary-50 text-primary-500 hover:bg-primary-500/20"
               aria-label="Add sprint goal"
             >
               <Plus className="h-4 w-4" aria-hidden="true" />
@@ -197,7 +197,7 @@ export function SprintBoard() {
           {showGoalForm && (
             <form
               onSubmit={submitGoal}
-              className="mb-3 rounded-xl border border-accent/30 bg-accent-soft p-3"
+              className="mb-3 rounded-surface border border-primary-500/30 bg-primary-50 p-3"
             >
               <label htmlFor="sprint-goal-title" className="sr-only">
                 Goal title
@@ -208,11 +208,11 @@ export function SprintBoard() {
                 onChange={(event) => setGoalTitle(event.target.value)}
                 maxLength={120}
                 placeholder="What should this week accomplish?"
-                className="w-full rounded-lg border border-border-moderate bg-bg-surface px-3 py-2 text-small text-text-primary shadow-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25"
+                className="w-full rounded-control border border-border-moderate bg-bg-surface px-3 py-2 text-small text-text-primary shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/25"
               />
               <button
                 type="submit"
-                className="mt-2 inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-accent-strong px-3 text-small font-semibold text-accent-contrast shadow-sm transition-transform hover:-translate-y-0.5"
+                className="mt-2 inline-flex h-9 items-center justify-center gap-2 rounded-control bg-primary-500 px-3 text-small font-semibold text-bg-surface shadow-sm"
               >
                 <Target className="h-4 w-4" aria-hidden="true" />
                 Add goal
@@ -222,7 +222,7 @@ export function SprintBoard() {
 
           <div className="flex-1 space-y-2.5 overflow-y-auto pr-1">
             {weekGoals.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border-moderate bg-bg-elevated p-5 text-center">
+              <div className="rounded-surface border border-dashed border-border-moderate bg-bg-elevated p-5 text-center">
                 <Target className="mx-auto h-5 w-5 text-text-tertiary" aria-hidden="true" />
                 <p className="mt-2 text-small font-medium text-text-secondary">
                   No goals yet
@@ -241,7 +241,7 @@ export function SprintBoard() {
                 >
                   <button
                     onClick={() => completeGoal(goal.id)}
-                    className="mt-0.5 shrink-0 text-text-tertiary transition-colors hover:text-accent-strong"
+                    className="mt-0.5 shrink-0 text-text-tertiary transition-colors hover:text-primary-500"
                     aria-label={goal.status === "done" ? "Goal complete" : "Complete goal"}
                   >
                     {goal.status === "done" ? (
@@ -278,7 +278,7 @@ export function SprintBoard() {
                   </div>
                   <button
                     onClick={() => deleteGoal(goal.id)}
-                    className="icon-btn h-7 w-7 shrink-0 text-text-tertiary hover:bg-coral-soft hover:text-coral-strong"
+                    className="icon-btn h-7 w-7 shrink-0 text-text-tertiary hover:bg-destructive-bg hover:text-destructive"
                     aria-label="Delete sprint goal"
                   >
                     <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />

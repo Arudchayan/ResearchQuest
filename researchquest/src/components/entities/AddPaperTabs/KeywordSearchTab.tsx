@@ -66,7 +66,7 @@ export function KeywordSearchTab({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="e.g., CRISPR gene editing"
-              className="w-full px-4 py-3 bg-bg-base border border-border-subtle rounded-lg focus:ring-2 focus:ring-primary-500"
+              className="w-full px-4 py-3 bg-bg-base border border-border-subtle rounded-control focus:ring-2 focus:ring-primary-500"
             />
             {searchQuery && (
               <Tooltip>
@@ -89,7 +89,7 @@ export function KeywordSearchTab({
           <button
             type="submit"
             disabled={loading || !searchQuery.trim()}
-            className="px-6 py-3 bg-primary-500 text-white rounded-lg flex items-center gap-2 hover:bg-primary-600 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 disabled:opacity-70 disabled:cursor-not-allowed"
+            className="px-6 py-3 bg-primary-500 text-white rounded-control flex items-center gap-2 hover:bg-primary-600 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 disabled:opacity-70 disabled:cursor-not-allowed"
           >
             {loading ? <Loader className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
             Search
@@ -98,7 +98,7 @@ export function KeywordSearchTab({
         <div className="grid gap-3 sm:grid-cols-3">
            <div>
              <label htmlFor={`limit-${idPrefix}`} className="block text-sm font-medium mb-1 text-text-secondary">Result Limit</label>
-             <select id={`limit-${idPrefix}`} value={resultLimit} onChange={(e) => setResultLimit(e.target.value)} className="w-full bg-bg-base border border-border-subtle rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+             <select id={`limit-${idPrefix}`} value={resultLimit} onChange={(e) => setResultLimit(e.target.value)} className="w-full bg-bg-base border border-border-subtle rounded-control px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
                <option value="10">10 Results</option>
                <option value="25">25 Results</option>
                <option value="50">50 Results</option>
@@ -106,14 +106,14 @@ export function KeywordSearchTab({
            </div>
            <div>
              <label htmlFor={`field-${idPrefix}`} className="block text-sm font-medium mb-1 text-text-secondary">Sort By</label>
-             <select id={`field-${idPrefix}`} value={sortField} onChange={(e) => setSortField(e.target.value)} className="w-full bg-bg-base border border-border-subtle rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+             <select id={`field-${idPrefix}`} value={sortField} onChange={(e) => setSortField(e.target.value)} className="w-full bg-bg-base border border-border-subtle rounded-control px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
                <option value="score">Relevance</option>
                <option value="published">Date</option>
              </select>
            </div>
            <div>
              <label htmlFor={`order-${idPrefix}`} className="block text-sm font-medium mb-1 text-text-secondary">Sort Order</label>
-             <select id={`order-${idPrefix}`} value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} className="w-full bg-bg-base border border-border-subtle rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+             <select id={`order-${idPrefix}`} value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} className="w-full bg-bg-base border border-border-subtle rounded-control px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
                <option value="desc">Descending</option>
                <option value="asc">Ascending</option>
              </select>
@@ -129,14 +129,14 @@ export function KeywordSearchTab({
                 key={result.doi || idx}
                 onClick={() => setSelectedResult(result)}
                 aria-pressed={selectedResult?.doi === result.doi}
-                className={`w-full text-left p-4 border rounded-xl transition-all hover:bg-bg-elevated/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 ${selectedResult?.doi === result.doi ? "border-primary-500 ring-1 ring-primary-500 bg-bg-elevated/50" : "border-border-subtle"}`}
+                className={`w-full text-left p-4 border rounded-surface transition-all hover:bg-bg-elevated/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 ${selectedResult?.doi === result.doi ? "border-primary-500 ring-1 ring-primary-500 bg-bg-elevated/50" : "border-border-subtle"}`}
               >
                 <h4 className="font-semibold text-text-primary line-clamp-2">{result.title}</h4>
                 <p className="text-sm text-text-secondary truncate">{result.authors.join(", ")}</p>
               </button>
             ))}
           </div>
-          <div className="bg-bg-base border border-border-subtle rounded-xl p-5 shadow-sm">
+          <div className="bg-bg-base border border-border-subtle rounded-surface p-5 shadow-sm">
             {selectedResult ? (
               <div className="space-y-4">
                 <h3 className="text-xl font-semibold">{selectedResult.title}</h3>
@@ -156,7 +156,7 @@ export function KeywordSearchTab({
                 <button
                   onClick={onAdd}
                   disabled={loading || isAdding}
-                  className="w-full py-2.5 bg-primary-500 text-white rounded-lg font-semibold flex justify-center items-center gap-2 hover:bg-primary-600 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                  className="w-full py-2.5 bg-primary-500 text-white rounded-control font-semibold flex justify-center items-center gap-2 hover:bg-primary-600 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 disabled:opacity-70 disabled:cursor-not-allowed"
                   aria-live="polite"
                   aria-atomic="true"
                 >
