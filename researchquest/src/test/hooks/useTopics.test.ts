@@ -250,9 +250,9 @@ describe("useTopics", () => {
       paper_count: 0,
       idea_count: 0,
     });
-    expect(useAppStore.getState().topics["topic-new"]?.name).toBe(
-      "Visualization",
-    );
+    expect(
+      useAppStore.getState().topics.find((t) => t.id === "topic-new")?.name,
+    ).toBe("Visualization");
   });
 
   it("refetches topics when retryDataSync is called after a failure", async () => {
@@ -318,7 +318,9 @@ describe("useTopics", () => {
     useAppStore.getState().retryDataSync("topics");
 
     await waitFor(() => {
-      expect(useAppStore.getState().topics["topic-1"]?.name).toBe("ML");
+      expect(
+        useAppStore.getState().topics.find((t) => t.id === "topic-1")?.name,
+      ).toBe("ML");
     });
     expect(useAppStore.getState().dataSyncErrors.topics).toBeNull();
   });
@@ -395,7 +397,10 @@ describe("useTopics", () => {
     // Newer response lands first and must win.
     resolveSecond({ data: [newerTopic], error: null });
     await waitFor(() => {
-      expect(useAppStore.getState().topics["topic-newer"]?.name).toBe("Newer");
+      expect(
+        useAppStore.getState().topics.find((t) => t.id === "topic-newer")
+          ?.name,
+      ).toBe("Newer");
     });
 
     // Older response lands late — must be discarded.
@@ -404,8 +409,12 @@ describe("useTopics", () => {
       await Promise.resolve();
     });
 
-    expect(useAppStore.getState().topics["topic-newer"]).toBeDefined();
-    expect(useAppStore.getState().topics["topic-stale"]).toBeUndefined();
+    expect(
+      useAppStore.getState().topics.find((t) => t.id === "topic-newer"),
+    ).toBeDefined();
+    expect(
+      useAppStore.getState().topics.find((t) => t.id === "topic-stale"),
+    ).toBeUndefined();
   });
 
   it("discards an in-flight list response when the user changes mid-flight", async () => {
@@ -453,7 +462,9 @@ describe("useTopics", () => {
 
     resolveB({ data: [topicB], error: null });
     await waitFor(() => {
-      expect(useAppStore.getState().topics["topic-b"]?.name).toBe("B");
+      expect(
+        useAppStore.getState().topics.find((t) => t.id === "topic-b")?.name,
+      ).toBe("B");
     });
 
     // user-a's late response must not overwrite user-b's topics.
@@ -462,7 +473,11 @@ describe("useTopics", () => {
       await Promise.resolve();
     });
 
-    expect(useAppStore.getState().topics["topic-b"]).toBeDefined();
-    expect(useAppStore.getState().topics["topic-a"]).toBeUndefined();
+    expect(
+      useAppStore.getState().topics.find((t) => t.id === "topic-b"),
+    ).toBeDefined();
+    expect(
+      useAppStore.getState().topics.find((t) => t.id === "topic-a"),
+    ).toBeUndefined();
   });
 });

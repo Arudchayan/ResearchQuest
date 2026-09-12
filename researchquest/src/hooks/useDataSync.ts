@@ -15,6 +15,7 @@ import { supabase } from "../lib/supabase";
 import { useAppStore, type DataSyncResource } from "../store/appStore";
 import { useShallow } from "zustand/react/shallow";
 import { sortByUpdatedAt } from "../utils/sort";
+import { todayKey } from "../utils/time";
 import { extractFunctionErrorMessage } from "../utils/errors";
 import type { Note, Paper, Idea } from "../types/database";
 import { dedupeById } from "../utils/collections";
@@ -175,8 +176,10 @@ export function useDataSync(userId: string | undefined) {
     };
 
     const fetchTodayXP = async () => {
-      // Always fetch — no shouldFetch guard since the sidebar always needs it
-      const today = new Date().toISOString().split("T")[0];
+      // Always fetch — no shouldFetch guard since the sidebar always needs it.
+      // "Today" is the shared date authority (todayKey: local calendar day,
+      // matching the daily_logs.date DATE semantics) — not the UTC day.
+      const today = todayKey();
       const { data, error } = await supabase
         .from("daily_logs")
         .select("xp_earned")
@@ -244,7 +247,13 @@ export function useDataSync(userId: string | undefined) {
           .getState()
           .notes.filter((n) => n.id !== updated.id);
         setNotes(sortByUpdatedAt([updated, ...remaining]));
-        // We don't auto-update selectedNote here because it might disrupt editing
+        // Selected-sync policy (deliberate asymmetry — documenting only, no
+        // behavior change): notes NEVER auto-sync selectedNote here (fetch,
+        // realtime update, or delete) because the note editor holds unsaved
+        // local state that a remote/echoed update would clobber mid-edit.
+        // Papers/ideas DO sync their selection because their detail views
+        // are read-mostly. Keep this asymmetry unless the editor gains a
+        // dirty-guard that can safely merge remote updates.
       },
       onDelete: (oldId) =>
         setNotes(useAppStore.getState().notes.filter((n) => n.id !== oldId)),

@@ -97,7 +97,7 @@ export interface RouteDataSnapshot {
   ideasLoading: boolean;
   notes: Note[];
   notesLoading: boolean;
-  topics: Record<string, TopicWithCounts>;
+  topics: TopicWithCounts[];
   topicsLoading: boolean;
   tasks: Task[];
   tasksLoading: boolean;
@@ -160,7 +160,7 @@ export function selectEntityForRoute(
     }
     case "topics": {
       if (data.topicsLoading) return;
-      setters.setSelectedTopic(data.topics[itemId] ?? null);
+      setters.setSelectedTopic(data.topics.find((t) => t.id === itemId) ?? null);
       break;
     }
     case "tasks": {

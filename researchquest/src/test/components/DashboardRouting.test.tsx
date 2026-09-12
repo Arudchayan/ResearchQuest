@@ -235,7 +235,7 @@ describe("selectEntityForRoute", () => {
     ideasLoading: false,
     notes: [note1],
     notesLoading: false,
-    topics: { t1: topic1 },
+    topics: [topic1],
     topicsLoading: false,
     tasks: [task1],
     tasksLoading: false,

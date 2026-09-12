@@ -37,8 +37,7 @@ export function useIdeas(userId: string | undefined) {
     entityPlural: "ideas",
     createVerb: "create",
     tableName: "ideas",
-    // Ideas keep insertion order (no updated_at sort).
-    sort: (items) => items,
+    // No `sort` override: ideas use the shared sortByUpdatedAt default.
     updateGuard: "after",
     updateReturnsData: true,
     resyncSelectedOnDeleteRevert: true,
