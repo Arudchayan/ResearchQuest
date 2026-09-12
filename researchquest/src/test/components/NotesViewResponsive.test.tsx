@@ -82,7 +82,10 @@ describe("NotesView responsive layout", () => {
     expect(root).toHaveClass("lg:flex-row");
     expect(root).toHaveClass("overflow-hidden");
 
-    const [listPane, editorPane] = Array.from(root?.children ?? []);
+    // Skip the sr-only h1 (AT/SEO heading, not a layout pane).
+    const [listPane, editorPane] = Array.from(root?.children ?? []).filter(
+      (el) => el.tagName !== "H1",
+    );
 
     expect(listPane).toHaveClass("w-full");
     expect(listPane).toHaveClass("h-full");

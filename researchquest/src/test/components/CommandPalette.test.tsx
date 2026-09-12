@@ -124,6 +124,19 @@ describe("CommandPalette", () => {
     expect(screen.getByPlaceholderText("Type a command or search...")).toHaveClass("focus-visible:outline-2");
   });
 
+  it("gives the search input an accessible name via the palette label", async () => {
+    // cmdk overrides input aria-label with its own labelledby pointing at the
+    // dialog label, so assert the effective computed name instead.
+    render(<CommandPalette />);
+    fireEvent.keyDown(document, { key: "k", metaKey: true });
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("combobox", { name: "Command Menu" }),
+      ).toBeInTheDocument();
+    });
+  });
+
   it("renders navigation commands", async () => {
     render(<CommandPalette />);
     fireEvent.keyDown(document, { key: "k", metaKey: true });

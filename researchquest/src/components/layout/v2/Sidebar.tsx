@@ -128,7 +128,7 @@ export function Sidebar() {
         </button>
       </div>
 
-      <nav className="flex-1 px-4 space-y-1">
+      <nav aria-label="Primary" className="sidebar-scroll min-h-0 flex-1 space-y-1 overflow-y-auto px-4">
         {navItems.map((item) => (
           <a
             key={item.id}
