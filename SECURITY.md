@@ -45,3 +45,17 @@ Out of scope:
 - Rotate keys if this repository’s history ever contained a live project URL or anon JWT.
 - Treat every `VITE_*` value as public: Vite embeds it in the browser bundle. Never use this namespace for account passwords or privileged secrets.
 - After rewriting Git history to remove a secret, rotate or revoke the original credential and run the full-history secret scan successfully before publishing a repository.
+
+## Secret scanning
+
+- CI runs TruffleHog over the whole repository (`path: ./`) with full git
+  history on every push to `main`/`master`, every pull request (including
+  forks — the scan job uses read-only permissions), weekly, and on demand.
+  See `.github/workflows/security.yml` (`secret-scan-and-audit` job).
+- Root `.env` / `.env.local` / `researchquest/.env*` files are gitignored, but
+  if one were ever committed, the full-history scan above would flag it.
+  Never commit real credentials; treat every `VITE_*` value as public.
+- There is deliberately no pre-commit hook framework in this repo; the CI
+  full-history scan is the enforcement point. Before pushing, you can
+  optionally run a local scan (e.g. `trufflehog filesystem ./`) to catch
+  mistakes early.

@@ -70,3 +70,41 @@ jobs:
 
       - name: OpenAPI fixture present
         run: test -f supabase/functions/api/openapi.fixture.yaml
+
+  edge-extended:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2
+        with:
+          deno-version: v2.x
+
+      - name: Deno check edge functions
+        run: >-
+          deno check
+          supabase/functions/api/index.ts
+          supabase/functions/api/_shared/cors.ts
+          supabase/functions/api/_shared/http.ts
+          supabase/functions/api/_shared/auth.ts
+          supabase/functions/fetch-paper/index.ts
+          supabase/functions/deep-research/index.ts
+          supabase/functions/create-admin-user/index.ts
+
+      # NOTE: exclusions cover pre-existing conventions, not new code:
+      # `no-import-prefix` (edge functions pin deps via full `https://` URLs,
+      # incl. pre-existing tests) and `require-await` (pre-existing handlers
+      # such as api/index.ts `handleHealth`).
+      - name: Deno lint edge functions
+        run: deno lint --rules-exclude=no-import-prefix --rules-exclude=require-await supabase/functions/
+
+      - name: Edge function unit tests (fetch-paper, deep-research, create-admin-user)
+        run: >-
+          deno test --allow-env
+          supabase/functions/api/tests/
+          supabase/functions/fetch-paper/
+          supabase/functions/deep-research/
+          supabase/functions/create-admin-user/

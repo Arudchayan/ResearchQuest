@@ -123,11 +123,22 @@ export async function authenticateRequest(
         );
       }
 
-      // Fire-and-forget last_used update
+      // Best-effort last_used update: must not block auth, but failures are
+      // logged (previously a bare fire-and-forget that swallowed errors).
       void supabaseAdmin
         .from("api_keys")
         .update({ last_used_at: new Date().toISOString() })
-        .eq("id", keyRow.id);
+        .eq("id", keyRow.id)
+        // NOTE: postgrest-js returns a PromiseLike (no `.catch`), so the
+        // rejection handler is passed as the second `then` arg instead.
+        .then(
+          ({ error: updateError }) => {
+            if (updateError) {
+              console.error("last_used_at update failed", updateError);
+            }
+          },
+          (err: unknown) => console.error("last_used_at update failed", err),
+        );
 
       return {
         userId: keyRow.user_id,

@@ -13,7 +13,6 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <title>ResearchQuest - Gamified Research Management</title>
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' https: wss:;">
   <style>
     #rq-static-gate {
       box-sizing: border-box;
@@ -122,39 +121,8 @@
       </div>
     </main>
   </div>
-  <script>
-    (function () {
-      var KEY = "rq_demo_mode";
-      var PATH = "/topics/topic-ai-agents";
-      function armDemo() {
-        try {
-          localStorage.setItem(KEY, "1");
-        } catch (e) {}
-      }
-      try {
-        if (location.pathname === PATH) {
-          armDemo();
-        }
-      } catch (e) {}
-      document.addEventListener(
-        "click",
-        function (event) {
-          var target = event.target;
-          if (!target || !target.closest) return;
-          var entry = target.closest("[data-rq-demo-entry]");
-          if (!entry) return;
-          armDemo();
-          // Real link: let navigation proceed after arming.
-          // Button fallback: assign explicitly.
-          if (entry.tagName !== "A") {
-            event.preventDefault();
-            location.assign(PATH);
-          }
-        },
-        true,
-      );
-    })();
-  </script>
+  <!-- External file (public/rq-demo-gate.js) so script-src 'self' holds without 'unsafe-inline'. -->
+  <script src="/rq-demo-gate.js"></script>
   <script type="module" src="/src/main.tsx"></script>
 </body>
 
