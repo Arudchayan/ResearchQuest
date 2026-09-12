@@ -22,6 +22,7 @@ import {
   Inbox,
 } from "lucide-react";
 import { useAppStore } from "../../../store/appStore";
+import { navigate } from "../../../lib/navigation";
 import { cn } from "../../../lib/utils";
 import { supabase } from "../../../lib/supabase";
 import { XPExplainer } from "../XPExplainer";
@@ -33,7 +34,6 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "../../ui/tooltip";
 export function Sidebar() {
   const {
     currentView,
-    setCurrentView,
     user,
     effectiveTheme,
     setTheme,
@@ -44,7 +44,6 @@ export function Sidebar() {
   } = useAppStore(
     useShallow((state) => ({
       currentView: state.currentView,
-      setCurrentView: state.setCurrentView,
       user: state.user,
       effectiveTheme: state.effectiveTheme,
       setTheme: state.setTheme,
@@ -139,14 +138,9 @@ export function Sidebar() {
                 return;
               }
               e.preventDefault();
-              setCurrentView(item.id);
               setIsMobileSidebarOpen(false);
               // Update URL without reload
-              window.history.pushState(
-                null,
-                "",
-                item.id === "dashboard" ? "/" : `/${item.id}`,
-              );
+              navigate(item.id);
             }}
             className={cn(
               "flex min-h-11 w-full items-center gap-3 rounded-sm px-3 py-2.5 text-small font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2",

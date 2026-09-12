@@ -25,6 +25,7 @@ import { CitationDialog } from "../papers/CitationDialog";
 import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
 import { useNotes } from "../../hooks/useNotes";
 import { useAppStore } from "../../store/appStore";
+import { navigate } from "../../lib/navigation";
 import {
   convertPapersToMarkdown,
   convertPapersToCSV,
@@ -131,8 +132,7 @@ export function PaperDetailView({
     if (newNote) {
       useAppStore.getState().setSelectedNote(newNote);
       useAppStore.getState().setSelectedPaper(null);
-      useAppStore.getState().setCurrentView("notes");
-      window.history.pushState(null, "", `/notes/${newNote.id}`);
+      navigate("notes", newNote.id);
       window.dispatchEvent(new PopStateEvent("popstate"));
     }
   };

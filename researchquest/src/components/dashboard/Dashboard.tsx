@@ -18,6 +18,7 @@ import {
 } from "@radix-ui/react-icons";
 import { useAppStore } from "../../store/appStore";
 import { useShallow } from "zustand/react/shallow";
+import { navigate } from "../../lib/navigation";
 import { getLevelTitle } from "../../utils/gamification";
 import { parseDateInput } from "../../utils/time";
 import { isOverdue } from "../tasks/TaskCard";
@@ -29,8 +30,6 @@ import { Card } from "../ui/card";
 import { EmptyState } from "../ui/EmptyState";
 import { PageHeader } from "../ui/PageHeader";
 import type { Idea, Note, Paper, Task, TopicWithCounts } from "../../types/database";
-
-type DashboardView = "notes" | "papers" | "focus" | "tasks" | "ideas" | "topics";
 
 const ideaStageBadgeVariants = {
   Seed: "stage-seed",
@@ -118,7 +117,6 @@ export function Dashboard() {
     topicsLoading,
     dataSyncErrors,
     retryDataSync,
-    setCurrentView,
     setSelectedNote,
     setSelectedPaper,
     setSelectedIdea,
@@ -140,7 +138,6 @@ export function Dashboard() {
         topicsLoading: state.topicsLoading,
         dataSyncErrors: state.dataSyncErrors,
         retryDataSync: state.retryDataSync,
-        setCurrentView: state.setCurrentView,
         setSelectedNote: state.setSelectedNote,
         setSelectedPaper: state.setSelectedPaper,
         setSelectedIdea: state.setSelectedIdea,
@@ -296,59 +293,51 @@ export function Dashboard() {
     ].slice(0, 3);
   }, [tasks, ideas, notes]);
 
-  const navigateTo = useCallback(
-    (view: DashboardView, path = `/${view}`) => {
-      setCurrentView(view);
-      window.history.pushState(null, "", path);
-    },
-    [setCurrentView],
-  );
-
-  const handleFocusNavigation = useCallback(() => navigateTo("focus"), [navigateTo]);
-  const handleNotesNavigation = useCallback(() => navigateTo("notes"), [navigateTo]);
-  const handlePapersNavigation = useCallback(() => navigateTo("papers"), [navigateTo]);
-  const handleIdeasNavigation = useCallback(() => navigateTo("ideas"), [navigateTo]);
-  const handleTasksNavigation = useCallback(() => navigateTo("tasks"), [navigateTo]);
-  const handleTopicsNavigation = useCallback(() => navigateTo("topics"), [navigateTo]);
+  const handleFocusNavigation = useCallback(() => navigate("focus"), []);
+  const handleNotesNavigation = useCallback(() => navigate("notes"), []);
+  const handlePapersNavigation = useCallback(() => navigate("papers"), []);
+  const handleIdeasNavigation = useCallback(() => navigate("ideas"), []);
+  const handleTasksNavigation = useCallback(() => navigate("tasks"), []);
+  const handleTopicsNavigation = useCallback(() => navigate("topics"), []);
 
   const handleOpenNote = useCallback(
     (note: Note) => {
       setSelectedNote(note);
-      navigateTo("notes", `/notes/${note.id}`);
+      navigate("notes", note.id);
     },
-    [navigateTo, setSelectedNote],
+    [setSelectedNote],
   );
 
   const handleOpenPaper = useCallback(
     (paper: Paper) => {
       setSelectedPaper(paper);
-      navigateTo("papers", `/papers/${paper.id}`);
+      navigate("papers", paper.id);
     },
-    [navigateTo, setSelectedPaper],
+    [setSelectedPaper],
   );
 
   const handleOpenIdea = useCallback(
     (idea: Idea) => {
       setSelectedIdea(idea);
-      navigateTo("ideas", `/ideas/${idea.id}`);
+      navigate("ideas", idea.id);
     },
-    [navigateTo, setSelectedIdea],
+    [setSelectedIdea],
   );
 
   const handleOpenTask = useCallback(
     (task: Task) => {
       setSelectedTask(task);
-      navigateTo("tasks", `/tasks/${task.id}`);
+      navigate("tasks", task.id);
     },
-    [navigateTo, setSelectedTask],
+    [setSelectedTask],
   );
 
   const handleOpenTopic = useCallback(
     (topic: TopicWithCounts) => {
       setSelectedTopic(topic);
-      navigateTo("topics", `/topics/${topic.id}`);
+      navigate("topics", topic.id);
     },
-    [navigateTo, setSelectedTopic],
+    [setSelectedTopic],
   );
 
   const handleRetryNotes = useCallback(

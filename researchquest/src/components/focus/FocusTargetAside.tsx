@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import { ChevronDown, ChevronRight, Sparkles } from "lucide-react";
-import { useAppStore } from "../../store/appStore";
+import { navigate } from "../../lib/navigation";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
 import { EmptyState } from "../ui/EmptyState";
@@ -54,8 +54,6 @@ export function FocusTargetAside({
   togglePanel,
   focusInsights,
 }: FocusTargetAsideProps) {
-  const setCurrentView = useAppStore((state) => state.setCurrentView);
-
   return (
     <aside
       className="min-w-0 space-y-6"
@@ -212,12 +210,7 @@ export function FocusTargetAside({
                           : group.type === "paper"
                             ? "papers"
                             : "notes";
-                      setCurrentView(targetView);
-                      window.history.pushState(
-                        null,
-                        "",
-                        `/${targetView}`,
-                      );
+                      navigate(targetView);
                     }}
                     className="h-auto min-h-11 px-0 py-0 text-small"
                     title={`Open all ${group.title.toLowerCase()}`}

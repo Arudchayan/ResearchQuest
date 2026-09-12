@@ -5,6 +5,7 @@ import {
   supabase,
 } from "./lib/supabase";
 import { DEMO_FIRST_RUN_PATH } from "./lib/demoData";
+import { navigate, navigateToPath } from "./lib/navigation";
 import { useShallow } from "zustand/react/shallow";
 import { useAppStore } from "./store/appStore";
 import { useGamificationStore } from "./store/gamificationStore";
@@ -245,16 +246,10 @@ function App() {
   // After sign-in, navigate to the saved deep-link path
   useEffect(() => {
     if (user && pendingPath) {
-      window.history.pushState(null, "", pendingPath);
-      const route = parseRoute(pendingPath);
-      if (route.isValid && route.view) {
-        setCurrentView(route.view);
-      } else {
-        setCurrentView("dashboard");
-      }
+      navigateToPath(pendingPath);
       setPendingPath(null);
     }
-  }, [user, pendingPath, setCurrentView]);
+  }, [user, pendingPath]);
 
   // URL-based routing — handle initial load, popstate, and invalid-route recovery
   useEffect(() => {
@@ -354,8 +349,7 @@ function App() {
           </p>
           <button
             onClick={() => {
-              window.history.pushState(null, "", "/");
-              setCurrentView("dashboard");
+              navigate("dashboard");
               setRouteError(null);
             }}
             className="inline-flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors"

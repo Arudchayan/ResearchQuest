@@ -1,6 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { DEMO_FIRST_RUN_PATH } from "./demoData";
-import { demoSupabase } from "./demoSupabase";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -56,6 +55,12 @@ const liveClient = createClient(
   },
 );
 
+// PR15 item 40: the in-memory demo engine (~50KB with its seed data) loads
+// in its own chunk, and only when demo mode is on. Top-level await keeps the
+// synchronous `supabase` export (and every existing caller) unchanged — live
+// mode never waits on the import.
+const demoModule = isDemoMode ? await import("./demoSupabase") : null;
+
 export const supabase = (
-  isDemoMode ? demoSupabase : liveClient
+  isDemoMode && demoModule ? demoModule.demoSupabase : liveClient
 ) as unknown as SupabaseClient;

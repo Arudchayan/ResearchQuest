@@ -19,6 +19,7 @@ import { useNotes } from "../../hooks/useNotes";
 import { usePapers } from "../../hooks/usePapers";
 import { useTasks } from "../../hooks/useTasks";
 import { useAppStore } from "../../store/appStore";
+import { navigate } from "../../lib/navigation";
 import type { Note, Paper, Task } from "../../types/database";
 import { awardXP, notifyGamificationResult, XP_REWARDS } from "../../utils/gamification";
 import {
@@ -62,7 +63,6 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   const { papers, loading: papersLoading } = usePapers(userId);
   const { tasks, loading: tasksLoading } = useTasks(userId, { owner: false });
 
-  const setCurrentView = useAppStore((state) => state.setCurrentView);
   const setSelectedNote = useAppStore((state) => state.setSelectedNote);
   const setSelectedPaper = useAppStore((state) => state.setSelectedPaper);
 
@@ -490,15 +490,12 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
 
     if (selectedTarget.type === "note") {
       setSelectedNote(selectedItem as Note);
-      setCurrentView("notes");
-      window.history.pushState(null, "", `/notes/${selectedTarget.id}`);
+      navigate("notes", selectedTarget.id);
     } else if (selectedTarget.type === "paper") {
       setSelectedPaper(selectedItem as Paper);
-      setCurrentView("papers");
-      window.history.pushState(null, "", `/papers/${selectedTarget.id}`);
+      navigate("papers", selectedTarget.id);
     } else if (selectedTarget.type === "task") {
-      setCurrentView("tasks");
-      window.history.pushState(null, "", "/tasks");
+      navigate("tasks");
     }
   };
 

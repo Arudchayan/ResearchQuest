@@ -8,6 +8,7 @@ import type {
   FeedPromoteTarget,
 } from "../types/database";
 import { logger } from "../utils/logger";
+import { promoteFeedItemRequest } from "../lib/repos/feedItemsRepo";
 
 export const FEED_ITEM_TYPES = ["paper", "job", "news", "custom"] as const;
 export const FEED_ITEM_STATUSES = [
@@ -25,12 +26,6 @@ interface UseFeedItemsOptions {
   status?: FeedStatusFilter;
   limit?: number;
   enabled?: boolean;
-}
-
-interface PromoteResponse {
-  target: FeedPromoteTarget;
-  entity: unknown;
-  item: FeedItem;
 }
 
 function compareFeedItems(a: FeedItem, b: FeedItem) {
@@ -54,21 +49,6 @@ function feedItemMatchesFilters(
 
 function getApiBaseUrl() {
   return `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, "")}/functions/v1/api/v1`;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function extractApiErrorMessage(body: unknown, fallback: string) {
-  if (
-    isRecord(body) &&
-    isRecord(body.error) &&
-    typeof body.error.message === "string"
-  ) {
-    return body.error.message;
-  }
-  return fallback;
 }
 
 export function useFeedItems(
@@ -241,27 +221,24 @@ export function useFeedItems(
       setActionItemId(itemId);
 
       try {
-        const response = await fetch(
-          `${getApiBaseUrl()}/feed-items/${encodeURIComponent(itemId)}/promote`,
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${session.access_token}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ target }),
-          },
-        );
-        const body = await response.json();
+        const result = await promoteFeedItemRequest({
+          itemId,
+          target,
+          accessToken: session.access_token,
+          baseUrl: getApiBaseUrl(),
+        });
+        const body = result.ok ? result.promoted : null;
 
-        if (!response.ok) {
-          const message = extractApiErrorMessage(body, "Failed to promote feed item");
+        if (!result.ok || !body) {
+          const message = result.ok
+            ? "Failed to promote feed item"
+            : result.message;
           toast.error(message);
           setError(message);
           return null;
         }
 
-        const promoted = body as PromoteResponse;
+        const promoted = body;
         setItems((current) =>
           sortFeedItems(
             current

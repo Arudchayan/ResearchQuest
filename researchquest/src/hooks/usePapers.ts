@@ -1,11 +1,12 @@
 import { useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import {
-  awardXP,
   notifyGamificationResult,
   XP_REWARDS,
   type GamificationResult,
 } from "../utils/gamification";
+import { awardXpBulk } from "../utils/gamificationSync";
+import { papersRepo } from "../lib/repos/papersRepo";
 import { sortByUpdatedAt } from "../utils/sort";
 import { isValidUrl } from "../utils/security";
 import { toast } from "sonner";
@@ -527,11 +528,9 @@ export function usePapers(userId: string | undefined) {
         validPapers.push(...deduped);
       }
 
-      // Batch insert using Supabase
-      const { data, error: createError } = await supabase
-        .from("papers")
-        .insert(validPapers)
-        .select();
+      // Batch insert using Supabase (single round-trip via papersRepo)
+      const { data, error: createError } =
+        await papersRepo.insertMany(validPapers);
 
       if (createError) {
         logger.error("Failed to insert papers batch", createError);
@@ -554,17 +553,15 @@ export function usePapers(userId: string | undefined) {
       // Optimistic update
       setItems(sortByUpdatedAt([...data, ...useAppStore.getState().papers]));
 
-      // Award XP: run per-paper awards concurrently, notify once with the
-      // aggregated result so bulk imports don't stack a toast per paper.
-      void Promise.all(
-        data.map(() =>
-          awardXP(userId, XP_REWARDS.CREATE_PAPER, "create_paper").catch(
-            (e) => {
-              logger.error("Failed to award XP", e);
-              return null;
-            },
-          ),
-        ),
+      // Award XP: one batched call for the whole import (the sync service
+      // coalesces the per-paper rewards into a single award), notify once
+      // with the aggregated result so bulk imports don't stack toasts.
+      void awardXpBulk(
+        userId,
+        data.map(() => ({
+          xpAmount: XP_REWARDS.CREATE_PAPER,
+          action: "create_paper",
+        })),
       ).then((results) => {
         const aggregated = results.reduce<GamificationResult | null>(
           (acc, result) => {
