@@ -12,15 +12,11 @@ interface RateLimitBucket {
 const rateLimitBuckets = new Map<string, RateLimitBucket>();
 
 // This bootstrap function should remain undeployed or explicitly restricted in production.
-function buildCorsHeaders(req: Request): Record<string, string> {
+export function buildCorsHeaders(req: Request): Record<string, string> {
   const origin = req.headers.get("Origin");
   const allowed = getAllowedOrigins();
-  const allowOrigin = origin && allowed.includes(origin)
-    ? origin
-    : allowed[0] ?? "http://localhost:5173";
 
-  return {
-    "Access-Control-Allow-Origin": allowOrigin,
+  const headers: Record<string, string> = {
     "Access-Control-Allow-Headers":
       "authorization, x-client-info, apikey, content-type, x-application-name, x-request-id, x-user-agent",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -28,9 +24,19 @@ function buildCorsHeaders(req: Request): Record<string, string> {
     "Access-Control-Allow-Credentials": "false",
     "Vary": "Origin",
   };
+  // Omit Access-Control-Allow-Origin unless the request origin is explicitly
+  // allowed. Never fall back to a localhost/dev origin.
+  if (origin && allowed.includes(origin)) {
+    headers["Access-Control-Allow-Origin"] = origin;
+  }
+  return headers;
 }
 
-function checkRateLimit(): boolean {
+export function _resetRateLimitBuckets(): void {
+  rateLimitBuckets.clear();
+}
+
+export function checkRateLimit(): boolean {
   const now = Date.now();
   const windowStart = now - RATE_LIMIT_WINDOW_MS;
   const bucket = rateLimitBuckets.get(RATE_LIMIT_KEY) ?? { timestamps: [] };
@@ -47,7 +53,7 @@ function checkRateLimit(): boolean {
 }
 
 // Sentinel: Constant-time string comparison to prevent timing attacks
-function secureCompare(a: string, b: string): boolean {
+export function secureCompare(a: string, b: string): boolean {
   if (typeof a !== "string" || typeof b !== "string") return false;
   let mismatch = a.length === b.length ? 0 : 1;
   const len = Math.max(a.length, b.length);
@@ -72,6 +78,10 @@ async function fetchWithTimeout(
       signal: controller.signal,
     });
     return response;
+    // NOTE: `any` keeps the legacy AbortError-shape check: a fetch abort
+    // rejects with a DOMException, which is not an `Error` subclass, so
+    // `instanceof Error` narrowing would silently change timeout behavior.
+    // deno-lint-ignore no-explicit-any
   } catch (error: any) {
     if (error.name === "AbortError") {
       throw new Error("Request timed out");
@@ -82,6 +92,8 @@ async function fetchWithTimeout(
   }
 }
 
+// Guarded so unit tests can import this module without starting the server.
+if (import.meta.main) {
 Deno.serve(async (req) => {
   const corsHeaders = buildCorsHeaders(req);
 
@@ -273,3 +285,4 @@ Deno.serve(async (req) => {
     );
   }
 });
+}

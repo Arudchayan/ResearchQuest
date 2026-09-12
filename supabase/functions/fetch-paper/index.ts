@@ -3,12 +3,18 @@
  * title, authors, abstract, publication year, container (journal), DOI, and URLs.
  * Non-DOI identifiers are not implemented; extend before calling this production-ready for broader search.
  */
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const APP_USER_AGENT = "ResearchQuest/1.0 (mailto:research@researchquest.app)";
 const DEFAULT_TIMEOUT_MS = 8000;
 const RATE_LIMIT_MAX_REQUESTS = 30;
 const RATE_LIMIT_WINDOW_MS = 60_000;
+export const MAX_QUERY_LENGTH = 500;
+export const MAX_DOI_LENGTH = 2000;
+// Reference list for local development. These origins are ONLY allowed when
+// explicitly listed in the ALLOWED_ORIGINS env var — they are never used as a
+// fallback. When ALLOWED_ORIGINS is unset/empty, no origin is allowed
+// (fail closed so production never reflects a localhost origin to browsers).
 const DEFAULT_DEV_ALLOWED_ORIGINS = [
   "http://localhost:5173",
   "http://localhost:5174",
@@ -50,10 +56,28 @@ interface RateLimitResult {
 
 const rateLimitBuckets = new Map<string, RateLimitBucket>();
 
-function parseAllowedOrigins(): string[] {
+export { DEFAULT_DEV_ALLOWED_ORIGINS };
+
+/**
+ * Trim and validate a Crossref `query` string before use. Returns the
+ * sanitized query, or an error message when the input is empty/too long.
+ * Trims whitespace so blank-only input is rejected instead of being sent to
+ * Crossref, and caps length to bound upstream request size.
+ */
+export function sanitizeQuery(input: unknown): { value?: string; error?: string } {
+  if (typeof input !== "string") return { error: "Must provide doi or query" };
+  const value = input.trim();
+  if (!value) return { error: "Must provide doi or query" };
+  if (value.length > MAX_QUERY_LENGTH) {
+    return { error: "Input exceeds maximum allowed length" };
+  }
+  return { value };
+}
+
+export function parseAllowedOrigins(): string[] {
   const configured = Deno.env.get("ALLOWED_ORIGINS");
   if (!configured || !configured.trim()) {
-    return DEFAULT_DEV_ALLOWED_ORIGINS;
+    return [];
   }
   return configured
     .split(",")
@@ -61,7 +85,7 @@ function parseAllowedOrigins(): string[] {
     .filter(Boolean);
 }
 
-function buildCorsHeaders(req: Request): HeadersInit {
+export function buildCorsHeaders(req: Request): HeadersInit {
   const headers: Record<string, string> = {
     "Access-Control-Allow-Headers":
       "authorization, x-client-info, apikey, content-type",
@@ -72,11 +96,10 @@ function buildCorsHeaders(req: Request): HeadersInit {
   const origin = req.headers.get("Origin");
   const allowed = parseAllowedOrigins();
 
-  const allowlist = allowed.length > 0 ? allowed : DEFAULT_DEV_ALLOWED_ORIGINS;
-  if (origin && allowlist.includes(origin)) {
+  // Omit Access-Control-Allow-Origin unless the request origin is explicitly
+  // allowed. Never fall back to a localhost/dev origin.
+  if (origin && allowed.includes(origin)) {
     headers["Access-Control-Allow-Origin"] = origin;
-  } else {
-    headers["Access-Control-Allow-Origin"] = allowlist[0];
   }
 
   return headers;
@@ -109,7 +132,7 @@ async function fetchWithTimeout(
   }
 }
 
-function formatCrossrefWork(work: CrossrefWork) {
+export function formatCrossrefWork(work: CrossrefWork) {
   return {
     doi: work?.DOI || "",
     title: work?.title?.[0] || "Untitled",
@@ -159,6 +182,8 @@ function retryAfterSeconds(resetAt: number): string {
   return String(Math.max(1, Math.ceil((resetAt - Date.now()) / 1000)));
 }
 
+// Guarded so unit tests can import this module without starting the server.
+if (import.meta.main) {
 Deno.serve(async (req) => {
   const corsHeaders = buildCorsHeaders(req);
 
@@ -212,9 +237,27 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { doi, query, rows, sort, order } = await req.json();
+    let body: { doi?: unknown; query?: unknown; rows?: unknown; sort?: unknown; order?: unknown };
+    try {
+      body = await req.json();
+    } catch {
+      return jsonResponse(
+        { error: { code: "INVALID_REQUEST", message: "Invalid JSON body" } },
+        400,
+        corsHeaders,
+      );
+    }
+    const { doi, query, rows, sort, order } = body;
 
-    if ((doi && typeof doi === 'string' && doi.length > 2000) || (query && typeof query === 'string' && query.length > 2000)) {
+    const trimmedDoi = typeof doi === "string" ? doi.trim() : "";
+    if (doi !== undefined && doi !== null && doi !== "" && !trimmedDoi) {
+      return jsonResponse(
+        { error: { code: "INVALID_REQUEST", message: "Must provide doi or query" } },
+        400,
+        corsHeaders,
+      );
+    }
+    if (trimmedDoi && trimmedDoi.length > MAX_DOI_LENGTH) {
       return jsonResponse(
         { error: { code: "INVALID_REQUEST", message: "Input exceeds maximum allowed length" } },
         400,
@@ -222,8 +265,23 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (doi) {
-      const crossrefUrl = `https://api.crossref.org/works/${encodeURIComponent(doi)}`;
+    // Sanitize/trim the free-text query before Crossref use: reject blank
+    // input and cap length to bound upstream request size.
+    let sanitizedQuery = "";
+    if (query !== undefined && query !== null && query !== "") {
+      const sanitized = sanitizeQuery(query);
+      if (sanitized.error || !sanitized.value) {
+        return jsonResponse(
+          { error: { code: "INVALID_REQUEST", message: sanitized.error ?? "Must provide doi or query" } },
+          400,
+          corsHeaders,
+        );
+      }
+      sanitizedQuery = sanitized.value;
+    }
+
+    if (trimmedDoi) {
+      const crossrefUrl = `https://api.crossref.org/works/${encodeURIComponent(trimmedDoi)}`;
       const response = await fetchWithTimeout(crossrefUrl, {
         headers: {
           Accept: "application/json",
@@ -243,9 +301,9 @@ Deno.serve(async (req) => {
       return jsonResponse({ data: formatCrossrefWork(data?.message) }, 200, corsHeaders);
     }
 
-    if (query) {
+    if (sanitizedQuery) {
       const params = new URLSearchParams();
-      params.set("query", query);
+      params.set("query", sanitizedQuery);
 
       const parsedRows = Number(rows);
       params.set(
@@ -315,3 +373,4 @@ Deno.serve(async (req) => {
     );
   }
 });
+}

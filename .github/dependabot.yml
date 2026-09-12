@@ -48,3 +48,18 @@ updates:
     labels:
       - "dependencies"
       - "github-actions"
+
+  # Deno — keep pinned esm.sh/deno.land imports in Supabase edge functions fresh.
+  # The edge functions pin exact versions (e.g. @supabase/supabase-js@2.49.1)
+  # so updates land as reviewable PRs instead of silent floating upgrades.
+  - package-ecosystem: "deno"
+    directory: "/supabase/functions"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Etc/UTC"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "deno"

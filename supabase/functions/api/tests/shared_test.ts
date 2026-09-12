@@ -115,17 +115,72 @@ Deno.test("cors allowlist from env", () => {
     "ALLOWED_ORIGINS",
     "https://app.example.com,https://other.example.com",
   );
-  const origins = getAllowedOrigins();
-  assertEquals(origins.includes("https://app.example.com"), true);
-  const req = new Request("https://example.com", {
-    headers: { Origin: "https://app.example.com" },
-  });
-  const headers = buildCorsHeaders(req);
-  assertEquals(
-    headers["Access-Control-Allow-Origin"],
-    "https://app.example.com",
-  );
+  try {
+    const origins = getAllowedOrigins();
+    assertEquals(origins.includes("https://app.example.com"), true);
+    const req = new Request("https://example.com", {
+      headers: { Origin: "https://app.example.com" },
+    });
+    const headers = buildCorsHeaders(req);
+    assertEquals(
+      headers["Access-Control-Allow-Origin"],
+      "https://app.example.com",
+    );
+    assertEquals(headers["Vary"], "Origin");
+  } finally {
+    Deno.env.delete("ALLOWED_ORIGINS");
+  }
+});
+
+Deno.test("cors omits origin when ALLOWED_ORIGINS is unset (fail closed)", () => {
   Deno.env.delete("ALLOWED_ORIGINS");
+  assertEquals(getAllowedOrigins(), []);
+  const localhostReq = new Request("https://example.com", {
+    headers: { Origin: "http://localhost:5173" },
+  });
+  const localhostHeaders = buildCorsHeaders(localhostReq);
+  assertEquals(
+    "Access-Control-Allow-Origin" in localhostHeaders,
+    false,
+  );
+  assertEquals(localhostHeaders["Vary"], "Origin");
+});
+
+Deno.test("cors omits origin for unlisted origin and missing Origin header", () => {
+  Deno.env.set("ALLOWED_ORIGINS", "https://app.example.com");
+  try {
+    const evilReq = new Request("https://example.com", {
+      headers: { Origin: "https://evil.example.com" },
+    });
+    assertEquals(
+      "Access-Control-Allow-Origin" in buildCorsHeaders(evilReq),
+      false,
+    );
+    const noOriginReq = new Request("https://example.com");
+    const noOriginHeaders = buildCorsHeaders(noOriginReq);
+    assertEquals(
+      "Access-Control-Allow-Origin" in noOriginHeaders,
+      false,
+    );
+    assertEquals(noOriginHeaders["Vary"], "Origin");
+  } finally {
+    Deno.env.delete("ALLOWED_ORIGINS");
+  }
+});
+
+Deno.test("cors allows localhost only when explicitly listed", () => {
+  Deno.env.set("ALLOWED_ORIGINS", "http://localhost:5173");
+  try {
+    const req = new Request("https://example.com", {
+      headers: { Origin: "http://localhost:5173" },
+    });
+    assertEquals(
+      buildCorsHeaders(req)["Access-Control-Allow-Origin"],
+      "http://localhost:5173",
+    );
+  } finally {
+    Deno.env.delete("ALLOWED_ORIGINS");
+  }
 });
 
 Deno.test("validateFeedItemCreate normalizes item input", () => {

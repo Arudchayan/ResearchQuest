@@ -80,6 +80,15 @@ export function secureCompare(a: string, b: string): boolean {
   return mismatch === 0;
 }
 
+/**
+ * Unsalted SHA-256 of the raw API key for DB lookup. A per-key salt is
+ * deliberately not used here: API keys are 256-bit crypto-random secrets (see
+ * generateApiKeySecret), not low-entropy passwords, so rainbow-table /
+ * dictionary attacks do not apply. A salt would require an extra column and a
+ * second lookup to find the salt before hashing, with no meaningful security
+ * gain for high-entropy random tokens. The raw key is never stored — only the
+ * hash — so a DB read alone does not yield usable credentials.
+ */
 export async function sha256Hex(input: string): Promise<string> {
   const data = new TextEncoder().encode(input);
   const digest = await crypto.subtle.digest("SHA-256", data);
@@ -88,6 +97,12 @@ export async function sha256Hex(input: string): Promise<string> {
     .join("");
 }
 
+/**
+ * Mint a new API key secret. Entropy: 32 bytes (256 bits) from
+ * crypto.getRandomValues — a crypto-grade CSPRNG (Web Crypto) — hex-encoded to
+ * 64 chars and prefixed with `rq_`. 256 bits makes exhaustive search
+ * infeasible, which is also why the stored sha256Hex hash needs no salt.
+ */
 export function generateApiKeySecret(): { rawKey: string; prefix: string } {
   const bytes = new Uint8Array(32);
   crypto.getRandomValues(bytes);
