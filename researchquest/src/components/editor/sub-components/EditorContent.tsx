@@ -7,6 +7,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
 import rehypeHighlight from "rehype-highlight";
+import { sanitizeMarkdownUrl } from "../../../utils/sanitizeMarkdown";
 import type { ViewMode } from "../hooks/useMarkdownEditor";
 
 interface EditorContentProps {
@@ -95,6 +96,7 @@ export default function EditorContent({
           <ReactMarkdown
             remarkPlugins={REMARK_PLUGINS}
             rehypePlugins={REHYPE_PLUGINS}
+            urlTransform={sanitizeMarkdownUrl}
             components={{
               pre: (props) => <pre {...props} tabIndex={0} />,
             }}

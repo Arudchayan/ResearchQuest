@@ -82,6 +82,14 @@ export function isUuid(value: string): boolean {
   return UUID_RE.test(value);
 }
 
+/**
+ * SSRF note (PR20-90): scheme-only validation is intentional here. The Edge
+ * gateway stores `source_url`/`url` values but never fetches them
+ * server-side, so there is no server-side request forgery surface today.
+ * Private-range / intranet hosts are deliberately NOT blocked so users can
+ * file intranet papers. If the gateway ever fetches these URLs (link
+ * previews, embeds), add private-range + redirect-chain blocking first.
+ */
 export function isHttpUrl(value: string): boolean {
   try {
     const url = new URL(value);
