@@ -13,11 +13,6 @@ export function dedupeById<T extends { id: string }>(items: T[]): T[] {
   return deduped.reverse();
 }
 
-/**
- * PERFORMANCE OPTIMIZATION:
- * Gets the top N items from an array in a single O(N) pass without sorting the entire array.
- * Useful for widgets that only need to display a small slice of a large collection.
- */
 export function getTopN<T>(
   items: T[],
   limit: number,

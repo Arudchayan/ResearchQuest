@@ -1,6 +1,6 @@
 import { useCallback, useRef } from "react";
-import { supabase } from "../lib/supabase";
 import { XP_REWARDS } from "../utils/gamification";
+import { useAppStore } from "../store/appStore";
 import { useEntityCrud, type AppStoreState } from "./useEntityCrud";
 import type { Note } from "../types/database";
 
@@ -95,28 +95,20 @@ export function useNotes(userId: string | undefined) {
     },
   });
 
-  const { error, setError, setItems } = crud;
+  const { error } = crud;
 
-  // This function is now mainly for refreshing manually if needed,
-  // but useDataSync handles the initial fetch and subscriptions.
-  const fetchNotes = useCallback(async () => {
+  // Item 33 (single loader per table): notes are loaded ONLY by useDataSync.
+  // The hook-local duplicate fetch is deleted; manual refresh reuses the
+  // single loader via the store retry signal, which useDataSync listens to.
+  // Loaded items, ordering, and selected-note sync all come from that path,
+  // so behavior is unchanged (this entry point has no production callers —
+  // initial load and realtime merges already flow through useDataSync).
+  const refreshNotes = useCallback(async () => {
     if (!userId) return;
+    useAppStore.getState().retryDataSync("notes");
+  }, [userId]);
 
-    const { data, error: fetchError } = await supabase
-      .from("notes")
-      .select("*")
-      .eq("user_id", userId)
-      .order("updated_at", { ascending: false });
-
-    if (fetchError) {
-      setError(fetchError.message);
-    } else {
-      // Data is already sorted by updated_at desc from the DB query above
-      setItems(data || []);
-    }
-  }, [userId, setError, setItems]);
-
-  fetchNotesRef.current = fetchNotes;
+  fetchNotesRef.current = refreshNotes;
 
   return {
     notes: crud.items,
@@ -126,6 +118,6 @@ export function useNotes(userId: string | undefined) {
     updateNote: crud.update,
     deleteNote: crud.delete,
     restoreNote: crud.restore,
-    refreshNotes: fetchNotes,
+    refreshNotes,
   };
 }

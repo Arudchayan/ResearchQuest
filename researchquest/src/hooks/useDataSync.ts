@@ -1,23 +1,102 @@
 /**
  * OWNERSHIP: notes, papers, ideas, focus_sessions, daily_logs
+ * (+ topics realtime merge only — loading/CRUD stay in useTopics)
  *
  * This hook is the sole realtime owner for the notes, papers, ideas,
  * focus_sessions, and daily_logs tables. It loads the initial data,
  * subscribes to Postgres changes, and pushes updates into the Zustand
- * store (useAppStore).
+ * store (useAppStore). Channel lifecycle is owned by the shared
+ * `subscribeTable` helper (lib/realtime.ts, item 35) — one channel per
+ * table per user, ref-counted across mounts.
+ *
+ * It also hosts the topics realtime subscription (item 35): row-level merge
+ * via targeted single-row refetch (no loading flash, no full refetch).
+ * Topic list loading, CRUD, and caches stay in useTopics, the topics owner.
+ *
+ * It reconciles the local sprint/dailyMissions persists with the server
+ * streak signals (item 43 — server wins when signed in, local wins in
+ * demo/offline; see the authority rule in those stores).
  *
  * Do NOT add tasks here — useTasks is the sole task owner.
  * daily_logs is consolidated here to eliminate duplicate subscriptions
  * from RightSidebar and useSidebarData.
  */
 import { useEffect } from "react";
-import { supabase } from "../lib/supabase";
+import { supabase, isDemoMode } from "../lib/supabase";
+import { subscribeTable } from "../lib/realtime";
 import { useAppStore, type DataSyncResource } from "../store/appStore";
+import { useSprintStore } from "../store/sprintStore";
+import { useDailyMissionsStore } from "../store/dailyMissionsStore";
 import { useShallow } from "zustand/react/shallow";
 import { sortByUpdatedAt } from "../utils/sort";
 import { extractFunctionErrorMessage } from "../utils/errors";
-import type { Note, Paper, Idea } from "../types/database";
+import type { Note, Paper, Idea, TopicWithCounts } from "../types/database";
 import { dedupeById } from "../utils/collections";
+
+// --- Topics realtime merge (item 35) ---
+// Mirrors the row shape + mapping owned by useTopics (TOPIC_SELECT /
+// mapTopicRow there): a single topic with joined link counts. Duplicated
+// here so this hook never depends on useTopics internals; the canonical
+// copy stays in useTopics.
+interface TopicCountRow {
+  count: number | null;
+}
+
+interface TopicRow extends TopicWithCounts {
+  topic_notes?: TopicCountRow[];
+  topic_papers?: TopicCountRow[];
+  topic_ideas?: TopicCountRow[];
+}
+
+const TOPIC_ROW_SELECT =
+  "*, topic_notes(count), topic_papers(count), topic_ideas(count)";
+
+function coerceTopicCount(value?: TopicCountRow[]): number {
+  if (!value || value.length === 0) return 0;
+  const first = value[0];
+  if (!first || first.count == null) return 0;
+  return first.count;
+}
+
+function mapTopicRow(row: TopicRow): TopicWithCounts {
+  return {
+    id: row.id,
+    user_id: row.user_id,
+    name: row.name,
+    ...(row.description !== undefined ? { description: row.description } : {}),
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    note_count: coerceTopicCount(row.topic_notes),
+    paper_count: coerceTopicCount(row.topic_papers),
+    idea_count: coerceTopicCount(row.topic_ideas),
+  };
+}
+
+function isTopicRow(value: unknown): value is TopicRow {
+  if (!value || typeof value !== "object") return false;
+  const record = value as Record<string, unknown>;
+  return (
+    typeof record["id"] === "string" &&
+    typeof record["user_id"] === "string" &&
+    typeof record["name"] === "string" &&
+    typeof record["created_at"] === "string" &&
+    typeof record["updated_at"] === "string"
+  );
+}
+
+// --- Streak reconcile (item 43) ---
+// Server wins when signed in; local persists rule in demo/offline (where
+// this is never called) and when signed out (early return above).
+function reconcileStreakSnapshot(
+  focusSecondsToday: number,
+  todayXP: number,
+): void {
+  if (isDemoMode) return;
+  const minutes = Math.max(0, Math.floor(focusSecondsToday / 60));
+  const xp = Math.max(0, todayXP);
+  useSprintStore.getState().applyServerSnapshot(minutes, xp);
+  useDailyMissionsStore.getState().applyServerSnapshot(minutes);
+}
 
 export function useDataSync(userId: string | undefined) {
 
@@ -154,7 +233,7 @@ export function useDataSync(userId: string | undefined) {
         },
       });
 
-    const fetchFocusSessionsToday = async () => {
+    const fetchFocusSessionsToday = async (): Promise<number> => {
       const startOfDay = new Date();
       startOfDay.setHours(0, 0, 0, 0);
       const { data, error } = await supabase
@@ -164,7 +243,7 @@ export function useDataSync(userId: string | undefined) {
         .gte("completed_at", startOfDay.toISOString());
 
       if (error) {
-        return;
+        return useAppStore.getState().focusSessionSecondsToday;
       }
 
       const total = (data ?? []).reduce(
@@ -172,9 +251,10 @@ export function useDataSync(userId: string | undefined) {
         0,
       );
       setFocusSessionSecondsToday(total);
+      return total;
     };
 
-    const fetchTodayXP = async () => {
+    const fetchTodayXP = async (): Promise<number> => {
       // Always fetch — no shouldFetch guard since the sidebar always needs it
       const today = new Date().toISOString().split("T")[0];
       const { data, error } = await supabase
@@ -185,7 +265,31 @@ export function useDataSync(userId: string | undefined) {
         .maybeSingle();
 
       if (!error) {
-        setTodayXP(data?.xp_earned ?? 0);
+        const xp = data?.xp_earned ?? 0;
+        setTodayXP(xp);
+        return xp;
+      }
+      return useAppStore.getState().todayXP;
+    };
+
+    // Targeted single-topic refetch for the topics realtime merge below:
+    // one row with joined counts, no loading flags (avoids list flicker).
+    const refreshTopicRow = async (topicId: string): Promise<void> => {
+      const { data, error } = await supabase
+        .from("topics")
+        .select(TOPIC_ROW_SELECT)
+        .eq("user_id", userId)
+        .eq("id", topicId)
+        .maybeSingle();
+
+      if (error || !isTopicRow(data)) {
+        return;
+      }
+      const topic = mapTopicRow(data);
+      useAppStore.getState().upsertTopic(topic);
+      const selected = useAppStore.getState().selectedTopic;
+      if (selected?.id === topic.id) {
+        useAppStore.getState().setSelectedTopic(topic);
       }
     };
 
@@ -193,50 +297,20 @@ export function useDataSync(userId: string | undefined) {
     void fetchNotes();
     void fetchPapers();
     void fetchIdeas();
-    void fetchFocusSessionsToday();
-    void fetchTodayXP();
+    // Streak snapshot (item 43): once today's server signals land,
+    // reconcile the local sprint/dailyMissions persists (server wins).
+    void Promise.all([fetchFocusSessionsToday(), fetchTodayXP()]).then(
+      ([focusSeconds, xpEarned]) => {
+        reconcileStreakSnapshot(focusSeconds, xpEarned);
+      },
+    );
 
-    // --- SUBSCRIPTIONS ---
-    const channels: ReturnType<typeof supabase.channel>[] = [];
-
-    // Generic realtime subscription for the per-view tables (notes/papers/ideas):
-    // same postgres_changes listener; per-table merge logic via callbacks.
-    const makeSubscription = <T extends { id: string }>(opts: {
-      table: string;
-      channelName: string;
-      onInsert: (newItem: T) => void;
-      onUpdate: (updated: T) => void;
-      onDelete: (oldId: string) => void;
-    }) =>
-      supabase
-        .channel(opts.channelName)
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: opts.table,
-            filter: `user_id=eq.${userId}`,
-          },
-          (payload) => {
-            if (payload.eventType === "INSERT") {
-              opts.onInsert(payload.new as T);
-            } else if (payload.eventType === "UPDATE") {
-              opts.onUpdate(payload.new as T);
-            } else if (payload.eventType === "DELETE") {
-              const oldId = payload.old["id"];
-              if (typeof oldId === "string") {
-                opts.onDelete(oldId);
-              }
-            }
-          },
-        )
-        .subscribe();
+    // --- SUBSCRIPTIONS (item 35: shared ref-counted lifecycle) ---
+    // Merge callbacks are unchanged; only channel creation/teardown moved
+    // into subscribeTable (one channel per table+user across mounts).
 
     // Notes Subscription
-    const notesSub = makeSubscription<Note>({
-      table: "notes",
-      channelName: `notes_realtime_sync_${userId}`,
+    const releaseNotes = subscribeTable<Note>("notes", userId, {
       onInsert: (newNote) =>
         setNotes(dedupeById([newNote, ...useAppStore.getState().notes])),
       onUpdate: (updated) => {
@@ -249,7 +323,6 @@ export function useDataSync(userId: string | undefined) {
       onDelete: (oldId) =>
         setNotes(useAppStore.getState().notes.filter((n) => n.id !== oldId)),
     });
-    channels.push(notesSub);
 
     // Papers Subscription
     const syncSelectedPaper = (paper: Paper) => {
@@ -259,9 +332,7 @@ export function useDataSync(userId: string | undefined) {
       }
     };
 
-    const papersSub = makeSubscription<Paper>({
-      table: "papers",
-      channelName: `papers_realtime_sync_${userId}`,
+    const releasePapers = subscribeTable<Paper>("papers", userId, {
       onInsert: (newPaper) => {
         setPapers(
           sortByUpdatedAt([newPaper, ...useAppStore.getState().papers]),
@@ -284,7 +355,6 @@ export function useDataSync(userId: string | undefined) {
         }
       },
     });
-    channels.push(papersSub);
 
     // Ideas Subscription
     const syncSelectedIdea = (idea: Idea) => {
@@ -294,9 +364,7 @@ export function useDataSync(userId: string | undefined) {
       }
     };
 
-    const ideasSub = makeSubscription<Idea>({
-      table: "ideas",
-      channelName: `ideas_realtime_sync_${userId}`,
+    const releaseIdeas = subscribeTable<Idea>("ideas", userId, {
       onInsert: (newIdea) => {
         const currentIdeas = useAppStore.getState().ideas;
         // Check if exists
@@ -322,42 +390,65 @@ export function useDataSync(userId: string | undefined) {
         }
       },
     });
-    channels.push(ideasSub);
 
-    const focusSessionsSub = supabase
-      .channel(`focus_sessions_sync_${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "focus_sessions",
-          filter: `user_id=eq.${userId}`,
+    const releaseFocusSessions = subscribeTable<{ id: string }>(
+      "focus_sessions",
+      userId,
+      {
+        event: "INSERT",
+        onInsert: () => {
+          void fetchFocusSessionsToday().then((seconds) => {
+            reconcileStreakSnapshot(
+              seconds,
+              useAppStore.getState().todayXP,
+            );
+          });
         },
-        () => {
-          void fetchFocusSessionsToday();
-        },
-      )
-      .subscribe();
-    channels.push(focusSessionsSub);
+      },
+    );
 
     // daily_logs Subscription (consolidated — replaces RightSidebar + useSidebarData copies)
-    const dailyLogsSub = supabase
-      .channel(`daily_logs_sync_${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "daily_logs",
-          filter: `user_id=eq.${userId}`,
+    const releaseDailyLogs = subscribeTable<{ id: string }>(
+      "daily_logs",
+      userId,
+      {
+        onInsert: () => {
+          void fetchTodayXP().then((xp) => {
+            reconcileStreakSnapshot(
+              useAppStore.getState().focusSessionSecondsToday,
+              xp,
+            );
+          });
         },
-        () => {
-          void fetchTodayXP();
+        onUpdate: () => {
+          void fetchTodayXP().then((xp) => {
+            reconcileStreakSnapshot(
+              useAppStore.getState().focusSessionSecondsToday,
+              xp,
+            );
+          });
         },
-      )
-      .subscribe();
-    channels.push(dailyLogsSub);
+      },
+    );
+
+    // Topics Subscription (item 35): realtime row-merge only. List loading,
+    // CRUD, and caches stay in useTopics; remote row changes converge here
+    // via a targeted single-row refetch (no full-refetch flicker).
+    const releaseTopics = subscribeTable<TopicRow>("topics", userId, {
+      onInsert: (row) => {
+        void refreshTopicRow(row.id);
+      },
+      onUpdate: (row) => {
+        void refreshTopicRow(row.id);
+      },
+      onDelete: (oldId) => {
+        useAppStore.getState().removeTopic(oldId);
+        const selected = useAppStore.getState().selectedTopic;
+        if (selected?.id === oldId) {
+          useAppStore.getState().setSelectedTopic(null);
+        }
+      },
+    });
 
     // Retry signal: when retryDataSync bumps a per-resource counter, refetch
     // so the Dashboard retry buttons actually re-run the failed query.
@@ -385,7 +476,12 @@ export function useDataSync(userId: string | undefined) {
 
     return () => {
       retryUnsub();
-      channels.forEach((sub) => sub.unsubscribe());
+      releaseNotes();
+      releasePapers();
+      releaseIdeas();
+      releaseFocusSessions();
+      releaseDailyLogs();
+      releaseTopics();
     };
   }, [
     userId,

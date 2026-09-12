@@ -24,7 +24,6 @@ const selectSetSelectedIdea = (state: AppStoreState) => state.setSelectedIdea;
 
 export function useIdeas(userId: string | undefined) {
   const fetchIdeasRef = useRef<() => Promise<void>>(async () => {});
-  const setSelectedIdea = useAppStore(selectSetSelectedIdea);
 
   const crud = useEntityCrud<Idea, Partial<Idea>, IdeaStage | undefined>({
     userId,
@@ -194,34 +193,19 @@ export function useIdeas(userId: string | undefined) {
     xpCreate: { reward: XP_REWARDS.CREATE_IDEA, action: "create_idea" },
   });
 
-  const { error, setError, setItems, update: updateEntity } = crud;
+  const { error, update: updateEntity } = crud;
 
-  const fetchIdeas = useCallback(async () => {
+  // Item 33 (single loader per table): ideas are loaded ONLY by useDataSync.
+  // The hook-local duplicate fetch is deleted; manual refresh (and the
+  // create-null-data recovery above) reuses the single loader via the store
+  // retry signal, which useDataSync listens to. Ordering and selected-idea
+  // sync come from that path, so behavior is unchanged.
+  const refreshIdeas = useCallback(async () => {
     if (!userId) return;
+    useAppStore.getState().retryDataSync("ideas");
+  }, [userId]);
 
-    // setLoading(true) // Handled by global sync
-    const { data, error: fetchError } = await supabase
-      .from("ideas")
-      .select("*")
-      .eq("user_id", userId)
-      .order("updated_at", { ascending: false });
-
-    if (fetchError) {
-      setError(fetchError.message);
-    } else {
-      const rows = data || [];
-      setItems(rows);
-      const selected = useAppStore.getState().selectedIdea;
-      if (selected) {
-        const fresh = rows.find((idea) => idea.id === selected.id);
-        if (fresh) {
-          setSelectedIdea(fresh);
-        }
-      }
-    }
-  }, [userId, setError, setItems, setSelectedIdea]);
-
-  fetchIdeasRef.current = fetchIdeas;
+  fetchIdeasRef.current = refreshIdeas;
 
   const updateIdea = useCallback(
     (
@@ -240,7 +224,7 @@ export function useIdeas(userId: string | undefined) {
     updateIdea,
     deleteIdea: crud.delete,
     restoreIdea: crud.restore,
-    refreshIdeas: fetchIdeas,
+    refreshIdeas,
   };
 }
 

@@ -9,8 +9,8 @@
  * Sidebar stats (right_sidebar_tasks) refresh deadline counts only.
  */
 import { useEffect, useState, useCallback } from "react";
-import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase";
+import { subscribeTable } from "../lib/realtime";
 import { XP_REWARDS } from "../utils/gamification";
 import { toast } from "sonner";
 import { parseDateInput } from "../utils/time";
@@ -83,68 +83,32 @@ function applyTasksRealtimePayload(payload: {
   }
 }
 
-let tasksRealtimeChannel: RealtimeChannel | null = null;
-let tasksRealtimeUserId: string | null = null;
-let tasksRealtimeRefCount = 0;
-
-function acquireTasksRealtimeSubscription(userId: string) {
-  if (
-    tasksRealtimeChannel &&
-    tasksRealtimeUserId &&
-    tasksRealtimeUserId !== userId
-  ) {
-    void tasksRealtimeChannel.unsubscribe();
-    tasksRealtimeChannel = null;
-    tasksRealtimeUserId = null;
-    tasksRealtimeRefCount = 0;
-  }
-
-  tasksRealtimeRefCount += 1;
-
-  if (tasksRealtimeChannel && tasksRealtimeUserId === userId) {
-    return;
-  }
-
-  if (tasksRealtimeChannel) {
-    void tasksRealtimeChannel.unsubscribe();
-    tasksRealtimeChannel = null;
-    tasksRealtimeUserId = null;
-  }
-
-  tasksRealtimeUserId = userId;
-  tasksRealtimeChannel = supabase
-    .channel(`tasks_realtime_${userId}`)
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "tasks",
-        filter: `user_id=eq.${userId}`,
-      },
-      (payload) => {
-        applyTasksRealtimePayload(payload as {
-          eventType: "INSERT" | "UPDATE" | "DELETE";
-          new: Record<string, unknown>;
-          old: Record<string, unknown>;
-        });
-      },
-    )
-    .subscribe();
-}
-
-function releaseTasksRealtimeSubscription() {
-  tasksRealtimeRefCount = Math.max(0, tasksRealtimeRefCount - 1);
-
-  if (tasksRealtimeRefCount > 0) {
-    return;
-  }
-
-  if (tasksRealtimeChannel) {
-    void tasksRealtimeChannel.unsubscribe();
-    tasksRealtimeChannel = null;
-    tasksRealtimeUserId = null;
-  }
+/**
+ * Item 35: tasks realtime lifecycle is owned by the shared
+ * `subscribeTable` helper (single channel per table+user, ref-counted).
+ * This hook keeps only the tasks merge policy above.
+ */
+function subscribeTasksRealtime(userId: string): () => void {
+  return subscribeTable<Task>("tasks", userId, {
+    onInsert: (row) =>
+      applyTasksRealtimePayload({
+        eventType: "INSERT",
+        new: row as unknown as Record<string, unknown>,
+        old: {},
+      }),
+    onUpdate: (row) =>
+      applyTasksRealtimePayload({
+        eventType: "UPDATE",
+        new: row as unknown as Record<string, unknown>,
+        old: {},
+      }),
+    onDelete: (oldId) =>
+      applyTasksRealtimePayload({
+        eventType: "DELETE",
+        new: {},
+        old: { id: oldId },
+      }),
+  });
 }
 
 function normalizeDate(value: string): string {
@@ -314,11 +278,11 @@ export function useTasks(
       }
     });
 
-    acquireTasksRealtimeSubscription(userId);
+    const releaseTasksRealtime = subscribeTasksRealtime(userId);
 
     return () => {
       retryUnsub();
-      releaseTasksRealtimeSubscription();
+      releaseTasksRealtime();
     };
   }, [
     fetchTasks,

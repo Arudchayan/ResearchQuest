@@ -1,6 +1,23 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+/**
+ * Item 43 — single streak authority.
+ *
+ * STREAK AUTHORITY RULE:
+ * - Signed in (server reachable, not demo): the server is the single streak
+ *   authority (`user_profiles.current_streak`, `daily_logs`, `focus_sessions`,
+ *   reconciled into this store via `applyServerSnapshot`). Server values win
+ *   over local counters for the signals the server tracks.
+ * - Demo / offline / signed out: there is no server, so this persisted local
+ *   store is the authority and `applyServerSnapshot` is never called
+ *   (see `useDataSync`: it skips reconciliation in demo mode).
+ *
+ * Only the focus mission is server-reconcilable (`focus_sessions` carries
+ * minutes; `daily_logs` carries XP totals, not per-action event counts), so
+ * only `focus_25` is ever overwritten — every other mission stays local-only.
+ */
+
 export type MissionEvent =
   | "note"
   | "paper"
@@ -78,6 +95,14 @@ interface DailyMissionsState {
   getMissionProgress: (missionId: string) => number;
   completedToday: number;
   resetIfNeeded: () => void;
+  /**
+   * Server-wins reconcile for the focus mission (see authority rule above).
+   * Sets `focus_25` progress to the server-observed focus minutes (capped at
+   * the mission target) and keeps `completedToday` consistent. No-op when the
+   * store already rolled over to a different day — day rollover is owned by
+   * `resetIfNeeded`, never by the server snapshot.
+   */
+  applyServerSnapshot: (focusMinutes: number) => void;
 }
 
 function completedCount(progress: Record<string, number>): number {
@@ -116,9 +141,46 @@ export const useDailyMissionsStore = create<DailyMissionsState>()(
           set({ date: today, progress: {}, completedToday: 0 });
         }
       },
+      applyServerSnapshot: (focusMinutes) => {
+        get().resetIfNeeded();
+        const focusMission = DAILY_MISSIONS.find(
+          (mission) => mission.id === "focus_25",
+        );
+        if (!focusMission) return;
+        const next = Math.min(
+          focusMission.target,
+          Math.max(0, Math.floor(focusMinutes)),
+        );
+        const progress = { ...get().progress };
+        if ((progress.focus_25 ?? 0) === next) return;
+        progress.focus_25 = next;
+        set({ progress, completedToday: completedCount(progress) });
+      },
     }),
     {
       name: "researchquest-daily-missions",
+      // Versioned so legacy unversioned persists migrate safely instead of
+      // being dropped or misread when the shape evolves.
+      version: 1,
+      migrate: (persisted) => {
+        const legacy = (persisted ?? {}) as Partial<{
+          date: unknown;
+          progress: unknown;
+          completedToday: unknown;
+        }>;
+        const progress =
+          legacy.progress && typeof legacy.progress === "object"
+            ? (legacy.progress as Record<string, number>)
+            : {};
+        return {
+          date: typeof legacy.date === "string" ? legacy.date : dateKey(),
+          progress,
+          completedToday:
+            typeof legacy.completedToday === "number"
+              ? legacy.completedToday
+              : completedCount(progress),
+        };
+      },
     },
   ),
 );
