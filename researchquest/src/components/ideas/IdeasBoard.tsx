@@ -33,6 +33,7 @@ import { EmptyState } from "../ui/EmptyState";
 import { InlineError } from "../ui/ErrorFallback";
 import { toast } from "sonner";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
+import { singleDeleteCopy } from "../../utils/deleteModel";
 import { ListSkeleton } from "../ui/Skeleton";
 import {
   convertIdeasToCSV,
@@ -319,6 +320,7 @@ export function IdeasBoard() {
     }
 
     const timestamp = new Date().toISOString().split("T")[0];
+    const exportScope = searchQuery.trim() ? "filtered" : "all";
     let content = "";
     let filename = "";
     let type = "";
@@ -327,24 +329,24 @@ export function IdeasBoard() {
       switch (format) {
         case "markdown":
           content = convertIdeasToMarkdown(filteredIdeas);
-          filename = `research-ideas-${timestamp}.md`;
+          filename = `research-ideas-${exportScope}-${timestamp}.md`;
           type = "text/markdown";
           break;
         case "csv":
           content = convertIdeasToCSV(filteredIdeas);
-          filename = `research-ideas-${timestamp}.csv`;
+          filename = `research-ideas-${exportScope}-${timestamp}.csv`;
           type = "text/csv";
           break;
         case "json":
           content = convertIdeasToJSON(filteredIdeas);
-          filename = `research-ideas-${timestamp}.json`;
+          filename = `research-ideas-${exportScope}-${timestamp}.json`;
           type = "application/json";
           break;
       }
 
       downloadFile(content, filename, type);
       toast.success(
-        `Exported ${filteredIdeas.length} ideas as ${format.toUpperCase()}`
+        `Exported ${filteredIdeas.length} ${exportScope} ideas as ${format.toUpperCase()}`
       );
     } catch (err) {
       logger.error("Export failed", err);
@@ -388,21 +390,21 @@ export function IdeasBoard() {
                     className="flex cursor-pointer items-center gap-2 rounded-control px-3 py-2 text-small text-text-secondary outline-none transition-colors hover:bg-bg-elevated hover:text-text-primary focus:bg-bg-elevated"
                   >
                     <FileText aria-hidden="true" className="h-4 w-4" />
-                    Markdown (.md)
+                    Markdown (.md) — {searchQuery.trim() ? "filtered" : "all"} ideas
                   </DropdownMenu.Item>
                   <DropdownMenu.Item
                     onSelect={() => handleExport("csv")}
                     className="flex cursor-pointer items-center gap-2 rounded-control px-3 py-2 text-small text-text-secondary outline-none transition-colors hover:bg-bg-elevated hover:text-text-primary focus:bg-bg-elevated"
                   >
                     <Table aria-hidden="true" className="h-4 w-4" />
-                    CSV (.csv)
+                    CSV (.csv) — {searchQuery.trim() ? "filtered" : "all"} ideas
                   </DropdownMenu.Item>
                   <DropdownMenu.Item
                     onSelect={() => handleExport("json")}
                     className="flex cursor-pointer items-center gap-2 rounded-control px-3 py-2 text-small text-text-secondary outline-none transition-colors hover:bg-bg-elevated hover:text-text-primary focus:bg-bg-elevated"
                   >
                     <FileJson aria-hidden="true" className="h-4 w-4" />
-                    JSON (.json)
+                    JSON (.json) — {searchQuery.trim() ? "filtered" : "all"} ideas
                   </DropdownMenu.Item>
                 </DropdownMenu.Content>
               </DropdownMenu.Portal>
@@ -755,10 +757,7 @@ export function IdeasBoard() {
         onConfirm={() => {
           void confirmDelete();
         }}
-        title="Delete idea"
-        message={`Are you sure you want to delete "${ideaToDelete?.title || "Untitled Idea"}"? You can undo for a short time after deleting.`}
-        confirmText="Delete"
-        cancelText="Cancel"
+        {...singleDeleteCopy("idea", ideaToDelete?.title)}
         isLoading={isDeleting}
       />
     </div>

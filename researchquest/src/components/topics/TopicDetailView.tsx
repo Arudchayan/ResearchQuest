@@ -1,4 +1,5 @@
 import { ConfirmDialog, useConfirmDialog } from "../ui/ConfirmDialog";
+import { singleDeleteCopy } from "../../utils/deleteModel";
 import { logger } from "../../utils/logger";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -268,9 +269,7 @@ export function TopicDetailView({
 
   const handleDelete = async () => {
     const shouldDelete = await confirmDialog({
-      title: "Delete Topic",
-      message: "Delete this topic? This will remove its links to notes, papers, and ideas.",
-      confirmText: "Delete",
+      ...singleDeleteCopy("topic", topic.name, { linksNote: true }),
       variant: "danger",
     });
     if (!shouldDelete) return;

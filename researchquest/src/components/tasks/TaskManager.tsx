@@ -244,6 +244,10 @@ export function TaskManager() {
     setFormDueDate("");
   };
 
+  const isTaskExportFiltered =
+    searchQuery.trim() !== "" || filter !== "all" || categoryFilter !== "all" || projectFilter !== "all";
+  const taskExportScope: "filtered" | "all" = isTaskExportFiltered ? "filtered" : "all";
+
   const handleExport = (format: "markdown" | "csv" | "json") => {
     if (sortedTasks.length === 0) {
       toast.error("No tasks to export");
@@ -251,6 +255,7 @@ export function TaskManager() {
     }
 
     const timestamp = new Date().toISOString().split("T")[0];
+    const exportScope = taskExportScope;
     let content = "";
     let filename = "";
     let type = "";
@@ -259,24 +264,24 @@ export function TaskManager() {
       switch (format) {
         case "markdown":
           content = convertTasksToMarkdown(sortedTasks);
-          filename = `research-tasks-${timestamp}.md`;
+          filename = `research-tasks-${exportScope}-${timestamp}.md`;
           type = "text/markdown";
           break;
         case "csv":
           content = convertTasksToCSV(sortedTasks);
-          filename = `research-tasks-${timestamp}.csv`;
+          filename = `research-tasks-${exportScope}-${timestamp}.csv`;
           type = "text/csv";
           break;
         case "json":
           content = convertTasksToJSON(sortedTasks);
-          filename = `research-tasks-${timestamp}.json`;
+          filename = `research-tasks-${exportScope}-${timestamp}.json`;
           type = "application/json";
           break;
       }
 
       downloadFile(content, filename, type);
       toast.success(
-        `Exported ${sortedTasks.length} tasks as ${format.toUpperCase()}`,
+        `Exported ${sortedTasks.length} ${exportScope} tasks as ${format.toUpperCase()}`,
       );
     } catch (err) {
       logger.error("Export failed", err);
@@ -317,21 +322,21 @@ export function TaskManager() {
                     className="flex cursor-pointer items-center gap-2 rounded-control px-3 py-2 text-small text-text-primary outline-none hover:bg-bg-elevated focus:bg-bg-elevated"
                   >
                     <FileText className="h-4 w-4" aria-hidden="true" />
-                    Markdown (.md)
+                    Markdown (.md) — {taskExportScope} tasks
                   </DropdownMenu.Item>
                   <DropdownMenu.Item
                     onSelect={() => handleExport("csv")}
                     className="flex cursor-pointer items-center gap-2 rounded-control px-3 py-2 text-small text-text-primary outline-none hover:bg-bg-elevated focus:bg-bg-elevated"
                   >
                     <Table className="h-4 w-4" aria-hidden="true" />
-                    CSV (.csv)
+                    CSV (.csv) — {taskExportScope} tasks
                   </DropdownMenu.Item>
                   <DropdownMenu.Item
                     onSelect={() => handleExport("json")}
                     className="flex cursor-pointer items-center gap-2 rounded-control px-3 py-2 text-small text-text-primary outline-none hover:bg-bg-elevated focus:bg-bg-elevated"
                   >
                     <FileJson className="h-4 w-4" aria-hidden="true" />
-                    JSON (.json)
+                    JSON (.json) — {taskExportScope} tasks
                   </DropdownMenu.Item>
                 </DropdownMenu.Content>
               </DropdownMenu.Portal>

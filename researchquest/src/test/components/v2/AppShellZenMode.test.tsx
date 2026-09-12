@@ -97,6 +97,72 @@ describe("AppShell Zen Mode", () => {
     expect(useAppStore.getState().isZenMode).toBe(false);
   });
 
+  it("shows a persistent labeled exit cue while Zen Mode is active", () => {
+    useAppStore.setState({ isZenMode: true });
+    renderAppShell();
+
+    expect(screen.getByLabelText(/Exit Zen Mode/)).toBeInTheDocument();
+    expect(screen.getByText("Exit Zen")).toBeInTheDocument();
+  });
+
+  it("round-trips Zen Mode entry/exit without losing content", () => {
+    render(
+      <TooltipProvider>
+        <AppShell>
+          <p>Draft content that must survive</p>
+        </AppShell>
+      </TooltipProvider>,
+    );
+
+    expect(screen.getAllByTestId("sidebar")).toHaveLength(1);
+    expect(
+      screen.getByText("Draft content that must survive"),
+    ).toBeInTheDocument();
+
+    // Enter Zen Mode via keyboard shortcut
+    fireEvent.keyDown(window, {
+      key: "F",
+      code: "KeyF",
+      ctrlKey: true,
+      shiftKey: true,
+    });
+    expect(useAppStore.getState().isZenMode).toBe(true);
+    expect(screen.queryByTestId("sidebar")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("right-sidebar")).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/Exit Zen Mode/)).toBeInTheDocument();
+
+    // Exit Zen Mode via Escape — chrome returns, content is untouched
+    fireEvent.keyDown(window, { key: "Escape", code: "Escape" });
+    expect(useAppStore.getState().isZenMode).toBe(false);
+    expect(screen.getAllByTestId("sidebar")).toHaveLength(1);
+    expect(screen.getByTestId("right-sidebar")).toBeInTheDocument();
+    expect(
+      screen.getByText("Draft content that must survive"),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Exit Zen Mode/)).not.toBeInTheDocument();
+  });
+
+  it("does not exit Zen Mode when Escape is pressed inside a dialog", () => {
+    useAppStore.setState({ isZenMode: true });
+    render(
+      <TooltipProvider>
+        <AppShell>
+          <div role="dialog" aria-label="Note editor">
+            <p>Editing</p>
+          </div>
+        </AppShell>
+      </TooltipProvider>,
+    );
+
+    fireEvent.keyDown(screen.getByRole("dialog", { name: "Note editor" }), {
+      key: "Escape",
+      code: "Escape",
+    });
+
+    expect(useAppStore.getState().isZenMode).toBe(true);
+    expect(screen.getByLabelText(/Exit Zen Mode/)).toBeInTheDocument();
+  });
+
   it("toggles Context Panel with keyboard shortcut (Ctrl+.)", () => {
     renderAppShell();
 

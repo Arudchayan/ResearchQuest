@@ -22,13 +22,8 @@ vi.mock("../../hooks/useIdeas", () => ({
   useIdeas: () => ({ ideas: [] }),
 }));
 
-// Mock exportData
-const mockExportData = vi.fn();
-vi.mock("../../utils/export", () => ({
-  exportData: vi.fn(async (data: unknown) => {
-    mockExportData(data);
-  }),
-}));
+// The palette has no duplicate direct-export path: export flows through the
+// canonical Data Management dialog (single export model, plan item 57).
 
 describe("CommandPalette Data & API Settings", () => {
   const originalScrollIntoView = window.HTMLElement.prototype.scrollIntoView;
@@ -74,13 +69,14 @@ describe("CommandPalette Data & API Settings", () => {
     });
   });
 
-  it("renders Quick Export command", async () => {
+  it("does not render a duplicate Quick Export command", async () => {
     render(<CommandPalette />);
     fireEvent.keyDown(document, { key: "k", metaKey: true });
 
     await waitFor(() => {
-      expect(screen.getByText("Quick Export All Data")).toBeInTheDocument();
+      expect(screen.getByText("Data Management...")).toBeInTheDocument();
     });
+    expect(screen.queryByText("Quick Export All Data")).not.toBeInTheDocument();
   });
 
   it("dispatches open-data-management event when Data & API Settings is selected", async () => {
@@ -101,26 +97,20 @@ describe("CommandPalette Data & API Settings", () => {
     expect(event).toBeTruthy();
   });
 
-  it("calls exportData with topics when Quick Export is selected", async () => {
+  it("routes export through Data Management when its command is selected", async () => {
     render(<CommandPalette />);
     fireEvent.keyDown(document, { key: "k", metaKey: true });
 
+    const dispatchEventSpy = vi.spyOn(document, "dispatchEvent");
+
     await waitFor(() => {
-      const item = screen.getByText("Quick Export All Data");
+      const item = screen.getByText("Data Management...");
       fireEvent.click(item);
     });
 
-    await waitFor(() => {
-      expect(mockExportData).toHaveBeenCalled();
-    });
-    const callArgs = mockExportData.mock.calls[0][0] as {
-      userId: string;
-      topics: { name: string }[];
-      tasks: unknown[];
-    };
-    expect(callArgs.userId).toBe("test-user");
-    expect(callArgs.topics).toHaveLength(1);
-    expect(callArgs.topics[0].name).toBe("Topic 1");
-    expect(Array.isArray(callArgs.tasks)).toBe(true);
+    const event = dispatchEventSpy.mock.calls.find(
+      (call) => (call[0] as CustomEvent).type === "open-data-management",
+    );
+    expect(event).toBeTruthy();
   });
 });
