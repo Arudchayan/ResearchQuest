@@ -21,7 +21,7 @@ const feedItem: FeedItem = {
 };
 
 describe("FeedItemCard", () => {
-  it("renders feed metadata and calls promote action with selected target", async () => {
+  it("renders feed metadata and promotes to paper (one-path)", async () => {
     const onPromote = vi.fn();
     const onArchive = vi.fn();
     const user = userEvent.setup();
@@ -45,11 +45,12 @@ describe("FeedItemCard", () => {
 
     await user.click(
       screen.getByRole("button", {
-        name: /promote attention is all you need to task/i,
+        name: /promote attention is all you need to paper/i,
       }),
     );
 
-    expect(onPromote).toHaveBeenCalledWith("feed-item-1", "task");
+    expect(onPromote).toHaveBeenCalledWith("feed-item-1");
+    expect(onPromote).toHaveBeenCalledTimes(1);
     expect(onArchive).not.toHaveBeenCalled();
   });
 

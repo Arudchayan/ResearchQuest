@@ -6,7 +6,11 @@ export const FEED_ITEM_STATUSES = [
   "promoted",
 ] as const;
 export const TRIAGE_STATUSES = ["new", "triaged", "archived"] as const;
-export const PROMOTE_TARGETS = ["paper", "task", "note"] as const;
+// PR21 item 99: feeds one-path — promote targets papers only. Task/note
+// promotion was removed (no dead targets); triage/archive cover the rest.
+// RSS ingest UI, cron polling, and deep-research orchestration are deferred
+// (see TODO stubs in feedRoutes.ts).
+export const PROMOTE_TARGETS = ["paper"] as const;
 
 export type FeedItemType = (typeof FEED_ITEM_TYPES)[number];
 export type FeedItemStatus = (typeof FEED_ITEM_STATUSES)[number];

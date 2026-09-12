@@ -204,7 +204,8 @@ const ENTITY_META: EntityMeta[] = [
       "doi",
       "source_url",
       "status",
-      "topic_ids",
+      // PR21 item 92: topic_ids intentionally omitted — topic_papers is the
+      // authority. Attach topics via POST /topics/{id}/attach instead.
       "abstract",
       "publication_date",
     ],
@@ -214,7 +215,6 @@ const ENTITY_META: EntityMeta[] = [
       doi: "string|null",
       source_url: "string|null (uri)",
       status: "To Read | Reading | Read",
-      topic_ids: "string[]",
       abstract: "string|null (max 5000)",
       publication_date: "string|null",
     },
@@ -223,7 +223,6 @@ const ENTITY_META: EntityMeta[] = [
       authors: ["Vaswani et al."],
       doi: "10.48550/arXiv.1706.03762",
       status: "To Read",
-      topic_ids: [],
     },
     batchExample: [
       {

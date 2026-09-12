@@ -3,14 +3,12 @@ import {
   BookOpen,
   Briefcase,
   Check,
-  CheckSquare,
   ExternalLink,
-  FileText,
   Newspaper,
   Sparkles,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
-import type { FeedItem, FeedItemType, FeedPromoteTarget } from "../../types/database";
+import type { FeedItem, FeedItemType } from "../../types/database";
 import { isValidUrl } from "../../utils/security";
 
 const TYPE_LABELS: Record<FeedItemType, string> = {
@@ -18,12 +16,6 @@ const TYPE_LABELS: Record<FeedItemType, string> = {
   job: "Job",
   news: "News",
   custom: "Custom",
-};
-
-const TARGET_LABELS: Record<FeedPromoteTarget, string> = {
-  paper: "Paper",
-  task: "Task",
-  note: "Note",
 };
 
 const TYPE_CHIP_STYLES: Record<FeedItemType, string> = {
@@ -50,17 +42,6 @@ function FeedTypeIcon({ type }: { type: FeedItemType }) {
       return <Newspaper className="h-4 w-4" aria-hidden="true" />;
     case "custom":
       return <Sparkles className="h-4 w-4" aria-hidden="true" />;
-  }
-}
-
-function PromoteIcon({ target }: { target: FeedPromoteTarget }) {
-  switch (target) {
-    case "paper":
-      return <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />;
-    case "task":
-      return <CheckSquare className="h-3.5 w-3.5" aria-hidden="true" />;
-    case "note":
-      return <FileText className="h-3.5 w-3.5" aria-hidden="true" />;
   }
 }
 
@@ -118,10 +99,7 @@ interface FeedItemCardProps {
   actionItemId?: string | null;
   onArchive?: (itemId: string) => void | Promise<unknown>;
   onMarkTriaged?: (itemId: string) => void | Promise<unknown>;
-  onPromote?: (
-    itemId: string,
-    target: FeedPromoteTarget,
-  ) => void | Promise<unknown>;
+  onPromote?: (itemId: string) => void | Promise<unknown>;
   className?: string;
 }
 
@@ -138,7 +116,6 @@ export function FeedItemCard({
   const dateLabel = formatFeedDate(item.published_at ?? item.created_at);
   const isArchived = item.status === "archived";
   const isPromoted = item.status === "promoted";
-  const promoteTargets: FeedPromoteTarget[] = ["paper", "task", "note"];
 
   return (
     <article
@@ -228,22 +205,18 @@ export function FeedItemCard({
           </button>
         )}
 
+        {/* PR21 item 99: promote → paper only (one-path). No task/note buttons. */}
         {!isArchived && !isPromoted && onPromote && (
-          <div className="flex flex-wrap items-center gap-1.5">
-            {promoteTargets.map((target) => (
-              <button
-                key={target}
-                type="button"
-                onClick={() => void onPromote(item.id, target)}
-                disabled={isBusy}
-                className="inline-flex items-center gap-1 rounded-lg bg-text-primary px-2.5 py-1 text-caption font-medium text-bg-base shadow-sm transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
-                aria-label={`Promote ${item.title} to ${TARGET_LABELS[target]}`}
-              >
-                <PromoteIcon target={target} />
-                {compact ? TARGET_LABELS[target] : `Promote ${TARGET_LABELS[target]}`}
-              </button>
-            ))}
-          </div>
+          <button
+            type="button"
+            onClick={() => void onPromote(item.id)}
+            disabled={isBusy}
+            className="inline-flex items-center gap-1 rounded-lg bg-text-primary px-2.5 py-1 text-caption font-medium text-bg-base shadow-sm transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
+            aria-label={`Promote ${item.title} to paper`}
+          >
+            <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
+            {compact ? "Paper" : "Promote to paper"}
+          </button>
         )}
       </div>
     </article>

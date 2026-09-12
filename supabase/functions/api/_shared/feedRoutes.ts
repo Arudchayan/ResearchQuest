@@ -10,7 +10,6 @@ import {
   type JsonRecord,
   planFeedItemBatch,
   promotedPaperSourceUrl,
-  type PromoteTarget,
   validateFeedItemBatchCreate,
   validateFeedItemCreate,
   validateFeedItemPatch,
@@ -23,6 +22,12 @@ const FEED_SOURCE_SELECT =
   "id, user_id, name, kind, config, enabled, created_at, updated_at";
 const FEED_ITEM_SELECT =
   "id, user_id, source_id, type, title, summary, url, payload, status, external_id, published_at, created_at, updated_at";
+
+// PR21 item 99 — deferred feeds work, intentionally stubbed (no dead UI):
+// - TODO(feeds-rss): RSS/Atom source polling UI + ingestion mapping.
+// - TODO(feeds-cron): scheduled trigger calling batchCreate for enabled sources.
+// - TODO(feeds-deep-research): deep-research orchestration over promoted papers.
+// Until those land, the promote path below is paper-only one-path.
 
 async function readJsonBody(
   req: Request,
@@ -118,10 +123,6 @@ function stringField(fields: JsonRecord, field: string): string | undefined {
   return value || undefined;
 }
 
-function booleanField(fields: JsonRecord, field: string): boolean | undefined {
-  return typeof fields[field] === "boolean" ? fields[field] : undefined;
-}
-
 function stringArrayField(
   fields: JsonRecord,
   field: string,
@@ -134,26 +135,17 @@ function stringArrayField(
     .filter(Boolean);
 }
 
-function isoField(fields: JsonRecord, field: string): string | undefined {
-  const value = stringField(fields, field);
-  if (!value) return undefined;
-  return Number.isNaN(Date.parse(value))
-    ? undefined
-    : new Date(value).toISOString();
-}
-
 function publicationDateFromFeedItem(item: JsonRecord): string | undefined {
   return typeof item.published_at === "string"
     ? item.published_at.slice(0, 10)
     : undefined;
 }
 
-function buildPromotedEntityInsert(
-  target: PromoteTarget,
+function buildPromotedPaperInsert(
   item: JsonRecord,
   fields: JsonRecord,
   userId: string,
-): { table: "papers" | "tasks" | "notes"; row: Record<string, unknown> } | {
+): { table: "papers"; row: Record<string, unknown> } | {
   error: string;
 } {
   const title = stringField(fields, "title") ??
@@ -167,79 +159,29 @@ function buildPromotedEntityInsert(
     return { error: "title must be at most 500 characters" };
   }
 
-  if (target === "paper") {
-    const sourceUrl = promotedPaperSourceUrl(fields, url);
-    if (sourceUrl.error) return { error: sourceUrl.error };
-    const abstract = stringField(fields, "abstract") ?? summary ?? null;
-    if (abstract && abstract.length > 50_000) {
-      return { error: "abstract must be at most 50000 characters" };
-    }
-    return {
-      table: "papers",
-      row: {
-        user_id: userId,
-        title,
-        authors: stringArrayField(fields, "authors") ??
-          stringArrayField(payload, "authors") ?? [],
-        doi: stringField(fields, "doi") ?? stringField(payload, "doi") ?? null,
-        source_url: sourceUrl.value,
-        status: stringField(fields, "status") ?? "To Read",
-        topic_ids: stringArrayField(fields, "topic_ids") ?? [],
-        abstract,
-        publication_date: stringField(fields, "publication_date") ??
-          publicationDateFromFeedItem(item) ??
-          null,
-      },
-    };
-  }
-
-  if (target === "task") {
-    const priority = stringField(fields, "priority") ?? "medium";
-    if (!["high", "medium", "low"].includes(priority)) {
-      return { error: "priority must be one of: high, medium, low" };
-    }
-    const description = stringField(fields, "description") ?? summary ?? url ??
-      null;
-    if (description && description.length > 10_000) {
-      return { error: "description must be at most 10000 characters" };
-    }
-    return {
-      table: "tasks",
-      row: {
-        user_id: userId,
-        title,
-        description,
-        completed: booleanField(fields, "completed") ?? false,
-        priority,
-        category: stringField(fields, "category") ?? "Feeds",
-        due_date: isoField(fields, "due_date") ?? null,
-      },
-    };
-  }
-
-  const defaultBody = [
-    `# ${title}`,
-    "",
-    summary ?? "",
-    url ? `Source: ${url}` : "",
-  ]
-    .filter((line) => line !== "")
-    .join("\n");
-  const markdownBody = stringField(fields, "markdown_body") ?? defaultBody;
-  if (!markdownBody || markdownBody.length < 1) {
-    return { error: "markdown_body is required for note promotion" };
-  }
-  if (markdownBody.length > 100_000) {
-    return { error: "markdown_body must be at most 100000 characters" };
+  // PR21 item 99: promote → paper only.
+  const sourceUrl = promotedPaperSourceUrl(fields, url);
+  if (sourceUrl.error) return { error: sourceUrl.error };
+  const abstract = stringField(fields, "abstract") ?? summary ?? null;
+  if (abstract && abstract.length > 50_000) {
+    return { error: "abstract must be at most 50000 characters" };
   }
   return {
-    table: "notes",
+    table: "papers",
     row: {
       user_id: userId,
       title,
-      markdown_body: markdownBody,
-      tags: stringArrayField(fields, "tags") ?? [],
-      linked_entity_ids: stringArrayField(fields, "linked_entity_ids") ?? [],
+      authors: stringArrayField(fields, "authors") ??
+        stringArrayField(payload, "authors") ?? [],
+      doi: stringField(fields, "doi") ?? stringField(payload, "doi") ?? null,
+      source_url: sourceUrl.value,
+      status: stringField(fields, "status") ?? "To Read",
+      // PR21 item 92: no topic_ids here — the junction is the authority.
+      // Attach topics to the promoted paper via POST /topics/{id}/attach.
+      abstract,
+      publication_date: stringField(fields, "publication_date") ??
+        publicationDateFromFeedItem(item) ??
+        null,
     },
   };
 }
@@ -707,6 +649,46 @@ async function patchFeedItem(
   return jsonResponse({ data }, 200, corsHeaders);
 }
 
+// PR21 item 99: dedupe promote-by-paper against the user's library by DOI
+// (case-insensitive) or source URL so re-ingested leads never create
+// duplicate papers. Fails open (returns null) so a lookup failure never
+// blocks promotion.
+async function findDuplicatePaper(
+  ctx: AuthContext,
+  doi: unknown,
+  sourceUrl: unknown,
+): Promise<{ id: string; title: string } | null> {
+  if (typeof doi === "string" && doi.trim()) {
+    const { data, error } = await ctx.supabaseAdmin
+      .from("papers")
+      .select("id, title")
+      .eq("user_id", ctx.userId)
+      .ilike("doi", doi.trim())
+      .limit(1)
+      .maybeSingle();
+    if (error) {
+      console.error("promote feed item dedupe doi lookup", error);
+      return null;
+    }
+    if (data) return data as { id: string; title: string };
+  }
+  if (typeof sourceUrl === "string" && sourceUrl) {
+    const { data, error } = await ctx.supabaseAdmin
+      .from("papers")
+      .select("id, title")
+      .eq("user_id", ctx.userId)
+      .eq("source_url", sourceUrl)
+      .limit(1)
+      .maybeSingle();
+    if (error) {
+      console.error("promote feed item dedupe url lookup", error);
+      return null;
+    }
+    if (data) return data as { id: string; title: string };
+  }
+  return null;
+}
+
 async function promoteFeedItem(
   ctx: AuthContext,
   req: Request,
@@ -734,12 +716,8 @@ async function promoteFeedItem(
       corsHeaders,
     );
   }
-  const targetScope = parsed.value.target === "paper"
-    ? "papers:write"
-    : parsed.value.target === "task"
-    ? "tasks:write"
-    : "notes:write";
-  const targetDenied = requireScopes(ctx, [targetScope], corsHeaders);
+  // PR21 item 99: promote is paper-only one-path.
+  const targetDenied = requireScopes(ctx, ["papers:write"], corsHeaders);
   if (targetDenied) return targetDenied;
 
   const { data: item, error: itemError } = await ctx.supabaseAdmin
@@ -768,14 +746,59 @@ async function promoteFeedItem(
       corsHeaders,
     );
   }
-  const promotion = buildPromotedEntityInsert(
-    parsed.value.target,
+  const promotion = buildPromotedPaperInsert(
     item,
     parsed.value.fields,
     ctx.userId,
   );
   if ("error" in promotion) {
     return errorResponse("VALIDATION_ERROR", promotion.error, 400, corsHeaders);
+  }
+
+  // PR21 item 99: dedupe by URL/DOI before claiming. A duplicate resolves to
+  // the existing paper and the item is marked triaged (success path, 200)
+  // instead of creating a second paper.
+  const duplicate = await findDuplicatePaper(
+    ctx,
+    promotion.row.doi,
+    promotion.row.source_url,
+  );
+  if (duplicate) {
+    const dedupedPayload = {
+      ...(isRecord(item.payload) ? item.payload : {}),
+      promotion: {
+        target: "paper",
+        deduped: true,
+        entity_id: duplicate.id,
+        promoted_at: new Date().toISOString(),
+      },
+    };
+    const { data: triagedItem, error: triageError } = await ctx.supabaseAdmin
+      .from("feed_items")
+      .update({ status: "triaged", payload: dedupedPayload })
+      .eq("id", id)
+      .eq("user_id", ctx.userId)
+      .select(FEED_ITEM_SELECT)
+      .single();
+    if (triageError || !triagedItem) {
+      console.error("promote feed item dedupe triage", triageError);
+      return errorResponse(
+        "INTERNAL_ERROR",
+        "Failed to triage duplicate feed item",
+        500,
+        corsHeaders,
+      );
+    }
+    await writeAudit(ctx, "feed_items.promote", `feed_items/${id}`, 200, req, {
+      target: "paper",
+      deduped: true,
+      entity_id: duplicate.id,
+    });
+    return jsonResponse(
+      { target: "paper", entity: duplicate, item: triagedItem, deduped: true },
+      200,
+      corsHeaders,
+    );
   }
 
   // Claim the item first to reduce duplicate promotes under concurrency.

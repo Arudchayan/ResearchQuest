@@ -31,6 +31,7 @@ interface PromoteResponse {
   target: FeedPromoteTarget;
   entity: unknown;
   item: FeedItem;
+  deduped?: boolean;
 }
 
 function compareFeedItems(a: FeedItem, b: FeedItem) {
@@ -222,8 +223,11 @@ export function useFeedItems(
     [updateFeedItemStatus],
   );
 
+  // PR21 item 99: feeds one-path — promote → paper only. The server
+  // dedupes by URL/DOI: duplicates resolve to the existing paper and the
+  // item is marked triaged (200) instead of creating a second paper.
   const promoteFeedItem = useCallback(
-    async (itemId: string, target: FeedPromoteTarget) => {
+    async (itemId: string) => {
       if (!userId) {
         toast.error("You must be logged in to promote feeds");
         return null;
@@ -249,7 +253,7 @@ export function useFeedItems(
               Authorization: `Bearer ${session.access_token}`,
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({ target }),
+            body: JSON.stringify({ target: "paper" satisfies FeedPromoteTarget }),
           },
         );
         const body = await response.json();
@@ -269,7 +273,11 @@ export function useFeedItems(
               .filter((item) => feedItemMatchesFilters(item, type, status)),
           ),
         );
-        toast.success(`Promoted to ${target}`);
+        if (promoted.deduped) {
+          toast.success("Already in your library — marked as triaged");
+        } else {
+          toast.success("Promoted to paper");
+        }
         return promoted;
       } catch (promoteError) {
         logger.error("Failed to promote feed item", promoteError);

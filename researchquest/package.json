@@ -25,7 +25,9 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:first-run": "playwright test -c playwright.first-run.config.ts",
-    "typecheck:strict": "tsc -p tsconfig.strict.json --noEmit"
+    "typecheck:strict": "tsc -p tsconfig.strict.json --noEmit",
+    "db:types": "supabase gen types typescript --project-id \"${SUPABASE_PROJECT_ID:?SUPABASE_PROJECT_ID is required}\" --schema public > src/types/database.ts",
+    "db:types:check": "node scripts/check-db-types.mjs"
   },
   "dependencies": {
     "@codemirror/lang-markdown": "^6.5.2",

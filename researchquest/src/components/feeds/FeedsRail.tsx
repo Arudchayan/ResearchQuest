@@ -3,7 +3,6 @@ import { useState } from "react";
 import { useAppStore } from "../../store/appStore";
 import { useFeedItems, FEED_ITEM_TYPES, type FeedTypeFilter } from "../../hooks/useFeedItems";
 import { FeedItemCard } from "./FeedItemCard";
-import type { FeedPromoteTarget } from "../../types/database";
 import { cn } from "../../lib/utils";
 
 const TYPE_LABELS: Record<FeedTypeFilter, string> = {
@@ -37,8 +36,8 @@ export function FeedsRail() {
     window.history.pushState(null, "", "/feeds");
   };
 
-  const handlePromote = (itemId: string, target: FeedPromoteTarget) => {
-    void promoteFeedItem(itemId, target);
+  const handlePromote = (itemId: string) => {
+    void promoteFeedItem(itemId);
   };
 
   return (

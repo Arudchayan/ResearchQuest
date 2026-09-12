@@ -24,7 +24,7 @@ const PAPER_TITLE_MAX_LENGTH = 255;
 const PAPER_ABSTRACT_MAX_LENGTH = 5000;
 
 type PaperInsertPayload = Pick<Paper, "user_id" | "title" | "authors" | "status"> &
-  Partial<Pick<Paper, "doi" | "source_url" | "abstract" | "publication_date" | "topic_ids">>;
+  Partial<Pick<Paper, "doi" | "source_url" | "abstract" | "publication_date">>;
 
 interface FunctionErrorPayload<T> {
   error?: {
@@ -163,13 +163,10 @@ function cleanPaperDraft(
     }
   }
 
-  if (
-    paperData.topic_ids &&
-    Array.isArray(paperData.topic_ids) &&
-    paperData.topic_ids.length > 0
-  ) {
-    cleanData.topic_ids = paperData.topic_ids;
-  }
+  // PR21 item 92: topic_papers is the authority for paper<->topic links.
+  // topic_ids is a DB-maintained read cache — it is never copied from the
+  // draft so creates can never dual-write. Assign topics afterwards via
+  // the topic attach flow (useTopics.attachTopicToEntity).
 
   return { ok: true, payload: cleanData };
 }
@@ -305,6 +302,9 @@ export function usePapers(userId: string | undefined) {
       }
 
       const sanitized: Partial<Paper> = { ...updates };
+      // PR21 item 92: topic_ids is a DB-maintained read cache — updates go
+      // through the topic_papers junction (attach/detach flow).
+      delete sanitized.topic_ids;
       if (sanitized.source_url) {
         const url = sanitized.source_url.trim();
         if (isValidUrl(url)) {

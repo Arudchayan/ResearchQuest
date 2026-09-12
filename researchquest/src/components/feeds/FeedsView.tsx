@@ -8,7 +8,6 @@ import {
   useFeedItems,
 } from "../../hooks/useFeedItems";
 import { useAppStore } from "../../store/appStore";
-import type { FeedPromoteTarget } from "../../types/database";
 import { cn } from "../../lib/utils";
 import { FeedItemCard } from "./FeedItemCard";
 
@@ -43,8 +42,9 @@ export function FeedsView() {
     promoteFeedItem,
   } = useFeedItems(userId, { type, status });
 
-  const handlePromote = (itemId: string, target: FeedPromoteTarget) => {
-    void promoteFeedItem(itemId, target);
+  // PR21 item 99: feeds one-path — promote → paper only.
+  const handlePromote = (itemId: string) => {
+    void promoteFeedItem(itemId);
   };
 
   return (
@@ -64,7 +64,7 @@ export function FeedsView() {
                   </h1>
                   <p className="mt-1 text-small text-text-secondary">
                     Review incoming research leads, archive noise, or promote
-                    items into papers, tasks, and notes.
+                    items into papers.
                   </p>
                 </div>
               </div>

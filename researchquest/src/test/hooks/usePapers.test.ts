@@ -158,6 +158,44 @@ describe("usePapers Hook", () => {
       });
     });
 
+    it("strips topic_ids on create (topic_papers junction is the authority)", async () => {
+      const newPaper: Paper = { ...mockPaper, id: "new-paper-id" };
+      let inserted: unknown = null;
+
+      mockSupabaseClient.from.mockImplementation(() =>
+        createMockBuilder({
+          insert: vi.fn().mockImplementation((data: unknown) => {
+            inserted = data;
+            return createMockBuilder({
+              select: vi.fn().mockReturnValue(
+                createMockBuilder({
+                  single: vi
+                    .fn()
+                    .mockResolvedValue({ data: newPaper, error: null }),
+                }),
+              ),
+            });
+          }),
+        }),
+      );
+
+      const { result } = renderHook(() => usePapers("test-user-id"));
+
+      const paperData = {
+        title: "New Paper",
+        authors: ["Author"],
+        // Legacy callers may still pass this; it must never reach the DB.
+        topic_ids: ["topic-1"],
+      };
+
+      await act(async () => {
+        await result.current.createPaper(paperData);
+      });
+
+      expect(inserted).not.toBeNull();
+      expect(inserted).not.toHaveProperty("topic_ids");
+    });
+
     it("should handle create errors", async () => {
       mockSupabaseClient.from.mockImplementation(() =>
         createMockBuilder({

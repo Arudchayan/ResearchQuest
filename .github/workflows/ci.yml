@@ -53,11 +53,21 @@ jobs:
       - name: E2E smoke (no Supabase)
         run: pnpm run test:e2e
 
+  db-types:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: DB types drift check (offline)
+        working-directory: researchquest
+        run: node scripts/check-db-types.mjs
+
   edge-api:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    steps:
-      - name: Checkout code
+    steps:      - name: Checkout code
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
       - name: Setup Deno

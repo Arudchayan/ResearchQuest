@@ -1,10 +1,17 @@
+// Database row types mirror the Supabase `public` schema.
+// Source of truth: `supabase/tables/*.sql` + `supabase/migrations/*`.
+// Regenerate with `pnpm db:types` (needs SUPABASE_PROJECT_ID); offline
+// drift is caught by `pnpm db:types:check` (see docs/runbook.md).
+// Do not hand-add tables here — update the schema, regenerate, and let
+// the check enforce consistency.
 export type ReadingStatus = "To Read" | "Reading" | "Read";
 export type IdeaStage = "Seed" | "Developing" | "Supported" | "Mature";
 export type EntityType = "note" | "idea" | "paper" | "topic";
 export type ThemePreference = "light" | "dark" | "auto";
 export type FeedItemType = "paper" | "job" | "news" | "custom";
 export type FeedItemStatus = "new" | "triaged" | "archived" | "promoted";
-export type FeedPromoteTarget = "paper" | "task" | "note";
+// PR21 item 99: feeds one-path — promote targets papers only.
+export type FeedPromoteTarget = "paper";
 export type JsonRecord = Record<string, unknown>;
 
 export interface ActiveBoost {
@@ -56,6 +63,12 @@ export interface Paper {
   doi?: string;
   source_url?: string;
   status: ReadingStatus;
+  /**
+   * Read cache of `topic_papers` membership (PR21 item 92). The
+   * `topic_papers` junction is the authority; never write this column
+   * directly — use the topic attach/detach flow and let the
+   * `sync_paper_topic_cache` trigger maintain the cache.
+   */
   topic_ids?: string[];
   abstract?: string;
   publication_date?: string;
@@ -67,7 +80,7 @@ export type PaperDraft = Pick<Paper, "title" | "authors"> &
   Partial<
     Pick<
       Paper,
-      "doi" | "source_url" | "status" | "topic_ids" | "abstract" | "publication_date"
+      "doi" | "source_url" | "status" | "abstract" | "publication_date"
     >
   >;
 

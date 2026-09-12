@@ -138,7 +138,8 @@ const entitySchemas: Record<string, unknown> = {
       doi: { type: ["string", "null"] },
       source_url: { type: ["string", "null"], format: "uri" },
       status: { type: "string", enum: ["To Read", "Reading", "Read"] },
-      topic_ids: { type: "array", items: { type: "string" } },
+      // PR21 item 92: no topic_ids — topic_papers is the authority; attach
+      // topics via POST /topics/{id}/attach after creating the paper.
       abstract: { type: ["string", "null"], maxLength: 5000 },
       publication_date: { type: ["string", "null"] },
     },
@@ -325,7 +326,8 @@ const feedSchemas: Record<string, unknown> = {
     type: "object",
     required: ["target"],
     properties: {
-      target: { type: "string", enum: ["paper", "task", "note"] },
+      // PR21 item 99: paper-only one-path. Task/note targets removed.
+      target: { type: "string", enum: ["paper"] },
       fields: { type: "object", default: {} },
     },
     additionalProperties: true,
@@ -735,7 +737,7 @@ function feedPaths(): Record<string, unknown> {
     "/feed-items/{id}/promote": {
       post: {
         operationId: "promoteFeedItem",
-        summary: "Promote a feed item to a core entity",
+        summary: "Promote a feed item to a paper",
         security: [{ BearerAuth: [] }],
         parameters: [idParam()],
         requestBody: {
@@ -747,6 +749,10 @@ function feedPaths(): Record<string, unknown> {
           },
         },
         responses: {
+          "200": {
+            description: "Duplicate paper found; item triaged",
+            ...jsonContent({ type: "object" }),
+          },
           "201": {
             description: "Promoted",
             ...jsonContent({ type: "object" }),
