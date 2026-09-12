@@ -7,7 +7,14 @@ const baseURL = `http://127.0.0.1:${e2ePort}`;
  * Default e2e: Scholar Access gate with stub Supabase (no prod writes).
  * First-run click receipt lives in e2e/first-run-demo.spec.ts.
  * Prefer `pnpm run test:first-run` for the Jules-style single-command receipt.
+ *
+ * Cross-browser matrix (item 97): Firefox/WebKit/mobile projects are gated
+ * behind RQ_E2E_MATRIX=1 so CI chromium stays fast. Nightly runs
+ * `RQ_E2E_MATRIX=1 pnpm run test:e2e:matrix`, which also un-skips
+ * e2e/nightly.matrix.spec.ts.
  */
+const matrixEnabled = process.env.RQ_E2E_MATRIX === "1";
+
 export default defineConfig({
   testDir: "e2e",
   fullyParallel: true,
@@ -20,7 +27,16 @@ export default defineConfig({
     trace: "on-first-retry",
     ...devices["Desktop Chrome"],
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+    ...(matrixEnabled
+      ? [
+          { name: "firefox", use: { ...devices["Desktop Firefox"] } },
+          { name: "webkit", use: { ...devices["Desktop Safari"] } },
+          { name: "mobile-chrome", use: { ...devices["Pixel 7"] } },
+        ]
+      : []),
+  ],
   webServer: {
     command: `pnpm exec vite --host 127.0.0.1 --port ${e2ePort}`,
     url: baseURL,
