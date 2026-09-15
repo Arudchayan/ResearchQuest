@@ -11,6 +11,7 @@ interface BibTeXImportTabProps {
   selectedEntryIds: Set<string>;
   toggleEntrySelection: (id: string) => void;
   importProgress: { current: number; total: number } | null;
+  importStats: { success: number; failed: number } | null;
 }
 
 export function BibTeXImportTab({
@@ -21,6 +22,8 @@ export function BibTeXImportTab({
   parsedEntries,
   selectedEntryIds,
   toggleEntrySelection,
+  importProgress,
+  importStats,
 }: BibTeXImportTabProps) {
   const [isDragging, setIsDragging] = useState(false);
 
@@ -50,14 +53,14 @@ export function BibTeXImportTab({
   };
 
   return (
-    <div className="space-y-6" role="tabpanel" id="view-panel-import">
+    <div className="space-y-6" id="view-panel-import">
       <div>
         <label htmlFor="bibtex-file-upload" className="block text-sm font-medium mb-3">Upload BibTeX File (.bib)</label>
         <div
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          className={`border-2 border-dashed rounded-lg p-6 text-center relative transition-colors ${
+          className={`border-2 border-dashed rounded-lg p-6 text-center relative transition-colors focus-within:ring-2 focus-within:ring-primary-500 focus-within:ring-offset-2 focus-within:border-primary-500 ${
             isDragging
               ? "border-primary-500 bg-primary-50 dark:bg-primary-900/10"
               : "border-border-subtle hover:bg-bg-base"
@@ -81,6 +84,12 @@ export function BibTeXImportTab({
         </div>
       </div>
 
+      {!loading && !error && parsedEntries.length === 0 && (
+        <p className="rounded-control bg-primary-50 p-3 text-small text-text-secondary dark:bg-primary-900/20" aria-live="polite">
+          Upload a .bib file to preview its entries before importing.
+        </p>
+      )}
+
       {error && (
         <div
           id="bibtex-error"
@@ -97,6 +106,20 @@ export function BibTeXImportTab({
           <p className="text-sm text-text-secondary">
             {selectedEntryIds.size} papers selected
           </p>
+          {loading && importProgress && (
+            <p role="status" aria-live="polite" className="flex items-center gap-2 text-sm text-text-secondary">
+              <Loader className="w-4 h-4 animate-spin" aria-hidden="true" />
+              Importing {importProgress.current} of {importProgress.total} papers…
+            </p>
+          )}
+          {importStats && (importStats.success > 0 || importStats.failed > 0) && (
+            <p role="status" className="rounded-control border border-border-subtle bg-bg-elevated p-3 text-sm text-text-secondary">
+              Imported {importStats.success} of {importStats.success + importStats.failed} papers
+              {importStats.failed > 0
+                ? `; ${importStats.failed} failed and ${importStats.failed === 1 ? "stays" : "stay"} selected for retry.`
+                : "."}
+            </p>
+          )}
           <div className="max-h-[400px] overflow-y-auto border rounded-lg divide-y">
             {parsedEntries.map((entry) => (
               <div key={entry.id} className="p-3 flex items-start gap-3 hover:bg-bg-base">

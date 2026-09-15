@@ -83,13 +83,17 @@ export function IdeaDetailView({
 
   // Deep research state
   const [isDeepResearching, setIsDeepResearching] = useState(false);
+  const [researchPreview, setResearchPreview] = useState<string | null>(null);
 
   const userId = useAppStore((state) => state.user?.id);
   const { createNote } = useNotes(userId);
   const { createTask } = useTasks(userId, { owner: false });
   const { updateIdea } = useIdeas(userId);
 
-  const [pipelineBusy, setPipelineBusy] = useState(false);
+  // Item 77: per-button busy states so promoting never blocks start-writing
+  // and vice versa.
+  const [isPromoting, setIsPromoting] = useState(false);
+  const [isStartingWriting, setIsStartingWriting] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -197,8 +201,8 @@ export function IdeaDetailView({
   };
 
   const handlePromoteToTask = async () => {
-    if (pipelineBusy) return;
-    setPipelineBusy(true);
+    if (isPromoting) return;
+    setIsPromoting(true);
     try {
       const task = await createTask({
         title: idea.title,
@@ -213,6 +217,19 @@ export function IdeaDetailView({
         return;
       }
 
+      // Item 77: link success to the created task instead of going silent.
+      toast.success("Task created from idea", {
+        action: {
+          label: "View task",
+          onClick: () => {
+            useAppStore.getState().setSelectedTask(task);
+            useAppStore.getState().setCurrentView("tasks");
+            window.history.pushState(null, "", "/tasks");
+            window.dispatchEvent(new PopStateEvent("popstate"));
+          },
+        },
+      });
+
       if (idea.stage !== "Mature") {
         const nextStage = getNextStage(idea.stage);
         if (nextStage) {
@@ -221,14 +238,14 @@ export function IdeaDetailView({
       }
     } finally {
       if (isMounted.current) {
-        setPipelineBusy(false);
+        setIsPromoting(false);
       }
     }
   };
 
   const handleStartWriting = async () => {
-    if (pipelineBusy) return;
-    setPipelineBusy(true);
+    if (isStartingWriting) return;
+    setIsStartingWriting(true);
     try {
       const descriptionQuote = idea.description
         ? `\n\n> ${idea.description}`
@@ -237,6 +254,7 @@ export function IdeaDetailView({
         title: idea.title,
         markdown_body: `# ${idea.title}${descriptionQuote}\n`,
         tags: ["draft"],
+        linked_entity_ids: [idea.id],
       });
 
       if (!newNote) {
@@ -253,6 +271,19 @@ export function IdeaDetailView({
 
       if (!task) {
         toast.error("Failed to create writing task");
+      } else {
+        // Item 77: link success to the created writing task.
+        toast.success("Writing task created", {
+          action: {
+            label: "View task",
+            onClick: () => {
+              useAppStore.getState().setSelectedTask(task);
+              useAppStore.getState().setCurrentView("tasks");
+              window.history.pushState(null, "", "/tasks");
+              window.dispatchEvent(new PopStateEvent("popstate"));
+            },
+          },
+        });
       }
 
       useAppStore.getState().setSelectedNote(newNote);
@@ -262,7 +293,7 @@ export function IdeaDetailView({
       window.dispatchEvent(new PopStateEvent("popstate"));
     } finally {
       if (isMounted.current) {
-        setPipelineBusy(false);
+        setIsStartingWriting(false);
       }
     }
   };
@@ -296,14 +327,8 @@ export function IdeaDetailView({
         `\n\n### Deep Research Insights\n${result.summary}\n\n**Suggested Keywords:** ${result.suggestedKeywords?.join(", ")}\n\n**Reasoning Steps:**\n${result.reasoningSteps?.map((step, i) => `${i + 1}. ${step}`).join("\n")}` +
         papersSection;
 
-      const newDescription = (idea.description || "") + researchText;
-      const success = await onUpdate(idea.id, { description: newDescription }, idea.stage);
-
-      if (success) {
-        toast.success("Deep research insights added to description");
-      } else {
-        toast.error("Failed to save research insights");
-      }
+      // Item 77: preview the diff before appending — never mutate silently.
+      setResearchPreview(researchText);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Deep research failed";
       logger.error("Deep research failed", err);
@@ -311,6 +336,23 @@ export function IdeaDetailView({
     } finally {
       setIsDeepResearching(false);
     }
+  };
+
+  const handleAppendResearch = async () => {
+    if (!researchPreview) return;
+    const newDescription = (idea.description || "") + researchPreview;
+    const success = await onUpdate(idea.id, { description: newDescription }, idea.stage);
+
+    if (success) {
+      toast.success("Deep research insights added to description");
+      setResearchPreview(null);
+    } else {
+      toast.error("Failed to save research insights");
+    }
+  };
+
+  const handleDiscardResearch = () => {
+    setResearchPreview(null);
   };
 
   const handleExport = (format: "markdown" | "csv" | "json") => {
@@ -431,20 +473,22 @@ export function IdeaDetailView({
                       variant="outline"
                       size="sm"
                       onClick={() => void handlePromoteToTask()}
-                      disabled={pipelineBusy}
+                      disabled={isPromoting}
+                      aria-busy={isPromoting}
                     >
                       <ListTodo className="w-4 h-4" aria-hidden="true" />
-                      Promote to task
+                      {isPromoting ? "Creating task…" : "Promote to task"}
                     </Button>
                     {idea.stage === "Mature" && (
                       <Button
                         type="button"
                         size="sm"
                         onClick={() => void handleStartWriting()}
-                        disabled={pipelineBusy}
+                        disabled={isStartingWriting}
+                        aria-busy={isStartingWriting}
                       >
                         <PenLine className="w-4 h-4" aria-hidden="true" />
-                        Start writing
+                        {isStartingWriting ? "Starting…" : "Start writing"}
                       </Button>
                     )}
                     <DropdownMenu.Root>
@@ -589,6 +633,24 @@ export function IdeaDetailView({
             <h2 className="text-lg font-semibold text-text-primary mb-3">
               Description
             </h2>
+            {researchPreview && (
+              <div className="mb-4 rounded-lg border border-blue-300 bg-blue-50 p-4 dark:border-blue-700 dark:bg-blue-900/20" role="region" aria-label="Deep research preview">
+                <h3 className="mb-2 text-sm font-semibold text-text-primary">
+                  Preview: content to append
+                </h3>
+                <pre className="max-h-64 overflow-y-auto whitespace-pre-wrap text-sm text-text-secondary">
+                  {researchPreview}
+                </pre>
+                <div className="mt-3 flex gap-2">
+                  <Button type="button" size="sm" onClick={() => void handleAppendResearch()}>
+                    Append to description
+                  </Button>
+                  <Button type="button" size="sm" variant="outline" onClick={handleDiscardResearch}>
+                    Discard
+                  </Button>
+                </div>
+              </div>
+            )}
             {isEditing ? (
               <textarea
                 value={editedDescription}

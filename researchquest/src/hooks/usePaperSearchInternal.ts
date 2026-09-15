@@ -42,7 +42,9 @@ export function usePaperSearch({ searchByDOI, searchByQuery }: UsePaperSearchPro
     try {
       const results = await searchByQuery(query.trim(), options);
       setSearchResults(results);
-      setSelectedResult(results[0] ?? null);
+      // Explicit confirm (item 70): never auto-select the first result.
+      // The user picks a result in the preview pane before adding.
+      setSelectedResult(null);
       if (results.length === 0) {
         setError("No papers found. Try different keywords or use manual entry.");
       }

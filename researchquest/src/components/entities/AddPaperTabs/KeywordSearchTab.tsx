@@ -20,6 +20,8 @@ interface KeywordSearchTabProps {
   sortOrder: string;
   setSortOrder: (val: any) => void;
   isValidUrl: (url: string) => boolean;
+  error: string;
+  hasSearched: boolean;
 }
 
 export function KeywordSearchTab({
@@ -39,12 +41,24 @@ export function KeywordSearchTab({
   sortOrder,
   setSortOrder,
   isValidUrl,
+  error,
+  hasSearched,
 }: KeywordSearchTabProps) {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const idPrefix = useId();
 
   return (
-    <div className="space-y-6" role="tabpanel" id="view-panel-search">
+    <div className="space-y-6" id="view-panel-search">
+      {error && (
+        <div role="alert" className="rounded-control border border-destructive bg-destructive-bg p-3 text-small text-destructive">
+          {error}
+        </div>
+      )}
+      {!error && hasSearched && !loading && searchResults.length === 0 && (
+        <p className="rounded-control bg-primary-50 p-3 text-small text-text-secondary dark:bg-primary-900/20" aria-live="polite">
+          No Crossref results matched those keywords. Try broader terms or add the paper manually.
+        </p>
+      )}
       <form
         className="space-y-4"
         onSubmit={(e) => {
@@ -176,7 +190,7 @@ export function KeywordSearchTab({
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-center text-text-secondary">
                 <BookOpen className="w-10 h-10 mb-4 text-text-tertiary" />
-                <p>Select a paper to see details.</p>
+                <p>Select a result to preview it here, then add it to your library.</p>
               </div>
             )}
           </div>
