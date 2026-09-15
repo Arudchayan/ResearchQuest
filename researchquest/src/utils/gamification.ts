@@ -1,5 +1,19 @@
 import { logger } from "./logger";
-import { supabase } from "../lib/supabase";
+import {
+  getProfileForXp,
+  getProfileXpTotals,
+  updateProfile,
+  writeXpUpdate,
+} from "../lib/repos/profilesRepo";
+import {
+  insertAchievementRow,
+  listEarnedAchievementTypes,
+} from "../lib/repos/achievementsRepo";
+import {
+  getDailyLogForDate,
+  insertDailyLogRow,
+  updateDailyLogRow,
+} from "../lib/repos/dailyLogsRepo";
 import { toast } from "sonner";
 import { useAppStore } from "../store/appStore";
 import { useGamificationStore } from "../store/gamificationStore";
@@ -149,11 +163,7 @@ export async function awardXP(
   action: string,
 ): Promise<GamificationResult | null> {
   // Get current profile
-  const { data: profile, error: fetchError } = await supabase
-    .from("user_profiles")
-    .select("*, notes_count, papers_count, tasks_completed_count, papers_with_insights_count")
-    .eq("id", userId)
-    .single();
+  const { data: profile, error: fetchError } = await getProfileForXp(userId);
 
   if (fetchError || !profile) {
     // Optimization: avoid logging the full error object to prevent sensitive data leakage
@@ -253,13 +263,11 @@ export async function awardXP(
     updatePayload.streak_freeze_tokens = freezeTokens;
   }
 
-  const { error: updateError } = await supabase
-    .from("user_profiles")
-    .update(updatePayload)
-    .eq("id", userId);
+  // Atomic write via the increment_xp RPC in live mode; the historical
+  // direct update in demo mode (see profilesRepo.writeXpUpdate).
+  const writeResult = await writeXpUpdate(userId, xpEarned, updatePayload);
 
-  if (updateError) {
-    logger.error("Failed to update user profile", updateError);
+  if (!writeResult) {
     return null;
   }
 
@@ -275,10 +283,14 @@ export async function awardXP(
   );
 
   // Re-hydrate the profile into the stores so XP/level/streak/boost/freeze
-  // UI updates immediately without a refetch
+  // UI updates immediately without a refetch. Totals come from the atomic
+  // write's RETURNING row so the store matches DB state even under races.
   const updatedProfile: UserProfile = {
     ...(profile as UserProfile),
     ...updatePayload,
+    total_xp: writeResult.totalXp,
+    current_level: writeResult.level,
+    current_streak: writeResult.streak,
   };
   // Fold achievement XP into the hydrated profile so the store matches DB state
   const achievementXp = achievementsEarned.reduce(
@@ -334,10 +346,8 @@ async function checkAchievements(
   // Check existing achievements
   let earned = achievementsCache.get(userId);
   if (!earned) {
-    const { data: existingAchievements } = await supabase
-      .from("research_achievements")
-      .select("achievement_type")
-      .eq("user_id", userId);
+    const { data: existingAchievements } =
+      await listEarnedAchievementTypes(userId);
 
     earned = new Set(existingAchievements?.map((a) => a.achievement_type) || []);
     achievementsCache.set(userId, earned);
@@ -410,15 +420,13 @@ async function awardAchievement(
   userId: string,
   achievement: Achievement,
 ): Promise<Achievement | null> {
-  const { error: insertError } = await supabase
-    .from("research_achievements")
-    .insert({
-      user_id: userId,
-      achievement_type: achievement.type,
-      title: achievement.title,
-      description: achievement.description,
-      xp_awarded: achievement.xp,
-    });
+  const { error: insertError } = await insertAchievementRow({
+    user_id: userId,
+    achievement_type: achievement.type,
+    title: achievement.title,
+    description: achievement.description,
+    xp_awarded: achievement.xp,
+  });
 
   if (insertError) {
     logger.error("Failed to award achievement", insertError);
@@ -432,23 +440,16 @@ async function awardAchievement(
   }
 
   // Award XP for achievement (simplified to avoid double-counting)
-  const { data: profile } = await supabase
-    .from("user_profiles")
-    .select("total_xp, current_level")
-    .eq("id", userId)
-    .single();
+  const { data: profile } = await getProfileXpTotals(userId);
 
   if (profile) {
     const newTotalXP = (profile.total_xp || 0) + achievement.xp;
     const newLevel = getLevelFromXP(newTotalXP);
 
-    const { error: xpError } = await supabase
-      .from("user_profiles")
-      .update({
-        total_xp: newTotalXP,
-        current_level: newLevel,
-      })
-      .eq("id", userId);
+    const { error: xpError } = await updateProfile(userId, {
+      total_xp: newTotalXP,
+      current_level: newLevel,
+    });
 
     if (xpError) {
       logger.error("Failed to award achievement XP", xpError);
@@ -470,29 +471,21 @@ async function updateDailyLog(
   // Streak is now calculated in awardXP and passed down.
 
   // Check if daily log exists for today
-  const { data: existingLog } = await supabase
-    .from("daily_logs")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("date", today)
-    .maybeSingle();
+  const { data: existingLog } = await getDailyLogForDate(userId, today);
 
   if (existingLog) {
     // Update existing log
-    const { error: updateLogError } = await supabase
-      .from("daily_logs")
-      .update({
-        xp_earned: existingLog.xp_earned + xpEarned,
-        streak_count: currentStreak,
-      })
-      .eq("id", existingLog.id);
+    const { error: updateLogError } = await updateDailyLogRow(existingLog.id, {
+      xp_earned: existingLog.xp_earned + xpEarned,
+      streak_count: currentStreak,
+    });
 
     if (updateLogError) {
       logger.error("Failed to update daily log", updateLogError);
     }
   } else {
     // Create new log
-    const { error: insertLogError } = await supabase.from("daily_logs").insert({
+    const { error: insertLogError } = await insertDailyLogRow({
       user_id: userId,
       date: today,
       xp_earned: xpEarned,

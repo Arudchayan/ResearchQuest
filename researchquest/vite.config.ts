@@ -68,6 +68,10 @@ export default defineConfig(({ mode, command }) => {
       },
     },
     build: {
+      // PR15 item 40: es2022 is the minimum target that supports the
+      // top-level await used for the demo-engine import split in
+      // src/lib/supabase.ts (TLA needs Chrome 89 / Safari 15+).
+      target: "es2022",
       rollupOptions: {
         output: {
           manualChunks: {

@@ -4,6 +4,7 @@ import { mockSupabaseClient } from "../mocks/supabase";
 // Mock supabase module - MUST be before imports that use it
 vi.mock("../../lib/supabase", () => ({
   supabase: mockSupabaseClient,
+  isDemoMode: false,
 }));
 
 // Import after mock
@@ -25,9 +26,23 @@ interface MockState {
   profile: Record<string, unknown>;
   profileUpdates: Record<string, any>[];
   achievementInserts: Record<string, any>[];
+  rpcCalls: { fn: string; args: Record<string, any> }[];
 }
 
 function setupSupabaseMock(state: MockState) {
+  mockSupabaseClient.rpc.mockImplementation((fn: string, args: any) => {
+    state.rpcCalls.push({ fn, args });
+    const totalXp =
+      (state.profile.total_xp as number) + (args?.p_xp_earned ?? 0);
+    return Promise.resolve({
+      data: {
+        total_xp: totalXp,
+        current_level: Math.floor(totalXp / 500) + 1,
+        current_streak: args?.p_current_streak,
+      },
+      error: null,
+    });
+  });
   mockSupabaseClient.from.mockImplementation((table: string) => {
     const builder: any = {
       select: vi.fn().mockReturnThis(),
@@ -104,6 +119,7 @@ describe("Gamification Award Pipeline (trust)", () => {
       profile: makeProfile(),
       profileUpdates: [],
       achievementInserts: [],
+      rpcCalls: [],
     };
     setupSupabaseMock(state);
   });
@@ -121,7 +137,9 @@ describe("Gamification Award Pipeline (trust)", () => {
     const result = await awardXP("user-a", 10, "create_note");
 
     expect(result?.xpEarned).toBe(20);
-    expect(state.profileUpdates[0]?.total_xp).toBe(120);
+    expect(state.rpcCalls[0]?.fn).toBe("increment_xp");
+    expect(state.rpcCalls[0]?.args.p_xp_earned).toBe(20);
+    expect(useAppStore.getState().user?.total_xp).toBe(120);
   });
 
   it("rounds fractional multiplied XP to the nearest integer", async () => {
@@ -132,7 +150,8 @@ describe("Gamification Award Pipeline (trust)", () => {
     const result = await awardXP("user-a", 7, "create_note");
 
     expect(result?.xpEarned).toBe(11);
-    expect(state.profileUpdates[0]?.total_xp).toBe(111);
+    expect(state.rpcCalls[0]?.args.p_xp_earned).toBe(11);
+    expect(useAppStore.getState().user?.total_xp).toBe(111);
   });
 
   it("ignores an expired boost multiplier", async () => {
@@ -143,7 +162,8 @@ describe("Gamification Award Pipeline (trust)", () => {
     const result = await awardXP("user-a", 10, "create_note");
 
     expect(result?.xpEarned).toBe(10);
-    expect(state.profileUpdates[0]?.total_xp).toBe(110);
+    expect(state.rpcCalls[0]?.args.p_xp_earned).toBe(10);
+    expect(useAppStore.getState().user?.total_xp).toBe(110);
   });
 
   it("preserves the streak by consuming one freeze token on a multi-day gap", async () => {
@@ -157,8 +177,8 @@ describe("Gamification Award Pipeline (trust)", () => {
     const result = await awardXP("user-a", 10, "create_note");
 
     expect(result?.streak).toBe(12);
-    expect(state.profileUpdates[0]?.current_streak).toBe(12);
-    expect(state.profileUpdates[0]?.streak_freeze_tokens).toBe(0);
+    expect(state.rpcCalls[0]?.args.p_current_streak).toBe(12);
+    expect(state.rpcCalls[0]?.args.p_streak_freeze_tokens).toBe(0);
   });
 
   it("resets the streak on a multi-day gap when no freeze tokens remain", async () => {
@@ -171,8 +191,8 @@ describe("Gamification Award Pipeline (trust)", () => {
     const result = await awardXP("user-a", 10, "create_note");
 
     expect(result?.streak).toBe(1);
-    expect(state.profileUpdates[0]?.current_streak).toBe(1);
-    expect(state.profileUpdates[0]).not.toHaveProperty("streak_freeze_tokens");
+    expect(state.rpcCalls[0]?.args.p_current_streak).toBe(1);
+    expect(state.rpcCalls[0]?.args.p_streak_freeze_tokens).toBeNull();
   });
 
   it("grants a freeze token when the streak reaches a multiple of 7 (6 -> 7)", async () => {
@@ -185,7 +205,7 @@ describe("Gamification Award Pipeline (trust)", () => {
     const result = await awardXP("user-a", 10, "create_note");
 
     expect(result?.streak).toBe(7);
-    expect(state.profileUpdates[0]?.streak_freeze_tokens).toBe(1);
+    expect(state.rpcCalls[0]?.args.p_streak_freeze_tokens).toBe(1);
   });
 
   it("grants a freeze token at every new multiple of 7 (13 -> 14)", async () => {
@@ -198,7 +218,7 @@ describe("Gamification Award Pipeline (trust)", () => {
     const result = await awardXP("user-a", 10, "create_note");
 
     expect(result?.streak).toBe(14);
-    expect(state.profileUpdates[0]?.streak_freeze_tokens).toBe(2);
+    expect(state.rpcCalls[0]?.args.p_streak_freeze_tokens).toBe(2);
   });
 
   it("does not grant a token when the streak merely rests on a multiple of 7", async () => {
@@ -211,7 +231,7 @@ describe("Gamification Award Pipeline (trust)", () => {
     const result = await awardXP("user-a", 10, "create_note");
 
     expect(result?.streak).toBe(14);
-    expect(state.profileUpdates[0]?.streak_freeze_tokens).toBe(1);
+    expect(state.rpcCalls[0]?.args.p_streak_freeze_tokens).toBe(1);
   });
 
   it("does not burn a freeze token to preserve a zero streak after a cron reset", async () => {
@@ -225,8 +245,8 @@ describe("Gamification Award Pipeline (trust)", () => {
     const result = await awardXP("user-a", 10, "create_note");
 
     expect(result?.streak).toBe(1);
-    expect(state.profileUpdates[0]?.current_streak).toBe(1);
-    expect(state.profileUpdates[0]).not.toHaveProperty("streak_freeze_tokens");
+    expect(state.rpcCalls[0]?.args.p_current_streak).toBe(1);
+    expect(state.rpcCalls[0]?.args.p_streak_freeze_tokens).toBeNull();
   });
 
   it("returns the result shape and reports level-ups", async () => {
@@ -297,7 +317,7 @@ describe("Gamification Award Pipeline (trust)", () => {
     expect(useGamificationStore.getState().streakFreezeTokens).toBe(1);
   });
 
-  it("keeps the anti-N+1 guarantee: one profile fetch, one profile update per award", async () => {
+  it("keeps the anti-N+1 guarantee: one profile fetch, one atomic RPC per award", async () => {
     await awardXP("user-a", 10, "create_note");
     await awardXP("user-b", 10, "create_note");
 
@@ -305,8 +325,47 @@ describe("Gamification Award Pipeline (trust)", () => {
       (call) => call[0] === "user_profiles",
     );
 
-    expect(userProfileCalls).toHaveLength(4); // 2 awards x (1 select + 1 update)
-    expect(state.profileUpdates).toHaveLength(2);
+    // 2 awards x (1 select); each write is a single increment_xp RPC, not
+    // the legacy select-then-update round-trips
+    expect(userProfileCalls).toHaveLength(2);
+    expect(state.rpcCalls).toHaveLength(2);
+    expect(state.rpcCalls.every((call) => call.fn === "increment_xp")).toBe(
+      true,
+    );
+    expect(state.profileUpdates).toHaveLength(0);
+  });
+
+  it("sends streak, counters, and activity date through the RPC", async () => {
+    state.profile = makeProfile({ last_activity_date: daysAgo(1) });
+
+    await awardXP("user-a", 10, "create_note");
+
+    const today = new Date().toISOString().split("T")[0];
+    expect(state.rpcCalls[0]?.args).toMatchObject({
+      p_user_id: "user-a",
+      p_xp_earned: 10,
+      p_current_streak: 4,
+      p_longest_streak: 5,
+      p_last_activity_date: today,
+      p_notes_count: 1,
+      p_papers_count: 0,
+      p_tasks_completed_count: 0,
+      p_papers_with_insights_count: 0,
+    });
+  });
+
+  it("fails open to the legacy direct update when the RPC errors", async () => {
+    mockSupabaseClient.rpc.mockResolvedValueOnce({
+      data: null,
+      error: { message: "function does not exist" },
+    });
+
+    const result = await awardXP("user-a", 10, "create_note");
+
+    expect(result?.xpEarned).toBe(10);
+    expect(state.profileUpdates).toHaveLength(1);
+    expect(state.profileUpdates[0]?.total_xp).toBe(110);
+    expect(useAppStore.getState().user?.total_xp).toBe(110);
   });
 
   it("purges dead XP reward constants", () => {
