@@ -6,6 +6,7 @@ CREATE TABLE papers (
     doi TEXT,
     source_url TEXT,
     status VARCHAR(50) DEFAULT 'To Read',
+    -- Read cache of topic_papers membership (authority: topic_papers junction).
     topic_ids TEXT[] DEFAULT '{}',
     abstract TEXT,
     publication_date TEXT,

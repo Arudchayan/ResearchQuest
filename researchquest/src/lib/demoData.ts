@@ -162,7 +162,7 @@ export function buildDemoTables(): TableMap {
       doi: "10.48550/arXiv.2305.14552",
       source_url: "https://arxiv.org/abs/2305.14552",
       status: "To Read",
-      topic_ids: ["topic-hci", "topic-ai-agents"],
+      topic_ids: ["topic-hci"],
       abstract:
         "A working theory of collective cognition and how shared goals, transparency, and legibility shape human-AI collaboration.",
       publication_date: "2023-05-24",

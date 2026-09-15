@@ -425,7 +425,13 @@ export function validateEntityPayload(
           ["To Read", "Reading", "Read"],
           operation === "create" ? "To Read" : undefined,
         );
-        copyStringArray(payload, value, "topic_ids");
+        // PR21 item 92: topic_papers is the authority for paper<->topic
+        // links; papers.topic_ids is a DB-maintained read cache. Strip
+        // caller-supplied values so the API can never dual-write — assign
+        // topics afterwards via POST /topics/{id}/attach.
+        if (value.topic_ids !== undefined) {
+          delete payload.topic_ids;
+        }
         optionalTrimmedString(payload, value, "abstract", 5000);
         if (value.publication_date !== undefined) {
           const raw = trimString(value.publication_date);
