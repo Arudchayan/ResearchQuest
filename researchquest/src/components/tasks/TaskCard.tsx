@@ -5,6 +5,7 @@ import {
   Circle,
   Clock,
   AlertCircle,
+  BookOpen,
   Trash2,
 } from "lucide-react";
 import { Badge, type BadgeVariant } from "../ui/Badge";
@@ -42,6 +43,8 @@ export interface TaskCardProps {
   onDelete: (id: string) => void;
   compact?: boolean;
   highlightQuery?: string;
+  /** Display title of the task's linked paper, when there is one. */
+  paperTitle?: string | null;
 }
 
 export function TaskCard({
@@ -51,6 +54,7 @@ export function TaskCard({
   onDelete,
   compact = false,
   highlightQuery = "",
+  paperTitle = null,
 }: TaskCardProps) {
   const [isCompleting, setIsCompleting] = useState(false);
 
@@ -166,6 +170,20 @@ export function TaskCard({
             {task.category && (
               <Badge variant="neutral" className="font-medium text-small">
                 {task.category}
+              </Badge>
+            )}
+
+            {/* Linked paper */}
+            {task.paper_id && (
+              <Badge
+                variant="neutral"
+                className="font-medium text-small"
+                title={paperTitle ?? "Linked paper"}
+              >
+                <BookOpen className="h-3 w-3" aria-hidden="true" />
+                <span className="max-w-40 truncate">
+                  {paperTitle ?? "Linked paper"}
+                </span>
               </Badge>
             )}
 

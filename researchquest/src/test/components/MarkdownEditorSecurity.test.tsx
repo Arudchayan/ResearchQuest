@@ -185,7 +185,7 @@ describe("MarkdownEditor Security", () => {
     });
   });
 
-  it("registers editor shortcuts so view/zen commands stay reachable from inside the editor", () => {
+  it("registers editor shortcuts so view commands stay reachable from inside the editor", () => {
     render(<MarkdownEditor />);
 
     const keys = editorBindings.map((b) => b.key);
@@ -197,8 +197,10 @@ describe("MarkdownEditor Security", () => {
         "Mod-Shift-e",
         "Mod-Shift-s",
         "Mod-Shift-p",
-        "Mod-Shift-f",
       ]),
     );
+    // PR19 item 80: AppShell is the single owner of the Mod+Shift+F Zen chord,
+    // so the editor must not register its own Mod-Shift-f binding (double-toggle).
+    expect(keys).not.toContain("Mod-Shift-f");
   });
 });

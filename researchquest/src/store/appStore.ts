@@ -51,6 +51,12 @@ interface AppState {
   theme: ThemePreference;
   effectiveTheme: "light" | "dark";
   setTheme: (theme: ThemePreference) => void;
+  /**
+   * Flip the effective theme (light <-> dark) without leaving `auto` mode:
+   * when the preference is `auto`, the stored preference stays `auto` and
+   * only the resolved effective theme is overridden.
+   */
+  toggleTheme: () => void;
 
   // User
   user: UserProfile | null;
@@ -146,6 +152,18 @@ export const useAppStore = create<AppState>()(
         document.documentElement.classList.add(effectiveTheme);
 
         set({ theme, effectiveTheme });
+      },
+      toggleTheme: () => {
+        const { theme, effectiveTheme } = useAppStore.getState();
+        const next = effectiveTheme === "light" ? "dark" : "light";
+
+        // Apply theme to document
+        document.documentElement.classList.remove("light", "dark");
+        document.documentElement.classList.add(next);
+
+        // Preserve `auto`: keep the stored preference, override only the
+        // resolved effective theme.
+        set(theme === "auto" ? { effectiveTheme: next } : { theme: next, effectiveTheme: next });
       },
 
       // User
@@ -288,6 +306,7 @@ export const useAppStore = create<AppState>()(
       name: "researchquest-storage",
       partialize: (state) => ({
         theme: state.theme,
+        isZenMode: state.isZenMode,
       }),
     },
   ),

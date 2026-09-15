@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
 import { useFilteredList } from "../../hooks/useFilteredList";
 import {
   CheckCircle2,
@@ -14,7 +14,6 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useTasks } from "../../hooks/useTasks";
 import { useUndoDelete } from "../../hooks/useUndoDelete";
 import type { Task } from "../../types/database";
-import { supabase } from "../../lib/supabase";
 import { ListSkeleton } from "../ui/Skeleton";
 import { FormDialog } from "../ui/FormDialog";
 import { Button } from "../ui/button";
@@ -37,7 +36,10 @@ import { PRIORITIES, CATEGORIES, PRIORITY_ORDER } from "./taskTypes";
 import { TaskCard, isOverdue } from "./TaskCard";
 
 export function TaskManager() {
-  const [userId, setUserId] = useState<string | undefined>(undefined);
+  // Resolve the owner from the store like the other library views instead of
+  // flashing through a local supabase.auth.getUser() lookup.
+  const userId = useAppStore((state) => state.user?.id);
+  const papers = useAppStore((state) => state.papers);
   const {
     tasks,
     loading,
@@ -82,12 +84,16 @@ export function TaskManager() {
   const [formPriority, setFormPriority] = useState<TaskPriority>("medium");
   const [formCategory, setFormCategory] = useState<TaskCategory>("Research");
   const [formDueDate, setFormDueDate] = useState("");
+  const [formPaperId, setFormPaperId] = useState("");
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setUserId(user?.id);
-    });
-  }, []);
+  // Paper titles for linked-task badges and search.
+  const paperTitleById = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const paper of papers) {
+      if (paper.title) map[paper.id] = paper.title;
+    }
+    return map;
+  }, [papers]);
 
   const projectIdsInUse = useMemo(() => {
     const ids = new Set<string>();
@@ -106,10 +112,11 @@ export function TaskManager() {
       task.description ?? "",
       task.category ?? "",
       task.project_id ?? "",
+      task.paper_id ? (paperTitleById[task.paper_id] ?? task.paper_id) : "",
       task.priority,
       task.completed ? "completed done" : "pending active",
       task.due_date ?? "",
-    ].join(" "), []),
+    ].join(" "), [paperTitleById]),
     useCallback((a: Task, b: Task) => {
       if (sortOption === "priority") {
         if (a.completed !== b.completed) {
@@ -185,6 +192,7 @@ export function TaskManager() {
       priority: formPriority,
       category: formCategory,
       ...(formDueDate ? { due_date: formDueDate } : {}),
+      ...(formPaperId ? { paper_id: formPaperId } : {}),
     });
 
     // Reset form
@@ -193,6 +201,7 @@ export function TaskManager() {
     setFormPriority("medium");
     setFormCategory("Research");
     setFormDueDate("");
+    setFormPaperId("");
     setShowAddModal(false);
   };
 
@@ -205,6 +214,12 @@ export function TaskManager() {
       priority: formPriority,
       category: formCategory,
       ...(formDueDate ? { due_date: formDueDate } : {}),
+      // Explicit null unlinks; omitted when the task had no link and none chosen.
+      ...(formPaperId
+        ? { paper_id: formPaperId }
+        : editingTask.paper_id
+          ? { paper_id: null }
+          : {}),
     });
 
     // Reset form
@@ -214,6 +229,7 @@ export function TaskManager() {
     setFormPriority("medium");
     setFormCategory("Research");
     setFormDueDate("");
+    setFormPaperId("");
   };
 
   const handleEditClick = (task: Task) => {
@@ -223,6 +239,7 @@ export function TaskManager() {
     setFormPriority(task.priority);
     setFormCategory((task.category as TaskCategory) || "Research");
     setFormDueDate(task.due_date || "");
+    setFormPaperId(task.paper_id || "");
   };
 
   const handleToggleComplete = async (task: Task) => {
@@ -242,6 +259,7 @@ export function TaskManager() {
     setFormPriority("medium");
     setFormCategory("Research");
     setFormDueDate("");
+    setFormPaperId("");
   };
 
   const handleExport = (format: "markdown" | "csv" | "json") => {
@@ -547,6 +565,11 @@ export function TaskManager() {
                     onDelete={() => void handleDeleteWithUndo(task)}
                     compact={compactView}
                     highlightQuery={searchQuery}
+                    paperTitle={
+                      task.paper_id
+                        ? (paperTitleById[task.paper_id] ?? null)
+                        : null
+                    }
                   />
                 </div>
               );
@@ -682,6 +705,29 @@ export function TaskManager() {
               onChange={(e) => setFormDueDate(e.target.value)}
               className="bg-bg-base text-small"
             />
+          </div>
+
+          {/* Linked paper */}
+          <div>
+            <Label
+              htmlFor="task-paper"
+              className="mb-2 block text-small font-medium text-text-primary"
+            >
+              Linked paper (Optional)
+            </Label>
+            <select
+              id="task-paper"
+              value={formPaperId}
+              onChange={(e) => setFormPaperId(e.target.value)}
+              className="min-h-11 w-full rounded-control border border-border-moderate bg-bg-base px-3 py-2 text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-focus md:min-h-0"
+            >
+              <option value="">No linked paper</option>
+              {papers.map((paper) => (
+                <option key={paper.id} value={paper.id}>
+                  {paper.title || "Untitled paper"}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       </FormDialog>

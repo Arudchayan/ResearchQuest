@@ -53,6 +53,9 @@ import { FocusTargetAside } from "./FocusTargetAside";
 
 const DEFAULT_SESSION_LENGTH = 25 * 60;
 
+/** Custom durations above this (minutes) are clamped with visible feedback. */
+const MAX_CUSTOM_MINUTES = 180;
+
 interface FocusWorkspaceProps {
   userId: string | undefined;
 }
@@ -70,6 +73,11 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
 
   const [selectedTarget, setSelectedTarget] = useState<SelectedTarget | null>(
     restoredSession?.selectedTarget ?? null,
+  );
+  // Last known display name of the target. Kept (and persisted) separately so
+  // a deleted target still shows its name instead of "Nothing selected yet".
+  const [selectedTargetName, setSelectedTargetName] = useState<string | null>(
+    restoredSession?.selectedTargetName ?? null,
   );
   const [sessionLength, setSessionLength] = useState(
     restoredSession?.sessionLength ?? DEFAULT_SESSION_LENGTH,
@@ -92,6 +100,8 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     restoredSession?.startedAt ?? null,
   );
   const [customMinutes, setCustomMinutes] = useState("");
+  /** Visible feedback for the custom-duration input (invalid values, max clamp). */
+  const [customDurationFeedback, setCustomDurationFeedback] = useState("");
   const [hasCompletedSession, setHasCompletedSession] = useState(
     restoredSession?.hasCompletedSession ?? false,
   );
@@ -138,6 +148,17 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     }
     return null;
   }, [notes, papers, tasks, selectedTarget]);
+
+  // Remember the target's display name while it still resolves, so the
+  // workspace keeps showing the name if the target is later deleted.
+  useEffect(() => {
+    if (!selectedItem || !selectedTarget) return;
+    const name =
+      selectedTarget.type === "note"
+        ? extractNoteSummary(selectedItem as Note)
+        : (selectedItem as Paper & Task).title;
+    setSelectedTargetName((prev) => (prev === name ? prev : name));
+  }, [selectedItem, selectedTarget]);
 
   useEffect(() => {
     if (restoredSession) return;
@@ -188,6 +209,12 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
           .catch((err) => logger.error("Failed to award XP", err));
         toast.success("Focus session complete!", {
           description: `You completed ${durationMinutes} minutes of focus.`,
+        });
+      } else {
+        // Sessions under a minute earn no XP — say so instead of staying silent.
+        toast.success("Focus session complete!", {
+          description:
+            "Sessions under a minute earn no XP — try a longer session.",
         });
       }
 
@@ -256,6 +283,10 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   const durationMinutes = Math.floor(sessionLength / 60);
   const xpEarned = durationMinutes * XP_REWARDS.FOCUS_SESSION_MINUTE;
   const sessionOrdinal = Math.max(1, sessionCount);
+  // A chosen target whose item no longer resolves (e.g. deleted) — the
+  // remembered name keeps the workspace meaningful instead of resetting.
+  const targetUnavailable =
+    selectedTarget !== null && selectedItem === null && !isLoading;
 
   useEffect(() => {
     const hasActiveSession =
@@ -271,6 +302,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     saveFocusSession({
       version: 1,
       selectedTarget,
+      selectedTargetName,
       sessionLength,
       isRunning,
       startedAt: isRunning ? startedAt : null,
@@ -283,6 +315,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     startedAt,
     hasCompletedSession,
     selectedTarget,
+    selectedTargetName,
     sessionLength,
     effectiveTimeLeft,
     sessionCount,
@@ -424,10 +457,19 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   const applyCustomDuration = () => {
     const minutes = Number(customMinutes);
     if (!Number.isFinite(minutes) || minutes <= 0) {
+      setCustomDurationFeedback("Enter a duration of at least 1 minute.");
       return;
     }
-    const clamped = Math.min(minutes, 180);
-    setSessionLength(clamped * 60);
+    if (minutes > MAX_CUSTOM_MINUTES) {
+      setSessionLength(MAX_CUSTOM_MINUTES * 60);
+      setCustomMinutes("");
+      setCustomDurationFeedback(
+        `Custom duration limited to ${MAX_CUSTOM_MINUTES} minutes (max).`,
+      );
+      return;
+    }
+    setCustomDurationFeedback("");
+    setSessionLength(minutes * 60);
     setCustomMinutes("");
   };
 
@@ -456,6 +498,9 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     sessionAwardedRef.current = false;
     setAwardedXp(null);
     setSelectedTarget(target);
+    // Clear the remembered name; it is re-captured from the lists while the
+    // new target still resolves (see the selectedItem effect above).
+    setSelectedTargetName(null);
     setHasCompletedSession(false);
     setIsRunning(false);
     setStartedAt(null);
@@ -584,6 +629,13 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                           {selectedTarget?.type === "task" &&
                             (selectedItem as Task).title}
                         </>
+                      ) : targetUnavailable && selectedTargetName ? (
+                        <>
+                          {selectedTarget?.type === "note" && "Note review · "}
+                          {selectedTarget?.type === "paper" && "Paper focus · "}
+                          {selectedTarget?.type === "task" && "Task sprint · "}
+                          {selectedTargetName}
+                        </>
                       ) : (
                         "Select a focus target"
                       )}
@@ -655,7 +707,10 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                         sessionLength === preset.value ? "default" : "outline"
                       }
                       size="sm"
-                      onClick={() => setSessionLength(preset.value)}
+                      onClick={() => {
+                        setSessionLength(preset.value);
+                        setCustomDurationFeedback("");
+                      }}
                       aria-pressed={sessionLength === preset.value}
                       className="h-auto min-h-11 justify-start"
                     >
@@ -686,14 +741,19 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                     <Input
                       id="custom-duration-input"
                       value={customMinutes}
-                      onChange={(event) =>
+                      onChange={(event) => {
                         setCustomMinutes(
                           event.target.value.replace(/[^0-9]/g, ""),
-                        )
-                      }
+                        );
+                        setCustomDurationFeedback("");
+                      }}
                       placeholder="e.g. 35"
                       inputMode="numeric"
-                      aria-describedby="custom-duration-hint"
+                      aria-describedby={
+                        customDurationFeedback
+                          ? "custom-duration-hint custom-duration-feedback"
+                          : "custom-duration-hint"
+                      }
                       className="mt-1 font-mono tabular-nums"
                     />
                   </div>
@@ -704,6 +764,16 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                     </Button>
                   </div>
                 </form>
+                {customDurationFeedback && (
+                  <p
+                    id="custom-duration-feedback"
+                    role="status"
+                    aria-live="polite"
+                    className="w-full text-small text-text-secondary"
+                  >
+                    {customDurationFeedback}
+                  </p>
+                )}
 
                 <div className="flex flex-wrap items-center justify-center gap-3">
                   <Button
@@ -711,6 +781,9 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                     size="lg"
                     onClick={toggleTimer}
                     disabled={!selectedItem || sessionLength === 0}
+                    aria-describedby={
+                      !selectedItem ? "start-focus-hint" : undefined
+                    }
                   >
                     {isRunning ? (
                       <Pause className="h-5 w-5" aria-hidden="true" />
@@ -735,6 +808,23 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                     <RotateCcw className="h-4 w-4" aria-hidden="true" /> Reset
                   </Button>
                 </div>
+                {!selectedItem && (
+                  <p
+                    id="start-focus-hint"
+                    role="note"
+                    className="w-full text-center text-small text-text-tertiary"
+                  >
+                    Pick a target from the lists to enable the timer.
+                  </p>
+                )}
+                {sessionLength > 0 && sessionLength < 60 && (
+                  <p
+                    role="note"
+                    className="w-full text-center text-small text-text-tertiary"
+                  >
+                    Sessions under 1 minute earn no XP.
+                  </p>
+                )}
 
                 <div className="flex w-full max-w-sm flex-wrap items-center justify-center gap-2 border-t border-border-subtle pt-4">
                   <Button
@@ -812,7 +902,9 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                         : selectedTarget?.type === "paper"
                           ? (selectedItem as Paper).title
                           : (selectedItem as Task).title
-                      : "Nothing selected yet"}
+                      : targetUnavailable && selectedTargetName
+                        ? selectedTargetName
+                        : "Nothing selected yet"}
                   </h2>
                 </div>
                 {selectedTarget && (
@@ -865,6 +957,16 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                     </Button>
                   </div>
                 </>
+              ) : targetUnavailable && selectedTargetName ? (
+                <div
+                  className="rounded-control border border-dashed border-border-strong bg-bg-elevated p-4 text-body text-text-secondary"
+                  role="status"
+                  aria-live="polite"
+                >
+                  “{selectedTargetName}” is no longer available — it may have
+                  been deleted. Pick another target from the lists to plan
+                  your focus session.
+                </div>
               ) : (
                 <div
                   className="rounded-control border border-dashed border-border-strong bg-bg-elevated p-4 text-body text-text-secondary"

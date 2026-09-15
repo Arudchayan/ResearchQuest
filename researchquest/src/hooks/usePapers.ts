@@ -74,7 +74,7 @@ async function createReadingTaskForPaper(
         ? `${paper.title.substring(0, 47)}...`
         : paper.title;
 
-    const { error } = await supabase.from("tasks").insert({
+    const baseTask = {
       user_id: userId,
       title: `Read: ${paperTitle}`,
       description: `Review and take notes on this paper. ${paper.authors.length > 0 ? `Authors: ${paper.authors.slice(0, 3).join(", ")}${paper.authors.length > 3 ? ", et al." : ""}` : ""}`,
@@ -82,7 +82,16 @@ async function createReadingTaskForPaper(
       category: "Reading",
       due_date: dueDateString,
       completed: false,
-    });
+    };
+
+    // Link the task to its paper when the column exists (fresh migrations);
+    // fall back to an unlinked insert on older databases.
+    let { error } = await supabase
+      .from("tasks")
+      .insert({ ...baseTask, paper_id: paper.id });
+    if (error && isMissingColumnError(error, "paper_id")) {
+      ({ error } = await supabase.from("tasks").insert(baseTask));
+    }
 
     if (error) {
       // 🛡️ Security: Log only the message, not the full error object
@@ -90,7 +99,13 @@ async function createReadingTaskForPaper(
     } else {
       toast.success("Reading task created", {
         description: `Due in 7 days - check your Tasks`,
-        duration: 2000,
+        duration: 5000,
+        action: {
+          label: "Turn off auto-tasks",
+          onClick: () => {
+            void disableAutoReadingTasks(userId);
+          },
+        },
       });
     }
   } catch (error: unknown) {
@@ -99,6 +114,38 @@ async function createReadingTaskForPaper(
       "Error creating reading task",
       error,
     );
+  }
+}
+
+// Detects a "column does not exist" failure for graceful migration fallback.
+function isMissingColumnError(error: unknown, column: string): boolean {
+  if (!isRecord(error)) return false;
+  const code = error["code"];
+  const message = error["message"];
+  return (
+    code === "42703" ||
+    (typeof message === "string" && message.includes(column))
+  );
+}
+
+// Inline opt-out for auto-created reading tasks (one click from the toast).
+async function disableAutoReadingTasks(userId: string): Promise<void> {
+  try {
+    const { error } = await supabase
+      .from("user_profiles")
+      .update({ auto_create_reading_tasks: false })
+      .eq("id", userId);
+    if (error) {
+      logger.error("Failed to turn off auto reading tasks", error);
+      toast.error("Could not turn off auto-tasks");
+      return;
+    }
+    toast.success("Auto reading tasks turned off", {
+      description: "New papers will no longer create tasks.",
+    });
+  } catch (error: unknown) {
+    logger.error("Error turning off auto reading tasks", error);
+    toast.error("Could not turn off auto-tasks");
   }
 }
 

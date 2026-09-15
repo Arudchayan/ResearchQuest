@@ -21,7 +21,8 @@ interface EditorContentProps {
   openLinkDialog: () => void;
   setCitationPickerOpen: (open: boolean) => void;
   setViewMode: (mode: ViewMode) => void;
-  toggleZenMode: () => void;
+  // NOTE: no toggleZenMode prop — AppShell owns the global Mod/Cmd/Ctrl+Shift+F
+  // chord; a second editor-level binding double-toggled (net no-op).
 }
 
 const REMARK_PLUGINS = [remarkGfm];
@@ -39,7 +40,6 @@ export default function EditorContent({
   openLinkDialog,
   setCitationPickerOpen,
   setViewMode,
-  toggleZenMode,
 }: EditorContentProps) {
   const extensions = useMemo(
     () => [
@@ -57,10 +57,10 @@ export default function EditorContent({
         { key: "Mod-Shift-e", run: () => { setViewMode("edit"); return true; } },
         { key: "Mod-Shift-s", run: () => { setViewMode("split"); return true; } },
         { key: "Mod-Shift-p", run: () => { setViewMode("preview"); return true; } },
-        { key: "Mod-Shift-f", run: () => { toggleZenMode(); return true; } },
+        // No Mod-Shift-f here: AppShell is the single owner of the Zen chord.
       ]),
     ],
-    [applyFormatting, openLinkDialog, setCitationPickerOpen, setViewMode, toggleZenMode],
+    [applyFormatting, openLinkDialog, setCitationPickerOpen, setViewMode],
   );
 
   return (

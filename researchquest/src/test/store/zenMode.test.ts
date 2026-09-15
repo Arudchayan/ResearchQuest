@@ -23,18 +23,20 @@ describe('Zen Mode Store Logic', () => {
     expect(useAppStore.getState().isZenMode).toBe(false)
   })
 
-  it('should persist state (partialize check)', () => {
-      // The store is configured to persist only 'theme'.
-      // Zen Mode should ideally NOT persist, as it's a transient view state.
-      // Let's verify the configuration in appStore.ts
-      // partialize: (state) => ({ theme: state.theme }),
+  it('should persist the zen preference (partialize check)', () => {
+      // PR19 item 80: the Zen preference persists across reloads alongside theme.
+      // partialize: (state) => ({ theme: state.theme, isZenMode: state.isZenMode }),
+      const partialize = (
+        useAppStore as unknown as {
+          persist: { getOptions: () => { partialize: (s: unknown) => unknown } };
+        }
+      ).persist.getOptions().partialize;
 
-      // So if we rehydrate, it should probably be false?
-      // Testing persistence implementation details might be tricky without full mock.
-      // But we can verify that the toggle works as expected in memory.
-
-      const { toggleZenMode } = useAppStore.getState()
-      toggleZenMode()
-      expect(useAppStore.getState().isZenMode).toBe(true)
+      expect(
+        partialize({ theme: 'auto', isZenMode: true, currentView: 'tasks' }),
+      ).toEqual({ theme: 'auto', isZenMode: true });
+      expect(
+        partialize({ theme: 'dark', isZenMode: false, currentView: 'tasks' }),
+      ).toEqual({ theme: 'dark', isZenMode: false });
   })
 })

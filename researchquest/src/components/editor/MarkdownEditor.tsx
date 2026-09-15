@@ -65,8 +65,9 @@ export function MarkdownEditor({ onBackToList }: MarkdownEditorProps) {
     if (key === "e") { setViewMode("edit"); event.preventDefault(); }
     else if (key === "p") { setViewMode("preview"); event.preventDefault(); }
     else if (key === "s") { setViewMode("split"); event.preventDefault(); }
-    else if (key === "f") { toggleZenMode(); event.preventDefault(); }
-  }, [linkDialogOpen, toggleZenMode, setViewMode]);
+    // No "f" branch: AppShell is the single owner of the Mod+Shift+F Zen
+    // chord; handling it here too double-toggled (net no-op) inside the editor.
+  }, [linkDialogOpen, setViewMode]);
 
   useEffect(() => {
     window.addEventListener("keydown", handleGlobalKeyDown);
@@ -117,7 +118,6 @@ export function MarkdownEditor({ onBackToList }: MarkdownEditorProps) {
           openLinkDialog={openLinkDialog}
           setCitationPickerOpen={setCitationPickerOpen}
           setViewMode={setViewMode}
-          toggleZenMode={toggleZenMode}
        />
 
       <EditorFooter wordCount={wordCount} readingTime={readingTime} />

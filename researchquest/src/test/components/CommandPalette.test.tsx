@@ -230,4 +230,19 @@ describe("CommandPalette", () => {
       expect(screen.getByText("Test Note")).toBeInTheDocument();
     });
   });
+
+  it("toggles the theme without leaving auto mode (PR19 item 80)", async () => {
+    useAppStore.setState({ theme: "auto", effectiveTheme: "light" });
+    render(<CommandPalette />);
+    fireEvent.keyDown(document, { key: "k", metaKey: true });
+
+    await waitFor(() => {
+      expect(screen.getByText("Toggle Theme")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText("Toggle Theme"));
+
+    // The store toggle preserves `auto` while flipping the effective theme.
+    expect(useAppStore.getState().theme).toBe("auto");
+    expect(useAppStore.getState().effectiveTheme).toBe("dark");
+  });
 });
