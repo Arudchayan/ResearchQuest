@@ -23,6 +23,8 @@
     "test:coverage": "vitest run --coverage",
     "test:coverage:threshold": "vitest run --coverage --coverage.thresholds.lines=80 --coverage.thresholds.functions=80 --coverage.thresholds.branches=75 --coverage.thresholds.statements=80",
     "test:e2e": "playwright test",
+    "test:e2e:axe": "playwright test e2e/axe-views.spec.ts e2e/axe-interactions.spec.ts",
+    "test:e2e:matrix": "RQ_E2E_MATRIX=1 playwright test",
     "preview-smoke": "playwright test -c playwright.preview.config.ts",
     "lint:migrations": "node scripts/lint-migrations.mjs",
     "check:supabase-env": "node scripts/check-supabase-env.mjs",
@@ -70,6 +72,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@eslint/js": "^9.39.4",
     "@playwright/test": "^1.59.1",
     "@testing-library/jest-dom": "^7.0.1",

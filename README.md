@@ -244,13 +244,32 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.
 
 ## Roadmap
 
-- [ ] Offline support / PWA
-- [ ] Collaborative research sessions
-- [ ] Feed source/RSS management UI and scheduled ingest
-- [ ] Analysis / adversarial review workspace (experimental code exists, not productized)
-- [ ] Zotero/ Mendeley import
-- [ ] Bibliography export (BibTeX, CSL)
-- [ ] Mobile-optimized view
+Sequenced **Trust → Loop → Palette → Scale → Moat → Polish**. Each phase
+lands only when the previous phase's exit checks stay green
+(`test:run` + `build` + chromium e2e + axe sweep).
+
+- **Trust (current)** — Auth + data authority + quality gates: demo-mode
+  honesty, RLS-backed stores, secret scanning, frozen lockfile installs,
+  systematic axe (WCAG 2.1 AA) + authenticated CRUD/realtime/isolation e2e.
+- **Loop** — Daily research loop: topics → papers → notes → focus sessions
+  with gamification feedback and the first-run seeded topic.
+- **Palette** — Command palette, themes, and personalization (zen mode,
+  focus studio) over the trusted loop.
+- **Scale** — Feeds + collaboration: feed source/RSS management UI and
+  scheduled ingest, collaborative research sessions, mobile-optimized view.
+- **Moat (PDF/Zotero/offline)** — PDF workspace, Zotero/Mendeley import,
+  bibliography export (BibTeX, CSL), offline support / PWA.
+- **Polish** — Analysis / adversarial review workspace (experimental code
+  exists, not productized), performance budgets, final a11y pass.
+
+Quality gates that ship with every phase:
+
+- `pnpm run test:e2e:axe` — systematic axe sweep (all main views +
+  focus-trap/tab-order/contrast/reduced-motion).
+- `pnpm run test:e2e` — chromium e2e (CI-fast default).
+- `pnpm run test:e2e:matrix` — nightly Firefox/WebKit/mobile matrix
+  (`RQ_E2E_MATRIX=1`; on Windows PowerShell use
+  `$env:RQ_E2E_MATRIX=1; pnpm exec playwright test`).
 
 ## License
 
