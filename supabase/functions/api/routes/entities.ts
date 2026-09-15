@@ -706,6 +706,28 @@ async function saveIdeaWithLinks(
   return { data: data ?? null, error: error ?? null };
 }
 
+/**
+ * PR20-84: re-validate idea link ids before the direct-insert/update fallback.
+ * The JWT-bound `save_idea_with_links` RPC is authoritative (it enforces link
+ * ownership); the service-role fallback below only sees string arrays, so at
+ * minimum the ids must be UUID-shaped. Returns an error message, if invalid.
+ */
+function validateIdeaLinkFallback(
+  payload: Record<string, unknown>,
+): string | null {
+  for (const field of ["linked_note_ids", "linked_paper_ids"] as const) {
+    const value = payload[field];
+    if (value === undefined) continue;
+    if (!isStringArray(value)) {
+      return `${field} must be an array of strings`;
+    }
+    if (!value.every((id) => UUID_RE.test(id))) {
+      return `${field} must be an array of UUIDs`;
+    }
+  }
+  return null;
+}
+
 async function createReadingTaskForPaper(
   ctx: AuthContext,
   paper: Record<string, unknown>,
@@ -762,6 +784,20 @@ async function createEntity(
     const rpcResult = await saveIdeaWithLinks(ctx, payload, null);
     if (!rpcResult.error && rpcResult.data) {
       return { data: rpcResult.data as Record<string, unknown>, error: null };
+    }
+    // PR20-84: fail closed for JWT callers — the RPC is authoritative (link
+    // ownership checks); silently falling back to a direct insert would bypass
+    // them. API-key callers cannot use the JWT-bound RPC, so re-validate link
+    // ids before the service-role fallback insert.
+    if (ctx.authMode === "jwt") {
+      return {
+        data: null,
+        error: rpcResult.error ?? new Error("save_idea_with_links failed"),
+      };
+    }
+    const fallbackError = validateIdeaLinkFallback(payload);
+    if (fallbackError) {
+      return { data: null, error: new Error(fallbackError) };
     }
   }
 
@@ -853,6 +889,19 @@ async function updateIdea(
   const rpcResult = await saveIdeaWithLinks(ctx, merged, id);
   if (!rpcResult.error && rpcResult.data) {
     return { data: rpcResult.data as Record<string, unknown>, error: null };
+  }
+  // PR20-84: fail closed for JWT callers (see createEntity); re-validate the
+  // patch link ids before the service-role fallback update for API-key mode.
+  if (ctx.authMode === "jwt") {
+    return {
+      data: null,
+      error: rpcResult.error ?? new Error("save_idea_with_links failed"),
+      notFound: false,
+    };
+  }
+  const fallbackError = validateIdeaLinkFallback(patch);
+  if (fallbackError) {
+    return { data: null, error: new Error(fallbackError), notFound: false };
   }
 
   const { data, error } = await ctx.supabaseAdmin
