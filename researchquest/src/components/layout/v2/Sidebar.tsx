@@ -24,6 +24,7 @@ import {
 import { useAppStore } from "../../../store/appStore";
 import { cn } from "../../../lib/utils";
 import { supabase } from "../../../lib/supabase";
+import { softNavigate } from "../../../lib/softNavigation";
 import { XPExplainer } from "../XPExplainer";
 import { ProfileDialog } from "../ProfileDialog";
 import { DataManagementDialog } from "../../settings/DataManagementDialog";
@@ -141,12 +142,7 @@ export function Sidebar() {
               e.preventDefault();
               setCurrentView(item.id);
               setIsMobileSidebarOpen(false);
-              // Update URL without reload
-              window.history.pushState(
-                null,
-                "",
-                item.id === "dashboard" ? "/" : `/${item.id}`,
-              );
+              softNavigate(item.id === "dashboard" ? "/" : `/${item.id}`);
             }}
             className={cn(
               "flex min-h-11 w-full items-center gap-3 rounded-sm px-3 py-2.5 text-small font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2",

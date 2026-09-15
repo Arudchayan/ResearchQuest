@@ -39,7 +39,7 @@ describe("Sidebar (v2)", () => {
       isRightSidebarOpen: false,
     });
 
-    // Mock window.history.pushState
+    // Mock soft navigation (wraps history.pushState)
     vi.spyOn(window.history, "pushState");
   });
 
@@ -56,7 +56,7 @@ describe("Sidebar (v2)", () => {
     expect(papersLink).toHaveAttribute("href", "/papers");
   });
 
-  it("updates view and URL on click", () => {
+  it("updates view and URL on click without a full navigation", () => {
     render(<TooltipProvider><Sidebar /></TooltipProvider>);
 
     const papersLink = screen.getByText("Papers").closest("a");

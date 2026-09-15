@@ -27,6 +27,11 @@ import {
   parseRoute,
   selectEntityForRoute,
 } from "./lib/router";
+import { shouldBlockShellForAuthEvent } from "./lib/authBootstrap";
+import {
+  softNavigate,
+  subscribeSoftNavigation,
+} from "./lib/softNavigation";
 
 function ensureDemoFirstRunPath(): boolean {
   if (!isDemoMode || typeof window === "undefined") return false;
@@ -179,9 +184,14 @@ function App() {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
       setUserId(session?.user?.id);
+      // TOKEN_REFRESHED (browser tab focus / token rotation) must not tear
+      // down AppShell — that remount looks like a full page refresh.
+      if (!shouldBlockShellForAuthEvent(event)) {
+        return;
+      }
       if (session?.user) {
         setProfileLoading(true);
       } else {
@@ -240,7 +250,7 @@ function App() {
   // After sign-in, navigate to the saved deep-link path
   useEffect(() => {
     if (user && pendingPath) {
-      window.history.pushState(null, "", pendingPath);
+      softNavigate(pendingPath);
       const route = parseRoute(pendingPath);
       if (route.isValid && route.view) {
         setCurrentView(route.view);
@@ -251,14 +261,18 @@ function App() {
     }
   }, [user, pendingPath, setCurrentView]);
 
-  // URL-based routing — handle initial load, popstate, and invalid-route recovery
+  // URL-based routing — initial load, back/forward, soft link clicks, recovery
   useEffect(() => {
     // Demo first-run: never leave a stranger on `/` / dashboard.
     ensureDemoFirstRunPath();
 
-    const handleRouteChange = () => {
-      ensureDemoFirstRunPath();
-      const route = parseRoute(window.location.pathname);
+    const applyPath = (pathname: string, { enforceDemoHome = false } = {}) => {
+      if (enforceDemoHome) {
+        ensureDemoFirstRunPath();
+      }
+      const route = parseRoute(
+        enforceDemoHome ? window.location.pathname : pathname,
+      );
 
       if (route.isValid && route.view) {
         setCurrentView(route.view);
@@ -268,11 +282,32 @@ function App() {
         // silently replace) and present a recovery UI instead.
         setRouteError("not-found");
       }
+      useAppStore.getState().setIsMobileSidebarOpen(false);
     };
 
-    handleRouteChange();
-    window.addEventListener("popstate", handleRouteChange);
-    return () => window.removeEventListener("popstate", handleRouteChange);
+    const handlePopState = () => {
+      // Back/forward to bare `/` in demo should recover to the first-run topic.
+      applyPath(window.location.pathname, { enforceDemoHome: true });
+    };
+
+    const handleSoftNav = (path: string) => {
+      // Soft clicks intentionally allow `/` (dashboard) even in demo mode.
+      let pathname = path;
+      try {
+        pathname = new URL(path, window.location.origin).pathname;
+      } catch {
+        pathname = path.split("?")[0]?.split("#")[0] || path;
+      }
+      applyPath(pathname);
+    };
+
+    applyPath(window.location.pathname, { enforceDemoHome: true });
+    window.addEventListener("popstate", handlePopState);
+    const unsubscribeSoft = subscribeSoftNavigation(handleSoftNav);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+      unsubscribeSoft();
+    };
   }, [setCurrentView]);
 
   // Focus main content on navigation change for keyboard users
@@ -349,7 +384,7 @@ function App() {
           </p>
           <button
             onClick={() => {
-              window.history.pushState(null, "", "/");
+              softNavigate("/");
               setCurrentView("dashboard");
               setRouteError(null);
             }}

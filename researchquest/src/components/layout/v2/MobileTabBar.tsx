@@ -10,6 +10,7 @@ import {
 import { useAppStore } from "../../../store/appStore";
 import { useShallow } from "zustand/react/shallow";
 import { cn } from "../../../lib/utils";
+import { softNavigate } from "../../../lib/softNavigation";
 
 const tabs = [
   { id: "notes", label: "Notes", icon: FileText },
@@ -49,7 +50,7 @@ export function MobileTabBar() {
   const navigate = (view: TabId) => {
     setCurrentView(view);
     setIsMobileSidebarOpen(false);
-    window.history.pushState(null, "", `/${view}`);
+    softNavigate(`/${view}`);
   };
 
   useEffect(() => {
