@@ -1,0 +1,26 @@
+# ResearchQuest — Supabase CLI configuration.
+#
+# Requires Supabase CLI >= 2.116.0 (pinned via the `supabase` devDependency in
+# researchquest/package.json; config.toml has no version field, so the pin
+# lives there — keep this comment in sync when bumping the devDependency).
+
+project_id = "researchquest"
+
+[functions.api]
+enabled = true
+# The api gateway performs its own auth and serves unauthenticated discovery
+# endpoints (/health, /openapi.json, /explore — see functions/api/index.ts),
+# so platform JWT verification must stay off here.
+verify_jwt = false
+
+[functions.fetch-paper]
+enabled = true
+# Verifies the caller JWT itself (supabase.auth.getUser) and additionally
+# honours ALLOWED_ORIGINS for CORS — keep platform verification on.
+verify_jwt = true
+
+[functions.deep-research]
+enabled = true
+# Same as fetch-paper: self-verifies the caller JWT — keep platform
+# verification on.
+verify_jwt = true
