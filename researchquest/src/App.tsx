@@ -345,8 +345,8 @@ function App() {
     return (
       <div className="flex h-full min-h-[400px] items-center justify-center p-6">
         <div className="text-center max-w-md">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/20 mb-4">
-            <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" aria-hidden="true" />
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-destructive-bg mb-4">
+            <AlertCircle className="w-6 h-6 text-destructive" aria-hidden="true" />
           </div>
           <h2 className="text-xl font-bold text-text-primary mb-2">Page Not Found</h2>
           <p className="text-text-secondary mb-6">
@@ -358,7 +358,7 @@ function App() {
               setCurrentView("dashboard");
               setRouteError(null);
             }}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-primary-500 text-bg-base rounded-md hover:bg-primary-600 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
           >
             <Home className="w-4 h-4" aria-hidden="true" />
             Go Home

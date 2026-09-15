@@ -14,8 +14,8 @@ export function NotFound({
   return (
     <div className="min-h-screen flex items-center justify-center bg-bg-base p-6">
       <div className="max-w-md w-full text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/20 mb-6">
-          <AlertCircle className="w-8 h-8 text-red-600 dark:text-red-400" />
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-destructive-bg mb-6">
+          <AlertCircle className="w-8 h-8 text-destructive" />
         </div>
 
         <h1 className="text-2xl font-bold text-text-primary mb-3">{title}</h1>
@@ -26,7 +26,7 @@ export function NotFound({
           {showBackButton && (
             <button
               onClick={() => window.history.back()}
-              className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-bg-elevated text-text-primary rounded-lg hover:bg-bg-surface transition-colors border border-border-subtle"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-bg-elevated text-text-primary rounded-lg hover:bg-bg-surface transition-colors border border-border-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
             >
               <ArrowLeft className="w-4 h-4" aria-hidden="true" />
               Go Back
@@ -35,7 +35,7 @@ export function NotFound({
 
           <button
             onClick={() => window.location.replace("/")}
-            className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
+            className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-primary-500 text-bg-base rounded-lg hover:bg-primary-600 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
           >
             <Home className="w-4 h-4" aria-hidden="true" />
             Go Home
@@ -60,8 +60,8 @@ export function ItemNotFound({
   return (
     <div className="flex items-center justify-center h-full min-h-[400px] p-6">
       <div className="text-center max-w-md">
-        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-yellow-100 dark:bg-yellow-900/20 mb-4">
-          <AlertCircle className="w-6 h-6 text-yellow-600 dark:text-yellow-400" aria-hidden="true" />
+        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-warning-bg mb-4">
+          <AlertCircle className="w-6 h-6 text-warning" aria-hidden="true" />
         </div>
 
         <h3 className="text-lg font-semibold text-text-primary mb-2">
@@ -83,7 +83,7 @@ export function ItemNotFound({
             const view = window.location.pathname.split("/")[1];
             window.location.replace(`/${view}`);
           }}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors text-small"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-primary-500 text-bg-base rounded-md hover:bg-primary-600 transition-colors text-small focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
         >
           <ArrowLeft className="w-4 h-4" aria-hidden="true" />
           Back to List

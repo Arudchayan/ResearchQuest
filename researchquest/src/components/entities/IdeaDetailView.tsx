@@ -345,13 +345,13 @@ export function IdeaDetailView({
   const getStageColor = (stage: IdeaStage) => {
     switch (stage) {
       case "Seed":
-        return "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 border-yellow-300 dark:border-yellow-700";
+        return "bg-warning-bg text-warning border-warning";
       case "Developing":
-        return "bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-300 dark:border-blue-700";
+        return "bg-info-bg text-info border-info";
       case "Supported":
-        return "bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 border-purple-300 dark:border-purple-700";
+        return "bg-purple-bg text-purple border-purple";
       case "Mature":
-        return "bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-300 dark:border-green-700";
+        return "bg-success-bg text-success border-success";
     }
   };
 
@@ -384,7 +384,7 @@ export function IdeaDetailView({
                     type="text"
                     value={editedTitle}
                     onChange={(e) => setEditedTitle(e.target.value)}
-                    className="flex-1 text-2xl font-bold text-text-primary bg-bg-base border border-border-subtle rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="flex-1 text-2xl font-bold text-text-primary bg-bg-base border border-border-subtle rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-focus"
                     placeholder="Idea title..."
                     aria-label="Idea title"
                   />
@@ -555,7 +555,7 @@ export function IdeaDetailView({
                 <select
                   value={editedStage}
                   onChange={(e) => setEditedStage(e.target.value as IdeaStage)}
-                  className={`px-4 py-2 rounded-md border text-sm font-medium ${getStageColor(editedStage)} focus:outline-none focus:ring-2 focus:ring-primary-500`}
+                  className={`px-4 py-2 rounded-md border text-sm font-medium ${getStageColor(editedStage)} focus:outline-none focus:ring-2 focus:ring-focus`}
                 >
                   <option value="Seed">🌱 Seed</option>
                   <option value="Developing">🌿 Developing</option>
@@ -594,7 +594,7 @@ export function IdeaDetailView({
                 value={editedDescription}
                 onChange={(e) => setEditedDescription(e.target.value)}
                 rows={8}
-                className="w-full px-4 py-3 bg-bg-base border border-border-subtle rounded-md text-body text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+                className="w-full px-4 py-3 bg-bg-base border border-border-subtle rounded-md text-body text-text-primary focus:outline-none focus:ring-2 focus:ring-focus resize-none"
                 placeholder="Describe your idea in detail..."
                 aria-label="Idea description"
               />
