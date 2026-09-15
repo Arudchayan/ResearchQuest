@@ -86,6 +86,60 @@ export function isValidView(view: string): view is AppView {
   return (VALID_VIEWS as readonly string[]).includes(view);
 }
 
+/**
+ * Key written by `public/404.html` before it force-redirects to `/`.
+ *
+ * Hosts without SPA fallback (or transient misconfig) serve 404.html for deep
+ * links; that page stores the attempted path here, then full-navigates to `/`.
+ * Restoring it on boot converts that forced reload into a soft route recovery
+ * so the user lands on the view they asked for instead of the dashboard.
+ */
+export const REDIRECT_PATH_STORAGE_KEY = "redirectPath";
+
+/**
+ * If `404.html` stashed a deep-link path, replace the current URL with it
+ * (no second document load). Returns the restored path, or `null` when there
+ * was nothing safe to restore.
+ */
+export function restoreRedirectPath(
+  storage: Pick<Storage, "getItem" | "removeItem"> | null = typeof sessionStorage !== "undefined"
+    ? sessionStorage
+    : null,
+  loc: Pick<Location, "pathname" | "search" | "hash"> | null = typeof window !== "undefined"
+    ? window.location
+    : null,
+  historyApi: Pick<History, "replaceState"> | null = typeof window !== "undefined"
+    ? window.history
+    : null,
+): string | null {
+  if (!storage || !loc || !historyApi) return null;
+
+  let raw: string | null;
+  try {
+    raw = storage.getItem(REDIRECT_PATH_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+  if (!raw) return null;
+
+  try {
+    storage.removeItem(REDIRECT_PATH_STORAGE_KEY);
+  } catch {
+    // Still attempt restore even if remove fails (private mode quirks).
+  }
+
+  // Only same-origin relative paths — reject protocol-relative / open redirects.
+  if (!raw.startsWith("/") || raw.startsWith("//") || raw.includes("://")) {
+    return null;
+  }
+
+  const current = `${loc.pathname}${loc.search}${loc.hash}`;
+  if (raw === current) return raw;
+
+  historyApi.replaceState(null, "", raw);
+  return raw;
+}
+
 // ---------------------------------------------------------------------------
 // Selection hydration (deep-link entity resolution)
 // ---------------------------------------------------------------------------

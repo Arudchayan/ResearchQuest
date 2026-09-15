@@ -4,9 +4,11 @@
   <meta charset="UTF-8" />
   <meta http-equiv="refresh" content="0; url=/" />
   <script>
-    // Store the attempted path before redirecting
+    // Last-resort fallback when the host has no SPA rewrite (Vercel root
+    // vercel.json rewrites should normally serve index.html instead).
+    // Stash the deep link so main.tsx → restoreRedirectPath() can soft-recover
+    // after this forced reload to "/".
     sessionStorage.setItem('redirectPath', window.location.pathname + window.location.search + window.location.hash);
-    // Redirect to index
     window.location.replace('/');
   </script>
   <title>Redirecting...</title>
