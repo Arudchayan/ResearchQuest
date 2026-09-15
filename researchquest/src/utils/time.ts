@@ -1,5 +1,26 @@
 const DATE_ONLY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
+/**
+ * Canonical "today" key (`YYYY-MM-DD`) — the single date authority (item 42).
+ *
+ * Every "is it still today / fetch today's rows" decision in the app must
+ * derive from this function: daily missions, `daily_logs` lookups, and
+ * dashboard day math.
+ *
+ * Local-vs-UTC decision: LOCAL calendar day (device timezone), consistent
+ * with `parseDateInput`'s local handling of date-only strings and the
+ * `daily_logs.date` DATE-column semantics (a calendar day, not an instant).
+ * This deliberately differs from `new Date().toISOString().split("T")[0]`
+ * (UTC day), which would roll missions/XP over at the wrong local hour for
+ * users away from UTC around midnight.
+ */
+export function todayKey(now: Date = new Date()): string {
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export const parseDateInput = (
   dateString: string | undefined | null,
 ): Date | null => {

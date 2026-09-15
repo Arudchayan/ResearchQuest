@@ -135,7 +135,7 @@ export function useTopics(
   { owner = true }: UseTopicsOptions = {},
 ) {
   const {
-    topicsRecord,
+    topics,
     setTopics,
     upsertTopic,
     removeTopic,
@@ -147,7 +147,7 @@ export function useTopics(
   } =
     useAppStore(
       useShallow((state) => ({
-        topicsRecord: state.topics,
+        topics: state.topics,
         setTopics: state.setTopics,
         upsertTopic: state.upsertTopic,
         removeTopic: state.removeTopic,
@@ -159,11 +159,8 @@ export function useTopics(
       })),
     );
 
-  const topics = useMemo(() => {
-    return Object.values(topicsRecord).sort((a, b) =>
-      a.updated_at > b.updated_at ? -1 : a.updated_at < b.updated_at ? 1 : 0
-    );
-  }, [topicsRecord]);
+  // Item 32: the store holds the canonical array (sorted desc by updated_at
+  // at write time), so no Object.values conversion happens here.
   const [localTopicsLoading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [quests, setQuests] = useState<TopicQuestWithTopic[]>([]);
@@ -188,7 +185,7 @@ export function useTopics(
       }
 
       // Optimization: Check if topics are already loaded
-      const currentTopics = Object.values(useAppStore.getState().topics);
+      const currentTopics = useAppStore.getState().topics;
       if (!force) {
         // If we have fetched for this user before, skip (handles empty state)
         // Or if store has topics for this user (handles persistence)
@@ -420,7 +417,7 @@ export function useTopics(
 
   const adjustCounts = useCallback(
     (topicId: string, delta: Partial<Record<TopicEntityType, number>>) => {
-      const topic = useAppStore.getState().topics[topicId];
+      const topic = useAppStore.getState().topics.find((t) => t.id === topicId);
       if (!topic) return;
       const updated: TopicWithCounts = {
         ...topic,
