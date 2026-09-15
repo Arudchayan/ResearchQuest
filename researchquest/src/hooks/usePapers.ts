@@ -225,8 +225,6 @@ const CREATE_FAIL_REASON_MESSAGE: Record<
 };
 
 export function usePapers(userId: string | undefined) {
-  const setSelectedPaper = useAppStore(selectSetSelectedPaper);
-
   const crud = useEntityCrud<Paper, PaperDraft>({
     userId,
     items: selectPapers,
@@ -334,30 +332,15 @@ export function usePapers(userId: string | undefined) {
 
   const { error, setError, setItems } = crud;
 
-  const fetchPapers = useCallback(async () => {
+  // Item 33 (single loader per table): papers are loaded ONLY by useDataSync.
+  // The hook-local duplicate fetch is deleted; manual refresh reuses the
+  // single loader via the store retry signal, which useDataSync listens to
+  // (including its selected-paper sync). Sorting, selection, bulk import,
+  // and XP paths below are untouched.
+  const refreshPapers = useCallback(async () => {
     if (!userId) return;
-
-    const { data, error: fetchError } = await supabase
-      .from("papers")
-      .select("*")
-      .eq("user_id", userId)
-      .order("updated_at", { ascending: false });
-
-    if (fetchError) {
-      setError(fetchError.message);
-    } else {
-      // Data is already sorted by updated_at desc from the DB query above
-      const rows = data || [];
-      setItems(rows);
-      const selected = useAppStore.getState().selectedPaper;
-      if (selected) {
-        const fresh = rows.find((paper) => paper.id === selected.id);
-        if (fresh) {
-          setSelectedPaper(fresh);
-        }
-      }
-    }
-  }, [userId, setError, setItems, setSelectedPaper]);
+    useAppStore.getState().retryDataSync("papers");
+  }, [userId]);
 
   const searchPaperByDOI = useCallback(
     async (doi: string): Promise<CrossrefPaper | null> => {
@@ -607,6 +590,6 @@ export function usePapers(userId: string | undefined) {
     updatePaper: crud.update,
     deletePaper: crud.delete,
     restorePaper: crud.restore,
-    refreshPapers: fetchPapers,
+    refreshPapers,
   };
 }

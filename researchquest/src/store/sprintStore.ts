@@ -1,6 +1,22 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+/**
+ * Item 43 — single streak authority.
+ *
+ * STREAK AUTHORITY RULE (shared with `dailyMissionsStore`):
+ * - Signed in (server reachable, not demo): the server is the single streak
+ *   authority (`user_profiles.current_streak`, `daily_logs`, `focus_sessions`,
+ *   reconciled into this store via `applyServerSnapshot`). Server values win
+ *   for today's minutes/XP counters.
+ * - Demo / offline / signed out: there is no server, so this persisted local
+ *   store is the authority and `applyServerSnapshot` is never called
+ *   (see `useDataSync`: it skips reconciliation in demo mode).
+ *
+ * Sprint *goals* are local-only by design (no server counterpart) and are
+ * never touched by reconciliation — only today's minutes/XP counters are.
+ */
+
 export type SprintGoalStatus = "active" | "done";
 
 export interface SprintGoal {
@@ -41,6 +57,12 @@ interface SprintState {
   completeGoal: (goalId: string) => void;
   deleteGoal: (goalId: string) => void;
   resetIfNeeded: () => void;
+  /**
+   * Server-wins reconcile for today's counters (see authority rule above).
+   * Overwrites today's minutes/XP with the server-observed values while
+   * preserving the day's label and local event trail; goals are untouched.
+   */
+  applyServerSnapshot: (minutes: number, xp: number) => void;
 }
 
 export const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -156,9 +178,50 @@ export const useSprintStore = create<SprintState>()(
           set({ days: buildWeek(key) });
         }
       },
+      applyServerSnapshot: (minutes, xp) => {
+        get().resetIfNeeded();
+        const today = new Date().toISOString().split("T")[0];
+        const days = { ...get().days };
+        const day = days[today] ?? {
+          date: today,
+          label: DAY_LABELS[new Date().getDay()],
+          minutes: 0,
+          xp: 0,
+          events: [],
+        };
+        days[today] = {
+          ...day,
+          minutes: Math.max(0, Math.floor(minutes)),
+          xp: Math.max(0, xp),
+        };
+        set({ days });
+      },
     }),
     {
       name: "researchquest-sprint",
+      // Versioned so legacy unversioned persists migrate safely instead of
+      // being dropped or misread when the shape evolves.
+      version: 1,
+      migrate: (persisted) => {
+        const legacy = (persisted ?? {}) as Partial<{
+          weekKey: unknown;
+          days: unknown;
+          goals: unknown;
+        }>;
+        return {
+          weekKey:
+            typeof legacy.weekKey === "string"
+              ? legacy.weekKey
+              : weekKeyFor(new Date()),
+          days:
+            legacy.days && typeof legacy.days === "object"
+              ? (legacy.days as Record<string, SprintDay>)
+              : {},
+          goals: Array.isArray(legacy.goals)
+            ? (legacy.goals as SprintGoal[])
+            : [],
+        };
+      },
     },
   ),
 );
