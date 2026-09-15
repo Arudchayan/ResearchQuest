@@ -1,0 +1,84 @@
+# Design-token allowlist (PR9 item 20). One entry per line:
+#   <relative/path :: trimmed offending line>
+# Sections:
+#  - LEGIT: valid Tailwind utilities the gate pattern also matches
+#    (accent-<defined color> = accent-color, outline-<defined color>).
+#    Keep these permanently.
+#  - GRANDFATHERED: pre-existing undefined-token usages as of base 997625b3
+#    (verified: accent/coral/gold/shadow-card/shadow-lift/brand-gradient exist
+#    nowhere in tailwind.config.js or src CSS). Ratchet: remove an entry only
+#    by fixing the source to a defined token. New matches fail CI.
+# --- LEGIT (valid Tailwind utilities) ---
+src/components/settings/DataManagementDialog.tsx :: const checkboxes = (counts: Counts, selection: Selection, onChange: (key: EntityKey, checked: boolean) => void, suffix: string) => <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{ENTITY_KEYS.map((key) => <label key={key} className="flex min-h-12 items-center gap-3 rounded-control border border-border-subtle bg-bg-base p-3 text-small has-[:checked]:border-border-strong has-[:checked]:bg-bg-elevated"><input type="checkbox" checked={selection[key]} disabled={counts[key] === 0} onChange={(event) => onChange(key, event.target.checked)} className="h-4 w-4 accent-primary-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus" /><span className="min-w-0 flex-1 text-text-primary">{labels[key]}<span className="ml-2 text-caption text-text-tertiary">{counts[key]} {suffix}</span></span></label>)}</div>;
+src/components/settings/DataManagementDialog.tsx :: <Tabs.Content value="export" className="space-y-5 outline-none"><section className="rounded-surface border border-border-subtle bg-bg-elevated p-4"><p className="text-small font-medium text-text-primary">Backup contents</p><p className="mt-1 text-small text-text-secondary">Your download contains the selected records below{exportSelection.user ? ", your profile and progress" : ""}, plus all topic connections stored for this account.</p><p className="mt-3 font-mono text-small tabular-nums text-text-primary">{selectedCount(exportCounts, exportSelection)} selected research records</p></section>{checkboxes(exportCounts, exportSelection, (key, checked) => setExportSelection((current) => ({ ...current, [key]: checked })), "included")}<label className="flex min-h-12 items-center gap-3 rounded-control border border-border-subtle bg-bg-base p-3 text-small has-[:checked]:border-border-strong has-[:checked]:bg-bg-elevated"><input type="checkbox" checked={exportSelection.user} onChange={(event) => setExportSelection((current) => ({ ...current, user: event.target.checked }))} className="h-4 w-4 accent-primary-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus" /><span className="text-text-primary">Profile and progress <span className="ml-2 text-caption text-text-tertiary">included</span></span></label><div className="flex justify-end"><button onClick={handleExport} className="inline-flex min-h-10 items-center gap-2 rounded-control bg-primary-500 px-4 py-2 text-small font-medium text-bg-surface transition-colors hover:bg-primary-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus"><Download className="h-4 w-4" aria-hidden="true" />Download Backup <span className="font-mono tabular-nums">({selectedCount(exportCounts, exportSelection)} records)</span></button></div></Tabs.Content>
+
+# --- GRANDFATHERED (ratchet; fix source to remove) ---
+src/components/analysis/AdversarialReviewPanel.tsx :: high: "bg-coral-soft text-coral-strong border border-coral/20",
+src/components/analysis/AdversarialReviewPanel.tsx :: medium: "bg-gold-soft text-gold-strong border border-gold/20",
+src/components/analysis/AdversarialReviewPanel.tsx :: <p className="mt-2 flex items-start gap-1.5 text-caption text-accent-strong">
+src/components/analysis/AdversarialReviewPanel.tsx :: <span className="icon-tile bg-coral-soft text-coral-strong">
+src/components/analysis/AdversarialReviewPanel.tsx :: <span className="icon-tile h-14 w-14 bg-coral-soft text-coral-strong">
+src/components/analysis/AdversarialReviewPanel.tsx :: className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-text-primary px-5 text-sm font-semibold text-bg-base shadow-lift transition-transform hover:-translate-y-0.5"
+src/components/analysis/AdversarialReviewPanel.tsx :: className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-border-moderate bg-bg-surface px-4 text-small font-semibold text-text-primary transition-colors hover:border-accent disabled:opacity-50"
+src/components/analysis/AdversarialReviewPanel.tsx :: <Sparkles className="h-4 w-4 text-accent-strong" aria-hidden="true" />
+src/components/analysis/AdversarialReviewPanel.tsx :: <Loader2 className="h-7 w-7 animate-spin text-accent-strong" aria-hidden="true" />
+src/components/analysis/AdversarialReviewPanel.tsx :: <div className="mb-2 flex items-center gap-2 text-caption font-semibold uppercase tracking-wider text-accent-strong">
+src/components/analysis/AdversarialReviewPanel.tsx :: <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-soft text-caption font-bold text-accent-strong">
+src/components/analysis/AnalysisView.tsx :: high: "bg-coral-soft text-coral-strong border border-coral/20",
+src/components/analysis/AnalysisView.tsx :: medium: "bg-gold-soft text-gold-strong border border-gold/20",
+src/components/analysis/AnalysisView.tsx :: <span className="icon-tile bg-coral-soft text-coral-strong">
+src/components/analysis/AnalysisView.tsx :: <div className="flex items-center gap-5 rounded-2xl border border-border-subtle bg-bg-surface/80 p-6 shadow-card backdrop-blur">
+src/components/analysis/AnalysisView.tsx :: <span className="icon-tile bg-accent-soft text-accent-strong">
+src/components/analysis/AnalysisView.tsx :: "inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-small font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent",
+src/components/analysis/AnalysisView.tsx :: ? "bg-accent-soft text-accent-strong"
+src/components/analysis/AnalysisView.tsx :: "inline-flex h-8 items-center rounded-full border px-3 text-caption font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent",
+src/components/analysis/AnalysisView.tsx :: ? "border-accent/30 bg-accent-soft text-accent-strong"
+src/components/analysis/WorkspaceAuditDialog.tsx :: high: "bg-coral-soft text-coral-strong border border-coral/20",
+src/components/analysis/WorkspaceAuditDialog.tsx :: medium: "bg-gold-soft text-gold-strong border border-gold/20",
+src/components/analysis/WorkspaceAuditDialog.tsx :: <span className="icon-tile bg-accent-soft text-accent-strong">
+src/components/analysis/WorkspaceAuditDialog.tsx :: <div className="rounded-lg bg-coral-soft px-2 py-2">
+src/components/analysis/WorkspaceAuditDialog.tsx :: <div className="rounded-lg bg-gold-soft px-2 py-2">
+src/components/analysis/WorkspaceAuditDialog.tsx :: className={`h-full rounded-full ${CATEGORY_BARS[category] ?? "bg-accent"}`}
+src/components/analysis/WorkspaceAuditDialog.tsx :: <span className="status-chip bg-accent-soft text-accent-strong">
+src/components/dashboard/ResearchRadar.tsx :: <div className="relative flex h-full min-h-64 w-full flex-col overflow-hidden rounded-xl border border-border-subtle bg-bg-surface shadow-card">
+src/components/dashboard/ResearchRadar.tsx :: <span className="status-chip bg-accent-soft text-accent-strong">Live</span>
+src/components/dashboard/ResearchRadar.tsx :: className="pointer-events-none absolute z-10 max-w-52 rounded-lg border border-border-subtle bg-bg-surface/95 px-3 py-2 shadow-lift backdrop-blur"
+src/components/dashboard/ResearchRadar.tsx :: <Hash className="h-3.5 w-3.5 text-accent" aria-hidden="true" /> Topics
+src/components/dashboard/SprintBoard.tsx :: ? "border-accent/40 bg-accent-soft shadow-glow"
+src/components/dashboard/SprintBoard.tsx :: isToday ? "brand-gradient" : "bg-accent/35"
+src/components/dashboard/SprintBoard.tsx :: <TrendingUp className="h-4 w-4 shrink-0 text-accent-strong" aria-hidden="true" />
+src/components/dashboard/SprintBoard.tsx :: className="icon-btn bg-accent-soft text-accent-strong hover:bg-accent/20"
+src/components/dashboard/SprintBoard.tsx :: className="mb-3 rounded-xl border border-accent/30 bg-accent-soft p-3"
+src/components/dashboard/SprintBoard.tsx :: className="w-full rounded-lg border border-border-moderate bg-bg-surface px-3 py-2 text-small text-text-primary shadow-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25"
+src/components/dashboard/SprintBoard.tsx :: className="mt-2 inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-accent-strong px-3 text-small font-semibold text-accent-contrast shadow-sm transition-transform hover:-translate-y-0.5"
+src/components/dashboard/SprintBoard.tsx :: className="mt-0.5 shrink-0 text-text-tertiary transition-colors hover:text-accent-strong"
+src/components/dashboard/SprintBoard.tsx :: className="icon-btn h-7 w-7 shrink-0 text-text-tertiary hover:bg-coral-soft hover:text-coral-strong"
+src/components/editor/sub-components/EditorFooter.tsx :: <Sparkles className="h-3.5 w-3.5 text-accent-strong" aria-hidden="true" />
+src/components/editor/sub-components/LinkDialog.tsx :: <div className="w-full max-w-md rounded-xl border border-border-moderate bg-bg-surface shadow-lift animate-fade-slide-in">
+src/components/editor/sub-components/LinkDialog.tsx :: className="w-full rounded-lg border border-border-moderate bg-bg-surface px-3 py-2.5 text-small text-text-primary shadow-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+src/components/editor/sub-components/LinkDialog.tsx :: className="w-full rounded-lg border border-border-moderate bg-bg-surface px-3 py-2.5 text-small text-text-primary shadow-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+src/components/editor/sub-components/LinkDialog.tsx :: className="inline-flex h-10 items-center justify-center rounded-lg border border-border-moderate bg-bg-surface px-4 text-sm font-semibold text-text-secondary shadow-sm transition-all hover:-translate-y-0.5 hover:border-border-strong hover:bg-bg-elevated hover:text-text-primary hover:shadow-lift"
+src/components/editor/sub-components/LinkDialog.tsx :: className="inline-flex h-10 items-center justify-center rounded-lg bg-text-primary px-4 text-sm font-semibold text-bg-base shadow-lift transition-transform hover:-translate-y-0.5 hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
+src/components/feeds/FeedItemCard.tsx :: news: "bg-gold-soft text-gold-strong",
+src/components/feeds/FeedItemCard.tsx :: custom: "bg-accent-soft text-accent-strong",
+src/components/feeds/FeedItemCard.tsx :: new: "bg-accent-soft text-accent-strong",
+src/components/feeds/FeedItemCard.tsx :: className="inline-flex items-center gap-1 text-caption font-medium text-accent-strong hover:text-accent"
+src/components/feeds/FeedItemCard.tsx :: className="inline-flex items-center gap-1 rounded-lg border border-border-moderate bg-bg-surface px-2.5 py-1 text-caption font-medium text-text-secondary shadow-sm transition-colors hover:border-border-strong hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+src/components/feeds/FeedItemCard.tsx :: className="inline-flex items-center gap-1 rounded-lg border border-border-moderate bg-bg-surface px-2.5 py-1 text-caption font-medium text-text-secondary shadow-sm transition-colors hover:border-border-strong hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+src/components/feeds/FeedItemCard.tsx :: className="inline-flex items-center gap-1 rounded-lg bg-text-primary px-2.5 py-1 text-caption font-medium text-bg-base shadow-sm transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
+src/components/feeds/FeedsRail.tsx :: <span className="icon-tile h-8 w-8 bg-accent-soft text-accent-strong">
+src/components/feeds/FeedsRail.tsx :: className="rounded-lg border border-border-moderate bg-bg-surface px-2.5 py-1 text-caption font-medium text-text-secondary shadow-sm transition-colors hover:border-border-strong hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+src/components/feeds/FeedsRail.tsx :: "rounded-full border px-2 py-1 text-caption font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent",
+src/components/feeds/FeedsRail.tsx :: ? "border-accent bg-accent-soft text-accent-strong"
+src/components/feeds/FeedsView.tsx :: <div className="icon-tile bg-accent-soft text-accent-strong">
+src/components/feeds/FeedsView.tsx :: className="inline-flex items-center justify-center gap-2 rounded-lg border border-border-moderate bg-bg-surface px-3 py-2 text-small font-medium text-text-secondary shadow-sm transition-colors hover:border-border-strong hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
+src/components/feeds/FeedsView.tsx :: "rounded-full border px-3 py-1.5 text-small font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent",
+src/components/feeds/FeedsView.tsx :: ? "border-accent bg-accent-soft text-accent-strong"
+src/components/feeds/FeedsView.tsx :: "rounded-full border px-3 py-1.5 text-small font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent",
+src/components/feeds/FeedsView.tsx :: ? "border-accent bg-accent-soft text-accent-strong"
+src/components/layout/XPExplainer.tsx :: <span className="icon-tile bg-gold-soft text-gold-strong">
+src/components/layout/XPExplainer.tsx :: <p className="text-caption text-accent-strong font-semibold">
+src/components/papers/CitationDialog.tsx :: className="fixed left-[50%] top-[50%] max-h-[85vh] w-[90vw] max-w-[600px] translate-x-[-50%] translate-y-[-50%] rounded-xl bg-bg-surface shadow-lift focus:outline-none z-50 animate-slide-in border border-border-moderate flex flex-col overflow-hidden"
+src/components/papers/CitationDialog.tsx :: className="border-b-2 border-transparent px-1 pb-3 text-sm font-medium text-text-secondary capitalize whitespace-nowrap outline-none transition-all hover:text-text-primary data-[state=active]:border-accent data-[state=active]:text-accent-strong"
+src/components/papers/CitationDialog.tsx :: <Dialog.Close className="inline-flex h-10 items-center justify-center rounded-lg border border-border-moderate bg-bg-surface px-4 text-sm font-semibold text-text-secondary shadow-sm transition-all hover:-translate-y-0.5 hover:border-border-strong hover:bg-bg-elevated hover:text-text-primary hover:shadow-lift">
+src/components/papers/CitationDialog.tsx :: className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-text-primary px-4 text-sm font-semibold text-bg-base shadow-lift transition-transform hover:-translate-y-0.5 hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
