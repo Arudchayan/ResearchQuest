@@ -552,7 +552,7 @@ export function Dashboard() {
       <Card
         role="group"
         aria-label="Library counts"
-        className="grid grid-cols-2 gap-x-4 gap-y-2 p-4 text-small text-text-secondary sm:grid-cols-5"
+        className="grid grid-cols-2 gap-x-4 gap-y-2 p-4 text-small text-text-secondary sm:grid-cols-3 lg:grid-cols-5"
       >
         <span>Notes <strong className="font-mono font-medium text-text-primary">{notes.length}</strong></span>
         <span>Papers <strong className="font-mono font-medium text-text-primary">{papers.length}</strong></span>

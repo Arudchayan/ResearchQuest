@@ -228,6 +228,10 @@
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
     }
+    /* Opt out of smooth scrolling for users who request reduced motion */
+    .smooth-scroll {
+      scroll-behavior: auto;
+    }
   }
 }
 
@@ -259,8 +263,18 @@
   
   /* Performance Optimizations */
   
-  /* CSS Containment for sidebars and panels */
-  aside {
+  /* CSS Containment for sidebar scroll regions only (scoped by class, not
+     element: a global `aside` selector also clips the right-panel aside and
+     would turn any future position:fixed descendant into an
+     aside-relative box, since contain:paint creates a containing block).
+     Audit 2026-09-12: no position:fixed descendants exist inside either
+     aside today — Sidebar overlays (ProfileDialog, DataManagementDialog,
+     XPExplainer, Tooltip/DropdownMenu content) all render through Radix
+     portals into document.body; the mobile drawer, CommandPalette dialog,
+     Zen-mode exit button, and mobile "more" sheet are siblings of the
+     asides, not descendants. Containment therefore stays on the actual
+     scroll containers (.sidebar-scroll) and nowhere else. */
+  .sidebar-scroll {
     contain: layout style paint;
   }
 

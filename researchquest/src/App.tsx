@@ -84,12 +84,6 @@ const FeedsView = lazy(() =>
   })),
 );
 
-const OnboardingGuide = lazy(() =>
-  import("./components/layout/OnboardingGuide").then((module) => ({
-    default: module.OnboardingGuide,
-  })),
-);
-
 const CommandPalette = lazy(() =>
   import("./components/layout/CommandPalette").then((module) => ({
     default: module.CommandPalette,
@@ -369,11 +363,16 @@ function App() {
     );
   }
 
+  // Route content is rendered bare: AppShell's <main> is the single page-scroll
+  // owner, and each view owns its own wrapper (split-pane views keep h-full
+  // with internal scroll regions; page-scroll views normalize to
+  // `p-4 sm:p-6 lg:p-8` with a per-view max-w). Do not add padding or
+  // overflow wrappers here — they create double gutters and nested scrollers.
+  // TopicsView already owns the full-height handoff for its list/detail
+  // split panes; an extra wrapper would break that handoff.
   const routeContent =
     currentView === "dashboard" ? (
-      <div className="h-full overflow-auto">
-        <DashboardLazy />
-      </div>
+      <DashboardLazy />
     ) : currentView === "notes" ? (
       <NotesView />
     ) : currentView === "papers" ? (
@@ -381,23 +380,13 @@ function App() {
     ) : currentView === "ideas" ? (
       <IdeasBoard />
     ) : currentView === "topics" ? (
-      <div className="h-full overflow-hidden">
-        <TopicsView />
-      </div>
+      <TopicsView />
     ) : currentView === "tasks" ? (
-      <div className="p-6 h-full overflow-auto">
-        <OnboardingGuide />
-        <TaskManager />
-      </div>
+      <TaskManager />
     ) : currentView === "focus" ? (
-      <div className="p-6 h-full overflow-auto">
-        <OnboardingGuide storageKey="rq_focus_onboarding_bridge" />
-        <FocusWorkspace userId={userId} />
-      </div>
+      <FocusWorkspace userId={userId} />
     ) : currentView === "feeds" ? (
-      <div className="h-full overflow-auto">
-        <FeedsView />
-      </div>
+      <FeedsView />
     ) : null;
 
   return (

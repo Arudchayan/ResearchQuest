@@ -67,7 +67,10 @@ export function OnboardingGuide({
   const Icon = currentStep.icon;
 
   return (
-    <section className="mb-4 rounded-surface border border-border-moderate bg-bg-surface shadow-sm">
+    <section
+      aria-label="Onboarding guide"
+      className="mb-4 rounded-surface border border-border-moderate bg-bg-surface shadow-sm"
+    >
       <div className="flex items-start gap-4 p-5 sm:p-6">
         <div className="flex-shrink-0 rounded-xl bg-primary-500/10 p-3 text-primary-600">
           <Icon className="w-6 h-6" aria-hidden="true" />
@@ -97,7 +100,7 @@ export function OnboardingGuide({
             {currentStep.description}
           </p>
           <div className="flex items-center justify-between pt-2">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2" aria-hidden="true">
               {STEPS.map((_, index) => (
                 <span
                   key={index}
@@ -107,6 +110,9 @@ export function OnboardingGuide({
                 />
               ))}
             </div>
+            <span className="sr-only" aria-live="polite">
+              Step {stepIndex + 1} of {STEPS.length}: {currentStep.title}
+            </span>
             <div className="flex items-center gap-2">
               <Button
                 type="button"

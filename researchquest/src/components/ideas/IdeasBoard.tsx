@@ -25,6 +25,7 @@ import { IdeaDetailView } from "../entities/IdeaDetailView";
 import type { IdeaStage, Idea } from "../../types/database";
 import { cn } from "../../lib/utils";
 import * as Dialog from "@radix-ui/react-dialog";
+import { PageHeader } from "../ui/PageHeader";
 import { OnboardingGuide } from "../layout/OnboardingGuide";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/button";
@@ -360,23 +361,19 @@ export function IdeasBoard() {
           selectedIdea && "max-lg:hidden",
         )}
       >
-        <div className="flex flex-col gap-4 border-b border-border-subtle bg-bg-surface p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-          <div className="min-w-0">
-            <h1 className="font-serif text-subtitle font-bold text-text-primary">
-              Idea Board
-            </h1>
-            <p className="text-small text-text-secondary">
-              Track the evolution of your research concepts
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <DropdownMenu.Root>
-              <DropdownMenu.Trigger asChild>
-                <Button type="button" variant="outline">
-                  <Download aria-hidden="true" />
-                  Export
-                </Button>
-              </DropdownMenu.Trigger>
+        <PageHeader
+          className="bg-bg-surface"
+          title="Idea Board"
+          description="Track the evolution of your research concepts"
+          actions={
+            <>
+              <DropdownMenu.Root>
+                <DropdownMenu.Trigger asChild>
+                  <Button type="button" variant="outline">
+                    <Download aria-hidden="true" />
+                    Export
+                  </Button>
+                </DropdownMenu.Trigger>
               <DropdownMenu.Portal>
                 <DropdownMenu.Content
                   className="z-dropdown min-w-44 rounded-surface border border-border-subtle bg-bg-surface p-1 shadow-md animate-in fade-in-0 zoom-in-95"
@@ -415,8 +412,9 @@ export function IdeasBoard() {
               <Plus aria-hidden="true" />
               New Idea
             </Button>
-          </div>
-        </div>
+            </>
+          }
+        />
 
         <div className="flex flex-col gap-4 border-b border-border-subtle bg-bg-surface p-4 sm:flex-row">
           <div className="relative flex-1 sm:max-w-md">

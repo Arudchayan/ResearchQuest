@@ -64,6 +64,13 @@ describe("IdeasBoard Accessibility", () => {
     expect(screen.getByText("New Idea")).toBeInTheDocument();
   });
 
+  it("renders a level-one PageHeader heading", () => {
+    render(<IdeasBoard />);
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Idea Board" }),
+    ).toBeInTheDocument();
+  });
+
   it("renders idea cards with accessible delete button", () => {
     render(<IdeasBoard />);
     expect(screen.getByText("Test Idea")).toBeInTheDocument();
