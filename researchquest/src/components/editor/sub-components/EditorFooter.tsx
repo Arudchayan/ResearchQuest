@@ -20,7 +20,7 @@ export function EditorFooter({ wordCount, readingTime }: EditorFooterProps) {
       </div>
 
       <div className="flex items-center gap-2 hidden sm:flex">
-        <Sparkles className="h-3.5 w-3.5 text-accent-strong" aria-hidden="true" />
+        <Sparkles className="h-3.5 w-3.5 text-primary-500" aria-hidden="true" />
         <span>Markdown supported. Use Ctrl/Cmd shortcuts.</span>
       </div>
     </div>

@@ -307,7 +307,7 @@ export function ResearchRadar({
   const isEmpty = nodes.length === 0;
 
   return (
-    <div className="relative flex h-full min-h-64 w-full flex-col overflow-hidden rounded-xl border border-border-subtle bg-bg-surface shadow-card">
+    <div className="relative flex h-full min-h-64 w-full flex-col overflow-hidden rounded-xl border border-border-subtle bg-bg-surface shadow-md">
       <div className="flex items-center justify-between border-b border-border-subtle px-5 py-3.5">
         <div>
           <div className="text-small font-semibold text-text-primary">Research radar</div>
@@ -315,7 +315,7 @@ export function ResearchRadar({
             {nodes.length} entities · {topics.length} clusters
           </div>
         </div>
-        <span className="status-chip bg-accent-soft text-accent-strong">Live</span>
+        <span className="status-chip bg-primary-50 text-primary-500">Live</span>
       </div>
       <div className="relative min-h-56 flex-1">
         {isEmpty ? (
@@ -336,7 +336,7 @@ export function ResearchRadar({
         )}
         {hovered && (
           <div
-            className="pointer-events-none absolute z-10 max-w-52 rounded-lg border border-border-subtle bg-bg-surface/95 px-3 py-2 shadow-lift backdrop-blur"
+            className="pointer-events-none absolute z-10 max-w-52 rounded-lg border border-border-subtle bg-bg-surface/95 px-3 py-2 shadow-md backdrop-blur"
             style={{
               left: `clamp(8px, ${hovered.x + dimensions.width / 2 + 10}px, calc(100% - 210px))`,
               top: `clamp(8px, ${hovered.y + dimensions.height / 2 - 12}px, calc(100% - 64px))`,
@@ -353,16 +353,16 @@ export function ResearchRadar({
       </div>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-border-subtle px-5 py-3">
         <span className="flex items-center gap-1.5 text-caption text-text-secondary">
-          <Hash className="h-3.5 w-3.5 text-accent" aria-hidden="true" /> Topics
+          <Hash className="h-3.5 w-3.5 text-primary-500" aria-hidden="true" /> Topics
         </span>
         <span className="flex items-center gap-1.5 text-caption text-text-secondary">
-          <BookOpen className="h-3.5 w-3.5 text-violet-strong" aria-hidden="true" /> Papers
+          <BookOpen className="h-3.5 w-3.5 text-purple" aria-hidden="true" /> Papers
         </span>
         <span className="flex items-center gap-1.5 text-caption text-text-secondary">
-          <FileText className="h-3.5 w-3.5 text-blue-strong" aria-hidden="true" /> Notes
+          <FileText className="h-3.5 w-3.5 text-info" aria-hidden="true" /> Notes
         </span>
         <span className="flex items-center gap-1.5 text-caption text-text-secondary">
-          <Lightbulb className="h-3.5 w-3.5 text-gold-strong" aria-hidden="true" /> Ideas
+          <Lightbulb className="h-3.5 w-3.5 text-warning" aria-hidden="true" /> Ideas
         </span>
       </div>
     </div>

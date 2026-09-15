@@ -24,16 +24,16 @@ interface WorkspaceAuditDialogProps {
 }
 
 const SEVERITY_STYLES: Record<string, string> = {
-  high: "bg-coral-soft text-coral-strong border border-coral/20",
-  medium: "bg-gold-soft text-gold-strong border border-gold/20",
-  low: "bg-blue-soft text-blue-strong border border-blue/20",
+  high: "bg-destructive-bg text-destructive border border-destructive/20",
+  medium: "bg-warning-bg text-warning border border-warning/20",
+  low: "bg-info-bg text-info border border-info/20",
 };
 
 const CATEGORY_BARS: Record<string, string> = {
-  assumption: "bg-gold",
-  counterargument: "bg-blue",
-  evidence_gap: "bg-coral",
-  risk: "bg-violet",
+  assumption: "bg-warning",
+  counterargument: "bg-info",
+  evidence_gap: "bg-destructive",
+  risk: "bg-purple",
 };
 
 function AuditFindingRow({ item }: { item: WorkspaceAuditFinding }) {
@@ -71,7 +71,7 @@ export function WorkspaceAuditDialog({
   const totalFindings =
     audit.severityCounts.high + audit.severityCounts.medium + audit.severityCounts.low;
   const scoreColor =
-    audit.score >= 78 ? "var(--success)" : audit.score >= 55 ? "var(--gold)" : "var(--coral)";
+    audit.score >= 78 ? "var(--success)" : audit.score >= 55 ? "var(--warning)" : "var(--destructive)";
   const radius = 42;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference * (1 - audit.score / 100);
@@ -95,11 +95,11 @@ export function WorkspaceAuditDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/45 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 max-h-[88vh] w-[min(92vw,52rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-border-subtle bg-bg-surface shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95">
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-overlay backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 max-h-[88vh] w-[min(92vw,52rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-surface border border-border-subtle bg-bg-surface shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95">
           <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border-subtle bg-bg-surface/95 px-6 py-4 backdrop-blur">
             <div className="flex items-center gap-3">
-              <span className="icon-tile bg-accent-soft text-accent-strong">
+              <span className="icon-tile bg-primary-50 text-primary-500">
                 <ShieldCheck className="h-4 w-4" aria-hidden="true" />
               </span>
               <div>
@@ -138,7 +138,7 @@ export function WorkspaceAuditDialog({
 
           <div className="px-6 py-6">
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,18rem)_1fr]">
-              <div className="flex flex-col items-center gap-4 rounded-xl border border-border-subtle bg-bg-elevated p-6 text-center">
+              <div className="flex flex-col items-center gap-4 rounded-surface border border-border-subtle bg-bg-elevated p-6 text-center">
                 <div className="relative flex h-28 w-28 items-center justify-center">
                   <svg width="112" height="112" className="-rotate-90">
                     <circle
@@ -171,33 +171,33 @@ export function WorkspaceAuditDialog({
                   <p className="mt-1 text-caption text-text-secondary">{audit.summary}</p>
                 </div>
                 <div className="grid w-full grid-cols-3 gap-2">
-                  <div className="rounded-lg bg-coral-soft px-2 py-2">
-                    <div className="text-lg font-bold text-coral-strong">{audit.severityCounts.high}</div>
-                    <div className="text-caption text-coral-strong">High</div>
+                  <div className="rounded-control bg-destructive-bg px-2 py-2">
+                    <div className="text-lg font-bold text-destructive">{audit.severityCounts.high}</div>
+                    <div className="text-caption text-destructive">High</div>
                   </div>
-                  <div className="rounded-lg bg-gold-soft px-2 py-2">
-                    <div className="text-lg font-bold text-gold-strong">{audit.severityCounts.medium}</div>
-                    <div className="text-caption text-gold-strong">Medium</div>
+                  <div className="rounded-control bg-warning-bg px-2 py-2">
+                    <div className="text-lg font-bold text-warning">{audit.severityCounts.medium}</div>
+                    <div className="text-caption text-warning">Medium</div>
                   </div>
-                  <div className="rounded-lg bg-blue-soft px-2 py-2">
-                    <div className="text-lg font-bold text-blue-strong">{audit.severityCounts.low}</div>
-                    <div className="text-caption text-blue-strong">Low</div>
+                  <div className="rounded-control bg-info-bg px-2 py-2">
+                    <div className="text-lg font-bold text-info">{audit.severityCounts.low}</div>
+                    <div className="text-caption text-info">Low</div>
                   </div>
                 </div>
                 <div className="grid w-full grid-cols-4 gap-2">
-                  <div className="rounded-lg bg-bg-elevated px-2 py-2">
+                  <div className="rounded-control bg-bg-elevated px-2 py-2">
                     <div className="text-lg font-bold text-text-primary">{audit.entityCounts.papers}</div>
                     <div className="text-caption text-text-tertiary">Papers</div>
                   </div>
-                  <div className="rounded-lg bg-bg-elevated px-2 py-2">
+                  <div className="rounded-control bg-bg-elevated px-2 py-2">
                     <div className="text-lg font-bold text-text-primary">{audit.entityCounts.ideas}</div>
                     <div className="text-caption text-text-tertiary">Ideas</div>
                   </div>
-                  <div className="rounded-lg bg-bg-elevated px-2 py-2">
+                  <div className="rounded-control bg-bg-elevated px-2 py-2">
                     <div className="text-lg font-bold text-text-primary">{audit.entityCounts.notes}</div>
                     <div className="text-caption text-text-tertiary">Notes</div>
                   </div>
-                  <div className="rounded-lg bg-bg-elevated px-2 py-2">
+                  <div className="rounded-control bg-bg-elevated px-2 py-2">
                     <div className="text-lg font-bold text-text-primary">{audit.entityCounts.topics}</div>
                     <div className="text-caption text-text-tertiary">Topics</div>
                   </div>
@@ -205,7 +205,7 @@ export function WorkspaceAuditDialog({
               </div>
 
               <div className="space-y-5">
-                <div className="rounded-xl border border-border-subtle bg-bg-elevated p-5">
+                <div className="rounded-surface border border-border-subtle bg-bg-elevated p-5">
                   <div className="mb-3 flex items-center justify-between">
                     <h3 className="text-small font-bold uppercase tracking-wider text-text-primary">
                       Issue categories
@@ -226,7 +226,7 @@ export function WorkspaceAuditDialog({
                             </span>
                             <div className="progress-track h-2 flex-1">
                               <div
-                                className={`h-full rounded-full ${CATEGORY_BARS[category] ?? "bg-accent"}`}
+                                className={`h-full rounded-full ${CATEGORY_BARS[category] ?? "bg-primary-500"}`}
                                 style={{ width: `${(count / max) * 100}%` }}
                               />
                             </div>
@@ -240,7 +240,7 @@ export function WorkspaceAuditDialog({
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border-subtle bg-bg-elevated p-4">
+                <div className="flex flex-wrap items-center gap-2 rounded-surface border border-border-subtle bg-bg-elevated p-4">
                   <span className="icon-tile bg-success-bg text-success">
                     <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
                   </span>
@@ -270,7 +270,7 @@ export function WorkspaceAuditDialog({
                 <h3 className="text-small font-bold uppercase tracking-wider text-text-primary">
                   Priority findings
                 </h3>
-                <span className="status-chip bg-accent-soft text-accent-strong">
+                <span className="status-chip bg-primary-50 text-primary-500">
                   <Sparkles className="h-3 w-3" aria-hidden="true" />
                   Sorted by severity
                 </span>
@@ -293,7 +293,7 @@ export function WorkspaceAuditDialog({
                 </div>
               )}
               {audit.findings.length === 12 && (
-                <div className="mt-3 flex items-center gap-2 rounded-lg border border-border-subtle bg-bg-elevated p-3 text-caption text-text-tertiary">
+                <div className="mt-3 flex items-center gap-2 rounded-control border border-border-subtle bg-bg-elevated p-3 text-caption text-text-tertiary">
                   <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
                   Showing the top 12 findings. Export the report for the complete list.
                 </div>

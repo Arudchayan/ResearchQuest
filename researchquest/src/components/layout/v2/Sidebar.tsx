@@ -167,7 +167,7 @@ export function Sidebar() {
           {/* XP Card */}
           <div className="p-3 bg-bg-base rounded-sm border border-border-subtle shadow-sm">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-caption font-serif font-bold text-text-primary tracking-wide uppercase">
+              <span className="text-caption font-bold text-text-primary tracking-wide uppercase">
                 Level {currentLevel}
               </span>
               <button

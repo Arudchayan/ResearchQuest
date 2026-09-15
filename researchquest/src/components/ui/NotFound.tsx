@@ -26,7 +26,7 @@ export function NotFound({
           {showBackButton && (
             <button
               onClick={() => window.history.back()}
-              className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-bg-elevated text-text-primary rounded-lg hover:bg-bg-surface transition-colors border border-border-subtle"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-bg-elevated text-text-primary rounded-control hover:bg-bg-surface transition-colors border border-border-subtle"
             >
               <ArrowLeft className="w-4 h-4" aria-hidden="true" />
               Go Back
@@ -35,7 +35,7 @@ export function NotFound({
 
           <button
             onClick={() => window.location.replace("/")}
-            className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
+            className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-primary-500 text-white rounded-control hover:bg-primary-600 transition-colors"
           >
             <Home className="w-4 h-4" aria-hidden="true" />
             Go Home

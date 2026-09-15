@@ -57,7 +57,7 @@ export function ManualEntryTab({
             aria-describedby={error === "Title is required" ? "manual-error" : undefined}
             value={manualTitle}
             onChange={(e) => setManualTitle(e.target.value)}
-            className="w-full p-3 bg-bg-base border rounded-lg"
+            className="w-full p-3 bg-bg-base border rounded-control"
             placeholder="Enter paper title"
           />
         </div>
@@ -68,7 +68,7 @@ export function ManualEntryTab({
             type="text"
             value={manualAuthors}
             onChange={(e) => setManualAuthors(e.target.value)}
-            className="w-full p-3 bg-bg-base border rounded-lg"
+            className="w-full p-3 bg-bg-base border rounded-control"
             placeholder="John Doe, Jane Smith"
           />
         </div>
@@ -79,7 +79,7 @@ export function ManualEntryTab({
             type="text"
             value={manualDoi}
             onChange={(e) => setManualDoi(e.target.value)}
-            className="w-full p-3 bg-bg-base border rounded-lg"
+            className="w-full p-3 bg-bg-base border rounded-control"
             placeholder="10.1038/nature12373"
           />
         </div>
@@ -90,7 +90,7 @@ export function ManualEntryTab({
             type="text"
             value={manualUrl}
             onChange={(e) => setManualUrl(e.target.value)}
-            className="w-full p-3 bg-bg-base border rounded-lg"
+            className="w-full p-3 bg-bg-base border rounded-control"
             placeholder="https://..."
           />
         </div>
@@ -102,7 +102,7 @@ export function ManualEntryTab({
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-4 bg-primary-500 text-white rounded-lg font-semibold flex justify-center items-center gap-2 hover:bg-primary-600 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 disabled:opacity-70 disabled:cursor-not-allowed"
+          className="w-full py-4 bg-primary-500 text-white rounded-control font-semibold flex justify-center items-center gap-2 hover:bg-primary-600 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 disabled:opacity-70 disabled:cursor-not-allowed"
           aria-live="polite"
           aria-atomic="true"
         >

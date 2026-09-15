@@ -22,9 +22,9 @@ type EntityFilter = "all" | "paper" | "idea" | "note" | "topic";
 type SeverityFilter = "all" | "high" | "medium" | "low";
 
 const SEVERITY_STYLES: Record<AdversarialFinding["severity"], string> = {
-  high: "bg-coral-soft text-coral-strong border border-coral/20",
-  medium: "bg-gold-soft text-gold-strong border border-gold/20",
-  low: "bg-blue-soft text-blue-strong border border-blue/20",
+  high: "bg-destructive-bg text-destructive border border-destructive/20",
+  medium: "bg-warning-bg text-warning border border-warning/20",
+  low: "bg-info-bg text-info border border-info/20",
 };
 
 const ENTITY_ICONS: Record<EntityFilter, typeof BookOpen> = {
@@ -82,7 +82,7 @@ export function AnalysisView() {
   const circumference = 2 * Math.PI * radius;
   const offset = circumference * (1 - audit.score / 100);
   const scoreColor =
-    audit.score >= 78 ? "var(--success)" : audit.score >= 55 ? "var(--gold)" : "var(--coral)";
+    audit.score >= 78 ? "var(--success)" : audit.score >= 55 ? "var(--warning)" : "var(--destructive)";
 
   return (
     <div className="mx-auto max-w-7xl space-y-8 p-6 md:p-10">
@@ -90,7 +90,7 @@ export function AnalysisView() {
         <div className="relative z-10 grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
           <div>
             <div className="mb-4 flex items-center gap-2">
-              <span className="icon-tile bg-coral-soft text-coral-strong">
+              <span className="icon-tile bg-destructive-bg text-destructive">
                 <ShieldCheck className="h-5 w-5" aria-hidden="true" />
               </span>
               <span className="section-kicker">Adversarial Analysis</span>
@@ -103,7 +103,7 @@ export function AnalysisView() {
               papers, ideas, notes, and topics.
             </p>
           </div>
-          <div className="flex items-center gap-5 rounded-2xl border border-border-subtle bg-bg-surface/80 p-6 shadow-card backdrop-blur">
+          <div className="flex items-center gap-5 rounded-surface border border-border-subtle bg-bg-surface/80 p-6 shadow-md backdrop-blur">
             <div className="relative flex h-36 w-36 items-center justify-center">
               <svg width="140" height="140" className="-rotate-90">
                 <circle
@@ -137,15 +137,15 @@ export function AnalysisView() {
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-4">
                 <span className="text-caption font-medium text-text-secondary">High</span>
-                <span className="text-lg font-bold text-coral-strong">{audit.severityCounts.high}</span>
+                <span className="text-lg font-bold text-destructive">{audit.severityCounts.high}</span>
               </div>
               <div className="flex items-center justify-between gap-4">
                 <span className="text-caption font-medium text-text-secondary">Medium</span>
-                <span className="text-lg font-bold text-gold-strong">{audit.severityCounts.medium}</span>
+                <span className="text-lg font-bold text-warning">{audit.severityCounts.medium}</span>
               </div>
               <div className="flex items-center justify-between gap-4">
                 <span className="text-caption font-medium text-text-secondary">Low</span>
-                <span className="text-lg font-bold text-blue-strong">{audit.severityCounts.low}</span>
+                <span className="text-lg font-bold text-info">{audit.severityCounts.low}</span>
               </div>
             </div>
           </div>
@@ -163,7 +163,7 @@ export function AnalysisView() {
           ] as const
         ).map(([key, label, count, Icon]) => (
           <div key={key} className="surface-card flex items-center gap-4 p-5">
-            <span className="icon-tile bg-accent-soft text-accent-strong">
+            <span className="icon-tile bg-primary-50 text-primary-500">
               <Icon className="h-5 w-5" aria-hidden="true" />
             </span>
             <div>
@@ -191,9 +191,9 @@ export function AnalysisView() {
                   key={filter}
                   onClick={() => setEntityFilter(filter)}
                   className={cn(
-                    "inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-small font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent",
+                    "inline-flex h-9 items-center gap-1.5 rounded-control px-3 text-small font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus",
                     entityFilter === filter
-                      ? "bg-accent-soft text-accent-strong"
+                      ? "bg-primary-50 text-primary-500"
                       : "bg-bg-elevated text-text-secondary hover:text-text-primary",
                   )}
                 >
@@ -209,9 +209,9 @@ export function AnalysisView() {
                 key={filter}
                 onClick={() => setSeverityFilter(filter)}
                 className={cn(
-                  "inline-flex h-8 items-center rounded-full border px-3 text-caption font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent",
+                  "inline-flex h-8 items-center rounded-full border px-3 text-caption font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus",
                   severityFilter === filter
-                    ? "border-accent/30 bg-accent-soft text-accent-strong"
+                    ? "border-primary-500/30 bg-primary-50 text-primary-500"
                     : "border-border-subtle bg-bg-elevated text-text-secondary hover:text-text-primary",
                 )}
               >
@@ -240,8 +240,8 @@ export function AnalysisView() {
       </section>
 
       {audit.findings.length > 0 && (
-        <div className="flex items-start gap-3 rounded-xl border border-border-subtle bg-bg-elevated p-4 text-small text-text-secondary">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-gold-strong" aria-hidden="true" />
+        <div className="flex items-start gap-3 rounded-surface border border-border-subtle bg-bg-elevated p-4 text-small text-text-secondary">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
           <p>
             These are automated adversarial signals, not verdicts. Resolve the
             high-severity items first, then use the exportable audit from the

@@ -37,7 +37,7 @@ export function PageHeader({
       )}
     >
       <div className="min-w-0 flex-1">
-        <Heading className="font-serif text-title font-bold tracking-tight text-text-primary">
+        <Heading className="font-serif text-[clamp(1.75rem,5vw,2.25rem)] font-bold tracking-tight text-text-primary">
           {title}
         </Heading>
         {description !== undefined ? (

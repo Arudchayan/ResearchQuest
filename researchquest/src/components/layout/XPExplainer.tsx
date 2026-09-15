@@ -56,7 +56,7 @@ export function XPExplainer({
         <Dialog.Content className="fixed left-[50%] top-[50%] z-[60] w-full max-w-3xl translate-x-[-50%] translate-y-[-50%] rounded-xl bg-bg-surface shadow-lg border border-border-subtle overflow-hidden outline-none animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
           <div className="flex items-start justify-between gap-4 px-6 py-5 border-b border-border-subtle bg-bg-elevated sticky top-0 z-10">
             <div className="flex items-start gap-3">
-              <span className="icon-tile bg-gold-soft text-gold-strong">
+              <span className="icon-tile bg-warning-bg text-warning">
                 <Sparkles className="w-4 h-4" aria-hidden="true" />
               </span>
               <div className="space-y-1">
@@ -117,7 +117,7 @@ export function XPExplainer({
                         </p>
                       </div>
                       <Trophy
-                        className="w-5 h-5 text-gold-strong"
+                        className="w-5 h-5 text-warning"
                         aria-hidden="true"
                       />
                     </li>
@@ -142,7 +142,7 @@ export function XPExplainer({
                       <p className="text-sm font-medium text-text-primary">
                         {formatRewardLabel(reward.key)}
                       </p>
-                      <p className="text-caption text-accent-strong font-semibold">
+                      <p className="text-caption text-primary-500 font-semibold">
                         +{reward.value} XP
                       </p>
                     </div>

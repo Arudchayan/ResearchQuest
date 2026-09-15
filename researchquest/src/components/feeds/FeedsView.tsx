@@ -54,7 +54,7 @@ export function FeedsView() {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <div className="flex items-center gap-3 text-text-primary">
-                <div className="icon-tile bg-accent-soft text-accent-strong">
+                <div className="icon-tile bg-primary-50 text-primary-500">
                   <Inbox className="h-5 w-5" aria-hidden="true" />
                 </div>
                 <div>
@@ -72,7 +72,7 @@ export function FeedsView() {
             <button
               type="button"
               onClick={() => void refreshFeedItems()}
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-border-moderate bg-bg-surface px-3 py-2 text-small font-medium text-text-secondary shadow-sm transition-colors hover:border-border-strong hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-border-moderate bg-bg-surface px-3 py-2 text-small font-medium text-text-secondary shadow-sm transition-colors hover:border-border-strong hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
             >
               <RefreshCw className="h-4 w-4" aria-hidden="true" />
               Refresh
@@ -96,9 +96,9 @@ export function FeedsView() {
                     type="button"
                     onClick={() => setType(filter)}
                     className={cn(
-                      "rounded-full border px-3 py-1.5 text-small font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent",
+                      "rounded-full border px-3 py-1.5 text-small font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus",
                       type === filter
-                        ? "border-accent bg-accent-soft text-accent-strong"
+                        ? "border-primary-500 bg-primary-50 text-primary-500"
                         : "border-border-subtle bg-bg-surface text-text-secondary hover:border-border-moderate hover:text-text-primary",
                     )}
                     aria-pressed={type === filter}
@@ -121,9 +121,9 @@ export function FeedsView() {
                       type="button"
                       onClick={() => setStatus(filter)}
                       className={cn(
-                        "rounded-full border px-3 py-1.5 text-small font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent",
+                        "rounded-full border px-3 py-1.5 text-small font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus",
                         status === filter
-                          ? "border-accent bg-accent-soft text-accent-strong"
+                          ? "border-primary-500 bg-primary-50 text-primary-500"
                           : "border-border-subtle bg-bg-surface text-text-secondary hover:border-border-moderate hover:text-text-primary",
                       )}
                       aria-pressed={status === filter}
