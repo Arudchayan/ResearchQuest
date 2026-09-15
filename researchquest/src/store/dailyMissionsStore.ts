@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { todayKey } from "../utils/time";
 
 export type MissionEvent =
   | "note"
@@ -63,13 +64,8 @@ export const DAILY_MISSIONS: DailyMission[] = [
 
 export const DAILY_MISSION_REWARD = 15;
 
-function dateKey(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
+// Day rollover uses the shared date authority (todayKey, local calendar day).
+// See utils/time.ts for the local-vs-UTC decision.
 
 interface DailyMissionsState {
   date: string;
@@ -90,7 +86,7 @@ function completedCount(progress: Record<string, number>): number {
 export const useDailyMissionsStore = create<DailyMissionsState>()(
   persist(
     (set, get) => ({
-      date: dateKey(),
+      date: todayKey(),
       progress: {},
       completedToday: 0,
       recordEvent: (event, amount = 1) => {
@@ -111,7 +107,7 @@ export const useDailyMissionsStore = create<DailyMissionsState>()(
         return get().progress[missionId] ?? 0;
       },
       resetIfNeeded: () => {
-        const today = dateKey();
+        const today = todayKey();
         if (get().date !== today) {
           set({ date: today, progress: {}, completedToday: 0 });
         }

@@ -11,6 +11,7 @@ import { convertTopicsToCSV, convertTopicsToJSON, convertTopicsToMarkdown, downl
 import { logger } from "../../utils/logger";
 import { Button } from "../ui/button";
 import { InlineError } from "../ui/ErrorFallback";
+import { PageHeader } from "../ui/PageHeader";
 import { isDemoMode } from "../../lib/supabase";
 import { DEMO_FIRST_RUN_TOPIC_ID } from "../../lib/demoData";
 
@@ -263,13 +264,15 @@ export function TopicsView() {
           selectedTopic ? "hidden md:flex" : "flex"
         }`}
       >
-        <div className="space-y-4 border-b border-border-subtle p-4">
-          <div className="flex items-center justify-between">
-            <h1 className="flex items-center gap-2 font-serif text-subtitle font-bold text-text-primary">
-              <Hash className="h-5 w-5 text-primary-500" />
+        <PageHeader
+          title={
+            <span className="inline-flex items-center gap-2">
+              <Hash className="h-5 w-5 text-primary-500" aria-hidden="true" />
               Topics
-            </h1>
-            <div className="flex items-center gap-2">
+            </span>
+          }
+          actions={
+            <>
               <DropdownMenu.Root>
                 <DropdownMenu.Trigger asChild>
                   <Button
@@ -320,11 +323,13 @@ export function TopicsView() {
                 size="icon"
                 aria-label={isCreating ? "Close new topic form" : "New Topic"}
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-4 h-4" aria-hidden="true" />
               </Button>
-            </div>
-          </div>
+            </>
+          }
+        />
 
+        <div className="space-y-4 border-b border-border-subtle p-4">
           {isCreating && (
             <form onSubmit={handleCreateTopic} className="flex min-w-0 gap-2" aria-busy={isSubmittingTopic}>
               <input

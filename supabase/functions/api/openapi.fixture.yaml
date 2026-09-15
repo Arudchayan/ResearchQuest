@@ -48,7 +48,7 @@ paths:
     get: {
       operationId: listNotes,
       security: [{ BearerAuth: [] }],
-      responses: { "200": { description: ok } },
+      responses: { "200": { description: ok }, "403": { description: forbidden } },
     }
     post: {
       operationId: createNotes,
@@ -73,6 +73,7 @@ paths:
       responses: {
         "200": { description: updated },
         "400": { description: validation },
+        "404": { description: not found },
       },
     }
     delete: {
@@ -97,7 +98,7 @@ paths:
     get: {
       operationId: listPapers,
       security: [{ BearerAuth: [] }],
-      responses: { "200": { description: ok } },
+      responses: { "200": { description: ok }, "403": { description: forbidden } },
     }
     post: {
       operationId: createPapers,
@@ -122,6 +123,7 @@ paths:
       responses: {
         "200": { description: updated },
         "400": { description: validation },
+        "404": { description: not found },
       },
     }
     delete: {
@@ -146,7 +148,7 @@ paths:
     get: {
       operationId: listIdeas,
       security: [{ BearerAuth: [] }],
-      responses: { "200": { description: ok } },
+      responses: { "200": { description: ok }, "403": { description: forbidden } },
     }
     post: {
       operationId: createIdeas,
@@ -171,6 +173,7 @@ paths:
       responses: {
         "200": { description: updated },
         "400": { description: validation },
+        "404": { description: not found },
       },
     }
     delete: {
@@ -195,7 +198,7 @@ paths:
     get: {
       operationId: listTopics,
       security: [{ BearerAuth: [] }],
-      responses: { "200": { description: ok } },
+      responses: { "200": { description: ok }, "403": { description: forbidden } },
     }
     post: {
       operationId: createTopics,
@@ -220,6 +223,7 @@ paths:
       responses: {
         "200": { description: updated },
         "400": { description: validation },
+        "404": { description: not found },
       },
     }
     delete: {
@@ -264,7 +268,7 @@ paths:
     get: {
       operationId: listTasks,
       security: [{ BearerAuth: [] }],
-      responses: { "200": { description: ok } },
+      responses: { "200": { description: ok }, "403": { description: forbidden } },
     }
     post: {
       operationId: createTasks,
@@ -289,6 +293,7 @@ paths:
       responses: {
         "200": { description: updated },
         "400": { description: validation },
+        "404": { description: not found },
       },
     }
     delete: {
@@ -313,7 +318,7 @@ paths:
     get: {
       operationId: listGoals,
       security: [{ BearerAuth: [] }],
-      responses: { "200": { description: ok } },
+      responses: { "200": { description: ok }, "403": { description: forbidden } },
     }
     post: {
       operationId: createGoals,
@@ -338,6 +343,7 @@ paths:
       responses: {
         "200": { description: updated },
         "400": { description: validation },
+        "404": { description: not found },
       },
     }
     delete: {
@@ -362,7 +368,7 @@ paths:
     get: {
       operationId: listResearchGoals,
       security: [{ BearerAuth: [] }],
-      responses: { "200": { description: ok } },
+      responses: { "200": { description: ok }, "403": { description: forbidden } },
     }
     post: {
       operationId: createResearchGoals,
@@ -387,6 +393,7 @@ paths:
       responses: {
         "200": { description: updated },
         "400": { description: validation },
+        "404": { description: not found },
       },
     }
     delete: {
@@ -429,6 +436,7 @@ paths:
       security: [{ BearerAuth: [] }]
       responses:
         "200": { description: ok }
+        "400": { description: validation }
         "404": { description: not found }
     patch:
       operationId: updateFeedSource
@@ -442,6 +450,7 @@ paths:
       security: [{ BearerAuth: [] }]
       responses:
         "204": { description: deleted }
+        "400": { description: validation }
         "404": { description: not found }
   /feed-items:
     get:
@@ -453,12 +462,16 @@ paths:
       responses:
         "200": { description: ok }
         "400": { description: validation }
+        "401": { description: unauthorized }
+        "403": { description: forbidden }
     post:
       operationId: createFeedItem
       security: [{ BearerAuth: [] }]
       responses:
         "201": { description: created }
         "400": { description: validation }
+        "401": { description: unauthorized }
+        "403": { description: forbidden }
         "409": { description: duplicate }
   /feed-items:batchCreate:
     post:
@@ -467,6 +480,8 @@ paths:
       responses:
         "201": { description: created }
         "400": { description: validation }
+        "401": { description: unauthorized }
+        "403": { description: forbidden }
   /feed-items/{id}:
     patch:
       operationId: patchFeedItem
@@ -474,6 +489,8 @@ paths:
       responses:
         "200": { description: updated }
         "400": { description: validation }
+        "401": { description: unauthorized }
+        "403": { description: forbidden }
         "404": { description: not found }
   /feed-items/{id}/promote:
     post:
@@ -482,6 +499,8 @@ paths:
       responses:
         "201": { description: promoted }
         "400": { description: validation }
+        "401": { description: unauthorized }
+        "403": { description: forbidden }
         "404": { description: not found }
         "409": { description: conflict }
 components:

@@ -259,7 +259,7 @@ export function RightSidebar() {
   })();
 
   return (
-    <div className="flex h-full min-w-0 flex-1 flex-col overflow-y-auto">
+    <div className="sidebar-scroll flex h-full min-w-0 flex-1 flex-col overflow-y-auto">
       <div className="p-4 space-y-4">
         {!hasSelection ? (
           <div className="text-center py-8 text-text-tertiary">

@@ -19,7 +19,7 @@ export function highlightMatch(text: string, query: string): ReactNode {
       return (
         <mark
           key={`highlight-${index}`}
-          className="rounded-sm bg-primary-200 px-0.5 py-0.5 text-primary-900 dark:bg-primary-900/50 dark:text-primary-100"
+          className="rounded-sm bg-primary-50 px-0.5 py-0.5 text-text-primary"
         >
           {part}
         </mark>

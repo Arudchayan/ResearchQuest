@@ -16,10 +16,15 @@ import {
   ArrowRightIcon,
   TargetIcon,
 } from "@radix-ui/react-icons";
-import { useAppStore } from "../../store/appStore";
+import {
+  useLibraryStore,
+  useShellStore,
+  useTasksStore,
+  useTopicsStore,
+} from "../../store/appStore";
 import { useShallow } from "zustand/react/shallow";
 import { getLevelTitle } from "../../utils/gamification";
-import { parseDateInput } from "../../utils/time";
+import { parseDateInput, todayKey } from "../../utils/time";
 import { isOverdue } from "../tasks/TaskCard";
 import { ListSkeleton } from "../ui/Skeleton";
 import { InlineError } from "../ui/ErrorFallback";
@@ -61,8 +66,13 @@ const SectionIndex = ({ number, label }: SectionIndexProps) => (
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
+/**
+ * Local-midnight boundary for day math. The "today" side derives from the
+ * shared date authority (todayKey), so Dashboard rolls over exactly when the
+ * rest of the app does; the from-side parses via parseDateInput (local).
+ */
 const startOfLocalDay = (date: Date) =>
-  new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  parseDateInput(todayKey(date)) ?? date;
 
 /** Whole calendar days between an ISO/date-only string and now (local). */
 const daysBetween = (from: string, to: Date) =>
@@ -100,54 +110,56 @@ type TodayItem =
   | { kind: "note-untagged"; note: Note };
 
 export function Dashboard() {
-  // ⚡ PERFORMANCE OPTIMIZATION:
-  // Using useShallow to prevent unnecessary re-renders of the entire Dashboard
-  // when unrelated properties in the global appStore change.
-  const {
-    user,
-    notes,
-    papers,
-    ideas,
-    tasks,
-    topics,
-    focusSessionSecondsToday,
-    notesLoading,
-    papersLoading,
-    ideasLoading,
-    tasksLoading,
-    topicsLoading,
-    dataSyncErrors,
-    retryDataSync,
-    setCurrentView,
-    setSelectedNote,
-    setSelectedPaper,
-    setSelectedIdea,
-    setSelectedTopic,
-    setSelectedTask,
-  } = useAppStore(
+  // Item 31: subscribe per domain store (shell/library/topics/tasks) instead
+  // of the old 18-key god-store subscription, so Dashboard only re-renders
+  // when data it actually renders changes.
+  const { user, focusSessionSecondsToday, dataSyncErrors, retryDataSync, setCurrentView } =
+    useShellStore(
       useShallow((state) => ({
         user: state.user,
-        notes: state.notes,
-        papers: state.papers,
-        ideas: state.ideas,
-        tasks: state.tasks,
-        topics: state.topics,
         focusSessionSecondsToday: state.focusSessionSecondsToday,
-        notesLoading: state.notesLoading,
-        papersLoading: state.papersLoading,
-        ideasLoading: state.ideasLoading,
-        tasksLoading: state.tasksLoading,
-        topicsLoading: state.topicsLoading,
         dataSyncErrors: state.dataSyncErrors,
         retryDataSync: state.retryDataSync,
         setCurrentView: state.setCurrentView,
-        setSelectedNote: state.setSelectedNote,
-        setSelectedPaper: state.setSelectedPaper,
-        setSelectedIdea: state.setSelectedIdea,
-        setSelectedTopic: state.setSelectedTopic,
-        setSelectedTask: state.setSelectedTask,
       })),
     );
+  const {
+    notes,
+    papers,
+    ideas,
+    notesLoading,
+    papersLoading,
+    ideasLoading,
+    setSelectedNote,
+    setSelectedPaper,
+    setSelectedIdea,
+  } = useLibraryStore(
+    useShallow((state) => ({
+      notes: state.notes,
+      papers: state.papers,
+      ideas: state.ideas,
+      notesLoading: state.notesLoading,
+      papersLoading: state.papersLoading,
+      ideasLoading: state.ideasLoading,
+      setSelectedNote: state.setSelectedNote,
+      setSelectedPaper: state.setSelectedPaper,
+      setSelectedIdea: state.setSelectedIdea,
+    })),
+  );
+  const { topics, topicsLoading, setSelectedTopic } = useTopicsStore(
+    useShallow((state) => ({
+      topics: state.topics,
+      topicsLoading: state.topicsLoading,
+      setSelectedTopic: state.setSelectedTopic,
+    })),
+  );
+  const { tasks, tasksLoading, setSelectedTask } = useTasksStore(
+    useShallow((state) => ({
+      tasks: state.tasks,
+      tasksLoading: state.tasksLoading,
+      setSelectedTask: state.setSelectedTask,
+    })),
+  );
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -219,7 +231,7 @@ export function Dashboard() {
 
   const activeTopics = useMemo(() => {
     return getTopN(
-      Object.values(topics),
+      topics,
       3,
       (a, b) => (b.updated_at > a.updated_at ? 1 : b.updated_at < a.updated_at ? -1 : 0)
     );
@@ -540,13 +552,13 @@ export function Dashboard() {
       <Card
         role="group"
         aria-label="Library counts"
-        className="grid grid-cols-2 gap-x-4 gap-y-2 p-4 text-small text-text-secondary sm:grid-cols-5"
+        className="grid grid-cols-2 gap-x-4 gap-y-2 p-4 text-small text-text-secondary sm:grid-cols-3 lg:grid-cols-5"
       >
         <span>Notes <strong className="font-mono font-medium text-text-primary">{notes.length}</strong></span>
         <span>Papers <strong className="font-mono font-medium text-text-primary">{papers.length}</strong></span>
         <span>Ideas <strong className="font-mono font-medium text-text-primary">{ideas.length}</strong></span>
         <span>Tasks <strong className="font-mono font-medium text-text-primary">{tasks.length}</strong></span>
-        <span>Topics <strong className="font-mono font-medium text-text-primary">{Object.keys(topics).length}</strong></span>
+        <span>Topics <strong className="font-mono font-medium text-text-primary">{topics.length}</strong></span>
       </Card>
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
         <div className="space-y-8">

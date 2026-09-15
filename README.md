@@ -84,7 +84,7 @@ this mode in tests.
 |---------|-------------|
 | `pnpm run dev` | Start dev server with hot reload |
 | `pnpm run build` | TypeScript check + production build |
-| `pnpm run build:prod` | Production build with prod flags |
+| `pnpm run build:prod` | Production build (type-check + `vite build`) |
 | `pnpm run lint` | ESLint check |
 | `pnpm run lint:fix` | ESLint auto-fix |
 | `pnpm run test` | Vitest watch mode |
@@ -149,6 +149,42 @@ All config is through environment variables. Copy `.env.example` to `.env`.
 | `VITE_SUPABASE_ANON_KEY` | Yes (for DB) | Supabase anon/public key |
 | `VITE_DEMO_MODE` | No | Set to `1` for local seeded demo (no Supabase) |
 | `PLAYWRIGHT_TEST_NO_SUPABASE` | No | Force config-error screen for E2E |
+
+## Deploy (Vercel)
+
+The app is a Vite SPA deployed from the `researchquest/` subdirectory.
+
+| Setting | Value |
+|---------|-------|
+| Root Directory | `researchquest` |
+| Framework preset | Vite |
+| Build command | `pnpm run build` |
+| Output directory | `dist` |
+
+Client-side routes (e.g. `/topics/topic-ai-agents`) survive a full-page
+refresh via the SPA fallback rewrite in `researchquest/vercel.json`
+(`/(.*)` → `/index.html`).
+
+### Required environment variables (Vercel → Project → Settings → Environment Variables)
+
+| Variable | Description |
+|----------|-------------|
+| `VITE_SUPABASE_URL` | Supabase project URL (`https://your-project-id.supabase.co`) |
+| `VITE_SUPABASE_ANON_KEY` | Supabase anon/public key |
+
+### Edge-function CORS origins (Supabase Dashboard → Edge Functions → Secrets)
+
+The `api`, `fetch-paper`, and `deep-research` functions only accept browser
+origins listed in `ALLOWED_ORIGINS` (comma-separated). After each deploy, set
+it to the deployed app origin, e.g.:
+
+```
+ALLOWED_ORIGINS=https://research-quest-wine.vercel.app
+```
+
+Without this, the functions fall back to localhost dev origins and browser
+calls from the deployed site are rejected. This is a server-side secret — it
+is not a `VITE_*` variable and must not be added to Vercel.
 
 ## Security
 

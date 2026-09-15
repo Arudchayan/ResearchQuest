@@ -10,6 +10,7 @@ import {
 import { useAppStore } from "../../store/appStore";
 import type { FeedPromoteTarget } from "../../types/database";
 import { cn } from "../../lib/utils";
+import { PageHeader } from "../ui/PageHeader";
 import { FeedItemCard } from "./FeedItemCard";
 
 const TYPE_LABELS: Record<FeedTypeFilter, string> = {
@@ -48,27 +49,17 @@ export function FeedsView() {
   };
 
   return (
-    <div className="min-h-full bg-bg-base px-4 py-6 sm:px-6 lg:px-8">
+    <div className="min-h-full bg-bg-base p-4 sm:p-6 lg:p-8">
       <div className="mx-auto flex max-w-5xl flex-col gap-6">
-        <header className="surface-card p-5 sm:p-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <div className="flex items-center gap-3 text-text-primary">
-                <div className="icon-tile bg-accent-soft text-accent-strong">
-                  <Inbox className="h-5 w-5" aria-hidden="true" />
-                </div>
-                <div>
-                  <p className="section-kicker mb-1">Research intelligence</p>
-                  <h1 className="font-serif text-2xl font-bold text-text-primary">
-                    Feeds
-                  </h1>
-                  <p className="mt-1 text-small text-text-secondary">
-                    Review incoming research leads, archive noise, or promote
-                    items into papers, tasks, and notes.
-                  </p>
-                </div>
-              </div>
-            </div>
+        <PageHeader
+          title={
+            <span className="inline-flex items-center gap-2">
+              <Inbox className="h-5 w-5 text-primary-500" aria-hidden="true" />
+              Feeds
+            </span>
+          }
+          description="Review incoming research leads, archive noise, or promote items into papers, tasks, and notes."
+          actions={
             <button
               type="button"
               onClick={() => void refreshFeedItems()}
@@ -77,8 +68,8 @@ export function FeedsView() {
               <RefreshCw className="h-4 w-4" aria-hidden="true" />
               Refresh
             </button>
-          </div>
-        </header>
+          }
+        />
 
         <section
           className="surface-card p-4 sm:p-5"

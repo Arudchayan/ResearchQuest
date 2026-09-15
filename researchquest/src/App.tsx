@@ -11,6 +11,7 @@ import { useGamificationStore } from "./store/gamificationStore";
 import { AppShell } from "./components/layout/v2/AppShell";
 import { AppLoadingSkeleton } from "./components/ui/Skeleton";
 import { Toaster } from "sonner";
+import { StaleBanner } from "./components/layout/StaleBanner";
 import { AlertCircle, Home } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { usePapers } from "./hooks/usePapers";
@@ -80,12 +81,6 @@ const FocusWorkspace = lazy(() =>
 const FeedsView = lazy(() =>
   import("./components/feeds/FeedsView").then((module) => ({
     default: module.FeedsView,
-  })),
-);
-
-const OnboardingGuide = lazy(() =>
-  import("./components/layout/OnboardingGuide").then((module) => ({
-    default: module.OnboardingGuide,
   })),
 );
 
@@ -345,8 +340,8 @@ function App() {
     return (
       <div className="flex h-full min-h-[400px] items-center justify-center p-6">
         <div className="text-center max-w-md">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/20 mb-4">
-            <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" aria-hidden="true" />
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-destructive-bg mb-4">
+            <AlertCircle className="w-6 h-6 text-destructive" aria-hidden="true" />
           </div>
           <h2 className="text-xl font-bold text-text-primary mb-2">Page Not Found</h2>
           <p className="text-text-secondary mb-6">
@@ -358,7 +353,7 @@ function App() {
               setCurrentView("dashboard");
               setRouteError(null);
             }}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-primary-500 text-bg-base rounded-md hover:bg-primary-600 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
           >
             <Home className="w-4 h-4" aria-hidden="true" />
             Go Home
@@ -368,11 +363,16 @@ function App() {
     );
   }
 
+  // Route content is rendered bare: AppShell's <main> is the single page-scroll
+  // owner, and each view owns its own wrapper (split-pane views keep h-full
+  // with internal scroll regions; page-scroll views normalize to
+  // `p-4 sm:p-6 lg:p-8` with a per-view max-w). Do not add padding or
+  // overflow wrappers here — they create double gutters and nested scrollers.
+  // TopicsView already owns the full-height handoff for its list/detail
+  // split panes; an extra wrapper would break that handoff.
   const routeContent =
     currentView === "dashboard" ? (
-      <div className="h-full overflow-auto">
-        <DashboardLazy />
-      </div>
+      <DashboardLazy />
     ) : currentView === "notes" ? (
       <NotesView />
     ) : currentView === "papers" ? (
@@ -380,23 +380,13 @@ function App() {
     ) : currentView === "ideas" ? (
       <IdeasBoard />
     ) : currentView === "topics" ? (
-      <div className="h-full overflow-hidden">
-        <TopicsView />
-      </div>
+      <TopicsView />
     ) : currentView === "tasks" ? (
-      <div className="p-6 h-full overflow-auto">
-        <OnboardingGuide />
-        <TaskManager />
-      </div>
+      <TaskManager />
     ) : currentView === "focus" ? (
-      <div className="p-6 h-full overflow-auto">
-        <OnboardingGuide storageKey="rq_focus_onboarding_bridge" />
-        <FocusWorkspace userId={userId} />
-      </div>
+      <FocusWorkspace userId={userId} />
     ) : currentView === "feeds" ? (
-      <div className="h-full overflow-auto">
-        <FeedsView />
-      </div>
+      <FeedsView />
     ) : null;
 
   return (
@@ -422,6 +412,7 @@ function App() {
         />
 
         <AppShell>
+          <StaleBanner />
           <Suspense fallback={<RouteLoadingFallback />}>{routeContent}</Suspense>
         </AppShell>
       </TooltipProvider>

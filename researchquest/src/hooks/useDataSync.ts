@@ -12,9 +12,21 @@
  */
 import { useEffect } from "react";
 import { supabase } from "../lib/supabase";
+import {
+  cacheKeyForList,
+  clearStaleKeys,
+  markStaleKeys,
+  readListCache,
+  writeListCache,
+} from "../lib/idbCache";
+import {
+  listWithGatewayFallback,
+  type GatewayListResource,
+} from "../lib/apiGateway";
 import { useAppStore, type DataSyncResource } from "../store/appStore";
 import { useShallow } from "zustand/react/shallow";
 import { sortByUpdatedAt } from "../utils/sort";
+import { todayKey } from "../utils/time";
 import { extractFunctionErrorMessage } from "../utils/errors";
 import type { Note, Paper, Idea } from "../types/database";
 import { dedupeById } from "../utils/collections";
@@ -83,13 +95,47 @@ export function useDataSync(userId: string | undefined) {
     ) => {
       opts.setLoading(true);
       try {
-        const { data, error } = await supabase
-          .from(table)
-          .select("*")
-          .eq("user_id", userId)
-          .order("updated_at", { ascending: false });
+        const cacheKey = cacheKeyForList(table, userId);
 
-        if (error) {
+        // Read-through cache: render the cached snapshot immediately while
+        // the gateway/direct read below revalidates. Stale entries flag the
+        // banner until fresh rows land.
+        try {
+          const cached = await readListCache<T>(cacheKey);
+          if (cached) {
+            const cachedItems = opts.transform
+              ? opts.transform(cached.data)
+              : cached.data;
+            opts.setItems(cachedItems);
+            if (cached.stale) {
+              markStaleKeys(cacheKey);
+            } else {
+              clearStaleKeys(cacheKey);
+            }
+          }
+        } catch {
+          // Cache must never break list reads.
+        }
+
+        const direct = async (): Promise<T[]> => {
+          const { data, error } = await supabase
+            .from(table)
+            .select("*")
+            .eq("user_id", userId)
+            .order("updated_at", { ascending: false });
+          if (error) throw error;
+          return (data ?? []) as T[];
+        };
+
+        let rows: T[];
+        try {
+          const result = await listWithGatewayFallback<T>(
+            table as GatewayListResource,
+            { limit: 100 },
+            direct,
+          );
+          rows = result.data;
+        } catch (error) {
           setDataSyncError(
             table,
             extractFunctionErrorMessage(error, opts.fallbackError),
@@ -98,10 +144,16 @@ export function useDataSync(userId: string | undefined) {
         }
 
         clearDataSyncError(table);
-        if (data) {
-          const items = opts.transform ? opts.transform(data) : data;
-          opts.setItems(items);
+        const items = opts.transform ? opts.transform(rows) : rows;
+        opts.setItems(items);
+        try {
+          await writeListCache(cacheKey, rows);
+        } catch {
+          // Best-effort.
+        }
+        clearStaleKeys(cacheKey);
 
+        {
           // Sync selected entity if it still exists in the fresh data
           if (opts.syncSelected) {
             const current = opts.syncSelected.getSelected();
@@ -175,8 +227,10 @@ export function useDataSync(userId: string | undefined) {
     };
 
     const fetchTodayXP = async () => {
-      // Always fetch — no shouldFetch guard since the sidebar always needs it
-      const today = new Date().toISOString().split("T")[0];
+      // Always fetch — no shouldFetch guard since the sidebar always needs it.
+      // "Today" is the shared date authority (todayKey: local calendar day,
+      // matching the daily_logs.date DATE semantics) — not the UTC day.
+      const today = todayKey();
       const { data, error } = await supabase
         .from("daily_logs")
         .select("xp_earned")
@@ -244,7 +298,13 @@ export function useDataSync(userId: string | undefined) {
           .getState()
           .notes.filter((n) => n.id !== updated.id);
         setNotes(sortByUpdatedAt([updated, ...remaining]));
-        // We don't auto-update selectedNote here because it might disrupt editing
+        // Selected-sync policy (deliberate asymmetry — documenting only, no
+        // behavior change): notes NEVER auto-sync selectedNote here (fetch,
+        // realtime update, or delete) because the note editor holds unsaved
+        // local state that a remote/echoed update would clobber mid-edit.
+        // Papers/ideas DO sync their selection because their detail views
+        // are read-mostly. Keep this asymmetry unless the editor gains a
+        // dirty-guard that can safely merge remote updates.
       },
       onDelete: (oldId) =>
         setNotes(useAppStore.getState().notes.filter((n) => n.id !== oldId)),

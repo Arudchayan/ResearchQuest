@@ -758,6 +758,93 @@ export const demoSupabase = {
     return new DemoQuery(tableName);
   },
   rpc(functionName: string, args: Record<string, unknown>) {
+    if (functionName === "global_search") {
+      // Demo equivalent of the `global_search(search_user_id, search_query,
+      // limit_count)` Postgres RPC (supabase/migrations/1762624300_...). The
+      // server-search path (`serverSearch` in lib/apiGateway.ts) calls this
+      // same signature, so demo search resolves through the identical op.
+      const userId = String(args.search_user_id ?? "");
+      const query = String(args.search_query ?? "").trim().toLowerCase();
+      const rawLimit = Number(args.limit_count ?? 20);
+      const limit = Number.isFinite(rawLimit)
+        ? Math.max(Math.trunc(rawLimit), 1)
+        : 20;
+      if (!userId || !query) {
+        return Promise.resolve({ data: [], error: null });
+      }
+      const terms = query.split(/\s+/).filter(Boolean);
+      const scored: Array<{
+        entity_type: "note" | "paper" | "idea";
+        entity_id: string;
+        title: string;
+        snippet: string;
+        rank: number;
+        updated_at: string;
+      }> = [];
+      const rankOf = (haystack: string): number =>
+        terms.reduce((score, term) => {
+          let count = 0;
+          let index = haystack.indexOf(term);
+          while (index !== -1) {
+            count++;
+            index = haystack.indexOf(term, index + term.length);
+          }
+          return score + count;
+        }, 0);
+      for (const row of tables.notes ?? []) {
+        if (row.user_id !== userId) continue;
+        const haystack =
+          `${String(row.title ?? "")} ${String(row.markdown_body ?? "")}`.toLowerCase();
+        const rank = rankOf(haystack);
+        if (rank > 0) {
+          scored.push({
+            entity_type: "note",
+            entity_id: String(row.id),
+            title: String(row.title ?? "Untitled"),
+            snippet: String(row.markdown_body ?? "").slice(0, 200),
+            rank,
+            updated_at: String(row.updated_at ?? ""),
+          });
+        }
+      }
+      for (const row of tables.papers ?? []) {
+        if (row.user_id !== userId) continue;
+        const authors = Array.isArray(row.authors)
+          ? (row.authors as unknown[]).map(String).join(" ")
+          : "";
+        const haystack =
+          `${String(row.title ?? "")} ${String(row.abstract ?? "")} ${authors}`.toLowerCase();
+        const rank = rankOf(haystack);
+        if (rank > 0) {
+          scored.push({
+            entity_type: "paper",
+            entity_id: String(row.id),
+            title: String(row.title ?? ""),
+            snippet: String(row.abstract ?? "").slice(0, 200),
+            rank,
+            updated_at: String(row.updated_at ?? ""),
+          });
+        }
+      }
+      for (const row of tables.ideas ?? []) {
+        if (row.user_id !== userId) continue;
+        const haystack =
+          `${String(row.title ?? "")} ${String(row.description ?? "")}`.toLowerCase();
+        const rank = rankOf(haystack);
+        if (rank > 0) {
+          scored.push({
+            entity_type: "idea",
+            entity_id: String(row.id),
+            title: String(row.title ?? ""),
+            snippet: String(row.description ?? "").slice(0, 200),
+            rank,
+            updated_at: String(row.updated_at ?? ""),
+          });
+        }
+      }
+      scored.sort((a, b) => b.rank - a.rank || String(b.updated_at).localeCompare(String(a.updated_at)));
+      return Promise.resolve({ data: scored.slice(0, limit), error: null });
+    }
     if (functionName === "save_idea_with_links") {
       const ideas = (tables.ideas ??= []);
       const now = new Date().toISOString();

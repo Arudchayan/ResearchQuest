@@ -35,6 +35,7 @@ import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader } from "../ui/card";
 import { Input } from "../ui/input";
 import { PageHeader } from "../ui/PageHeader";
+import { OnboardingGuide } from "../layout/OnboardingGuide";
 import {
   type FocusTargetType,
   type SelectedTarget,
@@ -510,9 +511,12 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   ];
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6 md:p-8">
+    <div className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6 lg:p-8">
+      {/* Bridge guide pinned above the page content (renders once per view,
+          owned here instead of an App-level wrapper). */}
+      <OnboardingGuide storageKey="rq_focus_onboarding_bridge" />
       <PageHeader
-        className="-mx-4 sm:-mx-6 md:-mx-8 md:p-8"
+        className="-mx-4 sm:-mx-6 lg:-mx-8"
         title={
           <span className="inline-flex flex-wrap items-center gap-3">
             <Target className="h-6 w-6 text-primary-500" aria-hidden="true" />

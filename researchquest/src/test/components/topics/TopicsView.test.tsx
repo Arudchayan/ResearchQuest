@@ -85,6 +85,9 @@ describe("TopicsView", () => {
     render(<TopicsView />);
 
     expect(screen.getByText("Topics")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Topics" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Machine Learning")).toBeInTheDocument();
     expect(screen.getByText("Data Science")).toBeInTheDocument();
     expect(screen.getByText("Select a topic")).toBeInTheDocument();

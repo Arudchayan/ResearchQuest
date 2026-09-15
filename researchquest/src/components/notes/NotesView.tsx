@@ -114,6 +114,9 @@ export function NotesView() {
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-bg-base lg:flex-row">
+      {/* Split-pane view without a visible header: keep a real h1 for AT/SEO
+          without changing the visual design. */}
+      <h1 className="sr-only">Notes</h1>
       <NotesSidebar
         notes={notes}
         selectedNote={selectedNote}

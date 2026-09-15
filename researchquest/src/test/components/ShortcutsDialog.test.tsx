@@ -27,9 +27,24 @@ describe("ShortcutsDialog", () => {
     fireEvent.keyDown(document, { key: "?", shiftKey: true });
 
     await waitFor(() => {
-      expect(screen.getByText("Open Command Palette")).toBeInTheDocument();
+      expect(screen.getByText("Open Command Palette (works in editors)")).toBeInTheDocument();
       expect(screen.getByText("Show Keyboard Shortcuts")).toBeInTheDocument();
     });
+  });
+
+  it("remaps Insert Link off Ctrl+K and documents the Feeds shortcut", async () => {
+    render(<ShortcutsDialog />);
+    fireEvent.keyDown(document, { key: "?", shiftKey: true });
+
+    await waitFor(() => {
+      expect(screen.getByText("Insert Link")).toBeInTheDocument();
+      expect(screen.getByText("Go to Feeds")).toBeInTheDocument();
+    });
+    // Ctrl/⌘+K must appear exactly once (palette); Insert Link uses Shift+K.
+    const paletteEntries = screen.getAllByText(
+      "Open Command Palette (works in editors)",
+    );
+    expect(paletteEntries).toHaveLength(1);
   });
 
   it("does not open when typing in input", async () => {

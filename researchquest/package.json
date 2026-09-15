@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "vite",
     "build": "rimraf node_modules/.vite-temp && tsc -b && vite build",
-    "build:prod": "rimraf node_modules/.vite-temp && tsc -b && BUILD_MODE=prod vite build --mode prod",
+    "build:prod": "rimraf node_modules/.vite-temp && tsc -b && vite build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "preview": "vite preview",
@@ -25,6 +25,12 @@
     "test:e2e": "playwright test",
     "test:e2e:axe": "playwright test e2e/axe-views.spec.ts e2e/axe-interactions.spec.ts",
     "test:e2e:matrix": "RQ_E2E_MATRIX=1 playwright test",
+    "preview-smoke": "playwright test -c playwright.preview.config.ts",
+    "lint:migrations": "node scripts/lint-migrations.mjs",
+    "check:supabase-env": "node scripts/check-supabase-env.mjs",
+    "check:design-tokens": "node scripts/check-design-tokens.mjs",
+    "check:bundle-budget": "node scripts/check-bundle-budget.mjs",
+    "check:openapi-drift": "deno run --no-lock --allow-read ../supabase/functions/api/check_openapi_drift.ts",
     "test:e2e:ui": "playwright test --ui",
     "test:first-run": "playwright test -c playwright.first-run.config.ts",
     "typecheck:strict": "tsc -p tsconfig.strict.json --noEmit"

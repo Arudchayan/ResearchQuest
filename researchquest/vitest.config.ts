@@ -26,6 +26,13 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
       thresholds: {
+        // PR9 item 98: global floors measured from real local runs
+        // (statements ~64.1 / branches ~54.8 / functions ~61.9 / lines ~66.0).
+        // NOTE: vitest prints columns as Stmts | Branch | Funcs | Lines.
+        lines: 60,
+        functions: 55,
+        branches: 50,
+        statements: 60,
         'src/utils/security.ts': {
           lines: 95,
           functions: 100,
