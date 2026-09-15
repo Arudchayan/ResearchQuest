@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { TopicDetailView } from "../../../components/topics/TopicDetailView";
 import { useTopics } from "../../../hooks/useTopics";
 import { mockSupabaseClient } from "../../mocks/supabase";
@@ -13,6 +13,7 @@ vi.mock("../../../lib/supabase", async () => {
     supabaseConfigErrorMessage: "demo",
     DEMO_MODE_STORAGE_KEY: "rq_demo_mode",
     enableDemoModeAndReload: vi.fn(),
+    disableDemoModeAndReload: vi.fn(),
     supabase: client,
   };
 });
@@ -129,7 +130,7 @@ function mockAssociationQueries() {
   });
 }
 
-describe("TopicDetailView first-run loop", () => {
+describe("TopicDetailView first-run (unified shell)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (useTopics as any).mockReturnValue({
@@ -141,7 +142,10 @@ describe("TopicDetailView first-run loop", () => {
     mockAssociationQueries();
   });
 
-  it("shows only the first-run loop: title, papers, empty note, Focus Studio", async () => {
+  // Plan 51 intentionally removed the stripped first-run landing: the seeded
+  // topic now renders the full workspace shell (Export/Edit/Delete, quests,
+  // Connected work) plus the demo banner instead of chrome-stripping.
+  it("renders full shell chrome with demo banner, exit CTAs, and onboarding coachmark", async () => {
     render(
       <TopicDetailView
         topic={mockTopic}
@@ -151,20 +155,30 @@ describe("TopicDetailView first-run loop", () => {
     );
 
     expect(
-      screen.getByRole("button", { name: /Focus Studio/i }),
+      screen.getByRole("region", { name: /Demo workspace/i }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /Export topic/i }),
-    ).not.toBeInTheDocument();
-    expect(screen.queryByText(/Topic Quests/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Connected work/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Total links/i)).not.toBeInTheDocument();
+      screen.getByRole("button", { name: /Go to full workspace/i }),
+    ).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /^Edit$/i }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("button", { name: /Exit demo/i }),
+    ).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /^Delete$/i }),
-    ).not.toBeInTheDocument();
+      screen.getByText(/Welcome to ResearchQuest/i),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByRole("button", { name: /Export topic/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /^Edit$/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /^Delete$/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Topic Quests/i)).toBeInTheDocument();
+    expect(screen.getByText(/Connected work/i)).toBeInTheDocument();
+    expect(screen.getByText(/Total links/i)).toBeInTheDocument();
 
     await waitFor(() => {
       expect(
@@ -173,13 +187,20 @@ describe("TopicDetailView first-run loop", () => {
       expect(screen.getByText(/Attention Is All You Need/i)).toBeInTheDocument();
       expect(screen.getByText(/ReAct:/i)).toBeInTheDocument();
     });
+  });
 
-    const noteField = await screen.findByRole("textbox", {
-      name: /Session note|Your note|Empty note|Write/i,
-    });
-    await waitFor(() => {
-      expect(noteField).toHaveFocus();
-    });
-    expect(noteField).toHaveValue("");
+  // Plan 76: the demo dead-end loop is fixed via an exit CTA.
+  it("Exit demo leaves demo mode for the full workspace", async () => {
+    const { disableDemoModeAndReload } = await import("../../../lib/supabase");
+    render(
+      <TopicDetailView
+        topic={mockTopic}
+        onUpdate={vi.fn().mockResolvedValue(true)}
+        onDelete={vi.fn().mockResolvedValue(true)}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Exit demo/i }));
+    expect(disableDemoModeAndReload).toHaveBeenCalledWith("/");
   });
 });

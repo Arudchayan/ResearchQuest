@@ -8,8 +8,6 @@ import { useAppStore } from "../../../store/appStore";
 import { cn } from "../../../lib/utils";
 import { useShallow } from "zustand/react/shallow";
 import { Tooltip, TooltipTrigger, TooltipContent } from "../../ui/tooltip";
-import { isDemoMode } from "../../../lib/supabase";
-import { DEMO_FIRST_RUN_TOPIC_ID } from "../../../lib/demoData";
 
 interface AppShellProps {
   children: ReactNode;
@@ -26,8 +24,6 @@ export function AppShell({ children }: AppShellProps) {
     isRightSidebarOpen,
     isZenMode,
     toggleZenMode,
-    currentView,
-    selectedTopic,
   } = useAppStore(
     useShallow((state) => ({
       isMobileSidebarOpen: state.isMobileSidebarOpen,
@@ -35,20 +31,8 @@ export function AppShell({ children }: AppShellProps) {
       isRightSidebarOpen: state.isRightSidebarOpen,
       isZenMode: state.isZenMode,
       toggleZenMode: state.toggleZenMode,
-      currentView: state.currentView,
-      selectedTopic: state.selectedTopic,
     })),
   );
-
-  const pathMatchesFirstRun =
-    typeof window !== "undefined" &&
-    window.location.pathname === `/topics/${DEMO_FIRST_RUN_TOPIC_ID}`;
-
-  const isFirstRunLanding =
-    isDemoMode &&
-    (pathMatchesFirstRun ||
-      (currentView === "topics" &&
-        selectedTopic?.id === DEMO_FIRST_RUN_TOPIC_ID));
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -128,20 +112,6 @@ export function AppShell({ children }: AppShellProps) {
       document.body.style.overflow = "unset";
     };
   }, [isMobileSidebarOpen, setIsMobileSidebarOpen]);
-
-  if (isFirstRunLanding) {
-    return (
-      <div
-        data-testid="app-shell"
-        data-first-run="true"
-        className="relative flex min-h-[100dvh] w-full min-w-0 overflow-x-hidden bg-bg-base font-sans text-text-primary selection:bg-primary-500 selection:text-bg-base"
-      >
-        <main id="main-content" className="min-w-0 flex-1 overflow-auto" tabIndex={-1}>
-          {children}
-        </main>
-      </div>
-    );
-  }
 
   return (
     <div
