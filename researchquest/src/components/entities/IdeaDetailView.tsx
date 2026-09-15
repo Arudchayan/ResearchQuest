@@ -21,6 +21,7 @@ import type { Idea, IdeaStage } from "../../types/database";
 import { toast } from "sonner";
 import { TopicSelector } from "../topics/TopicSelector";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
+import { singleDeleteCopy } from "../../utils/deleteModel";
 import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
 import { Button } from "../ui/button";
 import { useNotes } from "../../hooks/useNotes";
@@ -680,10 +681,7 @@ export function IdeaDetailView({
         isOpen={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
         onConfirm={() => void handleConfirmDelete()}
-        title="Delete idea"
-        message={`Are you sure you want to delete "${idea.title}"? You can undo for a short time after deleting.`}
-        confirmText="Delete"
-        cancelText="Cancel"
+        {...singleDeleteCopy("idea", idea.title)}
         isLoading={deleting}
       />
     </>

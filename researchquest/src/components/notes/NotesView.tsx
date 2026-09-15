@@ -6,6 +6,7 @@ import { useAppStore } from "../../store/appStore";
 import { MarkdownEditor } from "../editor/MarkdownEditor";
 import { EditorPlaceholder } from "../editor/EditorPlaceholder";
 import { ConfirmDialog, useConfirmDialog } from "../ui/ConfirmDialog";
+import { singleDeleteCopy } from "../../utils/deleteModel";
 import type { Note } from "../../types/database";
 import { parseRoute } from "../../lib/router";
 import { NotesSidebar } from "./NotesSidebar";
@@ -71,16 +72,15 @@ export function NotesView() {
   }, [createNote, navigateToNote, setSelectedNote]);
 
   const handleDeleteNote = useCallback(async (noteId: string) => {
+    const note = useAppStore.getState().notes.find((currentNote) => currentNote.id === noteId);
+    if (!note) return;
+    const copy = singleDeleteCopy("note", note.title);
     const shouldDelete = await confirm({
-      title: "Delete note",
-      message: "Are you sure you want to delete this note? You can undo this action for a short time.",
+      ...copy,
       variant: "danger",
-      confirmText: "Delete",
     });
     if (!shouldDelete) return;
 
-    const note = useAppStore.getState().notes.find((currentNote) => currentNote.id === noteId);
-    if (!note) return;
     if (useAppStore.getState().selectedNote?.id === noteId) {
       setSelectedNote(null);
       setIsMobileEditorOpen(false);

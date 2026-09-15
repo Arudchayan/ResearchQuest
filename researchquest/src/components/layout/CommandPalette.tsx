@@ -10,7 +10,6 @@ import {
   Moon,
   Sun,
   Search,
-  Download,
   Keyboard,
   Database,
   LayoutDashboard,
@@ -23,7 +22,6 @@ import { useNotes } from "../../hooks/useNotes";
 import { usePapers } from "../../hooks/usePapers";
 import { useIdeas } from "../../hooks/useIdeas";
 import { useTasks } from "../../hooks/useTasks";
-import { exportData } from "../../utils/export";
 import "./CommandPalette.css";
 
 export function CommandPalette() {
@@ -172,35 +170,6 @@ export function CommandPalette() {
     setOpen(false);
   };
 
-  const handleExport = async () => {
-    const { user, notes, papers, ideas, topics, tasks } =
-      useAppStore.getState();
-    if (!user?.id) {
-      setOpen(false);
-      return;
-    }
-
-    const cleanTopics = Object.values(topics).map((t) => ({
-      id: t.id,
-      user_id: t.user_id,
-      name: t.name,
-      ...(t.description !== undefined ? { description: t.description } : {}),
-      created_at: t.created_at,
-      updated_at: t.updated_at,
-    }));
-
-    await exportData({
-      userId: user.id,
-      user,
-      notes,
-      papers,
-      ideas,
-      topics: cleanTopics,
-      tasks,
-    });
-    setOpen(false);
-  };
-
   const handleOpenDataManagement = () => {
     document.dispatchEvent(new CustomEvent("open-data-management"));
     setOpen(false);
@@ -332,11 +301,6 @@ export function CommandPalette() {
           <Command.Item onSelect={handleOpenDataManagement}>
             <Database />
             <span>Data Management...</span>
-          </Command.Item>
-
-          <Command.Item onSelect={handleExport}>
-            <Download />
-            <span>Quick Export All Data</span>
           </Command.Item>
 
           <Command.Item onSelect={toggleTheme}>

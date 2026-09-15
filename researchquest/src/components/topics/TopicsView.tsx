@@ -215,6 +215,7 @@ export function TopicsView() {
     }
 
     const timestamp = new Date().toISOString().split("T")[0];
+    const exportScope = searchQuery.trim() ? "filtered" : "all";
     let content = "";
     let filename = "";
     let type = "";
@@ -223,24 +224,24 @@ export function TopicsView() {
       switch (format) {
         case "markdown":
           content = convertTopicsToMarkdown(filteredTopics);
-          filename = `research-topics-${timestamp}.md`;
+          filename = `research-topics-${exportScope}-${timestamp}.md`;
           type = "text/markdown";
           break;
         case "csv":
           content = convertTopicsToCSV(filteredTopics);
-          filename = `research-topics-${timestamp}.csv`;
+          filename = `research-topics-${exportScope}-${timestamp}.csv`;
           type = "text/csv";
           break;
         case "json":
           content = convertTopicsToJSON(filteredTopics);
-          filename = `research-topics-${timestamp}.json`;
+          filename = `research-topics-${exportScope}-${timestamp}.json`;
           type = "application/json";
           break;
       }
 
       downloadFile(content, filename, type);
       toast.success(
-        `Exported ${filteredTopics.length} topics as ${format.toUpperCase()}`
+        `Exported ${filteredTopics.length} ${exportScope} topics as ${format.toUpperCase()}`
       );
     } catch (err) {
       logger.error("Export failed", err);
@@ -293,21 +294,21 @@ export function TopicsView() {
                       className="flex cursor-pointer items-center gap-2 rounded-control px-3 py-2 text-small text-text-secondary outline-none transition-colors hover:bg-bg-elevated hover:text-text-primary focus-visible:bg-bg-elevated"
                     >
                       <FileText className="w-4 h-4" />
-                      Markdown (.md)
+                      Markdown (.md) — {searchQuery.trim() ? "filtered" : "all"} topics
                     </DropdownMenu.Item>
                     <DropdownMenu.Item
                       onSelect={() => handleExport("csv")}
                       className="flex cursor-pointer items-center gap-2 rounded-control px-3 py-2 text-small text-text-secondary outline-none transition-colors hover:bg-bg-elevated hover:text-text-primary focus-visible:bg-bg-elevated"
                     >
                       <Table className="w-4 h-4" />
-                      CSV (.csv)
+                      CSV (.csv) — {searchQuery.trim() ? "filtered" : "all"} topics
                     </DropdownMenu.Item>
                     <DropdownMenu.Item
                       onSelect={() => handleExport("json")}
                       className="flex cursor-pointer items-center gap-2 rounded-control px-3 py-2 text-small text-text-secondary outline-none transition-colors hover:bg-bg-elevated hover:text-text-primary focus-visible:bg-bg-elevated"
                     >
                       <FileJson className="w-4 h-4" />
-                      JSON (.json)
+                      JSON (.json) — {searchQuery.trim() ? "filtered" : "all"} topics
                     </DropdownMenu.Item>
                   </DropdownMenu.Content>
                 </DropdownMenu.Portal>

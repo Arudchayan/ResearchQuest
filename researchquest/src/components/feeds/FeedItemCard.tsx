@@ -27,18 +27,21 @@ const TARGET_LABELS: Record<FeedPromoteTarget, string> = {
 };
 
 const TYPE_CHIP_STYLES: Record<FeedItemType, string> = {
-  paper: "bg-violet-soft text-violet-strong",
-  job: "bg-blue-soft text-blue-strong",
-  news: "bg-gold-soft text-gold-strong",
-  custom: "bg-accent-soft text-accent-strong",
+  paper: "bg-purple-bg text-purple",
+  job: "bg-info-bg text-info",
+  news: "bg-warning-bg text-warning",
+  custom: "bg-primary-50 text-text-primary",
 };
 
 const STATUS_CHIP_STYLES: Record<string, string> = {
-  new: "bg-accent-soft text-accent-strong",
-  triaged: "bg-blue-soft text-blue-strong",
+  new: "bg-primary-50 text-text-primary",
+  triaged: "bg-info-bg text-info",
   archived: "bg-bg-elevated text-text-tertiary",
   promoted: "bg-success-bg text-success",
 };
+
+const FEED_CHIP_BASE =
+  "inline-flex items-center gap-1 rounded-control border border-border-subtle px-2 py-0.5 text-caption font-semibold";
 
 function FeedTypeIcon({ type }: { type: FeedItemType }) {
   switch (type) {
@@ -104,7 +107,7 @@ function FeedSourceLink({
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center gap-1 text-caption font-medium text-accent-strong hover:text-accent"
+      className="inline-flex items-center gap-1 text-caption font-medium text-primary-500 hover:underline"
     >
       Open source
       <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
@@ -143,7 +146,7 @@ export function FeedItemCard({
   return (
     <article
       className={cn(
-        "surface-card p-4",
+        "rounded-surface border border-border-moderate bg-bg-surface p-4 shadow-sm",
         compact && "p-3",
         className,
       )}
@@ -151,13 +154,11 @@ export function FeedItemCard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            <span
-              className={`status-chip ${TYPE_CHIP_STYLES[item.type]}`}
-            >
+            <span className={cn(FEED_CHIP_BASE, TYPE_CHIP_STYLES[item.type])}>
               <FeedTypeIcon type={item.type} />
               {TYPE_LABELS[item.type]}
             </span>
-            <span className={`status-chip ${STATUS_CHIP_STYLES[item.status] ?? STATUS_CHIP_STYLES.new}`}>
+            <span className={cn(FEED_CHIP_BASE, STATUS_CHIP_STYLES[item.status] ?? STATUS_CHIP_STYLES.new)}>
               {item.status}
             </span>
             {dateLabel && (
@@ -207,7 +208,7 @@ export function FeedItemCard({
             type="button"
             onClick={() => void onArchive(item.id)}
             disabled={isBusy}
-            className="inline-flex items-center gap-1 rounded-lg border border-border-moderate bg-bg-surface px-2.5 py-1 text-caption font-medium text-text-secondary shadow-sm transition-colors hover:border-border-strong hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+            className="inline-flex items-center gap-1 rounded-lg border border-border-moderate bg-bg-surface px-2.5 py-1 text-caption font-medium text-text-secondary shadow-sm transition-colors hover:border-border-strong hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus"
             aria-label={`Archive ${item.title}`}
           >
             <Archive className="h-3.5 w-3.5" aria-hidden="true" />
@@ -220,7 +221,7 @@ export function FeedItemCard({
             type="button"
             onClick={() => void onMarkTriaged(item.id)}
             disabled={isBusy}
-            className="inline-flex items-center gap-1 rounded-lg border border-border-moderate bg-bg-surface px-2.5 py-1 text-caption font-medium text-text-secondary shadow-sm transition-colors hover:border-border-strong hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+            className="inline-flex items-center gap-1 rounded-lg border border-border-moderate bg-bg-surface px-2.5 py-1 text-caption font-medium text-text-secondary shadow-sm transition-colors hover:border-border-strong hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus"
             aria-label={`Mark ${item.title} as triaged`}
           >
             <Check className="h-3.5 w-3.5" aria-hidden="true" />
@@ -236,7 +237,7 @@ export function FeedItemCard({
                 type="button"
                 onClick={() => void onPromote(item.id, target)}
                 disabled={isBusy}
-                className="inline-flex items-center gap-1 rounded-lg bg-text-primary px-2.5 py-1 text-caption font-medium text-bg-base shadow-sm transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
+                className="inline-flex items-center gap-1 rounded-lg bg-text-primary px-2.5 py-1 text-caption font-medium text-bg-base shadow-sm transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
                 aria-label={`Promote ${item.title} to ${TARGET_LABELS[target]}`}
               >
                 <PromoteIcon target={target} />

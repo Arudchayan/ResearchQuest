@@ -19,6 +19,8 @@ export function AppShell({ children }: AppShellProps) {
   const mobileSidebarTriggerRef = useRef<HTMLButtonElement>(null);
   const mobileDrawerRef = useRef<HTMLDivElement>(null);
   const mobileSidebarWasOpenRef = useRef(false);
+  const zenEntryFocusRef = useRef<HTMLElement | null>(null);
+  const wasZenModeRef = useRef(useAppStore.getState().isZenMode);
   // OPTIMIZATION: Use shallow selector to prevent unnecessary re-renders when other parts of the store change
   const {
     isMobileSidebarOpen,
@@ -60,6 +62,23 @@ export function AppShell({ children }: AppShellProps) {
       ) {
         e.preventDefault();
         toggleZenMode();
+        return;
+      }
+
+      // Exit Zen Mode with Escape, unless a dialog or menu is open — those
+      // own Escape while they are visible, so Zen must not steal it.
+      if (e.key === "Escape" && useAppStore.getState().isZenMode) {
+        const target = e.target as Element | null;
+        const inOverlay =
+          typeof target?.closest === "function" &&
+          target.closest('[role="dialog"], [role="alertdialog"], [role="menu"]') !== null;
+        const overlayOpen =
+          document.querySelector('[role="dialog"], [role="alertdialog"], [role="menu"]') !== null;
+        if (!inOverlay && !overlayOpen) {
+          e.preventDefault();
+          useAppStore.getState().setZenMode(false);
+        }
+        return;
       }
 
       // Toggle Context Panel (Right Sidebar): Ctrl+. (or Cmd+.)
@@ -72,6 +91,23 @@ export function AppShell({ children }: AppShellProps) {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [toggleZenMode]);
+
+  // Zen Mode entry/exit: remember the focused element on entry and return
+  // focus to it on exit when it is still mounted (exiting never unmounts
+  // main content, so no editor state is lost — only chrome re-appears).
+  useEffect(() => {
+    if (isZenMode && !wasZenModeRef.current) {
+      zenEntryFocusRef.current = document.activeElement as HTMLElement | null;
+    }
+    if (!isZenMode && wasZenModeRef.current) {
+      const entry = zenEntryFocusRef.current;
+      if (entry && document.contains(entry)) {
+        entry.focus();
+      }
+      zenEntryFocusRef.current = null;
+    }
+    wasZenModeRef.current = isZenMode;
+  }, [isZenMode]);
 
   useEffect(() => {
     if (!isMobileSidebarOpen) {
@@ -254,20 +290,24 @@ export function AppShell({ children }: AppShellProps) {
         </aside>
       )}
 
-      {/* Zen Mode Exit Button */}
+      {/* Zen Mode exit cue: persistent labeled pill, always visible while Zen is active */}
       {isZenMode && (
         <Tooltip>
           <TooltipTrigger asChild>
             <button
               onClick={() => toggleZenMode()}
-              className="group fixed bottom-6 right-6 z-[100] inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-border-moderate bg-bg-elevated/80 text-text-secondary shadow-lg backdrop-blur-sm transition-all hover:bg-bg-base hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+              className="fixed bottom-6 right-6 z-[100] inline-flex min-h-11 items-center gap-2 rounded-control border border-border-moderate bg-bg-elevated/90 px-4 py-2 text-small font-medium text-text-primary shadow-lg backdrop-blur-sm transition-colors hover:bg-bg-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
               aria-label="Exit Zen Mode"
             >
-              <DoubleArrowDownIcon className="w-5 h-5 group-hover:scale-110 transition-transform" aria-hidden="true" />
+              <DoubleArrowDownIcon className="h-4 w-4" aria-hidden="true" />
+              Exit Zen
+              <kbd className="rounded-sm border border-border-subtle bg-bg-surface px-1.5 py-0.5 font-mono text-caption text-text-tertiary" aria-hidden="true">
+                Esc
+              </kbd>
             </button>
           </TooltipTrigger>
           <TooltipContent>
-            <p>Exit Zen Mode (Ctrl+Shift+F)</p>
+            <p>Exit Zen Mode (Ctrl+Shift+F or Esc)</p>
           </TooltipContent>
         </Tooltip>
       )}

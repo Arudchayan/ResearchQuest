@@ -111,7 +111,7 @@ describe("NotesView Deletion UX", () => {
     const dialog = await screen.findByRole("alertdialog");
     expect(dialog).toBeInTheDocument();
     expect(
-      screen.getByText(/Are you sure you want to delete this note?/i),
+      screen.getByText(/Are you sure you want to delete "Test Note"\?/i),
     ).toBeInTheDocument();
 
     // Ensure window.confirm was NOT called

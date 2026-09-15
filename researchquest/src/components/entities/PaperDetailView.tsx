@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { isValidUrl } from "../../utils/security";
 import { TopicSelector } from "../topics/TopicSelector";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
+import { singleDeleteCopy } from "../../utils/deleteModel";
 import { CitationDialog } from "../papers/CitationDialog";
 import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
 import { useNotes } from "../../hooks/useNotes";
@@ -559,10 +560,7 @@ export function PaperDetailView({
         isOpen={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
         onConfirm={() => void handleConfirmDelete()}
-        title="Delete paper"
-        message={`Are you sure you want to delete "${paper.title}"? You can undo for a short time after deleting.`}
-        confirmText="Delete"
-        cancelText="Cancel"
+        {...singleDeleteCopy("paper", paper.title)}
         isLoading={deleting}
       />
 

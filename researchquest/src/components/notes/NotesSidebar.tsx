@@ -115,14 +115,15 @@ export function NotesSidebar({
     }
 
     const timestamp = new Date().toISOString().split("T")[0];
+    const exportScope = searchQuery.trim() !== "" || selectedTag ? "filtered" : "all";
     try {
       const exportData = {
         markdown: { content: convertNotesToMarkdown(filteredNotes), extension: "md", type: "text/markdown" },
         csv: { content: convertNotesToCSV(filteredNotes), extension: "csv", type: "text/csv" },
         json: { content: convertNotesToJSON(filteredNotes), extension: "json", type: "application/json" },
       }[format];
-      downloadFile(exportData.content, `research-notes-${timestamp}.${exportData.extension}`, exportData.type);
-      toast.success(`Exported ${filteredNotes.length} notes as ${format.toUpperCase()}`);
+      downloadFile(exportData.content, `research-notes-${exportScope}-${timestamp}.${exportData.extension}`, exportData.type);
+      toast.success(`Exported ${filteredNotes.length} ${exportScope} notes as ${format.toUpperCase()}`);
     } catch (error) {
       logger.error("Export failed", error);
       toast.error("Failed to export notes");
@@ -144,9 +145,9 @@ export function NotesSidebar({
               </DropdownMenu.Trigger>
               <DropdownMenu.Portal>
                 <DropdownMenu.Content className="z-dropdown min-w-[180px] rounded-surface border border-border-subtle bg-bg-surface p-1 shadow-md animate-in fade-in-0 zoom-in-95" align="start" sideOffset={4}>
-                  <ExportOption icon={FileText} label="Markdown (.md)" onSelect={() => handleExport("markdown")} />
-                  <ExportOption icon={Table} label="CSV (.csv)" onSelect={() => handleExport("csv")} />
-                  <ExportOption icon={FileJson} label="JSON (.json)" onSelect={() => handleExport("json")} />
+                  <ExportOption icon={FileText} label={`Markdown (.md) — ${searchQuery.trim() !== "" || selectedTag ? "filtered" : "all"} notes`} onSelect={() => handleExport("markdown")} />
+                  <ExportOption icon={Table} label={`CSV (.csv) — ${searchQuery.trim() !== "" || selectedTag ? "filtered" : "all"} notes`} onSelect={() => handleExport("csv")} />
+                  <ExportOption icon={FileJson} label={`JSON (.json) — ${searchQuery.trim() !== "" || selectedTag ? "filtered" : "all"} notes`} onSelect={() => handleExport("json")} />
                 </DropdownMenu.Content>
               </DropdownMenu.Portal>
             </DropdownMenu.Root>

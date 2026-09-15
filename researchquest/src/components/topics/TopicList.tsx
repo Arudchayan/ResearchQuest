@@ -1,4 +1,5 @@
 import { ConfirmDialog, useConfirmDialog } from "../ui/ConfirmDialog";
+import { singleDeleteCopy } from "../../utils/deleteModel";
 import { EmptyState } from "../ui/EmptyState";
 import { Skeleton } from "../ui/Skeleton";
 import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
@@ -121,9 +122,7 @@ export function TopicList({
                       onClick={async (event) => {
                         event.stopPropagation();
                         const shouldDelete = await confirmDialog({
-                          title: "Delete Topic",
-                          message: `Delete "${topic.name}"? This will remove its links.`,
-                          confirmText: "Delete",
+                          ...singleDeleteCopy("topic", topic.name, { linksNote: true }),
                           variant: "danger",
                         });
                         if (shouldDelete) {
