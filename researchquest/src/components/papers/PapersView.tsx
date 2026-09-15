@@ -1,6 +1,7 @@
 import { logger } from "../../utils/logger";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useFilteredList } from "../../hooks/useFilteredList";
+import { useServerSearch } from "../../hooks/useServerSearch";
 import {
   Plus,
   Search,
@@ -177,7 +178,16 @@ export function PapersView() {
     }, [sortOption]),
   );
 
-  const rowCount = Math.ceil(filteredPapers.length / columnCount);
+  // Plan item 45: in live mode, debounced FTS (`search_papers`, 20 rows)
+  // upgrades the instant client list once it resolves; demo/test/local
+  // filtering is unchanged.
+  const { results: visiblePapers } = useServerSearch({
+    query: searchQuery,
+    entity: "papers",
+    clientResults: filteredPapers,
+  });
+
+  const rowCount = Math.ceil(visiblePapers.length / columnCount);
 
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
@@ -187,7 +197,7 @@ export function PapersView() {
   });
 
   const handleExport = (format: "markdown" | "bibtex" | "csv" | "json") => {
-    if (filteredPapers.length === 0) {
+    if (visiblePapers.length === 0) {
       toast.error("No papers to export");
       return;
     }
@@ -201,22 +211,22 @@ export function PapersView() {
     try {
       switch (format) {
         case "markdown":
-          content = convertPapersToMarkdown(filteredPapers);
+          content = convertPapersToMarkdown(visiblePapers);
           filename = `research-library-${exportScope}-${timestamp}.md`;
           type = "text/markdown";
           break;
         case "bibtex":
-          content = convertPapersToBibTeX(filteredPapers);
+          content = convertPapersToBibTeX(visiblePapers);
           filename = `research-library-${exportScope}-${timestamp}.bib`;
           type = "text/plain";
           break;
         case "csv":
-          content = convertPapersToCSV(filteredPapers);
+          content = convertPapersToCSV(visiblePapers);
           filename = `research-library-${exportScope}-${timestamp}.csv`;
           type = "text/csv";
           break;
         case "json":
-          content = convertPapersToJSON(filteredPapers);
+          content = convertPapersToJSON(visiblePapers);
           filename = `research-library-${exportScope}-${timestamp}.json`;
           type = "application/json";
           break;
@@ -224,7 +234,7 @@ export function PapersView() {
 
       downloadFile(content, filename, type);
       toast.success(
-        `Exported ${filteredPapers.length} ${exportScope} papers as ${format.toUpperCase()}`,
+        `Exported ${visiblePapers.length} ${exportScope} papers as ${format.toUpperCase()}`,
       );
     } catch (err) {
       logger.error("Export failed", err);
@@ -372,7 +382,7 @@ export function PapersView() {
                 <PaperCardSkeleton key={i} />
               ))}
             </div>
-          ) : filteredPapers.length === 0 ? (
+          ) : visiblePapers.length === 0 ? (
             <EmptyState
               className="py-20"
               icon={<BookOpen className="h-6 w-6" />}
@@ -412,7 +422,7 @@ export function PapersView() {
             >
               {rowVirtualizer.getVirtualItems().map((virtualRow) => {
                 const startIndex = virtualRow.index * columnCount;
-                const rowPapers = filteredPapers.slice(
+                const rowPapers = visiblePapers.slice(
                   startIndex,
                   startIndex + columnCount,
                 );

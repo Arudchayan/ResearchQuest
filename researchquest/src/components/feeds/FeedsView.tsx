@@ -7,6 +7,7 @@ import {
   type FeedTypeFilter,
   useFeedItems,
 } from "../../hooks/useFeedItems";
+import { useInfiniteScroll } from "../../hooks/usePaginatedList";
 import { useAppStore } from "../../store/appStore";
 import type { FeedPromoteTarget } from "../../types/database";
 import { cn } from "../../lib/utils";
@@ -38,10 +39,17 @@ export function FeedsView() {
     error,
     actionItemId,
     refreshFeedItems,
+    hasMore,
+    loadMore,
     archiveFeedItem,
     markFeedItemTriaged,
     promoteFeedItem,
   } = useFeedItems(userId, { type, status });
+  // Infinite scroll (plan item 41): the hook pages with range(); the sentinel
+  // grows the window. The button below is the no-IntersectionObserver fallback.
+  const sentinelRef = useInfiniteScroll(loadMore, {
+    enabled: hasMore && !loading,
+  });
 
   const handlePromote = (itemId: string, target: FeedPromoteTarget) => {
     void promoteFeedItem(itemId, target);
@@ -187,6 +195,18 @@ export function FeedsView() {
                   onPromote={handlePromote}
                 />
               ))}
+              {hasMore && (
+                <div className="flex flex-col items-center gap-2 pt-2">
+                  <div ref={sentinelRef} aria-hidden="true" className="h-1" />
+                  <button
+                    type="button"
+                    onClick={loadMore}
+                    className="rounded-lg border border-border-moderate bg-bg-surface px-4 py-2 text-small font-medium text-text-secondary shadow-sm transition-colors hover:border-border-strong hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
+                  >
+                    Load more
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </section>

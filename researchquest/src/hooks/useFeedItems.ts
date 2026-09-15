@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "../lib/supabase";
+import { DEFAULT_PAGE_SIZE } from "../lib/pagination";
 import type {
   FeedItem,
   FeedItemStatus,
@@ -25,6 +26,12 @@ interface UseFeedItemsOptions {
   status?: FeedStatusFilter;
   limit?: number;
   enabled?: boolean;
+  /**
+   * Rows per page for `range()` pagination. Defaults to `limit` (fixed
+   * window, e.g. the rail's `limit: 5`) or 20. Grow the window with
+   * `loadMore()`; `hasMore` reports whether another page may exist.
+   */
+  pageSize?: number;
 }
 
 interface PromoteResponse {
@@ -56,6 +63,77 @@ function getApiBaseUrl() {
   return `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, "")}/functions/v1/api/v1`;
 }
 
+// --- Single-owner realtime registry (plan item 47) ---------------------------
+// One channel per userId shared by every mounted useFeedItems instance; each
+// instance registers its own refetch handler. The channel closes when the
+// last instance unmounts.
+interface FeedChannelEntry {
+  sub: { unsubscribe: () => unknown };
+  refCount: number;
+  handlers: Set<() => void>;
+}
+
+const feedChannels = new Map<string, FeedChannelEntry>();
+
+function acquireFeedChannel(
+  name: string,
+  handler: () => void,
+  subscribe: (notify: () => void) => { unsubscribe: () => unknown },
+): void {
+  let entry = feedChannels.get(name);
+  if (!entry) {
+    const handlers = new Set<() => void>();
+    const sub = subscribe(() => {
+      handlers.forEach((h) => {
+        try {
+          h();
+        } catch {
+          // One failing instance must not break the others.
+        }
+      });
+    });
+    entry = { sub, refCount: 0, handlers };
+    feedChannels.set(name, entry);
+  }
+  entry.handlers.add(handler);
+  entry.refCount += 1;
+}
+
+function releaseFeedChannel(name: string, handler: () => void): void {
+  const entry = feedChannels.get(name);
+  if (!entry) return;
+  entry.handlers.delete(handler);
+  entry.refCount -= 1;
+  if (entry.refCount <= 0) {
+    feedChannels.delete(name);
+    try {
+      entry.sub.unsubscribe();
+    } catch {
+      // Releasing must never throw during unmount cleanup.
+    }
+  }
+}
+
+/** Test-only reset for the feed channel registry. */
+export function resetFeedChannelsForTests(): void {
+  for (const name of [...feedChannels.keys()]) {
+    const entry = feedChannels.get(name);
+    feedChannels.delete(name);
+    try {
+      entry?.sub.unsubscribe();
+    } catch {
+      // ignore
+    }
+  }
+  feedInflightByKey.clear();
+}
+
+// --- Fetch dedupe (plan item 46) -------------------------------------------
+// One in-flight request per query window, shared by every mounted instance:
+// the StrictMode double-effect and a realtime refetch racing a fetch reuse it
+// instead of issuing duplicate network requests.
+const feedInflightByKey = new Map<string, Promise<FeedItem[]>>();
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -75,23 +153,51 @@ export function useFeedItems(
   userId: string | undefined,
   options: UseFeedItemsOptions = {},
 ) {
-  const { type = "all", status = "all", limit, enabled = true } = options;
+  const { type = "all", status = "all", limit, enabled = true, pageSize } = options;
+  // `limit` keeps its legacy meaning as the window size (FeedsRail's
+  // `limit: 5` still fetches exactly 5 rows initially); `pageSize` overrides
+  // it when both are given. The window grows by `loadMore()` via `range()`.
+  const windowSize = Math.max(
+    1,
+    Math.floor(pageSize ?? limit ?? DEFAULT_PAGE_SIZE),
+  );
   const [items, setItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionItemId, setActionItemId] = useState<string | null>(null);
+  const [pages, setPages] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+
+  // Reset the window when the query identity changes.
+  const filterKey = `${userId ?? ""}|${type}|${status}|${enabled}|${windowSize}`;
+  const prevFilterKeyRef = useRef(filterKey);
+  if (prevFilterKeyRef.current !== filterKey) {
+    prevFilterKeyRef.current = filterKey;
+    setPages(1);
+    setHasMore(false);
+  }
+
+  // Generation guard: stale fetches (filter change, loadMore race, unmount)
+  // must not commit over fresher state (plan item 46).
+  const fetchGenRef = useRef(0);
 
   const fetchFeedItems = useCallback(async () => {
+    const gen = (fetchGenRef.current += 1);
     if (!userId || !enabled) {
       setItems([]);
       setLoading(false);
+      setHasMore(false);
       return;
     }
 
     setLoading(true);
     setError(null);
 
-    try {
+    // Paged window (plan item 41): range() instead of an unbounded select.
+    const windowEnd = pages * windowSize - 1;
+    const requestKey = `${filterKey}|${pages}`;
+
+    const runFeedQuery = async (): Promise<FeedItem[]> => {
       let query = supabase
         .from("feed_items")
         .select("*")
@@ -108,56 +214,94 @@ export function useFeedItems(
         .order("published_at", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false });
 
-      if (limit) {
-        query = query.limit(limit);
-      }
-
-      const { data, error: fetchError } = await query;
+      const { data, error: fetchError } = await query.range(0, windowEnd);
 
       if (fetchError) {
-        logger.error("Failed to fetch feed items", fetchError);
-        setError("Failed to load feeds");
-        return;
+        throw fetchError;
       }
+      return sortFeedItems((data ?? []) as FeedItem[]);
+    };
 
-      setItems(sortFeedItems((data ?? []) as FeedItem[]));
+    try {
+      let flight = feedInflightByKey.get(requestKey);
+      if (!flight) {
+        flight = runFeedQuery();
+        feedInflightByKey.set(requestKey, flight);
+        const settled = flight;
+        void settled.then(
+          () => {
+            if (feedInflightByKey.get(requestKey) === settled) {
+              feedInflightByKey.delete(requestKey);
+            }
+          },
+          () => {
+            if (feedInflightByKey.get(requestKey) === settled) {
+              feedInflightByKey.delete(requestKey);
+            }
+          },
+        );
+      }
+      const rows = await flight;
+
+      if (fetchGenRef.current !== gen) return; // stale: discard
+
+      setItems(rows);
+      // A full window means the server may hold more rows.
+      setHasMore(rows.length > windowEnd);
     } catch (fetchError) {
+      if (fetchGenRef.current !== gen) return; // stale: discard
       logger.error("Failed to fetch feed items", fetchError);
       setError("Failed to load feeds");
+      setHasMore(false);
     } finally {
-      setLoading(false);
+      if (fetchGenRef.current === gen) setLoading(false);
     }
-  }, [enabled, limit, status, type, userId]);
+  }, [enabled, filterKey, pages, status, type, userId, windowSize]);
+
+  const loadMore = useCallback(() => {
+    if (hasMore) setPages((p) => p + 1);
+  }, [hasMore]);
+
+  const fetchRef = useRef(fetchFeedItems);
+  fetchRef.current = fetchFeedItems;
 
   useEffect(() => {
     void fetchFeedItems();
+  }, [fetchFeedItems]);
 
+  useEffect(() => {
     if (!userId || !enabled) {
       return;
     }
 
-    const subscription = supabase
-      .channel(`feed_items_realtime_${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "feed_items",
-          filter: `user_id=eq.${userId}`,
-        },
-        () => {
-          void fetchFeedItems();
-        },
-      )
-      .subscribe((subscriptionStatus) => {
-        logger.log("Feed items subscription status:", subscriptionStatus);
-      });
+    const channelName = `feed_items_realtime_${userId}`;
+    const handler = () => {
+      void fetchRef.current();
+    };
+    acquireFeedChannel(channelName, handler, (notify) =>
+      supabase
+        .channel(channelName)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "feed_items",
+            filter: `user_id=eq.${userId}`,
+          },
+          () => {
+            notify();
+          },
+        )
+        .subscribe((subscriptionStatus) => {
+          logger.log("Feed items subscription status:", subscriptionStatus);
+        }),
+    );
 
     return () => {
-      subscription.unsubscribe();
+      releaseFeedChannel(channelName, handler);
     };
-  }, [enabled, fetchFeedItems, userId]);
+  }, [enabled, userId]);
 
   const updateFeedItemStatus = useCallback(
     async (itemId: string, nextStatus: Extract<FeedItemStatus, "new" | "triaged" | "archived">) => {
@@ -289,6 +433,8 @@ export function useFeedItems(
     error,
     actionItemId,
     refreshFeedItems: fetchFeedItems,
+    hasMore,
+    loadMore,
     archiveFeedItem,
     markFeedItemTriaged,
     promoteFeedItem,

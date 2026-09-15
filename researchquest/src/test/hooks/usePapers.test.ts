@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { renderHook, waitFor, act } from "@testing-library/react";
 import { usePapers } from "../../hooks/usePapers";
-import { useDataSync } from "../../hooks/useDataSync";
+import { useDataSync, resetDataSyncModuleState } from "../../hooks/useDataSync";
 import { mockSupabaseClient, mockPaper } from "../mocks/supabase";
 import type { Paper } from "../../types/database";
 import { useAppStore } from "../../store/appStore";
@@ -63,6 +63,7 @@ const createMockBuilder = (overrides: any = {}) => {
 describe("usePapers Hook", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetDataSyncModuleState();
     useAppStore.setState({ papers: [], papersLoading: false });
   });
 
@@ -73,7 +74,9 @@ describe("usePapers Hook", () => {
 
       mockSupabaseClient.from.mockImplementation(() =>
         createMockBuilder({
-          order: vi.fn().mockResolvedValue({ data: mockPapers, error: null }),
+          // fetchTable ends its chain with .limit(), so the terminal mock
+          // lives there (plan item 41 capped the initial sync select).
+          limit: vi.fn().mockResolvedValue({ data: mockPapers, error: null }),
         }),
       );
 

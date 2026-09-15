@@ -38,6 +38,7 @@ export const mockSupabaseClient = {
     builder.lte = vi.fn().mockReturnValue(builder);
     builder.not = vi.fn().mockReturnValue(builder);
     builder.limit = vi.fn().mockReturnValue(builder);
+    builder.range = vi.fn().mockReturnValue(builder);
     builder.single = vi.fn().mockResolvedValue({ data: null, error: null });
     builder.maybeSingle = vi
       .fn()
