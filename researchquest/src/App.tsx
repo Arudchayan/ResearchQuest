@@ -11,6 +11,7 @@ import { useGamificationStore } from "./store/gamificationStore";
 import { AppShell } from "./components/layout/v2/AppShell";
 import { AppLoadingSkeleton } from "./components/ui/Skeleton";
 import { Toaster } from "sonner";
+import { StaleBanner } from "./components/layout/StaleBanner";
 import { AlertCircle, Home } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { usePapers } from "./hooks/usePapers";
@@ -422,6 +423,7 @@ function App() {
         />
 
         <AppShell>
+          <StaleBanner />
           <Suspense fallback={<RouteLoadingFallback />}>{routeContent}</Suspense>
         </AppShell>
       </TooltipProvider>

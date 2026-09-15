@@ -15,6 +15,16 @@ import { XP_REWARDS } from "../utils/gamification";
 import { toast } from "sonner";
 import { parseDateInput } from "../utils/time";
 import { logger } from "../utils/logger";
+import {
+  cacheKeyForList,
+  clearStaleKeys,
+  markStaleKeys,
+  readListCache,
+  writeListCache,
+} from "../lib/idbCache";
+import {
+  listWithGatewayFallback,
+} from "../lib/apiGateway";
 import { useAppStore } from "../store/appStore";
 import { useEntityCrud, awardXPAndNotify, type AppStoreState } from "./useEntityCrud";
 import type { Task } from "../types/database";
@@ -254,18 +264,54 @@ export function useTasks(
     setFetchError(null);
 
     try {
-      const { data, error: fetchError } = await supabase
-        .from("tasks")
-        .select("*")
-        .eq("user_id", userId)
-        .order("due_date", { ascending: true, nullsFirst: false });
+      const cacheKey = cacheKeyForList("tasks", userId);
 
-      if (fetchError) {
+      // Read-through cache: render cached rows instantly while revalidating.
+      try {
+        const cached = await readListCache<Task>(cacheKey);
+        if (cached) {
+          setGlobalTasks(sortTasksByDueDate(cached.data));
+          if (cached.stale) {
+            markStaleKeys(cacheKey);
+          } else {
+            clearStaleKeys(cacheKey);
+          }
+        }
+      } catch {
+        // Cache must never break list reads.
+      }
+
+      const direct = async (): Promise<Task[]> => {
+        const { data, error: fetchError } = await supabase
+          .from("tasks")
+          .select("*")
+          .eq("user_id", userId)
+          .order("due_date", { ascending: true, nullsFirst: false });
+        if (fetchError) throw fetchError;
+        return (data || []) as Task[];
+      };
+
+      let rows: Task[];
+      try {
+        const result = await listWithGatewayFallback<Task>(
+          "tasks",
+          { limit: 100 },
+          direct,
+        );
+        rows = result.data;
+      } catch (fetchError) {
+        logger.error("Failed to fetch tasks", fetchError);
         setFetchError("Failed to fetch tasks");
         setDataSyncError("tasks", "Failed to fetch tasks");
-      } else {
-        setGlobalTasks(sortTasksByDueDate(data || []));
+        return;
       }
+      setGlobalTasks(sortTasksByDueDate(rows));
+      try {
+        await writeListCache(cacheKey, rows);
+      } catch {
+        // Best-effort.
+      }
+      clearStaleKeys(cacheKey);
     } catch (fetchError) {
       logger.error("Failed to fetch tasks", fetchError);
       setFetchError("Failed to fetch tasks");

@@ -12,6 +12,17 @@
  */
 import { useEffect } from "react";
 import { supabase } from "../lib/supabase";
+import {
+  cacheKeyForList,
+  clearStaleKeys,
+  markStaleKeys,
+  readListCache,
+  writeListCache,
+} from "../lib/idbCache";
+import {
+  listWithGatewayFallback,
+  type GatewayListResource,
+} from "../lib/apiGateway";
 import { useAppStore, type DataSyncResource } from "../store/appStore";
 import { useShallow } from "zustand/react/shallow";
 import { sortByUpdatedAt } from "../utils/sort";
@@ -84,13 +95,47 @@ export function useDataSync(userId: string | undefined) {
     ) => {
       opts.setLoading(true);
       try {
-        const { data, error } = await supabase
-          .from(table)
-          .select("*")
-          .eq("user_id", userId)
-          .order("updated_at", { ascending: false });
+        const cacheKey = cacheKeyForList(table, userId);
 
-        if (error) {
+        // Read-through cache: render the cached snapshot immediately while
+        // the gateway/direct read below revalidates. Stale entries flag the
+        // banner until fresh rows land.
+        try {
+          const cached = await readListCache<T>(cacheKey);
+          if (cached) {
+            const cachedItems = opts.transform
+              ? opts.transform(cached.data)
+              : cached.data;
+            opts.setItems(cachedItems);
+            if (cached.stale) {
+              markStaleKeys(cacheKey);
+            } else {
+              clearStaleKeys(cacheKey);
+            }
+          }
+        } catch {
+          // Cache must never break list reads.
+        }
+
+        const direct = async (): Promise<T[]> => {
+          const { data, error } = await supabase
+            .from(table)
+            .select("*")
+            .eq("user_id", userId)
+            .order("updated_at", { ascending: false });
+          if (error) throw error;
+          return (data ?? []) as T[];
+        };
+
+        let rows: T[];
+        try {
+          const result = await listWithGatewayFallback<T>(
+            table as GatewayListResource,
+            { limit: 100 },
+            direct,
+          );
+          rows = result.data;
+        } catch (error) {
           setDataSyncError(
             table,
             extractFunctionErrorMessage(error, opts.fallbackError),
@@ -99,10 +144,16 @@ export function useDataSync(userId: string | undefined) {
         }
 
         clearDataSyncError(table);
-        if (data) {
-          const items = opts.transform ? opts.transform(data) : data;
-          opts.setItems(items);
+        const items = opts.transform ? opts.transform(rows) : rows;
+        opts.setItems(items);
+        try {
+          await writeListCache(cacheKey, rows);
+        } catch {
+          // Best-effort.
+        }
+        clearStaleKeys(cacheKey);
 
+        {
           // Sync selected entity if it still exists in the fresh data
           if (opts.syncSelected) {
             const current = opts.syncSelected.getSelected();
