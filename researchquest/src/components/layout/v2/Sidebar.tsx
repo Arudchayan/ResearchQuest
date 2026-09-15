@@ -20,15 +20,20 @@ import {
   Hash,
   BookOpen,
   Inbox,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { useAppStore } from "../../../store/appStore";
 import { cn } from "../../../lib/utils";
 import { supabase } from "../../../lib/supabase";
+import { NAV_GROUPS } from "../navConfig";
+import type { AppView } from "../../../lib/router";
 import { XPExplainer } from "../XPExplainer";
 import { ProfileDialog } from "../ProfileDialog";
 import { DataManagementDialog } from "../../settings/DataManagementDialog";
 import { useShallow } from "zustand/react/shallow";
 import { Tooltip, TooltipTrigger, TooltipContent } from "../../ui/tooltip";
+import { Button } from "../../ui/button";
 
 export function Sidebar() {
   const {
@@ -57,6 +62,35 @@ export function Sidebar() {
   const [showXpGuide, setShowXpGuide] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showDataDialog, setShowDataDialog] = useState(false);
+  // Collapsible nav groups (PR17 IA). Persisted so an explicit user
+  // collapse survives reloads; all groups start expanded.
+  const [collapsedGroups, setCollapsedGroups] = useState<
+    Record<string, boolean>
+  >(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      return JSON.parse(
+        window.localStorage.getItem("rq_nav_groups_collapsed") ?? "{}",
+      );
+    } catch {
+      return {};
+    }
+  });
+
+  const toggleNavGroup = (groupId: string) => {
+    setCollapsedGroups((prev) => {
+      const next = { ...prev, [groupId]: !prev[groupId] };
+      try {
+        window.localStorage.setItem(
+          "rq_nav_groups_collapsed",
+          JSON.stringify(next),
+        );
+      } catch {
+        // Non-fatal: groups still toggle for the session.
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     const handleOpenDataManagement = () => setShowDataDialog(true);
@@ -68,16 +102,51 @@ export function Sidebar() {
       );
   }, []);
 
-  const navItems = [
-    { id: "dashboard", label: "Dashboard", icon: DashboardIcon },
-    { id: "notes", label: "Notes", icon: FileText },
-    { id: "papers", label: "Papers", icon: BookOpen },
-    { id: "ideas", label: "Ideas", icon: Lightbulb },
-    { id: "tasks", label: "Tasks", icon: CheckSquare },
-    { id: "topics", label: "Topics", icon: Hash },
-    { id: "feeds", label: "Feeds", icon: Inbox },
-    { id: "focus", label: "Focus Studio", icon: TargetIcon },
-  ] as const;
+  const navIcons: Record<AppView, typeof FileText> = {
+    dashboard: DashboardIcon as unknown as typeof FileText,
+    notes: FileText,
+    papers: BookOpen,
+    ideas: Lightbulb,
+    tasks: CheckSquare,
+    topics: Hash,
+    feeds: Inbox,
+    focus: TargetIcon as unknown as typeof FileText,
+  };
+
+  const renderNavLink = (item: { id: AppView; label: string }) => {
+    const Icon = navIcons[item.id];
+    return (
+      <a
+        key={item.id}
+        href={item.id === "dashboard" ? "/" : `/${item.id}`}
+        onClick={(e) => {
+          // Allow default behavior (new tab) if modifier keys are pressed
+          if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
+            return;
+          }
+          e.preventDefault();
+          setCurrentView(item.id);
+          setIsMobileSidebarOpen(false);
+          // Update URL without reload
+          window.history.pushState(
+            null,
+            "",
+            item.id === "dashboard" ? "/" : `/${item.id}`,
+          );
+        }}
+        className={cn(
+          "flex min-h-11 w-full items-center gap-3 rounded-sm px-3 py-2.5 text-small font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2",
+          currentView === item.id
+            ? "bg-primary-50 text-text-primary font-semibold"
+            : "text-text-secondary hover:bg-bg-elevated hover:text-text-primary",
+        )}
+        aria-current={currentView === item.id ? "page" : undefined}
+      >
+        <Icon className="w-5 h-5" aria-hidden="true" />
+        {item.label}
+      </a>
+    );
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -128,38 +197,34 @@ export function Sidebar() {
         </button>
       </div>
 
-      <nav className="flex-1 px-4 space-y-1">
-        {navItems.map((item) => (
-          <a
-            key={item.id}
-            href={item.id === "dashboard" ? "/" : `/${item.id}`}
-            onClick={(e) => {
-              // Allow default behavior (new tab) if modifier keys are pressed
-              if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
-                return;
-              }
-              e.preventDefault();
-              setCurrentView(item.id);
-              setIsMobileSidebarOpen(false);
-              // Update URL without reload
-              window.history.pushState(
-                null,
-                "",
-                item.id === "dashboard" ? "/" : `/${item.id}`,
-              );
-            }}
-            className={cn(
-              "flex min-h-11 w-full items-center gap-3 rounded-sm px-3 py-2.5 text-small font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2",
-              currentView === item.id
-                ? "bg-primary-50 text-text-primary font-semibold"
-                : "text-text-secondary hover:bg-bg-elevated hover:text-text-primary",
-            )}
-            aria-current={currentView === item.id ? "page" : undefined}
-          >
-            <item.icon className="w-5 h-5" aria-hidden="true" />
-            {item.label}
-          </a>
-        ))}
+      <nav className="flex-1 px-4 space-y-4 overflow-y-auto" aria-label="Primary">
+        {NAV_GROUPS.map((group) => {
+          const isCollapsed = collapsedGroups[group.id] ?? false;
+          return (
+            <div key={group.id}>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => toggleNavGroup(group.id)}
+                className="flex h-auto min-h-8 w-full items-center justify-between px-3 py-1 text-caption font-semibold uppercase tracking-[0.08em] text-text-tertiary hover:text-text-primary"
+                aria-expanded={!isCollapsed}
+                aria-controls={`sidebar-nav-${group.id}`}
+              >
+                {group.label}
+                {isCollapsed ? (
+                  <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+                ) : (
+                  <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
+                )}
+              </Button>
+              {!isCollapsed && (
+                <div id={`sidebar-nav-${group.id}`} className="mt-1 space-y-1">
+                  {group.items.map((item) => renderNavLink(item))}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </nav>
 
       {user && (

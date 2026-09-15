@@ -25,6 +25,12 @@ vi.mock("lucide-react", () => ({
   Lightbulb: () => <svg data-testid="icon-lightbulb" />,
   CheckSquare: () => <svg data-testid="icon-check-square" />,
   Plus: () => <svg data-testid="icon-plus" />,
+  // Icons used by MobileTabBar's "All views" sheet (PR17 IA nav groups)
+  Hash: () => <svg data-testid="icon-hash" />,
+  Inbox: () => <svg data-testid="icon-inbox" />,
+  LayoutDashboard: () => <svg data-testid="icon-layout-dashboard" />,
+  LayoutGrid: () => <svg data-testid="icon-layout-grid" />,
+  Target: () => <svg data-testid="icon-target" />,
 }));
 
 describe("AppShell Zen Mode", () => {

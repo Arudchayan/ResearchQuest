@@ -390,7 +390,8 @@ function App() {
       </div>
     ) : currentView === "focus" ? (
       <div className="p-6 h-full overflow-auto">
-        <OnboardingGuide storageKey="rq_focus_onboarding_bridge" />
+        {/* Single onboarding key (rq_onboarding_complete) shared by all views. */}
+        <OnboardingGuide />
         <FocusWorkspace userId={userId} />
       </div>
     ) : currentView === "feeds" ? (

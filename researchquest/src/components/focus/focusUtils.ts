@@ -1,7 +1,7 @@
-import type { Note, Paper, Task } from "../../types/database";
+import type { Idea, Note, Paper, Task, Topic } from "../../types/database";
 import { deriveTitleFromMarkdown } from "../../utils/text";
 
-export type FocusTargetType = "note" | "paper" | "task";
+export type FocusTargetType = "note" | "paper" | "task" | "idea" | "topic";
 
 export interface SelectedTarget {
   type: FocusTargetType;
@@ -62,7 +62,9 @@ function isFocusSessionSnapshot(value: unknown): value is FocusSessionSnapshot {
   return (
     (selected["type"] === "note" ||
       selected["type"] === "paper" ||
-      selected["type"] === "task") &&
+      selected["type"] === "task" ||
+      selected["type"] === "idea" ||
+      selected["type"] === "topic") &&
     typeof selected["id"] === "string"
   );
 }
@@ -127,4 +129,18 @@ export function extractTaskPreview(task: Task) {
     return task.description;
   }
   return "Break this task into the next concrete step during your focus session.";
+}
+
+export function extractIdeaPreview(idea: Idea) {
+  if (idea.description) {
+    return idea.description;
+  }
+  return "Flesh out this idea: capture the core claim and one open question.";
+}
+
+export function extractTopicPreview(topic: Topic) {
+  if (topic.description) {
+    return topic.description;
+  }
+  return "Advance this topic: link a note, paper, or idea during your focus session.";
 }

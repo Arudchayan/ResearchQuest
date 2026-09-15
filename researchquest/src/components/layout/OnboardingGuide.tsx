@@ -1,6 +1,9 @@
-import { useCallback, useState } from "react";
-import { Compass, NotebookPen, Target, X } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Compass, NotebookPen, Target, Timer, X } from "lucide-react";
 import { Button } from "../ui/button";
+
+/** Reopens the guide for the session (e.g. from the Focus Studio Tips button). */
+export const ONBOARDING_REOPEN_EVENT = "rq:open-onboarding";
 
 interface OnboardingGuideProps {
   storageKey?: string;
@@ -27,6 +30,12 @@ const STEPS = [
       "Check the left sidebar for streaks, XP boosts, and suggested next actions before diving in.",
     icon: Compass,
   },
+  {
+    title: "Focus deeply",
+    description:
+      "Pick one target in Focus Studio, set a session length, and start the timer. Finishing a sprint earns XP — use the Tips button there to revisit this guide.",
+    icon: Timer,
+  },
 ];
 
 export function OnboardingGuide({
@@ -41,6 +50,17 @@ export function OnboardingGuide({
   });
 
   const currentStep = STEPS[stepIndex];
+
+  // Session-scoped reopen (does not clear the persisted dismissal):
+  // the Focus Studio Tips button dispatches ONBOARDING_REOPEN_EVENT.
+  useEffect(() => {
+    const reopen = () => {
+      setStepIndex(0);
+      setDismissed(false);
+    };
+    document.addEventListener(ONBOARDING_REOPEN_EVENT, reopen);
+    return () => document.removeEventListener(ONBOARDING_REOPEN_EVENT, reopen);
+  }, []);
 
   const handleDismiss = useCallback(() => {
     setDismissed(true);

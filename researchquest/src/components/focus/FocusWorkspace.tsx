@@ -8,6 +8,8 @@ import {
   BookOpen,
   FileText,
   CheckSquare,
+  Hash,
+  Lightbulb,
   Sparkles,
   Info,
   Volume2,
@@ -18,8 +20,16 @@ import {
 import { useNotes } from "../../hooks/useNotes";
 import { usePapers } from "../../hooks/usePapers";
 import { useTasks } from "../../hooks/useTasks";
+import { useIdeas } from "../../hooks/useIdeas";
+import { useTopics } from "../../hooks/useTopics";
 import { useAppStore } from "../../store/appStore";
-import type { Note, Paper, Task } from "../../types/database";
+import type {
+  Idea,
+  Note,
+  Paper,
+  Task,
+  TopicWithCounts,
+} from "../../types/database";
 import { awardXP, notifyGamificationResult, XP_REWARDS } from "../../utils/gamification";
 import {
   playTimerCompleteSound,
@@ -45,11 +55,14 @@ import {
   extractNotePreview,
   extractPaperPreview,
   extractTaskPreview,
+  extractIdeaPreview,
+  extractTopicPreview,
   loadStoredFocusSession,
   saveFocusSession,
   clearStoredFocusSession,
 } from "./focusUtils";
 import { FocusTargetAside } from "./FocusTargetAside";
+import { ONBOARDING_REOPEN_EVENT } from "../layout/OnboardingGuide";
 
 const DEFAULT_SESSION_LENGTH = 25 * 60;
 
@@ -61,10 +74,14 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   const { notes, loading: notesLoading } = useNotes(userId);
   const { papers, loading: papersLoading } = usePapers(userId);
   const { tasks, loading: tasksLoading } = useTasks(userId, { owner: false });
+  const { ideas, loading: ideasLoading } = useIdeas(userId);
+  const { topics, loading: topicsLoading } = useTopics(userId);
 
   const setCurrentView = useAppStore((state) => state.setCurrentView);
   const setSelectedNote = useAppStore((state) => state.setSelectedNote);
   const setSelectedPaper = useAppStore((state) => state.setSelectedPaper);
+  const setSelectedIdea = useAppStore((state) => state.setSelectedIdea);
+  const setSelectedTopic = useAppStore((state) => state.setSelectedTopic);
 
   const [restoredSession] = useState(loadStoredFocusSession);
 
@@ -102,18 +119,12 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   // first render (hasCompletedSession flips synchronously), so the colophon
   // must re-render with the actually credited (boosted) amount once it lands.
   const [awardedXp, setAwardedXp] = useState<number | null>(null);
-  const [showOnboarding, setShowOnboarding] = useState(() => {
-    if (typeof window === "undefined") {
-      return true;
-    }
-    return (
-      window.localStorage.getItem("rq_focus_onboarding_dismissed") !== "true"
-    );
-  });
   const [collapsedGroups, setCollapsedGroups] = useState<CollapsedGroups>({
     note: false,
     paper: false,
     task: false,
+    idea: false,
+    topic: false,
   });
   const [collapsedPanels, setCollapsedPanels] = useState<
     Record<CollapsiblePanel, boolean>
@@ -136,8 +147,14 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     if (selectedTarget.type === "task") {
       return tasks.find((task) => task.id === selectedTarget.id) || null;
     }
+    if (selectedTarget.type === "idea") {
+      return ideas.find((idea) => idea.id === selectedTarget.id) || null;
+    }
+    if (selectedTarget.type === "topic") {
+      return topics.find((topic) => topic.id === selectedTarget.id) || null;
+    }
     return null;
-  }, [notes, papers, tasks, selectedTarget]);
+  }, [notes, papers, tasks, ideas, topics, selectedTarget]);
 
   useEffect(() => {
     if (restoredSession) return;
@@ -167,7 +184,11 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
           ? extractNoteSummary(selectedItem as Note)
           : selectedTarget?.type === "paper"
             ? (selectedItem as Paper).title
-            : (selectedItem as Task).title
+            : selectedTarget?.type === "idea"
+              ? (selectedItem as Idea).title
+              : selectedTarget?.type === "topic"
+                ? (selectedItem as TopicWithCounts).name
+                : (selectedItem as Task).title
         : "Focus Session";
 
       showTimerCompleteNotification("Focus session complete!", {
@@ -244,7 +265,12 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     completeSession();
   }, [hasCompletedSession, restoredSession, timeLeft, completeSession]);
 
-  const isLoading = notesLoading || papersLoading || tasksLoading;
+  const isLoading =
+    notesLoading ||
+    papersLoading ||
+    tasksLoading ||
+    ideasLoading ||
+    topicsLoading;
   const effectiveTimeLeft = Math.max(0, timeLeft);
   const isPaused =
     !isRunning &&
@@ -339,6 +365,30 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
       }
     }
 
+    const ideaItems = [];
+    for (let i = 0; i < ideas.length; i++) {
+      if (ideaItems.length === 4) break;
+      const idea = ideas[i];
+      ideaItems.push({
+        id: idea.id,
+        title: idea.title,
+        meta: idea.stage,
+      });
+    }
+
+    const topicItems = [];
+    for (let i = 0; i < topics.length; i++) {
+      if (topicItems.length === 4) break;
+      const topic = topics[i];
+      const linked =
+        topic.note_count + topic.paper_count + topic.idea_count;
+      topicItems.push({
+        id: topic.id,
+        title: topic.name,
+        meta: `${linked} linked item${linked === 1 ? "" : "s"}`,
+      });
+    }
+
     return [
       {
         type: "note" as FocusTargetType,
@@ -355,6 +405,20 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
         items: paperItems,
       },
       {
+        type: "idea" as FocusTargetType,
+        title: "Ideas",
+        description: "Sparks worth developing into research threads",
+        icon: Lightbulb,
+        items: ideaItems,
+      },
+      {
+        type: "topic" as FocusTargetType,
+        title: "Topics",
+        description: "Threads to advance with connected work",
+        icon: Hash,
+        items: topicItems,
+      },
+      {
         type: "task" as FocusTargetType,
         title: "Tasks",
         description: "Upcoming commitments that benefit from deep work",
@@ -362,7 +426,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
         items: taskItems,
       },
     ];
-  }, [notes, papers, tasks]);
+  }, [notes, papers, tasks, ideas, topics]);
 
   const focusInsights = useMemo(() => {
     const insights: { title: string; detail: string }[] = [];
@@ -445,11 +509,8 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     }));
   };
 
-  const dismissOnboarding = () => {
-    setShowOnboarding(false);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem("rq_focus_onboarding_dismissed", "true");
-    }
+  const openOnboardingGuide = () => {
+    document.dispatchEvent(new CustomEvent(ONBOARDING_REOPEN_EVENT));
   };
 
   const handleTargetSelection = (target: SelectedTarget) => {
@@ -496,6 +557,14 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
       setSelectedPaper(selectedItem as Paper);
       setCurrentView("papers");
       window.history.pushState(null, "", `/papers/${selectedTarget.id}`);
+    } else if (selectedTarget.type === "idea") {
+      setSelectedIdea(selectedItem as Idea);
+      setCurrentView("ideas");
+      window.history.pushState(null, "", `/ideas/${selectedTarget.id}`);
+    } else if (selectedTarget.type === "topic") {
+      setSelectedTopic(selectedItem as TopicWithCounts);
+      setCurrentView("topics");
+      window.history.pushState(null, "", `/topics/${selectedTarget.id}`);
     } else if (selectedTarget.type === "task") {
       setCurrentView("tasks");
       window.history.pushState(null, "", "/tasks");
@@ -519,44 +588,8 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
             Focus Studio
           </span>
         }
-        description="Design an intentional deep work session. Choose one target, set a duration, and stay in flow. Your notes, papers, and tasks update automatically when the session ends."
+        description="Design an intentional deep work session. Choose one target, set a duration, and stay in flow. Your notes, papers, ideas, topics, and tasks update automatically when the session ends."
       />
-
-      {showOnboarding && (
-        <Card className="border-primary-100 bg-primary-50 p-4 sm:p-6">
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-primary-500 text-bg-base">
-              <Info className="h-5 w-5" aria-hidden="true" />
-            </div>
-            <div className="min-w-0 space-y-2">
-              <h2 className="font-serif text-body-lg font-semibold text-text-primary">
-                How to settle into a Focus Studio sprint
-              </h2>
-              <ul className="list-disc space-y-2 pl-5 text-body text-text-secondary">
-                <li>Pick one item and set a meaningful session length.</li>
-                <li>
-                  Capture what you learn in the preview or open the full
-                  workspace.
-                </li>
-                <li>Complete the sprint to earn streak-protecting XP.</li>
-              </ul>
-            </div>
-          </div>
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-small text-text-tertiary">
-              Reopen this guide from the session controls at any time.
-            </p>
-            <Button
-              type="button"
-              size="sm"
-              onClick={dismissOnboarding}
-              className="self-start sm:self-auto"
-            >
-              Got it
-            </Button>
-          </div>
-        </Card>
-      )}
 
       <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <div className="min-w-0 space-y-6">
@@ -576,11 +609,17 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                         <>
                           {selectedTarget?.type === "note" && "Note review · "}
                           {selectedTarget?.type === "paper" && "Paper focus · "}
+                          {selectedTarget?.type === "idea" && "Idea spark · "}
+                          {selectedTarget?.type === "topic" && "Topic quest · "}
                           {selectedTarget?.type === "task" && "Task sprint · "}
                           {selectedTarget?.type === "note" &&
                             extractNoteSummary(selectedItem as Note)}
                           {selectedTarget?.type === "paper" &&
                             (selectedItem as Paper).title}
+                          {selectedTarget?.type === "idea" &&
+                            (selectedItem as Idea).title}
+                          {selectedTarget?.type === "topic" &&
+                            (selectedItem as TopicWithCounts).name}
                           {selectedTarget?.type === "task" &&
                             (selectedItem as Task).title}
                         </>
@@ -778,7 +817,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                   <Button
                     type="button"
                     variant="ghost"
-                    onClick={() => setShowOnboarding(true)}
+                    onClick={openOnboardingGuide}
                   >
                     <Info aria-hidden="true" /> Tips
                   </Button>
@@ -811,7 +850,11 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                         ? extractNoteSummary(selectedItem as Note)
                         : selectedTarget?.type === "paper"
                           ? (selectedItem as Paper).title
-                          : (selectedItem as Task).title
+                          : selectedTarget?.type === "idea"
+                            ? (selectedItem as Idea).title
+                            : selectedTarget?.type === "topic"
+                              ? (selectedItem as TopicWithCounts).name
+                              : (selectedItem as Task).title
                       : "Nothing selected yet"}
                   </h2>
                 </div>
@@ -819,6 +862,8 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                   <Badge variant="neutral">
                     {selectedTarget.type === "note" && "Note"}
                     {selectedTarget.type === "paper" && "Paper"}
+                    {selectedTarget.type === "idea" && "Idea"}
+                    {selectedTarget.type === "topic" && "Topic"}
                     {selectedTarget.type === "task" && "Task"}
                   </Badge>
                 )}
@@ -833,6 +878,10 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                       extractNotePreview(selectedItem as Note)}
                     {selectedTarget?.type === "paper" &&
                       extractPaperPreview(selectedItem as Paper)}
+                    {selectedTarget?.type === "idea" &&
+                      extractIdeaPreview(selectedItem as Idea)}
+                    {selectedTarget?.type === "topic" &&
+                      extractTopicPreview(selectedItem as TopicWithCounts)}
                     {selectedTarget?.type === "task" &&
                       extractTaskPreview(selectedItem as Task)}
                   </div>
@@ -840,6 +889,17 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                     <div className="text-caption text-text-tertiary">
                       {selectedTarget?.type === "paper" &&
                         (selectedItem as Paper).status}
+                      {selectedTarget?.type === "idea" &&
+                        (selectedItem as Idea).stage}
+                      {selectedTarget?.type === "topic" &&
+                        (() => {
+                          const topic = selectedItem as TopicWithCounts;
+                          const linked =
+                            topic.note_count +
+                            topic.paper_count +
+                            topic.idea_count;
+                          return `${linked} linked item${linked === 1 ? "" : "s"}`;
+                        })()}
                       {selectedTarget?.type === "task" &&
                         (() => {
                           const dueDate = (selectedItem as Task).due_date;

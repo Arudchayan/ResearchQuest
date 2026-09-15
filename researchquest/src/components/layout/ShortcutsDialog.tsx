@@ -66,6 +66,7 @@ const SHORTCUTS: ShortcutSection[] = [
       { keys: [META_KEY, "Alt", "5"], description: "Go to Tasks" },
       { keys: [META_KEY, "Alt", "6"], description: "Go to Focus" },
       { keys: [META_KEY, "Alt", "7"], description: "Go to Topics" },
+      { keys: [META_KEY, "Alt", "8"], description: "Go to Feeds" },
     ],
   },
   {
@@ -86,7 +87,7 @@ export function ShortcutsDialog() {
     const handleKeyDown = (e: KeyboardEvent) => {
       const isMod = e.metaKey || e.ctrlKey;
 
-      // Global Navigation (Mod+Alt+1-6)
+      // Global Navigation (Mod+Alt+1-8, canonical nav order)
       if (isMod && e.altKey) {
         const destination = NAVIGATION_SHORTCUTS[e.key];
 

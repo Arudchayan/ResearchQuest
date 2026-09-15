@@ -1,13 +1,10 @@
 import { logger } from "../../utils/logger";
 import { useEffect, useState, useMemo } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { Trophy, X, Flame, Star, Medal, Award, Calendar } from "lucide-react";
+import { Trophy, X, Medal, Calendar } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
 import { supabase } from "../../lib/supabase";
-import {
-  ACHIEVEMENTS,
-  getLevelTitle,
-} from "../../utils/gamification";
+import { ACHIEVEMENTS } from "../../utils/gamification";
 import type { Achievement } from "../../types/database";
 import { Skeleton } from "../../components/ui/Skeleton";
 
@@ -65,10 +62,7 @@ export function ProfileDialog({ open, onClose }: ProfileDialogProps) {
     }
   };
 
-  const currentLevel = user?.current_level || 1;
-  const totalXP = user?.total_xp || 0;
-  const xpInLevel = totalXP % 500; // Assuming 500 XP per level as per gamification.ts
-  const progressPercent = Math.min(100, (xpInLevel / 500) * 100);
+  // (XP/level/streak summaries live in the Sidebar and Dashboard only.)
 
   const allAchievements = useMemo(() => {
     return Object.values(ACHIEVEMENTS);
@@ -114,7 +108,7 @@ export function ProfileDialog({ open, onClose }: ProfileDialogProps) {
                   Researcher profile
                 </Dialog.Title>
                 <Dialog.Description className="text-sm text-text-secondary">
-                  Your progress, stats, and badges
+                  Your badges and achievements
                 </Dialog.Description>
               </div>
             </div>
@@ -129,90 +123,8 @@ export function ProfileDialog({ open, onClose }: ProfileDialogProps) {
           </div>
 
           <div className="space-y-6 p-4 sm:space-y-8 sm:p-6">
-            {/* Stats Section */}
-            <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Level Card */}
-              <div className="flex flex-col gap-3 rounded-surface border border-border-subtle bg-bg-base p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-text-secondary">
-                    Current Rank
-                  </span>
-                  <Star className="h-4 w-4 fill-warning text-warning" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-text-primary">
-                    {getLevelTitle(currentLevel)}
-                  </div>
-                  <div className="text-sm text-text-tertiary">
-                    Level {currentLevel}
-                  </div>
-                </div>
-                <div className="mt-auto pt-2 space-y-1">
-                  <div className="flex justify-between text-caption text-text-secondary">
-                    <span>{xpInLevel} XP</span>
-                    <span>500 XP</span>
-                  </div>
-                  <div
-                    className="h-2 bg-bg-elevated rounded-full overflow-hidden"
-                    role="progressbar"
-                    aria-valuenow={xpInLevel}
-                    aria-valuemin={0}
-                    aria-valuemax={500}
-                    aria-label="Level Progress"
-                  >
-                    <div
-                      className="h-full bg-primary-500 transition-all duration-500"
-                      style={{ width: `${progressPercent}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Streak Card */}
-              <div className="flex flex-col gap-3 rounded-surface border border-border-subtle bg-bg-base p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-text-secondary">
-                    Consistency
-                  </span>
-                  <Flame className="h-4 w-4 fill-warning text-warning" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-text-primary">
-                    {user?.current_streak || 0} Days
-                  </div>
-                  <div className="text-sm text-text-tertiary">
-                    Current Streak
-                  </div>
-                </div>
-                <div className="mt-auto text-caption text-text-secondary">
-                  Longest streak:{" "}
-                  <span className="font-semibold">
-                    {user?.longest_streak || 0} days
-                  </span>
-                </div>
-              </div>
-
-              {/* Total XP Card */}
-              <div className="flex flex-col gap-3 rounded-surface border border-border-subtle bg-bg-base p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-text-secondary">
-                    Lifetime Impact
-                  </span>
-                  <Award className="h-4 w-4 text-purple" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-text-primary">
-                    {totalXP.toLocaleString()} XP
-                  </div>
-                  <div className="text-sm text-text-tertiary">
-                    Total Experience
-                  </div>
-                </div>
-                <div className="mt-auto text-caption text-text-secondary">
-                  Keep creating to level up
-                </div>
-              </div>
-            </section>
+            {/* XP and streak live in the Sidebar and Dashboard only
+                (PR17 dedupe); this dialog covers badges. */}
 
             {/* Achievements Section */}
             <section>
