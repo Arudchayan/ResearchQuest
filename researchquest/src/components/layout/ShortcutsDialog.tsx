@@ -37,7 +37,7 @@ const SHORTCUTS: ShortcutSection[] = [
   {
     title: "General",
     shortcuts: [
-      { keys: [META_KEY, "K"], description: "Open Command Palette" },
+      { keys: [META_KEY, "K"], description: "Open Command Palette (works in editors)" },
       { keys: ["?"], description: "Show Keyboard Shortcuts" },
       { keys: ["/"], description: "Open Command Palette (Search)" },
       { keys: [META_KEY, "."], description: "Toggle Context Panel" },
@@ -50,7 +50,7 @@ const SHORTCUTS: ShortcutSection[] = [
       { keys: [META_KEY, "I"], description: "Italic" },
       { keys: [META_KEY, "Shift", "C"], description: "Inline Code" },
       { keys: [META_KEY, "Shift", "L"], description: "Bulleted List" },
-      { keys: [META_KEY, "K"], description: "Insert Link" },
+      { keys: [META_KEY, "Shift", "K"], description: "Insert Link" },
       { keys: [META_KEY, "Shift", "E"], description: "Edit View" },
       { keys: [META_KEY, "Shift", "S"], description: "Split View" },
       { keys: [META_KEY, "Shift", "P"], description: "Preview View" },
@@ -66,6 +66,7 @@ const SHORTCUTS: ShortcutSection[] = [
       { keys: [META_KEY, "Alt", "5"], description: "Go to Tasks" },
       { keys: [META_KEY, "Alt", "6"], description: "Go to Focus" },
       { keys: [META_KEY, "Alt", "7"], description: "Go to Topics" },
+      { keys: [META_KEY, "Alt", "8"], description: "Go to Feeds" },
     ],
   },
   {

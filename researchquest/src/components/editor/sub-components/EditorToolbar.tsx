@@ -75,7 +75,7 @@ export function EditorToolbar({
           <ToolbarButton onClick={handleCopyMarkdown} icon={Copy} label="Copy Markdown" />
           <ToolbarButton onClick={handleCopyRichText} icon={ClipboardList} label="Copy Rich Text" />
           <Divider />
-          <ToolbarButton onClick={openLinkDialog} icon={Link2} label="Insert link" shortcut="Ctrl/Cmd+K" />
+          <ToolbarButton onClick={openLinkDialog} icon={Link2} label="Insert link" shortcut="Ctrl/Cmd+Shift+K" />
           <ToolbarButton onClick={() => setCitationPickerOpen(true)} icon={Quote} label="Insert Citation" shortcut="Ctrl/Cmd+Shift+R" />
           <Divider />
           <ToolbarButton onClick={handleExport} icon={Download} label="Export to Markdown" />
@@ -166,7 +166,7 @@ function MoreMenu({
           align="end"
           sideOffset={5}
         >
-          <MoreMenuItem icon={Link2} label="Insert link" shortcut="Ctrl/Cmd+K" onSelect={openLinkDialog} />
+          <MoreMenuItem icon={Link2} label="Insert link" shortcut="Ctrl/Cmd+Shift+K" onSelect={openLinkDialog} />
           <MoreMenuItem icon={Copy} label="Copy Markdown" onSelect={handleCopyMarkdown} />
           <MoreMenuItem icon={ClipboardList} label="Copy Rich Text" onSelect={handleCopyRichText} />
           <MoreMenuItem icon={Quote} label="Insert Citation" shortcut="Ctrl/Cmd+Shift+R" onSelect={() => setCitationPickerOpen(true)} />
