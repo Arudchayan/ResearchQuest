@@ -4,8 +4,9 @@ import { StrictMode } from "react";
 import { FocusWorkspace } from "../../components/focus/FocusWorkspace";
 import { useAppStore } from "../../store/appStore";
 
-const { supabaseInsert } = vi.hoisted(() => ({
+const { supabaseInsert, completeTaskMock } = vi.hoisted(() => ({
   supabaseInsert: vi.fn().mockResolvedValue({ error: null }),
+  completeTaskMock: vi.fn().mockResolvedValue(true),
 }));
 
 vi.mock("../../lib/supabase", () => ({
@@ -54,7 +55,18 @@ vi.mock("../../hooks/usePapers", () => ({
   usePapers: () => ({ papers: [], loading: false }),
 }));
 vi.mock("../../hooks/useTasks", () => ({
-  useTasks: () => ({ tasks: [], loading: false }),
+  useTasks: () => ({
+    tasks: [
+      {
+        id: "task-1",
+        title: "Gym",
+        completed: false,
+        due_date: new Date().toISOString().slice(0, 10),
+      },
+    ],
+    loading: false,
+    completeTask: completeTaskMock,
+  }),
 }));
 vi.mock("../../store/appStore", () => ({
   useAppStore: vi.fn(),
@@ -389,5 +401,18 @@ describe("FocusWorkspace", () => {
 
     expect(screen.getByText("Colophon")).toBeInTheDocument();
     expect(screen.getByText(/25 MIN · \+75 XP/)).toBeInTheDocument();
+  });
+
+  it("offers Mark task done after a task session completes", async () => {
+    render(<FocusWorkspace userId={userId} />);
+    fireEvent.click(screen.getByText("Gym"));
+    fireEvent.click(screen.getByText("Start focus"));
+
+    await act(async () => {
+      vi.advanceTimersByTime(25 * 60 * 1000 + 1000);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Mark task done?" }));
+    expect(completeTaskMock).toHaveBeenCalledWith("task-1");
   });
 });

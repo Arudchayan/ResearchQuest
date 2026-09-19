@@ -3,23 +3,25 @@ import {
   BookOpen,
   CheckSquare,
   FileText,
+  Hash,
+  Inbox,
+  LayoutDashboard,
   Lightbulb,
   Plus,
+  Target,
   X,
 } from "lucide-react";
 import { useAppStore } from "../../../store/appStore";
 import { useShallow } from "zustand/react/shallow";
 import { cn } from "../../../lib/utils";
-import { softNavigate } from "../../../lib/softNavigation";
+import { navigateToView } from "../../../lib/softNavigation";
+import type { AppView } from "../../../lib/router";
 
 const tabs = [
-  { id: "notes", label: "Notes", icon: FileText },
-  { id: "papers", label: "Papers", icon: BookOpen },
-  { id: "ideas", label: "Ideas", icon: Lightbulb },
+  { id: "dashboard", label: "Today", icon: LayoutDashboard },
   { id: "tasks", label: "Tasks", icon: CheckSquare },
+  { id: "focus", label: "Focus", icon: Target },
 ] as const;
-
-type TabId = (typeof tabs)[number]["id"];
 
 const sheetItems = [
   { id: "notes", label: "New Note" },
@@ -27,42 +29,50 @@ const sheetItems = [
   { id: "tasks", label: "New Task" },
 ] as const;
 
+const libraryItems: { id: AppView; label: string; icon: typeof FileText }[] = [
+  { id: "notes", label: "Notes", icon: FileText },
+  { id: "papers", label: "Papers", icon: BookOpen },
+  { id: "ideas", label: "Ideas", icon: Lightbulb },
+  { id: "topics", label: "Topics", icon: Hash },
+  { id: "feeds", label: "Feeds", icon: Inbox },
+];
+
 export function MobileTabBar() {
-  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [sheet, setSheet] = useState<"add" | "library" | null>(null);
   const fabRef = useRef<HTMLButtonElement>(null);
+  const libraryRef = useRef<HTMLButtonElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
-  const sheetWasOpenRef = useRef(false);
+  const sheetWasOpenRef = useRef<"add" | "library" | null>(null);
 
   const {
     currentView,
-    setCurrentView,
     isMobileSidebarOpen,
     setIsMobileSidebarOpen,
   } = useAppStore(
     useShallow((state) => ({
       currentView: state.currentView,
-      setCurrentView: state.setCurrentView,
       isMobileSidebarOpen: state.isMobileSidebarOpen,
       setIsMobileSidebarOpen: state.setIsMobileSidebarOpen,
     })),
   );
 
-  const navigate = (view: TabId) => {
-    setCurrentView(view);
+  const navigate = (view: AppView) => {
     setIsMobileSidebarOpen(false);
-    softNavigate(`/${view}`);
+    navigateToView(view);
   };
 
   useEffect(() => {
-    if (!isSheetOpen) {
-      if (sheetWasOpenRef.current) {
+    if (!sheet) {
+      if (sheetWasOpenRef.current === "add") {
         fabRef.current?.focus();
+      } else if (sheetWasOpenRef.current === "library") {
+        libraryRef.current?.focus();
       }
-      sheetWasOpenRef.current = false;
+      sheetWasOpenRef.current = null;
       return;
     }
 
-    sheetWasOpenRef.current = true;
+    sheetWasOpenRef.current = sheet;
 
     const panel = sheetRef.current;
     const firstButton = panel?.querySelector<HTMLButtonElement>("button");
@@ -71,7 +81,7 @@ export function MobileTabBar() {
     const handleSheetKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        setIsSheetOpen(false);
+        setSheet(null);
         return;
       }
 
@@ -105,18 +115,17 @@ export function MobileTabBar() {
       document.removeEventListener("keydown", handleSheetKeyDown);
       document.body.style.overflow = "unset";
     };
-  }, [isSheetOpen]);
+  }, [sheet]);
 
-  const closeSheet = () => setIsSheetOpen(false);
+  const closeSheet = () => setSheet(null);
 
-  const handleSheetNavigate = (view: TabId) => {
+  const handleSheetNavigate = (view: AppView) => {
     navigate(view);
-    setIsSheetOpen(false);
+    setSheet(null);
   };
 
-  // Gated while the mobile drawer is open (AppShell also inert-gates its
-  // content wrapper) or while the quick-add sheet itself is open.
-  const isBarInert = isMobileSidebarOpen || isSheetOpen;
+  const isBarInert = isMobileSidebarOpen || sheet !== null;
+  const libraryActive = libraryItems.some((item) => item.id === currentView);
 
   return (
     <>
@@ -128,24 +137,9 @@ export function MobileTabBar() {
         <div className="grid min-h-12 grid-cols-5 items-center px-2">
           {tabs.map((tab) => (
             <Fragment key={tab.id}>
-              {tab.id === "ideas" && (
-                <div className="flex items-center justify-center">
-                  <button
-                    ref={fabRef}
-                    onClick={() => setIsSheetOpen(true)}
-                    aria-label="Quick add"
-                    aria-haspopup="dialog"
-                    aria-expanded={isSheetOpen}
-                    className="flex h-11 w-11 items-center justify-center rounded-full bg-primary-500 text-bg-base shadow-md transition-transform hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
-                  >
-                    <Plus className="h-5 w-5" aria-hidden="true" />
-                  </button>
-                </div>
-              )}
               <a
-                href={`/${tab.id}`}
+                href={tab.id === "dashboard" ? "/" : `/${tab.id}`}
                 onClick={(e) => {
-                  // Allow default behavior (new tab) if modifier keys are pressed
                   if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
                     return;
                   }
@@ -163,12 +157,43 @@ export function MobileTabBar() {
                 <tab.icon className="h-5 w-5" aria-hidden="true" />
                 {tab.label}
               </a>
+              {tab.id === "tasks" && (
+                <div className="flex items-center justify-center">
+                  <button
+                    ref={fabRef}
+                    onClick={() => setSheet("add")}
+                    aria-label="Quick add"
+                    aria-haspopup="dialog"
+                    aria-expanded={sheet === "add"}
+                    className="flex h-11 w-11 items-center justify-center rounded-full bg-primary-500 text-bg-base shadow-md transition-transform hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+                  >
+                    <Plus className="h-5 w-5" aria-hidden="true" />
+                  </button>
+                </div>
+              )}
             </Fragment>
           ))}
+          <button
+            ref={libraryRef}
+            type="button"
+            onClick={() => setSheet("library")}
+            aria-label="Library"
+            aria-haspopup="dialog"
+            aria-expanded={sheet === "library"}
+            className={cn(
+              "flex min-h-11 flex-col items-center justify-center gap-1 rounded-sm text-caption font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:-outline-offset-2",
+              libraryActive
+                ? "bg-primary-50 text-primary-500"
+                : "text-text-secondary hover:bg-bg-elevated hover:text-text-primary",
+            )}
+          >
+            <BookOpen className="h-5 w-5" aria-hidden="true" />
+            Library
+          </button>
         </div>
       </nav>
 
-      {isSheetOpen && (
+      {sheet === "add" && (
         <>
           <div
             aria-hidden="true"
@@ -207,6 +232,47 @@ export function MobileTabBar() {
           </div>
         </>
       )}
+
+      {sheet === "library" && (
+        <>
+          <div
+            aria-hidden="true"
+            className="fixed inset-0 z-40 bg-overlay lg:hidden"
+            onClick={closeSheet}
+          />
+          <div
+            ref={sheetRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Library"
+            className="fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-md rounded-t-xl border-x border-t border-border-subtle bg-bg-elevated p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] shadow-lg lg:hidden"
+          >
+            <h2 className="font-serif font-bold text-lg text-text-primary">
+              Library
+            </h2>
+            <div className="mt-4 space-y-2">
+              {libraryItems.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => handleSheetNavigate(item.id)}
+                  className="flex min-h-11 w-full items-center gap-3 rounded-sm px-3 py-2.5 text-small font-medium text-text-secondary transition-colors hover:bg-bg-surface hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+                >
+                  <item.icon className="h-4 w-4 text-primary-500" aria-hidden="true" />
+                  {item.label}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={closeSheet}
+              aria-label="Close library"
+              className="absolute right-4 top-4 inline-flex min-h-11 min-w-11 items-center justify-center rounded-sm text-text-tertiary hover:bg-bg-surface hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
+        </>
+      )}
     </>
   );
 }
+

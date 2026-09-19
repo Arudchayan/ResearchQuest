@@ -391,7 +391,6 @@ describe("Idea pipeline: IdeaDetailView actions", () => {
       });
       expect(setSelectedNoteMock).toHaveBeenCalledWith(mockNote);
       expect(setSelectedIdeaMock).toHaveBeenCalledWith(null);
-      expect(setCurrentViewMock).toHaveBeenCalledWith("notes");
       expect(window.location.pathname).toBe("/notes/note-1");
     });
   });

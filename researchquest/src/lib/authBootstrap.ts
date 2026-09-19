@@ -11,3 +11,18 @@
 export function shouldBlockShellForAuthEvent(event: string): boolean {
   return event !== "TOKEN_REFRESHED";
 }
+
+type AuthIdentity = {
+  id: string;
+  email?: string;
+} | null;
+
+/** Same signed-in person — skip setState so TOKEN_REFRESHED does not re-run profile load. */
+export function isSameAuthIdentity(
+  current: AuthIdentity,
+  next: AuthIdentity,
+): boolean {
+  if (current === next) return true;
+  if (!current || !next) return false;
+  return current.id === next.id && (current.email ?? "") === (next.email ?? "");
+}

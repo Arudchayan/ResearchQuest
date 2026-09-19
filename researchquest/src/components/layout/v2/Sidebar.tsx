@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
 import {
-  DashboardIcon,
   MagnifyingGlassIcon,
-  TargetIcon,
   ExitIcon,
   ViewVerticalIcon,
   ActivityLogIcon,
@@ -20,11 +18,14 @@ import {
   Hash,
   BookOpen,
   Inbox,
+  LayoutDashboard,
+  Target,
 } from "lucide-react";
 import { useAppStore } from "../../../store/appStore";
 import { cn } from "../../../lib/utils";
 import { supabase } from "../../../lib/supabase";
-import { softNavigate } from "../../../lib/softNavigation";
+import { navigateToView, pathForView } from "../../../lib/softNavigation";
+import type { AppView } from "../../../lib/router";
 import { XPExplainer } from "../XPExplainer";
 import { ProfileDialog } from "../ProfileDialog";
 import { DataManagementDialog } from "../../settings/DataManagementDialog";
@@ -34,7 +35,6 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "../../ui/tooltip";
 export function Sidebar() {
   const {
     currentView,
-    setCurrentView,
     user,
     effectiveTheme,
     setTheme,
@@ -45,7 +45,6 @@ export function Sidebar() {
   } = useAppStore(
     useShallow((state) => ({
       currentView: state.currentView,
-      setCurrentView: state.setCurrentView,
       user: state.user,
       effectiveTheme: state.effectiveTheme,
       setTheme: state.setTheme,
@@ -69,16 +68,32 @@ export function Sidebar() {
       );
   }, []);
 
-  const navItems = [
-    { id: "dashboard", label: "Dashboard", icon: DashboardIcon },
-    { id: "notes", label: "Notes", icon: FileText },
-    { id: "papers", label: "Papers", icon: BookOpen },
-    { id: "ideas", label: "Ideas", icon: Lightbulb },
-    { id: "tasks", label: "Tasks", icon: CheckSquare },
-    { id: "topics", label: "Topics", icon: Hash },
-    { id: "feeds", label: "Feeds", icon: Inbox },
-    { id: "focus", label: "Focus Studio", icon: TargetIcon },
-  ] as const;
+  const navGroups: {
+    id: "plan" | "library";
+    label: string;
+    items: { id: AppView; label: string; icon: typeof FileText }[];
+  }[] = [
+    {
+      id: "plan",
+      label: "Plan",
+      items: [
+        { id: "dashboard", label: "Today", icon: LayoutDashboard },
+        { id: "tasks", label: "Tasks", icon: CheckSquare },
+        { id: "focus", label: "Focus Studio", icon: Target },
+        { id: "feeds", label: "Feeds", icon: Inbox },
+      ],
+    },
+    {
+      id: "library",
+      label: "Library",
+      items: [
+        { id: "notes", label: "Notes", icon: FileText },
+        { id: "papers", label: "Papers", icon: BookOpen },
+        { id: "ideas", label: "Ideas", icon: Lightbulb },
+        { id: "topics", label: "Topics", icon: Hash },
+      ],
+    },
+  ];
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -129,8 +144,14 @@ export function Sidebar() {
         </button>
       </div>
 
-      <nav aria-label="Primary" className="sidebar-scroll min-h-0 flex-1 space-y-1 overflow-y-auto px-4">
-        {navItems.map((item) => (
+      <nav aria-label="Primary" className="sidebar-scroll min-h-0 flex-1 space-y-6 overflow-y-auto px-4">
+        {navGroups.map((group) => (
+          <div key={group.id}>
+            <h2 className="mb-1 px-3 font-mono text-caption uppercase tracking-wider text-text-tertiary">
+              {group.label}
+            </h2>
+            <div className="space-y-1">
+              {group.items.map((item) => (
           <a
             key={item.id}
             href={item.id === "dashboard" ? "/" : `/${item.id}`}
@@ -140,9 +161,8 @@ export function Sidebar() {
                 return;
               }
               e.preventDefault();
-              setCurrentView(item.id);
               setIsMobileSidebarOpen(false);
-              softNavigate(item.id === "dashboard" ? "/" : `/${item.id}`);
+              navigateToView(item.id, pathForView(item.id));
             }}
             className={cn(
               "flex min-h-11 w-full items-center gap-3 rounded-sm px-3 py-2.5 text-small font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2",
@@ -155,6 +175,9 @@ export function Sidebar() {
             <item.icon className="w-5 h-5" aria-hidden="true" />
             {item.label}
           </a>
+              ))}
+            </div>
+          </div>
         ))}
       </nav>
 

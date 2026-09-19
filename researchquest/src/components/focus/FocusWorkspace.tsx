@@ -19,6 +19,11 @@ import { useNotes } from "../../hooks/useNotes";
 import { usePapers } from "../../hooks/usePapers";
 import { useTasks } from "../../hooks/useTasks";
 import { useAppStore } from "../../store/appStore";
+import { navigateToView } from "../../lib/softNavigation";
+import {
+  resolveTodayTasks,
+  useTodayPlanStore,
+} from "../../store/todayPlanStore";
 import type { Note, Paper, Task } from "../../types/database";
 import { awardXP, notifyGamificationResult, XP_REWARDS } from "../../utils/gamification";
 import {
@@ -61,9 +66,11 @@ interface FocusWorkspaceProps {
 export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   const { notes, loading: notesLoading } = useNotes(userId);
   const { papers, loading: papersLoading } = usePapers(userId);
-  const { tasks, loading: tasksLoading } = useTasks(userId, { owner: false });
+  const { tasks, loading: tasksLoading, completeTask } = useTasks(userId, {
+    owner: false,
+  });
+  const todayOrderedIds = useTodayPlanStore((state) => state.orderedIds);
 
-  const setCurrentView = useAppStore((state) => state.setCurrentView);
   const setSelectedNote = useAppStore((state) => state.setSelectedNote);
   const setSelectedPaper = useAppStore((state) => state.setSelectedPaper);
 
@@ -72,6 +79,13 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   const [selectedTarget, setSelectedTarget] = useState<SelectedTarget | null>(
     restoredSession?.selectedTarget ?? null,
   );
+
+  useEffect(() => {
+    const pendingId = useTodayPlanStore.getState().consumePendingFocusTaskId();
+    if (pendingId) {
+      setSelectedTarget({ type: "task", id: pendingId });
+    }
+  }, []);
   const [sessionLength, setSessionLength] = useState(
     restoredSession?.sessionLength ?? DEFAULT_SESSION_LENGTH,
   );
@@ -189,6 +203,16 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
           .catch((err) => logger.error("Failed to award XP", err));
         toast.success("Focus session complete!", {
           description: `You completed ${durationMinutes} minutes of focus.`,
+          ...(selectedTarget?.type === "task"
+            ? {
+                action: {
+                  label: "Mark task done?",
+                  onClick: () => {
+                    void completeTask(selectedTarget.id);
+                  },
+                },
+              }
+            : {}),
         });
       }
 
@@ -219,6 +243,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     selectedItem,
     selectedTarget,
     sessionLength,
+    completeTask,
   ]);
 
   useEffect(() => {
@@ -322,22 +347,37 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
       }
     }
 
+    const todayQueue = resolveTodayTasks(tasks);
+    const todayIds = new Set(todayQueue.map((task) => task.id));
     const taskItems = [];
+    for (let i = 0; i < todayQueue.length; i++) {
+      if (taskItems.length === 4) break;
+      const task = todayQueue[i];
+      taskItems.push({
+        id: task.id,
+        title: task.title,
+        meta: task.due_date
+          ? new Date(task.due_date).toLocaleString(undefined, {
+              month: "short",
+              day: "numeric",
+            })
+          : "Today",
+      });
+    }
     for (let i = 0; i < tasks.length; i++) {
       if (taskItems.length === 4) break;
       const task = tasks[i];
-      if (!task.completed) {
-        taskItems.push({
-          id: task.id,
-          title: task.title,
-          meta: task.due_date
-            ? new Date(task.due_date).toLocaleString(undefined, {
-                month: "short",
-                day: "numeric",
-              })
-            : "No due date",
-        });
-      }
+      if (task.completed || todayIds.has(task.id)) continue;
+      taskItems.push({
+        id: task.id,
+        title: task.title,
+        meta: task.due_date
+          ? new Date(task.due_date).toLocaleString(undefined, {
+              month: "short",
+              day: "numeric",
+            })
+          : "No due date",
+      });
     }
 
     return [
@@ -357,13 +397,13 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
       },
       {
         type: "task" as FocusTargetType,
-        title: "Tasks",
-        description: "Upcoming commitments that benefit from deep work",
+        title: "Today",
+        description: "Your Today list, then other open tasks",
         icon: CheckSquare,
         items: taskItems,
       },
     ];
-  }, [notes, papers, tasks]);
+  }, [notes, papers, tasks, todayOrderedIds]);
 
   const focusInsights = useMemo(() => {
     const insights: { title: string; detail: string }[] = [];
@@ -491,15 +531,12 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
 
     if (selectedTarget.type === "note") {
       setSelectedNote(selectedItem as Note);
-      setCurrentView("notes");
-      window.history.pushState(null, "", `/notes/${selectedTarget.id}`);
+      navigateToView("notes", `/notes/${selectedTarget.id}`);
     } else if (selectedTarget.type === "paper") {
       setSelectedPaper(selectedItem as Paper);
-      setCurrentView("papers");
-      window.history.pushState(null, "", `/papers/${selectedTarget.id}`);
+      navigateToView("papers", `/papers/${selectedTarget.id}`);
     } else if (selectedTarget.type === "task") {
-      setCurrentView("tasks");
-      window.history.pushState(null, "", "/tasks");
+      navigateToView("tasks", `/tasks/${selectedTarget.id}`);
     }
   };
 
@@ -523,7 +560,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
             Focus Studio
           </span>
         }
-        description="Design an intentional deep work session. Choose one target, set a duration, and stay in flow. Your notes, papers, and tasks update automatically when the session ends."
+        description="Design an intentional deep work session. Choose one target from Today, set a duration, and stay in flow. When a task session ends, you can mark it done."
       />
 
       {showOnboarding && (
@@ -790,13 +827,24 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
               </div>
 
               {hasCompletedSession && (
-                <div className="flex w-full items-center justify-between gap-4 border-t-2 border-success pt-3">
+                <div className="flex w-full flex-wrap items-center justify-between gap-4 border-t-2 border-success pt-3">
                   <span className="text-caption font-semibold uppercase tracking-[0.14em] text-success">
                     Colophon
                   </span>
                   <span className="font-mono text-caption font-semibold tabular-nums text-success">
                     {durationMinutes} MIN · +{awardedXp ?? xpEarned} XP
                   </span>
+                  {selectedTarget?.type === "task" && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        void completeTask(selectedTarget.id);
+                      }}
+                    >
+                      Mark task done?
+                    </Button>
+                  )}
                 </div>
               )}
             </CardContent>

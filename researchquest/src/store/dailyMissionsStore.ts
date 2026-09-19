@@ -2,6 +2,11 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { todayKey } from "../utils/time";
 
+/**
+ * Unshipped daily-mission catalog (localStorage only).
+ * The live day loop is Today + Tasks + Focus; do not surface this in UI.
+ */
+
 export type MissionEvent =
   | "note"
   | "paper"

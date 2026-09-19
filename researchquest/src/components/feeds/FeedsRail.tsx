@@ -1,6 +1,7 @@
 import { Inbox } from "lucide-react";
 import { useState } from "react";
 import { useAppStore } from "../../store/appStore";
+import { navigateToView } from "../../lib/softNavigation";
 import { useFeedItems, FEED_ITEM_TYPES, type FeedTypeFilter } from "../../hooks/useFeedItems";
 import { FeedItemCard } from "./FeedItemCard";
 import type { FeedPromoteTarget } from "../../types/database";
@@ -17,7 +18,6 @@ const TYPE_LABELS: Record<FeedTypeFilter, string> = {
 export function FeedsRail() {
   const [type, setType] = useState<FeedTypeFilter>("all");
   const userId = useAppStore((state) => state.user?.id);
-  const setCurrentView = useAppStore((state) => state.setCurrentView);
   const {
     items,
     loading,
@@ -33,8 +33,7 @@ export function FeedsRail() {
   });
 
   const navigateToFeeds = () => {
-    setCurrentView("feeds");
-    window.history.pushState(null, "", "/feeds");
+    navigateToView("feeds");
   };
 
   const handlePromote = (itemId: string, target: FeedPromoteTarget) => {

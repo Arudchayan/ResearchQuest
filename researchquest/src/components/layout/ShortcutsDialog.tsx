@@ -3,6 +3,7 @@ import { X, Keyboard } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAppStore } from "../../store/appStore";
 import type { AppView } from "../../lib/router";
+import { navigateToView } from "../../lib/softNavigation";
 
 interface ShortcutItem {
   keys: string[];
@@ -59,7 +60,7 @@ const SHORTCUTS: ShortcutSection[] = [
   {
     title: "Global Navigation",
     shortcuts: [
-      { keys: [META_KEY, "Alt", "1"], description: "Go to Dashboard" },
+      { keys: [META_KEY, "Alt", "1"], description: "Go to Today" },
       { keys: [META_KEY, "Alt", "2"], description: "Go to Notes" },
       { keys: [META_KEY, "Alt", "3"], description: "Go to Papers" },
       { keys: [META_KEY, "Alt", "4"], description: "Go to Ideas" },
@@ -95,7 +96,6 @@ export function ShortcutsDialog() {
           e.preventDefault();
 
           const {
-            setCurrentView,
             setSelectedNote,
             setSelectedPaper,
             setSelectedIdea,
@@ -108,8 +108,7 @@ export function ShortcutsDialog() {
           if (destination.view !== "ideas") setSelectedIdea(null);
           if (destination.view !== "topics") setSelectedTopic(null);
 
-          setCurrentView(destination.view);
-          window.history.pushState(null, "", destination.url);
+          navigateToView(destination.view, destination.url);
           return;
         }
       }

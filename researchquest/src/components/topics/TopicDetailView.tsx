@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { supabase } from "../../lib/supabase";
 import { useAppStore } from "../../store/appStore";
 import { useShallow } from "zustand/react/shallow";
+import { navigateToView } from "../../lib/softNavigation";
 import { useTopics } from "../../hooks/useTopics";
 import type {
   TopicWithCounts,
@@ -71,10 +72,9 @@ export function TopicDetailView({
   onDelete,
 }: TopicDetailViewProps) {
   // ⚡ OPTIMIZATION: Use useShallow with an object selector to prevent TopicDetailView from unnecessarily re-rendering on unrelated state changes in the global appStore.
-  const { setCurrentView, setSelectedNote, setSelectedPaper, setSelectedIdea } =
+  const { setSelectedNote, setSelectedPaper, setSelectedIdea } =
     useAppStore(
       useShallow((state) => ({
-        setCurrentView: state.setCurrentView,
         setSelectedNote: state.setSelectedNote,
         setSelectedPaper: state.setSelectedPaper,
         setSelectedIdea: state.setSelectedIdea,
@@ -228,9 +228,8 @@ export function TopicDetailView({
   }, [emptySessionNote]);
 
   const handleOpenFocusStudio = useCallback(() => {
-    setCurrentView("focus");
-    window.history.pushState(null, "", "/focus");
-  }, [setCurrentView]);
+    navigateToView("focus");
+  }, []);
 
   const handleSessionNoteChange = useCallback(
     (value: string) => {
@@ -283,19 +282,18 @@ export function TopicDetailView({
 
   const handleNavigate = useCallback(
     (view: "notes" | "papers" | "ideas", item: Note | Paper | Idea) => {
-      setCurrentView(view);
       if (view === "notes") {
         setSelectedNote(item as Note);
-        window.history.pushState(null, "", `/notes/${item.id}`);
+        navigateToView("notes", `/notes/${item.id}`);
       } else if (view === "papers") {
         setSelectedPaper(item as Paper);
-        window.history.pushState(null, "", `/papers/${item.id}`);
+        navigateToView("papers", `/papers/${item.id}`);
       } else if (view === "ideas") {
         setSelectedIdea(item as Idea);
-        window.history.pushState(null, "", `/ideas/${item.id}`);
+        navigateToView("ideas", `/ideas/${item.id}`);
       }
     },
-    [setCurrentView, setSelectedIdea, setSelectedNote, setSelectedPaper],
+    [setSelectedIdea, setSelectedNote, setSelectedPaper],
   );
 
   const handleExport = (format: "markdown" | "csv" | "json") => {

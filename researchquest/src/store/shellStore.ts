@@ -81,7 +81,7 @@ const createEmptyDataSyncRetryCounters = (): Record<DataSyncResource, number> =>
 
 export const useShellStore = create<ShellSlice>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       // Theme
       theme: "auto",
       effectiveTheme: "light",
@@ -106,7 +106,10 @@ export const useShellStore = create<ShellSlice>()(
 
       // Current view
       currentView: "dashboard",
-      setCurrentView: (currentView) => set({ currentView }),
+      setCurrentView: (currentView) => {
+        if (get().currentView === currentView) return;
+        set({ currentView });
+      },
 
       // Sync status
       dataSyncErrors: createEmptyDataSyncErrors(),

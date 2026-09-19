@@ -7,6 +7,9 @@ import {
 import { DEMO_FIRST_RUN_PATH } from "./lib/demoData";
 import { useShallow } from "zustand/react/shallow";
 import { useAppStore } from "./store/appStore";
+import { useLibraryStore } from "./store/libraryStore";
+import { useTopicsStore } from "./store/topicsStore";
+import { useTasksStore } from "./store/tasksStore";
 import { useGamificationStore } from "./store/gamificationStore";
 import { AppShell } from "./components/layout/v2/AppShell";
 import { AppLoadingSkeleton } from "./components/ui/Skeleton";
@@ -27,9 +30,12 @@ import {
   parseRoute,
   selectEntityForRoute,
 } from "./lib/router";
-import { shouldBlockShellForAuthEvent } from "./lib/authBootstrap";
 import {
-  softNavigate,
+  isSameAuthIdentity,
+  shouldBlockShellForAuthEvent,
+} from "./lib/authBootstrap";
+import {
+  navigateToView,
   subscribeSoftNavigation,
 } from "./lib/softNavigation";
 
@@ -115,45 +121,18 @@ function App() {
   const [profileLoading, setProfileLoading] = useState(false);
   const [userId, setUserId] = useState<string | undefined>(undefined);
   const [pendingPath, setPendingPath] = useState<string | null>(null);
-  // ⚡ Optimization: Use useShallow with an object selector to prevent the App component
-  // from unnecessarily re-rendering on unrelated state changes in the global appStore.
-  const {
-    setUser: setUserProfile,
-    currentView,
-    setCurrentView,
-    notes,
-    notesLoading,
-    topics,
-    topicsLoading,
-    tasks,
-    tasksLoading,
-  } = useAppStore(
+  // Shell-only subscription: entity arrays live in AppDataOwners so list
+  // mutations do not re-render AppShell + the lazy view tree.
+  const { setUser: setUserProfile, currentView, setCurrentView } = useAppStore(
     useShallow((state) => ({
       setUser: state.setUser,
       currentView: state.currentView,
       setCurrentView: state.setCurrentView,
-      notes: state.notes,
-      notesLoading: state.notesLoading,
-      topics: state.topics,
-      topicsLoading: state.topicsLoading,
-      tasks: state.tasks,
-      tasksLoading: state.tasksLoading,
     })),
   );
   const hydrateGamification = useGamificationStore(
     (state) => state.hydrateFromProfile,
   );
-
-  // Sync data centrally (lazy-loads based on currentView)
-  useDataSync(userId);
-
-  // Get hooks for CRUD operations (data comes from store now)
-  const { papers, loading: papersLoading } = usePapers(userId);
-  const { ideas, loading: ideasLoading } = useIdeas(userId);
-  // Fetch topics early at App level for deep-link hydration (sole owner; has fetch-deduplication guard)
-  useTopics(userId, { owner: true });
-  useNotes(userId);
-  useTasks(userId, { owner: true });
 
   useEffect(() => {
     if (typeof window !== 'undefined' && (window as any).__TEST_USER__) {
@@ -185,8 +164,14 @@ function App() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user ?? null);
-      setUserId(session?.user?.id);
+      const nextUser = session?.user ?? null;
+      if (event === "TOKEN_REFRESHED") {
+        setUser((prev) => (isSameAuthIdentity(prev, nextUser) ? prev : nextUser));
+        setUserId(nextUser?.id);
+        return;
+      }
+      setUser(nextUser);
+      setUserId(nextUser?.id);
       // TOKEN_REFRESHED (browser tab focus / token rotation) must not tear
       // down AppShell — that remount looks like a full page refresh.
       if (!shouldBlockShellForAuthEvent(event)) {
@@ -250,16 +235,11 @@ function App() {
   // After sign-in, navigate to the saved deep-link path
   useEffect(() => {
     if (user && pendingPath) {
-      softNavigate(pendingPath);
       const route = parseRoute(pendingPath);
-      if (route.isValid && route.view) {
-        setCurrentView(route.view);
-      } else {
-        setCurrentView("dashboard");
-      }
+      navigateToView(route.isValid && route.view ? route.view : "dashboard", pendingPath);
       setPendingPath(null);
     }
-  }, [user, pendingPath, setCurrentView]);
+  }, [user, pendingPath]);
 
   // URL-based routing — initial load, back/forward, soft link clicks, recovery
   useEffect(() => {
@@ -318,38 +298,6 @@ function App() {
     }
   }, [currentView]);
 
-  // Handle selecting items from URL (when data is loaded)
-  useEffect(() => {
-    if (!userId) return;
-
-    const route = parseRoute(window.location.pathname);
-    if (!route.isValid || !route.itemId) return;
-
-    const state = useAppStore.getState();
-    selectEntityForRoute(
-      route,
-      {
-        papers: state.papers,
-        papersLoading: state.papersLoading,
-        ideas: state.ideas,
-        ideasLoading: state.ideasLoading,
-        notes: state.notes,
-        notesLoading: state.notesLoading,
-        topics: state.topics,
-        topicsLoading: state.topicsLoading,
-        tasks: state.tasks,
-        tasksLoading: state.tasksLoading,
-      },
-      {
-        setSelectedPaper: state.setSelectedPaper,
-        setSelectedIdea: state.setSelectedIdea,
-        setSelectedNote: state.setSelectedNote,
-        setSelectedTopic: state.setSelectedTopic,
-        setSelectedTask: state.setSelectedTask,
-      },
-    );
-  }, [currentView, ideas, ideasLoading, notes, notesLoading, papers, papersLoading, tasks, tasksLoading, topics, topicsLoading, userId]);
-
   if (!hasSupabaseConfig) {
     return <SupabaseConfigErrorScreen />;
   }
@@ -384,8 +332,7 @@ function App() {
           </p>
           <button
             onClick={() => {
-              softNavigate("/");
-              setCurrentView("dashboard");
+              navigateToView("dashboard");
               setRouteError(null);
             }}
             className="inline-flex items-center gap-2 px-4 py-2 bg-primary-500 text-bg-base rounded-md hover:bg-primary-600 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
@@ -446,6 +393,7 @@ function App() {
           toastOptions={{ duration: 2500 }}
         />
 
+        <AppDataOwners userId={userId} currentView={currentView} />
         <AppShell>
           <StaleBanner />
           <Suspense fallback={<RouteLoadingFallback />}>{routeContent}</Suspense>
@@ -453,6 +401,69 @@ function App() {
       </TooltipProvider>
     </div>
   );
+}
+
+/** Owns sync/CRUD hooks and deep-link hydration without subscribing App to entity arrays. */
+function AppDataOwners({
+  userId,
+  currentView,
+}: {
+  userId: string | undefined;
+  currentView: string;
+}) {
+  useDataSync(userId);
+  usePapers(userId);
+  useIdeas(userId);
+  useTopics(userId, { owner: true });
+  useNotes(userId);
+  useTasks(userId, { owner: true });
+
+  const notesLoading = useLibraryStore((state) => state.notesLoading);
+  const papersLoading = useLibraryStore((state) => state.papersLoading);
+  const ideasLoading = useLibraryStore((state) => state.ideasLoading);
+  const topicsLoading = useTopicsStore((state) => state.topicsLoading);
+  const tasksLoading = useTasksStore((state) => state.tasksLoading);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const route = parseRoute(window.location.pathname);
+    if (!route.isValid || !route.itemId) return;
+
+    const state = useAppStore.getState();
+    selectEntityForRoute(
+      route,
+      {
+        papers: state.papers,
+        papersLoading: state.papersLoading,
+        ideas: state.ideas,
+        ideasLoading: state.ideasLoading,
+        notes: state.notes,
+        notesLoading: state.notesLoading,
+        topics: state.topics,
+        topicsLoading: state.topicsLoading,
+        tasks: state.tasks,
+        tasksLoading: state.tasksLoading,
+      },
+      {
+        setSelectedPaper: state.setSelectedPaper,
+        setSelectedIdea: state.setSelectedIdea,
+        setSelectedNote: state.setSelectedNote,
+        setSelectedTopic: state.setSelectedTopic,
+        setSelectedTask: state.setSelectedTask,
+      },
+    );
+  }, [
+    currentView,
+    ideasLoading,
+    notesLoading,
+    papersLoading,
+    tasksLoading,
+    topicsLoading,
+    userId,
+  ]);
+
+  return null;
 }
 
 export default App;

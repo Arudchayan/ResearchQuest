@@ -5,7 +5,11 @@ export type TaskCategory =
   | "Reading"
   | "Writing"
   | "Analysis"
-  | "Presentation";
+  | "Presentation"
+  | "Study"
+  | "Personal"
+  | "Exercise"
+  | "Offline";
 export type SortOption = "due_date" | "priority" | "recent";
 
 export const PRIORITIES: TaskPriority[] = ["high", "medium", "low"];
@@ -15,6 +19,10 @@ export const CATEGORIES: TaskCategory[] = [
   "Writing",
   "Analysis",
   "Presentation",
+  "Study",
+  "Personal",
+  "Exercise",
+  "Offline",
 ];
 export const PRIORITY_ORDER: Record<TaskPriority, number> = {
   high: 0,

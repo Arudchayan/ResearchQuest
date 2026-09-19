@@ -22,9 +22,9 @@ const STEPS = [
     icon: Target,
   },
   {
-    title: "Review the dashboard",
+    title: "Plan Today",
     description:
-      "Check the left sidebar for streaks, XP boosts, and suggested next actions before diving in.",
+      "Open Today and add the few things you will actually do — study, exercise, or a paper. Focus Studio works from that list.",
     icon: Compass,
   },
 ];

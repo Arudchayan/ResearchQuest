@@ -1,10 +1,10 @@
 import type { LucideIcon } from "lucide-react";
 import { ChevronDown, ChevronRight, Sparkles } from "lucide-react";
-import { useAppStore } from "../../store/appStore";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
 import { EmptyState } from "../ui/EmptyState";
 import { Skeleton, ListSkeleton } from "../ui/Skeleton";
+import { navigateToView } from "../../lib/softNavigation";
 import type {
   FocusTargetType,
   SelectedTarget,
@@ -54,8 +54,6 @@ export function FocusTargetAside({
   togglePanel,
   focusInsights,
 }: FocusTargetAsideProps) {
-  const setCurrentView = useAppStore((state) => state.setCurrentView);
-
   return (
     <aside
       className="min-w-0 space-y-6"
@@ -190,7 +188,7 @@ export function FocusTargetAside({
                             ? "Create a note to capture your thinking."
                             : group.type === "paper"
                               ? "Add a paper from the Papers view."
-                              : "Create a task to anchor your next sprint."
+                              : "Add an item on Today, then start a session."
                         }
                       />
                     )}
@@ -212,12 +210,7 @@ export function FocusTargetAside({
                           : group.type === "paper"
                             ? "papers"
                             : "notes";
-                      setCurrentView(targetView);
-                      window.history.pushState(
-                        null,
-                        "",
-                        `/${targetView}`,
-                      );
+                      navigateToView(targetView);
                     }}
                     className="h-auto min-h-11 px-0 py-0 text-small"
                     title={`Open all ${group.title.toLowerCase()}`}

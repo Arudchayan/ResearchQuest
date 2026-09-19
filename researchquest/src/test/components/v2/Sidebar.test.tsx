@@ -43,17 +43,16 @@ describe("Sidebar (v2)", () => {
     vi.spyOn(window.history, "pushState");
   });
 
-  it("renders navigation links as <a> tags", () => {
+  it("renders Plan and Library groups", () => {
     render(<TooltipProvider><Sidebar /></TooltipProvider>);
 
-    // Check if Notes is an anchor tag
-    const notesLink = screen.getByText("Notes").closest("a");
-    expect(notesLink).toBeInTheDocument();
-    expect(notesLink).toHaveAttribute("href", "/notes");
+    expect(screen.getByRole("heading", { name: "Plan" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Library" })).toBeInTheDocument();
 
-    const papersLink = screen.getByText("Papers").closest("a");
-    expect(papersLink).toBeInTheDocument();
-    expect(papersLink).toHaveAttribute("href", "/papers");
+    const todayLink = screen.getByText("Today").closest("a");
+    expect(todayLink).toHaveAttribute("href", "/");
+    const notesLink = screen.getByText("Notes").closest("a");
+    expect(notesLink).toHaveAttribute("href", "/notes");
   });
 
   it("updates view and URL on click without a full navigation", () => {

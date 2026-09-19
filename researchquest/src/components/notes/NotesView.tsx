@@ -8,6 +8,7 @@ import { EditorPlaceholder } from "../editor/EditorPlaceholder";
 import { ConfirmDialog, useConfirmDialog } from "../ui/ConfirmDialog";
 import type { Note } from "../../types/database";
 import { parseRoute } from "../../lib/router";
+import { navigateToView } from "../../lib/softNavigation";
 import { NotesSidebar } from "./NotesSidebar";
 
 export function NotesView() {
@@ -52,8 +53,7 @@ export function NotesView() {
   }, [setSelectedNote]);
 
   const navigateToNote = useCallback((noteId?: string) => {
-    window.history.pushState(null, "", noteId ? `/notes/${noteId}` : "/notes");
-    window.dispatchEvent(new PopStateEvent("popstate"));
+    navigateToView("notes", noteId ? `/notes/${noteId}` : "/notes");
   }, []);
 
   const handleCreateNote = useCallback(async () => {

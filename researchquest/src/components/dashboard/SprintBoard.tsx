@@ -14,6 +14,7 @@ import {
   useSprintStore,
 } from "../../store/sprintStore";
 
+/** Unshipped. Not mounted in Dashboard — Today + Tasks + Focus own the day loop. */
 export function SprintBoard() {
   const days = useSprintStore((state) => state.days);
   const goals = useSprintStore((state) => state.goals);

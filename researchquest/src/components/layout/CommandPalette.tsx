@@ -27,6 +27,8 @@ import { useTasks } from "../../hooks/useTasks";
 import { supabase } from "../../lib/supabase";
 import { exportData } from "../../utils/export";
 import { DataManagementDialog } from "../settings/DataManagementDialog";
+import { navigateToView } from "../../lib/softNavigation";
+import type { AppView } from "../../lib/router";
 import "./CommandPalette.css";
 
 type SearchEntryType = "note" | "paper" | "idea" | "task" | "topic";
@@ -84,7 +86,6 @@ export function CommandPalette() {
   const {
     setTheme,
     effectiveTheme,
-    setCurrentView,
     setSelectedNote,
     setSelectedPaper,
     setSelectedIdea,
@@ -96,7 +97,6 @@ export function CommandPalette() {
     useShallow((state) => ({
       setTheme: state.setTheme,
       effectiveTheme: state.effectiveTheme,
-      setCurrentView: state.setCurrentView,
       setSelectedNote: state.setSelectedNote,
       setSelectedPaper: state.setSelectedPaper,
       setSelectedIdea: state.setSelectedIdea,
@@ -193,61 +193,38 @@ export function CommandPalette() {
   }, [query, user?.id]);
 
   // Navigation handlers using App's custom routing
-  const handleNavigate = (
-    view:
-      | "dashboard"
-      | "notes"
-      | "papers"
-      | "ideas"
-      | "tasks"
-      | "topics"
-      | "feeds"
-      | "focus",
-  ) => {
-    setCurrentView(view);
-    window.history.pushState(null, "", view === "dashboard" ? "/" : `/${view}`);
-    // Trigger popstate event for other listeners if needed (App.tsx listens to it)
-    window.dispatchEvent(new PopStateEvent("popstate"));
+  const handleNavigate = (view: AppView) => {
+    navigateToView(view);
     setOpen(false);
   };
 
   const handleSelectNote = (note: any) => {
-    setCurrentView("notes");
     setSelectedNote(note);
-    window.history.pushState(null, "", `/notes/${note.id}`);
-    window.dispatchEvent(new PopStateEvent("popstate"));
+    navigateToView("notes", `/notes/${note.id}`);
     setOpen(false);
   };
 
   const handleSelectPaper = (paper: any) => {
-    setCurrentView("papers");
     setSelectedPaper(paper);
-    window.history.pushState(null, "", `/papers/${paper.id}`);
-    window.dispatchEvent(new PopStateEvent("popstate"));
+    navigateToView("papers", `/papers/${paper.id}`);
     setOpen(false);
   };
 
   const handleSelectIdea = (idea: any) => {
-    setCurrentView("ideas");
     setSelectedIdea(idea);
-    window.history.pushState(null, "", `/ideas/${idea.id}`);
-    window.dispatchEvent(new PopStateEvent("popstate"));
+    navigateToView("ideas", `/ideas/${idea.id}`);
     setOpen(false);
   };
 
   const handleSelectTask = (task: any) => {
-    setCurrentView("tasks");
     setSelectedTask(task);
-    window.history.pushState(null, "", `/tasks/${task.id}`);
-    window.dispatchEvent(new PopStateEvent("popstate"));
+    navigateToView("tasks", `/tasks/${task.id}`);
     setOpen(false);
   };
 
   const handleSelectTopic = (topic: any) => {
-    setCurrentView("topics");
     setSelectedTopic(topic);
-    window.history.pushState(null, "", `/topics/${topic.id}`);
-    window.dispatchEvent(new PopStateEvent("popstate"));
+    navigateToView("topics", `/topics/${topic.id}`);
     setOpen(false);
   };
 
@@ -260,10 +237,8 @@ export function CommandPalette() {
       markdown_body: trimmed ?? "",
     });
     if (created) {
-      setCurrentView("notes");
       setSelectedNote(created);
-      window.history.pushState(null, "", `/notes/${created.id}`);
-      window.dispatchEvent(new PopStateEvent("popstate"));
+      navigateToView("notes", `/notes/${created.id}`);
     }
     setOpen(false);
   };
@@ -273,10 +248,8 @@ export function CommandPalette() {
       title: title?.trim() ? title.trim() : "Untitled Idea",
     });
     if (created) {
-      setCurrentView("ideas");
       setSelectedIdea(created);
-      window.history.pushState(null, "", `/ideas/${created.id}`);
-      window.dispatchEvent(new PopStateEvent("popstate"));
+      navigateToView("ideas", `/ideas/${created.id}`);
     }
     setOpen(false);
   };
@@ -286,10 +259,8 @@ export function CommandPalette() {
       title: title?.trim() ? title.trim() : "Untitled Task",
     });
     if (created) {
-      setCurrentView("tasks");
       setSelectedTask(created);
-      window.history.pushState(null, "", `/tasks/${created.id}`);
-      window.dispatchEvent(new PopStateEvent("popstate"));
+      navigateToView("tasks", `/tasks/${created.id}`);
     }
     setOpen(false);
   };
@@ -466,7 +437,7 @@ export function CommandPalette() {
           <Command.Group heading="Navigation">
             <Command.Item onSelect={() => handleNavigate("dashboard")}>
               <LayoutDashboard />
-              <span>Go to Dashboard</span>
+              <span>Go to Today</span>
             </Command.Item>
             <Command.Item onSelect={() => handleNavigate("notes")}>
               <FileText />
