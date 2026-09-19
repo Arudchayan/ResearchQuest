@@ -4,18 +4,19 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Security Policy](https://img.shields.io/badge/Security-Policy-blue.svg)](SECURITY.md)
 
-A research management dashboard for tracking papers, notes, ideas, topics, and reading tasks — all synced to Supabase.
+A research workspace for a scholar's day: a **Today** plan you work through with Focus Studio, plus a library of papers, notes, ideas, and topics — synced to Supabase.
 
 **Status:** Alpha — functional but evolving. Live demo: [research-quest-wine.vercel.app](https://research-quest-wine.vercel.app)
 
 ## Features
 
+- **Today** — Ordered checklist for the day (due-today tasks plus items you add). Start Focus or mark done from the row.
 - **Papers** — Add papers via DOI lookup, Crossref search, or manual entry. Track reading status (To Read → Reading → Read). Import from BibTeX.
 - **Notes** — Write rich markdown notes with tags, links to papers/ideas, and CodeMirror editor with syntax highlighting.
 - **Ideas** — Track research ideas through stages (Seed → Developing → Supported → Mature). Link to supporting papers and notes.
 - **Topics** — Organize entities into topics with automatic count tracking.
-- **Tasks** — Reading tasks created automatically when you add papers. Manual task creation with priorities and due dates.
-- **Focus Studio** — Timer-based focus sessions with XP tracking.
+- **Tasks** — Free-form actions with due dates, priorities, and kinds (research, study, exercise, offline, …). Reading tasks can still be created when you add papers.
+- **Focus Studio** — Timer-based sessions. Defaults to your Today queue; after a task session you can mark it done.
 - **Feeds (alpha)** — Triage ingested `feed_items` and promote leads into papers, tasks, or notes. Feed source/RSS management UI and scheduled ingest are still incomplete.
 - **Gamification** — XP, levels, streaks, and achievements for research activity.
 - **Zen Mode** — Distraction-free workspace (Ctrl+Shift+F).

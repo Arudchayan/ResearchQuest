@@ -22,6 +22,7 @@ import { useRelatedItems } from "../../hooks/useRelatedItems";
 import { useShallow } from "zustand/react/shallow";
 import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
 import { getTopN } from "../../utils/collections";
+import { navigateToView } from "../../lib/softNavigation";
 
 export function RightSidebar() {
   const {
@@ -33,7 +34,6 @@ export function RightSidebar() {
     setSelectedNote,
     setSelectedPaper,
     setSelectedIdea,
-    setCurrentView,
   } = useAppStore(
     useShallow((state) => ({
       selectedNote: state.selectedNote,
@@ -44,7 +44,6 @@ export function RightSidebar() {
       setSelectedNote: state.setSelectedNote,
       setSelectedPaper: state.setSelectedPaper,
       setSelectedIdea: state.setSelectedIdea,
-      setCurrentView: state.setCurrentView,
     })),
   );
   const activeBoost = useGamificationStore((state) => state.activeBoost);
@@ -156,8 +155,6 @@ export function RightSidebar() {
     itemType: "note" | "paper" | "idea",
   ) => {
     if (itemType === "note") {
-      setCurrentView("notes");
-      // We need to fetch the note first
       const fetchNote = async () => {
         try {
           const { data } = await supabase
@@ -168,7 +165,7 @@ export function RightSidebar() {
 
           if (data) {
             setSelectedNote(data);
-            window.history.pushState(null, "", `/notes/${itemId}`);
+            navigateToView("notes", `/notes/${itemId}`);
           }
         } catch (error) {
           logger.error("Error navigating to note:", error);
@@ -176,7 +173,6 @@ export function RightSidebar() {
       };
       void fetchNote();
     } else if (itemType === "paper") {
-      setCurrentView("papers");
       const fetchPaper = async () => {
         try {
           const { data } = await supabase
@@ -187,7 +183,7 @@ export function RightSidebar() {
 
           if (data) {
             setSelectedPaper(data);
-            window.history.pushState(null, "", `/papers/${itemId}`);
+            navigateToView("papers", `/papers/${itemId}`);
           }
         } catch (error) {
           logger.error("Error navigating to paper:", error);
@@ -195,7 +191,6 @@ export function RightSidebar() {
       };
       void fetchPaper();
     } else if (itemType === "idea") {
-      setCurrentView("ideas");
       const fetchIdea = async () => {
         try {
           const { data } = await supabase
@@ -206,7 +201,7 @@ export function RightSidebar() {
 
           if (data) {
             setSelectedIdea(data);
-            window.history.pushState(null, "", `/ideas/${itemId}`);
+            navigateToView("ideas", `/ideas/${itemId}`);
           }
         } catch (error) {
           logger.error("Error navigating to idea:", error);

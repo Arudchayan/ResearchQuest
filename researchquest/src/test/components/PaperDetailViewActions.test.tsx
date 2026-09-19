@@ -114,6 +114,6 @@ describe("PaperDetailView Actions", () => {
 
     expect(mockSetSelectedNote).toHaveBeenCalledWith(newNote);
     expect(mockSetSelectedPaper).toHaveBeenCalledWith(null);
-    expect(mockSetCurrentView).toHaveBeenCalledWith("notes");
+    expect(window.location.pathname).toBe("/notes/note1");
   });
 });

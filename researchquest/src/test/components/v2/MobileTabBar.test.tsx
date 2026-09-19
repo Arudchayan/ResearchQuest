@@ -16,50 +16,49 @@ describe("MobileTabBar (v2)", () => {
 
   const renderTabBar = () => render(<MobileTabBar />);
 
-  it("renders on the mobile viewport with four tab links and a FAB", () => {
+  it("renders Today, Tasks, Focus, Library, and a FAB", () => {
     renderTabBar();
 
     const nav = screen.getByRole("navigation", { name: "Primary" });
     expect(nav).toHaveClass("lg:hidden", "min-h-12", "border-t", "bg-bg-surface");
     expect(nav).toHaveClass("pb-[env(safe-area-inset-bottom)]");
 
-    const notesLink = screen.getByText("Notes").closest("a");
-    expect(notesLink).toHaveAttribute("href", "/notes");
-    const papersLink = screen.getByText("Papers").closest("a");
-    expect(papersLink).toHaveAttribute("href", "/papers");
-    const ideasLink = screen.getByText("Ideas").closest("a");
-    expect(ideasLink).toHaveAttribute("href", "/ideas");
+    const todayLink = screen.getByText("Today").closest("a");
+    expect(todayLink).toHaveAttribute("href", "/");
     const tasksLink = screen.getByText("Tasks").closest("a");
     expect(tasksLink).toHaveAttribute("href", "/tasks");
+    const focusLink = screen.getByText("Focus").closest("a");
+    expect(focusLink).toHaveAttribute("href", "/focus");
 
+    expect(screen.getByRole("button", { name: "Library" })).toBeInTheDocument();
     const fab = screen.getByRole("button", { name: "Quick add" });
     expect(fab).toHaveClass("rounded-full", "bg-primary-500", "h-11", "w-11");
     expect(fab).toHaveAttribute("aria-haspopup", "dialog");
   });
 
   it("marks the active tab with aria-current and primary styling", () => {
-    useAppStore.setState({ currentView: "papers" });
+    useAppStore.setState({ currentView: "tasks" });
     renderTabBar();
 
-    const papersLink = screen.getByText("Papers").closest("a");
-    expect(papersLink).toHaveAttribute("aria-current", "page");
-    expect(papersLink).toHaveClass("bg-primary-50", "text-primary-500");
+    const tasksLink = screen.getByText("Tasks").closest("a");
+    expect(tasksLink).toHaveAttribute("aria-current", "page");
+    expect(tasksLink).toHaveClass("bg-primary-50", "text-primary-500");
 
-    const notesLink = screen.getByText("Notes").closest("a");
-    expect(notesLink).not.toHaveAttribute("aria-current");
-    expect(notesLink).not.toHaveClass("bg-primary-50", "text-primary-500");
+    const todayLink = screen.getByText("Today").closest("a");
+    expect(todayLink).not.toHaveAttribute("aria-current");
+    expect(todayLink).not.toHaveClass("bg-primary-50", "text-primary-500");
   });
 
   it("navigates on tab click and closes the mobile drawer", () => {
     renderTabBar();
 
-    const ideasLink = screen.getByText("Ideas").closest("a");
-    expect(ideasLink).toBeInTheDocument();
+    const focusLink = screen.getByText("Focus").closest("a");
+    expect(focusLink).toBeInTheDocument();
 
-    fireEvent.click(ideasLink!);
+    fireEvent.click(focusLink!);
 
-    expect(useAppStore.getState().currentView).toBe("ideas");
-    expect(window.history.pushState).toHaveBeenCalledWith(null, "", "/ideas");
+    expect(useAppStore.getState().currentView).toBe("focus");
+    expect(window.history.pushState).toHaveBeenCalledWith(null, "", "/focus");
     expect(useAppStore.getState().setIsMobileSidebarOpen).toHaveBeenCalledWith(
       false,
     );
@@ -75,6 +74,18 @@ describe("MobileTabBar (v2)", () => {
 
     expect(useAppStore.getState().currentView).toBe("notes");
     expect(window.history.pushState).not.toHaveBeenCalled();
+  });
+
+  it("opens the library sheet and navigates to a library view", async () => {
+    renderTabBar();
+
+    fireEvent.click(screen.getByRole("button", { name: "Library" }));
+    const dialog = await screen.findByRole("dialog", { name: "Library" });
+    expect(dialog).toHaveAttribute("aria-modal", "true");
+
+    fireEvent.click(screen.getByRole("button", { name: "Notes" }));
+    expect(useAppStore.getState().currentView).toBe("notes");
+    expect(window.history.pushState).toHaveBeenCalledWith(null, "", "/notes");
   });
 
   it("opens the quick-add sheet and focuses the first item", async () => {

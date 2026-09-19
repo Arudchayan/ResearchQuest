@@ -41,6 +41,7 @@ function shortLabel(value: string, max = 14): string {
   return `${value.slice(0, max - 1)}…`;
 }
 
+/** Unshipped. Not mounted in Dashboard — discovery stays in Feeds / Library. */
 export function ResearchRadar({
   notes,
   papers,

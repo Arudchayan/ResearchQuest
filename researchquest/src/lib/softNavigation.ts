@@ -4,10 +4,39 @@
  * Primary nav uses `<a href>` for accessibility / open-in-new-tab. Without a
  * reliable preventDefault, those clicks become full document loads. This module
  * installs a capture-phase interceptor so every internal primary click stays in
- * the SPA, and exposes `softNavigate` for programmatic view changes.
+ * the SPA, and exposes `softNavigate` / `navigateToView` for programmatic
+ * view changes. `navigateToView` is the single owner: it no-ops when the
+ * view and path are already current so interceptor + React onClick cannot
+ * double-notify.
  */
 
+import { parseRoute, type AppView } from "./router";
+import { useShellStore } from "../store/shellStore";
+
 type SoftNavListener = (path: string) => void;
+
+export function pathForView(view: AppView, itemId?: string): string {
+  if (view === "dashboard") return "/";
+  return itemId ? `/${view}/${itemId}` : `/${view}`;
+}
+
+function currentLocationPath(): string {
+  if (typeof window === "undefined") return "";
+  return `${window.location.pathname}${window.location.search}${window.location.hash}`;
+}
+
+function applyViewFromPath(path: string): void {
+  let pathname = path;
+  try {
+    pathname = new URL(path, window.location.origin).pathname;
+  } catch {
+    pathname = path.split("?")[0]?.split("#")[0] || path;
+  }
+  const route = parseRoute(pathname);
+  if (route.isValid && route.view) {
+    useShellStore.getState().setCurrentView(route.view);
+  }
+}
 
 const listeners = new Set<SoftNavListener>();
 
@@ -27,11 +56,29 @@ function notify(path: string): void {
 export function softNavigate(path: string): void {
   if (typeof window === "undefined") return;
 
-  const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-  if (path !== current) {
-    window.history.pushState(null, "", path);
+  const current = currentLocationPath();
+  if (path === current) {
+    applyViewFromPath(path);
+    return;
   }
+  window.history.pushState(null, "", path);
+  applyViewFromPath(path);
   notify(path);
+}
+
+/**
+ * Programmatic SPA navigation. No-ops when the store already shows `view`
+ * and the URL is already `path`, so overlapping interceptors/handlers
+ * cannot fan out extra renders.
+ */
+export function navigateToView(view: AppView, path?: string): void {
+  const resolved = path ?? pathForView(view);
+  const store = useShellStore.getState();
+  if (store.currentView === view && currentLocationPath() === resolved) {
+    return;
+  }
+  store.setCurrentView(view);
+  softNavigate(resolved);
 }
 
 function isModifiedClick(event: {

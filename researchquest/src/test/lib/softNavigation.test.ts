@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   installSoftLinkInterception,
+  navigateToView,
   shouldSoftNavigateAnchor,
   softNavigate,
   subscribeSoftNavigation,
 } from "../../lib/softNavigation";
+import { useShellStore } from "../../store/shellStore";
 
 describe("shouldSoftNavigateAnchor", () => {
   const loc = { origin: "https://app.test", href: "https://app.test/notes" };
@@ -156,6 +158,27 @@ describe("softNavigate + link interception", () => {
 
     unsubscribe();
     uninstall();
+    pushSpy.mockRestore();
+  });
+
+  it("does not re-notify when navigating to the current view and path", () => {
+    useShellStore.setState({ currentView: "dashboard" });
+    window.history.pushState(null, "", "/");
+    const listener = vi.fn();
+    const unsubscribe = subscribeSoftNavigation(listener);
+    const pushSpy = vi.spyOn(window.history, "pushState");
+
+    navigateToView("ideas");
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(useShellStore.getState().currentView).toBe("ideas");
+
+    listener.mockClear();
+    pushSpy.mockClear();
+    navigateToView("ideas");
+    expect(listener).not.toHaveBeenCalled();
+    expect(pushSpy).not.toHaveBeenCalled();
+
+    unsubscribe();
     pushSpy.mockRestore();
   });
 });

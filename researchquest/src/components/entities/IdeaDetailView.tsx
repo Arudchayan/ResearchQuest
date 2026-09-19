@@ -28,6 +28,7 @@ import { useTasks } from "../../hooks/useTasks";
 import { useIdeas } from "../../hooks/useIdeas";
 import { IDEA_STAGES } from "../ideas/ideaStages";
 import { useAppStore } from "../../store/appStore";
+import { navigateToView } from "../../lib/softNavigation";
 import { supabase } from "../../lib/supabase";
 import { logger } from "../../utils/logger";
 import {
@@ -185,9 +186,7 @@ export function IdeaDetailView({
     if (newNote) {
       useAppStore.getState().setSelectedNote(newNote);
       useAppStore.getState().setSelectedIdea(null);
-      useAppStore.getState().setCurrentView("notes");
-      window.history.pushState(null, "", `/notes/${newNote.id}`);
-      window.dispatchEvent(new PopStateEvent("popstate"));
+      navigateToView("notes", `/notes/${newNote.id}`);
     }
   };
 
@@ -257,9 +256,7 @@ export function IdeaDetailView({
 
       useAppStore.getState().setSelectedNote(newNote);
       useAppStore.getState().setSelectedIdea(null);
-      useAppStore.getState().setCurrentView("notes");
-      window.history.pushState(null, "", `/notes/${newNote.id}`);
-      window.dispatchEvent(new PopStateEvent("popstate"));
+      navigateToView("notes", `/notes/${newNote.id}`);
     } finally {
       if (isMounted.current) {
         setPipelineBusy(false);

@@ -1,0 +1,260 @@
+import { useCallback, useMemo, useState, type FormEvent } from "react";
+import { CheckSquare, ChevronDown, ChevronUp, Plus, Target } from "lucide-react";
+import { useShallow } from "zustand/react/shallow";
+import { useTasks } from "../../hooks/useTasks";
+import { navigateToView } from "../../lib/softNavigation";
+import { useTasksStore } from "../../store/tasksStore";
+import { useShellStore } from "../../store/shellStore";
+import {
+  resolveTodayTasks,
+  useTodayPlanStore,
+} from "../../store/todayPlanStore";
+import { todayKey } from "../../utils/time";
+import { isOverdue } from "../tasks/TaskCard";
+import { Badge } from "../ui/Badge";
+import { Button } from "../ui/button";
+import { Card } from "../ui/card";
+import { ListSkeleton } from "../ui/Skeleton";
+import { InlineError } from "../ui/ErrorFallback";
+
+interface TodayPlanProps {
+  tasksLoading: boolean;
+  tasksSyncError: { message: string } | null;
+  onRetryTasks: () => void;
+}
+
+export function TodayPlan({
+  tasksLoading,
+  tasksSyncError,
+  onRetryTasks,
+}: TodayPlanProps) {
+  const userId = useShellStore((state) => state.user?.id);
+  const tasks = useTasksStore((state) => state.tasks);
+  const setSelectedTask = useTasksStore((state) => state.setSelectedTask);
+  const { createTask, completeTask } = useTasks(userId, { owner: false });
+  const { orderedIds, pin, move, setPendingFocusTaskId } = useTodayPlanStore(
+    useShallow((state) => ({
+      orderedIds: state.orderedIds,
+      pin: state.pin,
+      move: state.move,
+      setPendingFocusTaskId: state.setPendingFocusTaskId,
+    })),
+  );
+  const [draft, setDraft] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const todayTasks = useMemo(
+    () => resolveTodayTasks(tasks),
+    [tasks, orderedIds],
+  );
+
+  const overdueTasks = useMemo(
+    () =>
+      tasks.filter(
+        (task) => !task.completed && isOverdue(task.due_date),
+      ),
+    [tasks],
+  );
+
+  const handleAdd = useCallback(
+    async (event: FormEvent) => {
+      event.preventDefault();
+      const title = draft.trim();
+      if (!title || submitting) return;
+      setSubmitting(true);
+      try {
+        const created = await createTask({
+          title,
+          due_date: todayKey(),
+          priority: "medium",
+        });
+        if (created) {
+          pin(created.id);
+          setDraft("");
+        }
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    [createTask, draft, pin, submitting],
+  );
+
+  const seedOrder = useCallback(() => {
+    for (const task of todayTasks) {
+      pin(task.id);
+    }
+  }, [pin, todayTasks]);
+
+  const handleStartFocus = useCallback(
+    (taskId: string) => {
+      const task = tasks.find((item) => item.id === taskId);
+      if (task) setSelectedTask(task);
+      setPendingFocusTaskId(taskId);
+      navigateToView("focus");
+    },
+    [setPendingFocusTaskId, setSelectedTask, tasks],
+  );
+
+  const handleOpenTask = useCallback(
+    (taskId: string) => {
+      const task = tasks.find((item) => item.id === taskId);
+      if (task) setSelectedTask(task);
+      navigateToView("tasks", `/tasks/${taskId}`);
+    },
+    [setSelectedTask, tasks],
+  );
+
+  return (
+    <section aria-labelledby="today-heading">
+      <Card className="p-5">
+        <span className="font-mono text-caption text-text-tertiary">
+          01 · TODAY
+        </span>
+        <div className="mb-4 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-border-subtle pb-2">
+          <h2
+            id="today-heading"
+            className="font-serif text-body-lg font-bold text-text-primary"
+          >
+            Today
+          </h2>
+          <p className="text-small text-text-secondary">
+            The list you will work through today
+          </p>
+        </div>
+
+        {tasksSyncError && (
+          <InlineError
+            message={tasksSyncError.message}
+            onRetry={onRetryTasks}
+            className="mb-4"
+          />
+        )}
+
+        <form onSubmit={handleAdd} className="mb-4 flex gap-2">
+          <label htmlFor="today-add-title" className="sr-only">
+            Add what you will do today
+          </label>
+          <input
+            id="today-add-title"
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            placeholder="Gym, CS homework, read a paper…"
+            className="min-h-11 min-w-0 flex-1 rounded-sm border border-border-moderate bg-bg-base px-3 text-small text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+          />
+          <Button type="submit" disabled={submitting || !draft.trim()}>
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            Add
+          </Button>
+        </form>
+
+        {todayTasks.length === 0 ? (
+          tasksLoading ? (
+            <ListSkeleton count={3} itemType="task" />
+          ) : (
+            <p className="text-small text-text-tertiary">
+              Add what you&apos;ll do today. Due-today tasks land here
+              automatically.
+            </p>
+          )
+        ) : (
+          <ol className="space-y-2">
+            {todayTasks.map((task, index) => (
+              <li
+                key={task.id}
+                className="flex items-center gap-2 p-2 hover:bg-bg-elevated"
+              >
+                <input
+                  type="checkbox"
+                  checked={task.completed}
+                  aria-label={`Mark complete: ${task.title}`}
+                  onChange={() => {
+                    void completeTask(task.id);
+                  }}
+                  className="h-4 w-4 shrink-0 accent-primary-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleOpenTask(task.id)}
+                  aria-label={`Open task: ${task.title}`}
+                  className="min-w-0 flex-1 truncate text-left text-small font-medium text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+                >
+                  {task.title}
+                </button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleStartFocus(task.id)}
+                  aria-label={`Start focus: ${task.title}`}
+                  className="shrink-0"
+                >
+                  <Target className="h-4 w-4" aria-hidden="true" />
+                  Focus
+                </Button>
+                <div className="flex shrink-0 flex-col">
+                  <button
+                    type="button"
+                    aria-label={`Move ${task.title} up`}
+                    disabled={index === 0}
+                    onClick={() => {
+                      seedOrder();
+                      move(task.id, -1);
+                    }}
+                    className="inline-flex min-h-6 min-w-8 items-center justify-center text-text-tertiary hover:text-text-primary disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus"
+                  >
+                    <ChevronUp className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Move ${task.title} down`}
+                    disabled={index === todayTasks.length - 1}
+                    onClick={() => {
+                      seedOrder();
+                      move(task.id, 1);
+                    }}
+                    className="inline-flex min-h-6 min-w-8 items-center justify-center text-text-tertiary hover:text-text-primary disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus"
+                  >
+                    <ChevronDown className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ol>
+        )}
+
+        {overdueTasks.length > 0 && (
+          <div className="mt-6 border-t border-border-subtle pt-4">
+            <h3 className="mb-2 font-mono text-caption uppercase tracking-wider text-text-tertiary">
+              Needs attention
+            </h3>
+            <ul className="space-y-1">
+              {overdueTasks.slice(0, 5).map((task) => (
+                <li key={task.id}>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenTask(task.id)}
+                    aria-label={`Open overdue task: ${task.title}`}
+                    className="flex w-full items-center justify-between gap-3 p-2 text-left hover:bg-bg-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+                  >
+                    <span className="flex min-w-0 items-center gap-2">
+                      <CheckSquare
+                        className="h-4 w-4 shrink-0 text-text-tertiary"
+                        aria-hidden="true"
+                      />
+                      <span className="truncate text-small text-text-primary">
+                        {task.title}
+                      </span>
+                    </span>
+                    <Badge variant="destructive" className="shrink-0 font-mono">
+                      Overdue
+                    </Badge>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </Card>
+    </section>
+  );
+}

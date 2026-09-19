@@ -6,7 +6,9 @@
 
 ResearchQuest is a warm editorial research workspace: ivory and charcoal surfaces, crisp hairline divisions, and deliberately sharp 2–8px geometry make dense scholarly work feel composed rather than decorative. Playfair Display gives headings the authority of a printed title page; Inter keeps controls quiet and legible; JetBrains Mono makes timers and measured progress feel precise. The signature is **paper hierarchy without paper clutter**: `bg-base` is the canvas, `bg-surface` is the working sheet, `bg-elevated` is the supporting layer, and borders are used as restrained editorial rules.
 
-The redesign covers exactly the seven existing navigation views: **Dashboard, Notes, Papers, Ideas, Tasks, Topics, and Focus Studio**. Preserve current routes, selection behavior, data loading, dialogs, editor flows, and shell/sidebar behavior. This is a visual and interaction-polish contract, not an information-architecture or data-flow change.
+Navigation is grouped as **Plan** (Today, Tasks, Focus Studio, Feeds) and **Library** (Notes, Papers, Ideas, Topics). The day loop is Today → Focus → mark done. Topic Quests stay topic-scoped. Daily missions and the sprint board exist in code but are unshipped.
+
+The visual contract covers the primary views: **Today/Dashboard, Notes, Papers, Ideas, Tasks, Topics, Focus Studio, and Feeds**. Preserve current routes, selection behavior, data loading, dialogs, editor flows, and shell/sidebar behavior unless an IA change is explicitly in scope.
 
 **Primary sources:** [`src/index.css`](src/index.css) theme blocks; [`tailwind.config.js`](tailwind.config.js) `theme.extend`; [`src/components/layout/v2/AppShell.tsx`](src/components/layout/v2/AppShell.tsx); [`src/components/layout/v2/Sidebar.tsx`](src/components/layout/v2/Sidebar.tsx).
 

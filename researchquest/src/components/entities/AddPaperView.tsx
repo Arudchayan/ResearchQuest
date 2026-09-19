@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { BookOpen, CheckCircle2, Info, LoaderCircle } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
+import { navigateToView } from "../../lib/softNavigation";
 import type { CrossrefPaper, Paper, PaperDraft } from "../../types/database";
 import type { PaperSearchOptions } from "../../hooks/usePapers";
 import { isValidUrl } from "../../utils/security";
@@ -94,7 +95,7 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
     setSuccessMessage(msg);
     if (paper) {
       setSelectedPaper(paper);
-      window.history.pushState(null, "", `/papers/${paper.id}`);
+      navigateToView("papers", `/papers/${paper.id}`);
     }
     setTimeout(() => setSuccessMessage(""), 4000);
   }, [setSelectedPaper]);
