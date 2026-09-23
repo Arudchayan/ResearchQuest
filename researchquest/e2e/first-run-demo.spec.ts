@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
+import { seededTopicDetailHeading } from "./a11y";
 
 /**
  * First-run receipt: one real click of Use demo workspace must land the loop.
@@ -68,10 +69,9 @@ test.describe("first-run demo click", () => {
     });
     expect(page.url()).toContain(TOPIC_PATH);
 
-    // List row + detail title both expose this heading; assert the detail.
-    await expect(
-      page.getByRole("heading", { name: "AI Agents for Research" }).nth(1),
-    ).toBeVisible({ timeout: 30_000 });
+    await expect(seededTopicDetailHeading(page)).toBeVisible({
+      timeout: 30_000,
+    });
 
     await expect(
       page.getByText(/Retrieval-Augmented Generation/i),
