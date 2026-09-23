@@ -33,7 +33,9 @@ describe("AuthScreen first-run", () => {
 
     expect(screen.getByText(/Scholar Access/i)).toBeInTheDocument();
     expect(
-      screen.getByText("One topic. Three papers. A note. A focus session."),
+      screen.getByText(
+        "Four sample topics. Papers, notes, and Focus Studio to explore.",
+      ),
     ).toBeInTheDocument();
   });
 

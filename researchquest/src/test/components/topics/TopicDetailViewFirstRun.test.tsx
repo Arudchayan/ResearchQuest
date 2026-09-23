@@ -155,6 +155,11 @@ describe("TopicDetailView first-run (unified shell)", () => {
       screen.getByRole("region", { name: /Demo workspace/i }),
     ).toBeInTheDocument();
     expect(
+      screen.getByText(
+        "Four sample topics — you’re on AI Agents (three papers + a note). Focus Studio starts empty. Explore freely — nothing here affects real data.",
+      ),
+    ).toBeInTheDocument();
+    expect(
       screen.getByRole("button", { name: /Go to full workspace/i }),
     ).toBeInTheDocument();
     expect(

@@ -13,7 +13,9 @@ describe("static first-run gate (index.html)", () => {
     expect(html).toContain("Use demo workspace");
     expect(html).toContain('data-rq-demo-entry');
     expect(html).toContain('href="/topics/topic-ai-agents"');
-    expect(html).toContain("One topic. Three papers. A note. A focus session.");
+    expect(html).toContain(
+      "Four sample topics. Papers, notes, and Focus Studio to explore.",
+    );
     expect(html).toContain("Scholar Access");
   });
 

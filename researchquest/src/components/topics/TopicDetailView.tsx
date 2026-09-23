@@ -354,8 +354,9 @@ export function TopicDetailView({
             Demo workspace
           </p>
           <p className="mt-1 text-body text-text-secondary">
-            One topic. Three papers. A note. A focus session. Explore freely —
-            nothing here affects real data.
+            Four sample topics — you’re on AI Agents (three papers + a note).
+            Focus Studio starts empty. Explore freely — nothing here affects
+            real data.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <button
