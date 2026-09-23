@@ -68,8 +68,9 @@ test.describe("first-run demo click", () => {
     });
     expect(page.url()).toContain(TOPIC_PATH);
 
+    // List row + detail title both expose this heading; assert the detail.
     await expect(
-      page.getByRole("heading", { name: /AI Agents for Research/i }),
+      page.getByRole("heading", { name: "AI Agents for Research" }).nth(1),
     ).toBeVisible({ timeout: 30_000 });
 
     await expect(
