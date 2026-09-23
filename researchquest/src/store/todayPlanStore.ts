@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { parseDateInput, todayKey } from "../utils/time";
 import type { Task } from "../types/database";
+import { completeOnboardingTip } from "./onboardingTipsStore";
 
 export interface TodayPlanState {
   dayKey: string;
@@ -45,6 +46,7 @@ export const useTodayPlanStore = create<TodayPlanState>()(
           return;
         }
         set({ ...rolled, orderedIds: [...rolled.orderedIds, id] });
+        completeOnboardingTip("plan-today");
       },
       unpin: (id) => {
         const rolled = rollDay(get());

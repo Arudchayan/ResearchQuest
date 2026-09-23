@@ -48,6 +48,16 @@ export async function gotoDemoView(
   await expect(page.locator("#main-content")).toBeVisible({ timeout: 30_000 });
 }
 
+/**
+ * First-run topic detail title. The Topics split pane also renders the same
+ * name as a list-row heading, so a bare getByRole('heading') is ambiguous.
+ */
+export function seededTopicDetailHeading(page: Page) {
+  return page.locator("#main-content h2.text-2xl", {
+    hasText: /^AI Agents for Research$/,
+  });
+}
+
 export interface AxeScanOptions {
   /** axe rule ids to skip, with the reason documented at the call site. */
   disableRules?: string[];

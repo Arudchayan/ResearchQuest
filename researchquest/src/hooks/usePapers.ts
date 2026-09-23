@@ -14,6 +14,7 @@ import { doisMatch, normalizeDoi } from "../utils/paperUtils";
 import { extractFunctionErrorMessage } from "../utils/errors";
 import { logger } from "../utils/logger";
 import { useAppStore } from "../store/appStore";
+import { completeOnboardingCreate } from "../store/onboardingTipsStore";
 import {
   useEntityCrud,
   awardXPAndNotify,
@@ -595,6 +596,8 @@ export function usePapers(userId: string | undefined) {
       void Promise.all(
         data.map((paper) => createReadingTaskForPaper(userId, paper)),
       );
+
+      completeOnboardingCreate("papers");
 
       return data as Paper[];
     },

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { enableDemoMode, gotoDemoView } from "./a11y";
+import { enableDemoMode, gotoDemoView, seededTopicDetailHeading } from "./a11y";
 
 /**
  * Item 97 — authenticated CRUD end to end.
@@ -32,10 +32,9 @@ test.describe("authenticated demo session", () => {
     await page.waitForURL((url) => url.pathname === "/topics/topic-ai-agents", {
       timeout: 30_000,
     });
-    // List row + detail title both expose this heading; assert the detail.
-    await expect(
-      page.getByRole("heading", { name: "AI Agents for Research" }).nth(1),
-    ).toBeVisible({ timeout: 30_000 });
+    await expect(seededTopicDetailHeading(page)).toBeVisible({
+      timeout: 30_000,
+    });
     // Signed in: the auth gate is gone and the app shell is up.
     await expect(page.locator("#main-content")).toBeVisible();
     await expect(page.getByText(/Submit application/i)).toHaveCount(0);
