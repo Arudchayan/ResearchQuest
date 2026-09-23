@@ -8,20 +8,24 @@ project_id = "researchquest"
 
 [functions.api]
 enabled = true
-# Gateway auth + unauthenticated discovery (/health, /openapi.json, /explore).
-# Production keeps platform JWT verification off; the function checks JWTs itself.
+# Exception: keep platform JWT off. Unauthenticated discovery routes
+# (GET /health, /v1/health, /openapi.json, /v1/openapi.json, /explore)
+# plus dual auth on remaining routes: Bearer JWT OR Bearer rq_ API keys.
+# rq_ tokens are not Supabase JWTs — verify_jwt=true would 401 API-key
+# clients and public discovery. See docs/security/edge-function-jwt.md.
 verify_jwt = false
 
 [functions.fetch-paper]
 enabled = true
-# App-level JWT via supabase.auth.getUser. Platform verify_jwt stays off to
-# match production (CORS preflight + getUser). Honour ALLOWED_ORIGINS.
-verify_jwt = false
+# Platform JWT on (defense in depth). Handler still authenticates via
+# supabase.auth.getUser(). Older comments that CORS preflight required
+# verify_jwt off are outdated; the gateway allows OPTIONS with JWT on.
+verify_jwt = true
 
 [functions.deep-research]
 enabled = true
-# Same as fetch-paper: self-verifies the caller JWT. Match production.
-verify_jwt = false
+# Same as fetch-paper: platform JWT on; in-handler getUser remains.
+verify_jwt = true
 
 [functions.create-admin-user]
 enabled = true
