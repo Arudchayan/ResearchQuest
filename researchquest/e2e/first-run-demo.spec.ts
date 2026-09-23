@@ -91,7 +91,7 @@ test.describe("first-run demo click", () => {
     await expect(page.getByText(/Welcome to ResearchQuest/i)).toBeVisible();
 
     await expect(
-      page.getByRole("button", { name: /Export topic/i }),
+      page.getByRole("button", { name: "Export topic", exact: true }),
     ).toBeVisible();
     await expect(page.getByText(/Topic Quests/i)).toBeVisible();
     await expect(page.getByText(/Connected work/i)).toBeVisible();
