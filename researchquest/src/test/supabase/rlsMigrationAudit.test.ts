@@ -7,11 +7,14 @@
  *     SECURITY plus CREATE POLICY coverage in supabase/migrations/*.sql.
  *  2. Owner-scoped UPDATE policies on the core tables carry WITH CHECK in the
  *     initPlan-friendly (select auth.uid()) form (plan item 81).
- *  3. No migration (re)creates an exec_sql RPC (removed in 1764410000).
- *  4. Every SECURITY DEFINER function's *effective* (last-in-chain)
+ *  3. Effective CREATE POLICY expressions wrap auth.* / current_setting() as
+ *     (select …) so auth_rls_initplan stays clear (Supabase lint 0003).
+ *  4. Topic junction FKs used by RLS have covering indexes.
+ *  5. No migration (re)creates an exec_sql RPC (removed in 1764410000).
+ *  6. Every SECURITY DEFINER function's *effective* (last-in-chain)
  *     definition pins SET search_path.
  *
- * Checks 2-4 evaluate the concatenated migrations in filename order so later
+ * Checks 2-6 evaluate the concatenated migrations in filename order so later
  * remediations (e.g. 1764802000) count towards the effective state, while
  * historical statements remain untouched.
  */
@@ -82,6 +85,89 @@ function updatePoliciesFor(migrationsSql: string, table: string): string[] {
   return migrationsSql
     .split(";")
     .filter((statement) => header.test(statement));
+}
+
+/** Tables flagged live for auth_rls_initplan (planner_catalog USING (true) omitted). */
+const AUTH_RLS_INITPLAN_TABLES = [
+  "api_key_audit",
+  "api_keys",
+  "daily_logs",
+  "feed_items",
+  "feed_sources",
+  "focus_sessions",
+  "ideas",
+  "links",
+  "notes",
+  "papers",
+  "planner_state",
+  "research_achievements",
+  "research_goals",
+  "research_milestones",
+  "research_projects",
+  "tasks",
+  "topic_ideas",
+  "topic_notes",
+  "topic_papers",
+  "topic_quests",
+  "topics",
+  "user_profiles",
+] as const;
+
+function policyKey(table: string, policyName: string): string {
+  return `${table}::${policyName}`;
+}
+
+/**
+ * Last CREATE POLICY per (table, name) after applying DROP/CREATE in file order.
+ * Dynamic EXECUTE format(...) policy DDL is ignored; those tables must still
+ * have a literal CREATE POLICY in a later migration for this audit.
+ */
+function effectivePolicies(migrations: SqlFile[]): Map<string, string> {
+  const policies = new Map<string, string>();
+  const token =
+    /\b(?:DROP\s+POLICY\s+(?:IF\s+EXISTS\s+)?|CREATE\s+POLICY\s+)("([^"]+)"|[A-Za-z_]\w*)\s+ON\s+((?:public\s*\.\s*)?[A-Za-z_"]+)([^;]*)/gi;
+
+  for (const { sql } of migrations) {
+    token.lastIndex = 0;
+    let match: RegExpExecArray | null;
+    while ((match = token.exec(sql)) !== null) {
+      const isDrop = /^\s*DROP\s+POLICY/i.test(match[0]);
+      const policyName = match[2] ?? match[1];
+      const table = normalizeTableName(match[3]);
+      const key = policyKey(table, policyName);
+      if (isDrop) {
+        policies.delete(key);
+        continue;
+      }
+      policies.set(key, match[0]);
+    }
+  }
+  return policies;
+}
+
+function hasUnwrappedInitPlanCall(statement: string): boolean {
+  const withoutWrapped = statement
+    .replace(/\(\s*select\s+auth\.[A-Za-z_]+\s*\(\s*\)\s*\)/gi, "")
+    .replace(
+      /\(\s*select\s+current_setting\s*\((?:[^()]|\([^()]*\))*\)\s*\)/gi,
+      "",
+    );
+  return (
+    /\bauth\.[A-Za-z_]+\s*\(/i.test(withoutWrapped) ||
+    /\bcurrent_setting\s*\(/i.test(withoutWrapped)
+  );
+}
+
+function hasLeadingIndex(
+  migrationsSql: string,
+  table: string,
+  column: string,
+): boolean {
+  const pattern = new RegExp(
+    `CREATE\\s+(?:UNIQUE\\s+)?INDEX\\s+(?:IF\\s+NOT\\s+EXISTS\\s+)?[\\s\\S]{0,120}?ON\\s+${tableRefPattern(table)}\\s*\\(\\s*${column}\\b`,
+    "i",
+  );
+  return pattern.test(migrationsSql);
 }
 
 interface FunctionOptionState {
@@ -174,6 +260,50 @@ describe("supabase RLS migration audit", () => {
           /\(\s*select\s+auth\.uid\(\)\s*\)/i.test(statement),
       );
       if (!hardened) missing.push(table);
+    }
+    expect(missing).toEqual([]);
+  });
+
+  it("wraps effective RLS auth helpers as (select auth.uid()) for initPlan", async () => {
+    const migrations = await readSqlDir(migrationsDir);
+    const policies = effectivePolicies(migrations);
+    const missing: string[] = [];
+    const unwrapped: string[] = [];
+
+    for (const table of AUTH_RLS_INITPLAN_TABLES) {
+      const owned = [...policies.entries()].filter(([key]) =>
+        key.startsWith(`${table}::`),
+      );
+      if (owned.length === 0) {
+        missing.push(table);
+        continue;
+      }
+      for (const [key, statement] of owned) {
+        if (hasUnwrappedInitPlanCall(statement)) unwrapped.push(key);
+      }
+    }
+
+    expect(missing).toEqual([]);
+    expect(unwrapped).toEqual([]);
+  });
+
+  it("covers topic junction FK columns used by RLS", async () => {
+    const migrations = await readSqlDir(migrationsDir);
+    const allMigrations = migrations.map((file) => file.sql).join("\n");
+    const missing: string[] = [];
+    const required: Array<[string, string]> = [
+      ["topic_ideas", "idea_id"],
+      ["topic_ideas", "user_id"],
+      ["topic_notes", "note_id"],
+      ["topic_notes", "user_id"],
+      ["topic_papers", "paper_id"],
+      ["topic_papers", "user_id"],
+      ["topic_quests", "topic_id"],
+    ];
+    for (const [table, column] of required) {
+      if (!hasLeadingIndex(allMigrations, table, column)) {
+        missing.push(`${table}.${column}`);
+      }
     }
     expect(missing).toEqual([]);
   });
