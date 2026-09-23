@@ -25,8 +25,9 @@ test.describe("nightly cross-browser matrix", () => {
 
   test("demo first-run loop renders", async ({ page }) => {
     await gotoDemoView(page, "/topics/topic-ai-agents");
+    // List row + detail title both expose this heading; assert the detail.
     await expect(
-      page.getByRole("heading", { name: /AI Agents for Research/i }),
+      page.getByRole("heading", { name: "AI Agents for Research" }).nth(1),
     ).toBeVisible({ timeout: 30_000 });
     await expect(page.getByText(/Attention Is All You Need/i)).toBeVisible();
   });
