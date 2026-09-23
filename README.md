@@ -6,7 +6,7 @@
 
 A research workspace for a scholar's day: a **Today** plan you work through with Focus Studio, plus a library of papers, notes, ideas, and topics — synced to Supabase.
 
-**Status:** Alpha — functional but evolving. Live demo: [research-quest-wine.vercel.app](https://research-quest-wine.vercel.app)
+**Status:** Alpha — functional but evolving. Canonical live demo: [research-quest-wine.vercel.app](https://research-quest-wine.vercel.app). Custom domain [rq.arudchayan.com](https://rq.arudchayan.com) is an alias on the same Vercel project (`research-quest`). A second historical Vercel project exists; do not delete it without checking aliases.
 
 ## Features
 
@@ -56,8 +56,9 @@ pnpm run dev
 ### Demo mode (no backend required)
 
 ResearchQuest ships with a fully local demo workspace. It seeds papers, notes,
-ideas, topics, tasks, feeds, focus sessions, XP, streaks, quests, and
-achievements into an in-memory Supabase-compatible client.
+ideas, topics, tasks, focus sessions, XP, streaks, quests, and
+achievements into an in-memory Supabase-compatible client. Feeds are
+intentionally empty in demo (no orphan inbox).
 
 **Easiest path:** run `pnpm run dev`, then click **Use demo workspace** on the
 auth screen (or the config-error screen if Supabase env vars are missing).
@@ -153,7 +154,11 @@ All config is through environment variables. Copy `.env.example` to `.env`.
 
 ## Deploy (Vercel)
 
-The app is a Vite SPA deployed from the `researchquest/` subdirectory.
+The app is a Vite SPA. **Canonical production** is Vercel project
+`research-quest`, which serves both `https://research-quest-wine.vercel.app`
+and `https://rq.arudchayan.com`. Prefer the wine URL as the public live demo
+in docs and GitHub homepage. A second Vercel project (`research-quest-wine`)
+exists historically — do not delete it without confirming aliases and DNS.
 
 | Setting | Value |
 |---------|-------|
@@ -183,17 +188,20 @@ it to the deployed app origin, e.g.:
 ALLOWED_ORIGINS=https://research-quest-wine.vercel.app
 ```
 
-Without this, the functions fall back to localhost dev origins and browser
-calls from the deployed site are rejected. This is a server-side secret — it
-is not a `VITE_*` variable and must not be added to Vercel.
+Without this, the functions fall back to the production app origins
+(`https://research-quest-wine.vercel.app`, `https://rq.arudchayan.com`) plus
+localhost. This is a server-side secret — it is not a `VITE_*` variable and
+must not be added to Vercel.
 
 ## Security
 
 See [SECURITY.md](SECURITY.md) for private vulnerability reporting. Do not commit
 `.env` files, credentials, or service-role keys. Vite embeds every `VITE_*`
 value in the browser bundle, so client configuration must never contain account
-passwords or privileged secrets. The privileged `create-admin-user` edge
-function must not be deployed casually — see its README.
+passwords or privileged secrets. The `create-admin-user` edge function is a
+**410 Gone stub** (`verify_jwt = true`); keep it deployed so a catch-all
+deploy cannot revive the old Admin API. Create users from the Supabase
+Dashboard or CLI.
 
 ## Performance Notes
 
@@ -209,13 +217,15 @@ Modern browsers (Chrome, Firefox, Safari, Edge). No IE11 support.
 
 ## Database
 
-21 PostgreSQL tables with Row-Level Security (RLS). See `supabase/tables/` for schema and `supabase/migrations/` for migrations.
+21 PostgreSQL tables with Row-Level Security (RLS). Schema snapshots live in
+`supabase/tables/` (one file per table, including the four `topic_*` junction
+tables). Apply `supabase/migrations/` in filename order for the live schema.
 
 Edge functions in `supabase/functions/` (Deno runtime):
 - `api` — Agent API gateway for scoped entity, feed, and key management
 - `fetch-paper` — Crossref DOI/query search
 - `deep-research` — Deep research orchestration
-- `create-admin-user` — **Privileged** admin bootstrap (keep undeployed by default)
+- `create-admin-user` — **410 Gone stub** (keep deployed; `verify_jwt = true`)
 
 ## Tests
 

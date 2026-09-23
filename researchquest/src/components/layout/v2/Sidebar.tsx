@@ -17,13 +17,12 @@ import {
   Maximize2,
   Hash,
   BookOpen,
-  Inbox,
   LayoutDashboard,
   Target,
 } from "lucide-react";
 import { useAppStore } from "../../../store/appStore";
 import { cn } from "../../../lib/utils";
-import { supabase } from "../../../lib/supabase";
+import { supabase, isDemoMode } from "../../../lib/supabase";
 import { navigateToView, pathForView } from "../../../lib/softNavigation";
 import type { AppView } from "../../../lib/router";
 import { XPExplainer } from "../XPExplainer";
@@ -80,7 +79,6 @@ export function Sidebar() {
         { id: "dashboard", label: "Today", icon: LayoutDashboard },
         { id: "tasks", label: "Tasks", icon: CheckSquare },
         { id: "focus", label: "Focus Studio", icon: Target },
-        { id: "feeds", label: "Feeds", icon: Inbox },
       ],
     },
     {
@@ -128,6 +126,11 @@ export function Sidebar() {
             ResearchQuest
           </span>
         </div>
+        {isDemoMode && (
+          <p className="mb-4 text-caption text-text-tertiary">
+            Demo workspace — sample data on this device, not a live account.
+          </p>
+        )}
 
         <button
           onClick={handleOpenSearch}

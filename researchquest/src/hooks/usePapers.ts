@@ -10,6 +10,7 @@ import { sortByUpdatedAt } from "../utils/sort";
 import { isValidUrl } from "../utils/security";
 import { toast } from "sonner";
 import type { Paper, CrossrefPaper, PaperDraft } from "../types/database";
+import { doisMatch, normalizeDoi } from "../utils/paperUtils";
 import { extractFunctionErrorMessage } from "../utils/errors";
 import { logger } from "../utils/logger";
 import { useAppStore } from "../store/appStore";
@@ -174,15 +175,7 @@ function cleanPaperDraft(
   return { ok: true, payload: cleanData };
 }
 
-// ARU-657: normalize DOIs for comparison — lowercase, strip resolver
-// prefixes ("https://doi.org/", "http://dx.doi.org/") and a leading
-// "doi:" so spelling variants of the same DOI dedupe correctly.
-export function normalizeDoi(doi: string): string {
-  let value = doi.trim().toLowerCase();
-  value = value.replace(/^https?:\/\/(dx\.)?doi\.org\//, "");
-  value = value.replace(/^doi:\s*/, "");
-  return value;
-}
+export { normalizeDoi } from "../utils/paperUtils";
 
 // ARU-657: returns the set of NORMALIZED DOIs that this user already has
 // in their library among the given candidates. Fails open (empty set +
@@ -367,8 +360,9 @@ export function usePapers(userId: string | undefined) {
       }
 
       try {
+        const requestedDoi = normalizeDoi(doi);
         const response = await supabase.functions.invoke("fetch-paper", {
-          body: { doi },
+          body: { doi: requestedDoi || doi.trim() },
         });
 
         if (response.error) {
@@ -391,7 +385,18 @@ export function usePapers(userId: string | undefined) {
           return null;
         }
 
-        return payload?.data ?? null;
+        const paper = payload?.data ?? null;
+        if (
+          paper &&
+          requestedDoi &&
+          paper.doi &&
+          !doisMatch(paper.doi, requestedDoi)
+        ) {
+          setError("DOI lookup returned a different paper");
+          toast.error("DOI lookup returned a different paper");
+          return null;
+        }
+        return paper;
       } catch (err: unknown) {
         const errorMessage =
           extractFunctionErrorMessage(err, "An error occurred while searching");

@@ -19,6 +19,10 @@ const DEFAULT_DEV_ALLOWED_ORIGINS = [
   "http://127.0.0.1:5175",
   "http://127.0.0.1:4173",
 ];
+const PRODUCTION_APP_ORIGINS = [
+  "https://research-quest-wine.vercel.app",
+  "https://rq.arudchayan.com",
+];
 
 interface CrossrefAuthor {
   given?: string;
@@ -53,7 +57,7 @@ const rateLimitBuckets = new Map<string, RateLimitBucket>();
 function parseAllowedOrigins(): string[] {
   const configured = Deno.env.get("ALLOWED_ORIGINS");
   if (!configured || !configured.trim()) {
-    return DEFAULT_DEV_ALLOWED_ORIGINS;
+    return [...PRODUCTION_APP_ORIGINS, ...DEFAULT_DEV_ALLOWED_ORIGINS];
   }
   return configured
     .split(",")
@@ -107,6 +111,13 @@ async function fetchWithTimeout(
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+function normalizeDoi(doi: string): string {
+  let value = doi.trim().toLowerCase();
+  value = value.replace(/^https?:\/\/(dx\.)?doi\.org\//, "");
+  value = value.replace(/^doi:\s*/, "");
+  return value;
 }
 
 function formatCrossrefWork(work: CrossrefWork) {
@@ -223,7 +234,15 @@ Deno.serve(async (req) => {
     }
 
     if (doi) {
-      const crossrefUrl = `https://api.crossref.org/works/${encodeURIComponent(doi)}`;
+      const requestedDoi = normalizeDoi(doi);
+      if (!requestedDoi) {
+        return jsonResponse(
+          { error: { code: "INVALID_REQUEST", message: "Must provide doi or query" } },
+          400,
+          corsHeaders,
+        );
+      }
+      const crossrefUrl = `https://api.crossref.org/works/${encodeURIComponent(requestedDoi)}`;
       const response = await fetchWithTimeout(crossrefUrl, {
         headers: {
           Accept: "application/json",
@@ -240,7 +259,15 @@ Deno.serve(async (req) => {
       }
 
       const data = await response.json();
-      return jsonResponse({ data: formatCrossrefWork(data?.message) }, 200, corsHeaders);
+      const paper = formatCrossrefWork(data?.message);
+      if (paper.doi && normalizeDoi(paper.doi) !== requestedDoi) {
+        return jsonResponse(
+          { error: { code: "NOT_FOUND", message: "Paper not found" } },
+          404,
+          corsHeaders,
+        );
+      }
+      return jsonResponse({ data: paper }, 200, corsHeaders);
     }
 
     if (query) {

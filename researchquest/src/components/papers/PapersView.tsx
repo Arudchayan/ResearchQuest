@@ -29,7 +29,6 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { cn } from "../../lib/utils";
 import * as Dialog from "@radix-ui/react-dialog";
-import { OnboardingGuide } from "../layout/OnboardingGuide";
 import type { Paper } from "../../types/database";
 import { toast } from "sonner";
 import {
@@ -355,11 +354,6 @@ export function PapersView() {
           </div>
         </div>
 
-        {/* Pinned above the list scroll region (not inside it) so the guide
-            never scrolls away and renders exactly once per view. */}
-        <div className="shrink-0 px-4 pt-4 sm:px-6 sm:pt-6">
-          <OnboardingGuide />
-        </div>
         <div ref={parentRef} className="min-h-0 flex-1 overflow-auto p-4 sm:p-6">
           {papersSyncError ? (
             <InlineError

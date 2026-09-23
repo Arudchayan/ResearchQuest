@@ -118,7 +118,11 @@ describe("FocusWorkspace", () => {
     expect(
       screen.getByText(/Design an intentional deep work session/i),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Start focus/i)).toBeInTheDocument();
+    const startButton = screen.getByRole("button", { name: /Start focus/i });
+    expect(startButton).toBeDisabled();
+    expect(
+      screen.getByText(/Select a target from Today or the library to enable Start/i),
+    ).toBeInTheDocument();
   });
 
   it("awards XP upon session completion", async () => {

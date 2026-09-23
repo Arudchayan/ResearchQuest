@@ -149,7 +149,7 @@ describe("supabase RLS migration audit", () => {
     for (const file of tableFiles) {
       for (const table of tablesFromSchema(file.sql)) tables.add(table);
     }
-    expect(tables.size).toBeGreaterThan(0);
+    expect(tables.size).toBe(21);
 
     const allMigrations = migrations.map((file) => file.sql).join("\n");
     const missing: string[] = [];
@@ -200,5 +200,17 @@ describe("supabase RLS migration audit", () => {
       }
     }
     expect(violations).toEqual([]);
+  });
+
+  it("mirrors prod harden_rpc_security_definer (auth-bound RPCs + revoked trigger EXECUTE)", async () => {
+    const migrations = await readSqlDir(migrationsDir);
+    const hardening = migrations.find((file) =>
+      file.name.includes("harden_rpc_security_definer"),
+    );
+    expect(hardening).toBeDefined();
+    expect(hardening?.sql).toMatch(/auth\.uid\(\)/);
+    expect(hardening?.sql).toMatch(/REVOKE\s+EXECUTE[\s\S]*evaluate_user_streaks/i);
+    expect(hardening?.sql).toMatch(/REVOKE\s+EXECUTE[\s\S]*ensure_user_id/i);
+    expect(hardening?.sql).toMatch(/search_path\s*=\s*public/i);
   });
 });

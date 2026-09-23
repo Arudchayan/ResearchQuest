@@ -151,6 +151,10 @@ export function AuthScreen() {
           <p className="text-small text-text-secondary mt-3">
             One topic. Three papers. A note. A focus session.
           </p>
+          <p className="text-caption text-text-tertiary mt-2">
+            Demo workspace is sample data on this device. Sign in only if you
+            already have a live ResearchQuest account.
+          </p>
         </header>
 
         <form onSubmit={handleAuth} className="space-y-4" noValidate>

@@ -4,7 +4,6 @@ import {
   CheckSquare,
   FileText,
   Hash,
-  Inbox,
   LayoutDashboard,
   Lightbulb,
   Plus,
@@ -34,7 +33,6 @@ const libraryItems: { id: AppView; label: string; icon: typeof FileText }[] = [
   { id: "papers", label: "Papers", icon: BookOpen },
   { id: "ideas", label: "Ideas", icon: Lightbulb },
   { id: "topics", label: "Topics", icon: Hash },
-  { id: "feeds", label: "Feeds", icon: Inbox },
 ];
 
 export function MobileTabBar() {

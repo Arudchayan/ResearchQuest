@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { countWords, estimateReadingTime } from "../../utils/text";
+import { countWords, estimateReadingTime, displayNoteTitle } from "../../utils/text";
 
 describe("text utils", () => {
   describe("countWords", () => {
@@ -49,6 +49,32 @@ describe("text utils", () => {
     it("returns > 1 min read for large content", () => {
       expect(estimateReadingTime("word ".repeat(201))).toBe("2 min read");
       expect(estimateReadingTime("word ".repeat(401))).toBe("3 min read");
+    });
+  });
+
+  describe("displayNoteTitle", () => {
+    it("prefers an explicit title", () => {
+      expect(
+        displayNoteTitle({
+          title: "Demo research synthesis",
+          markdown_body: "First line in the body",
+        }),
+      ).toBe("Demo research synthesis");
+    });
+
+    it("derives from markdown when title is empty or Untitled Note", () => {
+      expect(
+        displayNoteTitle({
+          title: "",
+          markdown_body: "Synthesis: agentic literature review",
+        }),
+      ).toBe("Synthesis: agentic literature review");
+      expect(
+        displayNoteTitle({
+          title: "Untitled Note",
+          markdown_body: "# Capture quickly\n\nBody",
+        }),
+      ).toBe("Capture quickly");
     });
   });
 });

@@ -26,7 +26,6 @@ import type { IdeaStage, Idea } from "../../types/database";
 import { cn } from "../../lib/utils";
 import * as Dialog from "@radix-ui/react-dialog";
 import { PageHeader } from "../ui/PageHeader";
-import { OnboardingGuide } from "../layout/OnboardingGuide";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
@@ -466,9 +465,6 @@ export function IdeasBoard() {
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-4 sm:p-6">
-          <div className="mb-4">
-            <OnboardingGuide />
-          </div>
           {ideasSyncError && (
             <InlineError message={ideasSyncError.message} className="mb-4" />
           )}

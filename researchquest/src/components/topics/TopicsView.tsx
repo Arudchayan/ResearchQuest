@@ -12,8 +12,8 @@ import { logger } from "../../utils/logger";
 import { Button } from "../ui/button";
 import { InlineError } from "../ui/ErrorFallback";
 import { PageHeader } from "../ui/PageHeader";
-import { isDemoMode } from "../../lib/supabase";
-import { DEMO_FIRST_RUN_TOPIC_ID } from "../../lib/demoData";
+import { parseRoute } from "../../lib/router";
+import { navigateToView } from "../../lib/softNavigation";
 
 const UNDO_WINDOW_MS = 6000;
 
@@ -45,6 +45,26 @@ export function TopicsView() {
   const [sortOption, setSortOption] = useState<SortOption>("updated_desc");
   const [hiddenTopicIds, setHiddenTopicIds] = useState<Set<string>>(new Set());
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const syncTopicsRoute = () => {
+      const pathname = window.location.pathname;
+      const route = parseRoute(pathname);
+      if (route.view !== "topics") return;
+      if (!route.itemId) {
+        setSelectedTopic(null);
+        return;
+      }
+      const match = useAppStore
+        .getState()
+        .topics.find((topic) => topic.id === route.itemId);
+      setSelectedTopic(match ?? null);
+    };
+
+    syncTopicsRoute();
+    window.addEventListener("popstate", syncTopicsRoute);
+    return () => window.removeEventListener("popstate", syncTopicsRoute);
+  }, [setSelectedTopic]);
 
   // ⚡ PERFORMANCE OPTIMIZATION: Pre-compute derived text fields for faster searching
   const searchableTopics = useMemo(() => {
@@ -96,8 +116,10 @@ export function TopicsView() {
           const bCount = b.note_count + b.paper_count + b.idea_count;
           return bCount - aCount;
         }
-        default:
-          return 0;
+        default: {
+          const _exhaustive: never = sortOption;
+          return _exhaustive;
+        }
       }
     });
   }, [topics, searchQuery, sortOption, hiddenTopicIds, searchableTopics]);
@@ -249,16 +271,21 @@ export function TopicsView() {
     }
   };
 
-  const isFirstRunLanding =
-    isDemoMode &&
-    (selectedTopic?.id === DEMO_FIRST_RUN_TOPIC_ID ||
-      (typeof window !== "undefined" &&
-        window.location.pathname === `/topics/${DEMO_FIRST_RUN_TOPIC_ID}`));
+  const handleSelectTopic = useCallback(
+    (topic: (typeof filteredTopics)[number]) => {
+      setSelectedTopic(topic);
+      navigateToView("topics", `/topics/${topic.id}`);
+    },
+    [setSelectedTopic],
+  );
+
+  const handleBackToIndex = useCallback(() => {
+    setSelectedTopic(null);
+    navigateToView("topics", "/topics");
+  }, [setSelectedTopic]);
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-bg-base md:flex-row">
-      {/* List Panel — hidden on demo first-run so the seeded topic is the only screen */}
-      {!isFirstRunLanding && (
       <div
         className={`flex min-h-0 w-full flex-1 flex-shrink-0 flex-col border-b border-border-subtle bg-bg-elevated/60 transition-colors duration-theme md:h-full md:w-80 md:flex-none md:border-b-0 md:border-r ${
           selectedTopic ? "hidden md:flex" : "flex"
@@ -410,24 +437,22 @@ export function TopicsView() {
             topics={filteredTopics}
             loading={loading}
             highlightQuery={searchQuery}
-            onSelectTopic={setSelectedTopic}
+            onSelectTopic={handleSelectTopic}
             onDeleteTopic={handleDeleteWithUndo}
           />
         </div>
       </div>
-      )}
 
       {/* Detail Panel */}
       <div className={`min-h-0 min-w-0 flex-1 flex-col overflow-y-auto bg-bg-surface ${selectedTopic ? "flex" : "hidden md:flex"}`}>
         {selectedTopic ? (
           <>
-            {!(isDemoMode && selectedTopic.id === DEMO_FIRST_RUN_TOPIC_ID) && (
             <div className="flex shrink-0 items-center gap-3 border-b border-border-subtle bg-bg-surface p-4 md:hidden">
               <Button
                 type="button"
                 variant="outline"
                 size="icon"
-                onClick={() => setSelectedTopic(null)}
+                onClick={handleBackToIndex}
                 aria-label="Back to topics"
               >
                 <ArrowLeft className="h-4 w-4" aria-hidden="true" />
@@ -436,17 +461,12 @@ export function TopicsView() {
                 Topics
               </span>
             </div>
-            )}
             <TopicDetailView
               topic={selectedTopic}
               onUpdate={handleUpdateTopic}
               onDelete={handleDeleteWithUndo}
             />
           </>
-        ) : isFirstRunLanding ? (
-          <div className="flex h-full items-center justify-center p-6 text-small text-text-secondary">
-            Loading your topic…
-          </div>
         ) : (
           <div
             role="status"

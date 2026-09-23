@@ -166,6 +166,11 @@ export const useShellStore = create<ShellSlice>()(
       partialize: (state) => ({
         theme: state.theme,
       }),
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          state.setTheme(state.theme);
+        }
+      },
     },
   ),
 );

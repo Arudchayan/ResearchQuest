@@ -15,6 +15,11 @@ export const DEMO_FIRST_RUN_TOPIC_ID = "topic-ai-agents";
 export const DEMO_FIRST_RUN_NOTE_ID = "note-first-run";
 export const DEMO_FIRST_RUN_PATH = `/topics/${DEMO_FIRST_RUN_TOPIC_ID}`;
 
+export function isDemoFirstRunPath(pathname: string | null | undefined): boolean {
+  if (!pathname) return false;
+  return pathname === DEMO_FIRST_RUN_PATH;
+}
+
 export type Row = Record<string, unknown>;
 type TableMap = Record<string, Row[]>;
 
@@ -475,104 +480,9 @@ export function buildDemoTables(): TableMap {
     },
   ];
 
-  const feedItems: Row[] = [
-    {
-      id: "feed-0001",
-      user_id: DEMO_USER_ID,
-      source_id: null,
-      type: "paper",
-      title: "Agentic workflows for literature review",
-      summary:
-        "New preprint proposes a multi-step agent pipeline for citation graph exploration.",
-      url: "https://arxiv.org/abs/2608.00001",
-      payload: { venue: "arXiv", authors: ["M. Lee", "S. Chen"] },
-      status: "new",
-      external_id: "arxiv2608.00001",
-      published_at: iso(0, 6, 0),
-      created_at: iso(0, 6, 0),
-      updated_at: iso(0, 6, 0),
-    },
-    {
-      id: "feed-0002",
-      user_id: DEMO_USER_ID,
-      source_id: null,
-      type: "paper",
-      title: "Measuring trust in AI-assisted academic writing",
-      summary:
-        "An empirical study of trust calibration when scholars use LLM drafting tools.",
-      url: "https://doi.org/10.1000/fake-trust",
-      payload: { venue: "CHI 2026", authors: ["A. Patel"] },
-      status: "triaged",
-      external_id: "chi2026-trust",
-      published_at: iso(1, 8, 0),
-      created_at: iso(1, 8, 0),
-      updated_at: iso(0, 9, 0),
-    },
-    {
-      id: "feed-0003",
-      user_id: DEMO_USER_ID,
-      source_id: null,
-      type: "job",
-      title: "Research Engineer, Knowledge Tools",
-      summary:
-        "Remote role building research workflows for scientists; deadline in two weeks.",
-      url: "https://example.com/jobs/knowledge-tools",
-      payload: { company: "Cortex Labs", location: "Remote" },
-      status: "new",
-      external_id: "job-cortex-2026",
-      published_at: iso(1, 14, 0),
-      created_at: iso(1, 14, 0),
-      updated_at: iso(1, 14, 0),
-    },
-    {
-      id: "feed-0004",
-      user_id: DEMO_USER_ID,
-      source_id: null,
-      type: "news",
-      title: "New reproducibility guidelines from major funder",
-      summary:
-        "A summary of updated open-science requirements for grant submissions.",
-      url: "https://example.com/news/repro-guidelines",
-      payload: { source: "Research Policy Brief" },
-      status: "new",
-      external_id: "news-repro-2026",
-      published_at: iso(2, 10, 0),
-      created_at: iso(2, 10, 0),
-      updated_at: iso(2, 10, 0),
-    },
-    {
-      id: "feed-0005",
-      user_id: DEMO_USER_ID,
-      source_id: null,
-      type: "paper",
-      title: "Memory-augmented retrieval for long documents",
-      summary:
-        "Combines external memory with retrieval to improve long-form synthesis.",
-      url: "https://arxiv.org/abs/2608.00002",
-      payload: { venue: "arXiv", authors: ["J. Wu", "T. Kim"] },
-      status: "archived",
-      external_id: "arxiv2608.00002",
-      published_at: iso(4, 9, 0),
-      created_at: iso(4, 9, 0),
-      updated_at: iso(3, 9, 0),
-    },
-    {
-      id: "feed-0006",
-      user_id: DEMO_USER_ID,
-      source_id: null,
-      type: "custom",
-      title: "Method note: qualitative coding with LLMs",
-      summary:
-        "Community draft describing a rubric for evaluating LLM-assisted coding.",
-      url: "https://example.com/methods/llm-coding",
-      payload: { source: "Community wiki" },
-      status: "promoted",
-      external_id: "wiki-llm-coding",
-      published_at: iso(5, 11, 0),
-      created_at: iso(5, 11, 0),
-      updated_at: iso(2, 12, 0),
-    },
-  ];
+  // Feeds ingest is unshipped. Do not seed orphan items with 0 sources.
+  const feedItems: Row[] = [];
+  const feedSources: Row[] = [];
 
   const focusSessions: Row[] = [
     {
@@ -731,6 +641,7 @@ export function buildDemoTables(): TableMap {
     ideas,
     tasks,
     feed_items: feedItems,
+    feed_sources: feedSources,
     focus_sessions: focusSessions,
     daily_logs: dailyLogs,
     research_achievements: achievements,

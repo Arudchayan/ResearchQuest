@@ -51,3 +51,26 @@ status code matching the failure (`401` auth, `403` scope, `400` validation,
 `404` not found, `409` conflict, `500` internal). Frontend
 `extractApiErrorMessage` reads `error.message` with a fallback — tests assert
 this shape, not exact copy.
+
+## `create-admin-user` (retired 410)
+
+Production already serves this function as **410 Gone** with `verify_jwt =
+true`. Keep it that way:
+
+```bash
+# From repo root. Deploys the stub in supabase/functions/create-admin-user.
+# Do not restore Admin API user-creation in this function.
+supabase functions deploy create-admin-user --project-ref zsjczlmzhyzewpehmngc
+```
+
+`supabase/config.toml` has `[functions.create-admin-user] enabled = true` and
+`verify_jwt = true` so a catch-all `supabase functions deploy` cannot revive
+the old privileged endpoint. Create users from the Supabase Dashboard or CLI.
+
+## Live demo hosts
+
+Canonical public demo: `https://research-quest-wine.vercel.app`.
+`https://rq.arudchayan.com` is an alias on the same Vercel project
+(`research-quest`). Do not delete the historical Vercel twin without checking
+aliases and DNS. `ALLOWED_ORIGINS` must include both hosts.
+

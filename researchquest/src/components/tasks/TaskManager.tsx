@@ -32,7 +32,6 @@ import { InlineError } from "../ui/ErrorFallback";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { PageHeader } from "../ui/PageHeader";
-import { OnboardingGuide } from "../layout/OnboardingGuide";
 import type { TaskFilter, TaskPriority, TaskCategory, SortOption } from "./taskTypes";
 import { PRIORITIES, CATEGORIES, PRIORITY_ORDER } from "./taskTypes";
 import { TaskCard, isOverdue } from "./TaskCard";
@@ -177,24 +176,29 @@ export function TaskManager() {
   const progressPercentage =
     totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const handleAddTask = async () => {
-    if (!formTitle.trim()) return;
+    if (!formTitle.trim() || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await createTask({
+        title: formTitle,
+        ...(formDescription ? { description: formDescription } : {}),
+        priority: formPriority,
+        category: formCategory,
+        ...(formDueDate ? { due_date: formDueDate } : {}),
+      });
 
-    await createTask({
-      title: formTitle,
-      ...(formDescription ? { description: formDescription } : {}),
-      priority: formPriority,
-      category: formCategory,
-      ...(formDueDate ? { due_date: formDueDate } : {}),
-    });
-
-    // Reset form
-    setFormTitle("");
-    setFormDescription("");
-    setFormPriority("medium");
-    setFormCategory("Research");
-    setFormDueDate("");
-    setShowAddModal(false);
+      setFormTitle("");
+      setFormDescription("");
+      setFormPriority("medium");
+      setFormCategory("Research");
+      setFormDueDate("");
+      setShowAddModal(false);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleUpdateTask = async () => {
@@ -501,12 +505,6 @@ export function TaskManager() {
         </div>
       </div>
 
-      {/* Task List */}
-      {/* Pinned above the list scroll region (not inside it) so the guide
-          never scrolls away and renders exactly once per view. */}
-      <div className="shrink-0 px-4 pt-4 sm:px-6 sm:pt-6">
-        <OnboardingGuide />
-      </div>
       {tasksSyncError && (
         <InlineError
           message={tasksSyncError.message}
@@ -584,7 +582,8 @@ export function TaskManager() {
           />
         }
         submitText={editingTask ? "Update" : "Create"}
-        isSubmitDisabled={!formTitle.trim()}
+        isLoading={isSubmitting}
+        isSubmitDisabled={!formTitle.trim() || isSubmitting}
       >
         <div className="space-y-4">
           {/* Title */}

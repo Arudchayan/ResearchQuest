@@ -68,10 +68,10 @@ export function OnboardingGuide({
 
   return (
     <section
-      aria-label="Onboarding guide"
-      className="mb-4 rounded-surface border border-border-moderate bg-bg-surface shadow-sm"
-    >
-      <div className="flex items-start gap-4 p-5 sm:p-6">
+              aria-label="Onboarding guide"
+              className="mb-4 rounded-surface border border-border-moderate bg-bg-surface shadow-sm"
+            >
+              <div className="flex items-start gap-3 p-3 sm:p-4">
         <div className="flex-shrink-0 rounded-xl bg-primary-500/10 p-3 text-primary-600">
           <Icon className="w-6 h-6" aria-hidden="true" />
         </div>

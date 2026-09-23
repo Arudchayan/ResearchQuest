@@ -8,19 +8,22 @@ project_id = "researchquest"
 
 [functions.api]
 enabled = true
-# The api gateway performs its own auth and serves unauthenticated discovery
-# endpoints (/health, /openapi.json, /explore — see functions/api/index.ts),
-# so platform JWT verification must stay off here.
+# Gateway auth + unauthenticated discovery (/health, /openapi.json, /explore).
+# Production keeps platform JWT verification off; the function checks JWTs itself.
 verify_jwt = false
 
 [functions.fetch-paper]
 enabled = true
-# Verifies the caller JWT itself (supabase.auth.getUser) and additionally
-# honours ALLOWED_ORIGINS for CORS — keep platform verification on.
-verify_jwt = true
+# App-level JWT via supabase.auth.getUser. Platform verify_jwt stays off to
+# match production (CORS preflight + getUser). Honour ALLOWED_ORIGINS.
+verify_jwt = false
 
 [functions.deep-research]
 enabled = true
-# Same as fetch-paper: self-verifies the caller JWT — keep platform
-# verification on.
+# Same as fetch-paper: self-verifies the caller JWT. Match production.
+verify_jwt = false
+
+[functions.create-admin-user]
+enabled = true
+# Retired 410 stub. Platform JWT on so the old Admin API path cannot return.
 verify_jwt = true

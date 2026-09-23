@@ -103,4 +103,24 @@ describe("NoteCard Accessibility", () => {
 
     expect(onSelect).not.toHaveBeenCalled();
   });
+
+  it("shows the first markdown line when the stored title is Untitled Note", () => {
+    render(
+      <TooltipProvider delayDuration={0}>
+        <NoteCard
+          note={{
+            ...mockNote,
+            title: "Untitled Note",
+            markdown_body: "Demo research synthesis\n\nBody copy",
+          }}
+          onDuplicate={vi.fn()}
+          isSelected={false}
+          onSelect={onSelect}
+          onDelete={onDelete}
+        />
+      </TooltipProvider>,
+    );
+    expect(screen.getByText("Demo research synthesis")).toBeInTheDocument();
+    expect(screen.queryByText("Untitled Note")).not.toBeInTheDocument();
+  });
 });

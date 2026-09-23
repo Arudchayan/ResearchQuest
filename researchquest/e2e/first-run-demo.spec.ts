@@ -78,27 +78,30 @@ test.describe("first-run demo click", () => {
     await expect(page.getByText(/Attention Is All You Need/i)).toBeVisible();
     await expect(page.getByText(/ReAct:/i)).toBeVisible();
 
-    const note = page.getByRole("textbox", { name: /Session note/i });
-    await expect(note).toBeVisible();
-    await expect(note).toHaveValue("");
+    await expect(
+      page.getByRole("region", { name: /Demo workspace/i }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /Go to full workspace/i }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /Exit demo/i }),
+    ).toBeVisible();
+    await expect(page.getByText(/Welcome to ResearchQuest/i)).toBeVisible();
 
     await expect(
-      page.getByRole("button", { name: /Focus Studio/i }),
+      page.getByRole("button", { name: /Export topic/i }),
     ).toBeVisible();
-
-    // Dashboard chrome stripped on demo first-run topic.
-    await expect(page.getByRole("button", { name: /Export/i })).toHaveCount(0);
-    await expect(page.getByText(/Topic Quests/i)).toHaveCount(0);
-    await expect(page.getByText(/Connected work/i)).toHaveCount(0);
-    await expect(page.getByText(/Total links/i)).toHaveCount(0);
-    await expect(page.getByRole("button", { name: /^Edit$/i })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: /^Delete$/i })).toHaveCount(
-      0,
-    );
-    await expect(page.getByText(/^LEVEL$/i)).toHaveCount(0);
-    await expect(page.getByRole("link", { name: /Dashboard/i })).toHaveCount(0);
+    await expect(page.getByText(/Topic Quests/i)).toBeVisible();
+    await expect(page.getByText(/Connected work/i)).toBeVisible();
+    await expect(page.getByText(/Total links/i)).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Edit$/i })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /^Delete$/i }),
+    ).toBeVisible();
+    await expect(page.getByRole("link", { name: /^Today$/i })).toBeVisible();
     await expect(page.getByRole("link", { name: /^Feeds$/i })).toHaveCount(0);
-    await expect(page.locator('[data-first-run="true"]')).toHaveCount(1);
+    await expect(page.locator('[data-first-run="true"]')).toHaveCount(0);
 
     await page.screenshot({
       path: path.join(ARTIFACTS_DIR, "first_run_seeded_topic.png"),

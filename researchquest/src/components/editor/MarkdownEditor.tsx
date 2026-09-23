@@ -54,7 +54,7 @@ export function MarkdownEditor({ onBackToList }: MarkdownEditorProps) {
     if (!selectedNote || !userId) return;
     const timer = setTimeout(() => { void saveNote(); }, 1000);
     return () => clearTimeout(timer);
-  }, [content, title, selectedNote, userId, saveNote]);
+  }, [content, title, selectedNote?.id, userId, saveNote]);
 
   const handleGlobalKeyDown = useCallback((event: KeyboardEvent) => {
     if (!(event.metaKey || event.ctrlKey) || !event.shiftKey || linkDialogOpen) return;

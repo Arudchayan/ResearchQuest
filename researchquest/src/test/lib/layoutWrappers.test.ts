@@ -55,7 +55,7 @@ describe("PR12 layout wrappers + containment (static guards)", () => {
     expect(app).not.toContain("p-6 h-full overflow-auto");
     expect(app).not.toContain("h-full overflow-auto");
     expect(app).not.toContain("h-full overflow-hidden");
-    // Guides are owned by the views now, above each scroll container.
+    // Guides are owned by first-run topic chrome, not App.tsx.
     expect(app).not.toContain("OnboardingGuide");
   });
 
@@ -105,30 +105,30 @@ describe("PR12 layout wrappers + containment (static guards)", () => {
     );
   });
 
-  it("OnboardingGuide renders exactly once per owning view, above the scroll region", () => {
+  it("OnboardingGuide mounts once on the first-run topic, not per library view", () => {
     for (const file of [
       "src/components/tasks/TaskManager.tsx",
       "src/components/papers/PapersView.tsx",
       "src/components/ideas/IdeasBoard.tsx",
       "src/components/focus/FocusWorkspace.tsx",
+      "src/components/layout/v2/AppShell.tsx",
     ]) {
-      const text = src(file);
-      const guideCount = text.match(/<OnboardingGuide/g)?.length ?? 0;
-      expect(guideCount).toBe(1);
+      expect(src(file)).not.toContain("<OnboardingGuide");
     }
-    // Guide precedes each view's scroll container in source order.
-    const papers = src("src/components/papers/PapersView.tsx");
-    expect(papers.indexOf("<OnboardingGuide")).toBeLessThan(
-      papers.indexOf("ref={parentRef}"),
+    const topic = src("src/components/topics/TopicDetailView.tsx");
+    expect(topic.match(/<OnboardingGuide/g)?.length ?? 0).toBe(1);
+    expect(src("src/components/layout/v2/AppShell.tsx")).not.toContain(
+      "data-first-run",
     );
-    const tasks = src("src/components/tasks/TaskManager.tsx");
-    expect(tasks.indexOf("<OnboardingGuide")).toBeLessThan(
-      tasks.indexOf("overflow-y-auto p-4"),
-    );
-    const ideas = src("src/components/ideas/IdeasBoard.tsx");
-    expect(ideas.indexOf("<OnboardingGuide")).toBeLessThan(
-      ideas.indexOf("overflow-x-auto"),
-    );
+  });
+
+  it("Feeds hides inbox chrome until a source exists (orphan items stay)", () => {
+    const feeds = src("src/components/feeds/FeedsView.tsx");
+    expect(feeds).toContain("const ingestReady = (sourceCount ?? 0) > 0");
+    expect(feeds).toContain("const visibleItems = ingestReady ? items : []");
+    expect(feeds).toContain("ingestReady ? (");
+    expect(feeds).toContain("are not deleted");
+    expect(feeds).toContain("AlphaEmptyState");
   });
 
   it("dashboard counts grid steps through an intermediate breakpoint (no orphan)", () => {

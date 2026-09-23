@@ -427,8 +427,12 @@ function AppDataOwners({
   useEffect(() => {
     if (!userId) return;
 
-    const route = parseRoute(window.location.pathname);
-    if (!route.isValid || !route.itemId) return;
+        const route = parseRoute(window.location.pathname);
+        if (route.isValid && route.view === "topics" && !route.itemId) {
+          useAppStore.getState().setSelectedTopic(null);
+          return;
+        }
+        if (!route.isValid || !route.itemId) return;
 
     const state = useAppStore.getState();
     selectEntityForRoute(

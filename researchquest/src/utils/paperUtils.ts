@@ -2,6 +2,20 @@ import type { CrossrefPaper, PaperDraft } from "../types/database";
 import { isValidUrl } from "../utils/security";
 import type { BibTeXEntry } from "../utils/bibtexParser";
 
+/** Lowercase, strip resolver prefixes and a leading `doi:` so spelling variants match. */
+export function normalizeDoi(doi: string): string {
+  let value = doi.trim().toLowerCase();
+  value = value.replace(/^https?:\/\/(dx\.)?doi\.org\//, "");
+  value = value.replace(/^doi:\s*/, "");
+  return value;
+}
+
+export function doisMatch(left: string, right: string): boolean {
+  const a = normalizeDoi(left);
+  const b = normalizeDoi(right);
+  return a.length > 0 && a === b;
+}
+
 export const buildPaperPayload = (paper: CrossrefPaper) => {
   const paperData: PaperDraft = {
     title: paper.title,
