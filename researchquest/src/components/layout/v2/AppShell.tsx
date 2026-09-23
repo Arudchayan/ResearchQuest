@@ -9,6 +9,7 @@ import { cn } from "../../../lib/utils";
 import { useShallow } from "zustand/react/shallow";
 import { Tooltip, TooltipTrigger, TooltipContent } from "../../ui/tooltip";
 import { OnboardingGuide } from "../OnboardingGuide";
+import { isDemoFirstRunPath } from "../../../lib/demoData";
 
 interface AppShellProps {
   children: ReactNode;
@@ -36,6 +37,9 @@ export function AppShell({ children }: AppShellProps) {
       effectiveTheme: state.effectiveTheme,
     })),
   );
+  const isDemoFirstRunSurface =
+    typeof window !== "undefined" &&
+    isDemoFirstRunPath(window.location.pathname);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -209,7 +213,7 @@ export function AppShell({ children }: AppShellProps) {
           {children}
         </main>
 
-        {!isZenMode && (
+        {!isZenMode && !isDemoFirstRunSurface && (
           <div className="pointer-events-none fixed bottom-20 right-4 z-30 w-[min(calc(100%-2rem),24rem)] lg:bottom-6">
             <div className="pointer-events-auto">
               <OnboardingGuide variant="contextual" />

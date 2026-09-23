@@ -119,6 +119,7 @@ describe("PR12 layout wrappers + containment (static guards)", () => {
     const shell = src("src/components/layout/v2/AppShell.tsx");
     expect(shell.match(/<OnboardingGuide/g)?.length ?? 0).toBe(1);
     expect(shell).toContain('variant="contextual"');
+    expect(shell).toContain("isDemoFirstRunPath");
     expect(shell).not.toContain("data-first-run");
   });
 

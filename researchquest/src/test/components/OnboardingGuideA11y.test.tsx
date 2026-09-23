@@ -148,5 +148,23 @@ describe("OnboardingGuide contextual tips", () => {
       screen.queryByRole("region", { name: "Workspace tip" }),
     ).not.toBeInTheDocument();
   });
+
+  it("shows contextual tips after leaving the demo first-run door", () => {
+    window.history.replaceState(null, "", DEMO_FIRST_RUN_PATH);
+    const { unmount } = render(
+      <OnboardingGuide variant="contextual" view="dashboard" />,
+    );
+    expect(
+      screen.queryByRole("region", { name: "Workspace tip" }),
+    ).not.toBeInTheDocument();
+    unmount();
+
+    window.history.replaceState(null, "", "/papers");
+    render(<OnboardingGuide variant="contextual" view="papers" />);
+    expect(
+      screen.getByRole("region", { name: "Workspace tip" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Add a paper")).toBeInTheDocument();
+  });
 });
 
