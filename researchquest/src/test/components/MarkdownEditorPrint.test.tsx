@@ -96,6 +96,10 @@ vi.mock("../../utils/text", () => ({
     !title?.trim() || title.trim() === "Untitled Note",
   displayNoteTitle: (note: { title?: string | null }) =>
     note.title?.trim() || "Untitled Note",
+  persistedNoteTitle: (title?: string | null, body?: string) =>
+    title?.trim() && title.trim() !== "Untitled Note"
+      ? title.trim()
+      : (body ?? "").split("\n")[0] || "",
   PLACEHOLDER_NOTE_TITLE: "Untitled Note",
 }));
 

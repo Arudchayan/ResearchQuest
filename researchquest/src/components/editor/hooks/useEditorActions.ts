@@ -1,14 +1,11 @@
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import type { RefObject } from "react";
 import { toast } from "sonner";
 import DOMPurify from "dompurify";
 import { NOTE_BODY_MAX_LENGTH } from "../../../hooks/useNotes";
 import { useAppStore } from "../../../store/appStore";
 import { downloadFile } from "../../../utils/export";
-import {
-  deriveTitleFromMarkdown,
-  isPlaceholderNoteTitle,
-} from "../../../utils/text";
+import { persistedNoteTitle } from "../../../utils/text";
 import type { Note } from "../../../types/database";
 import type { SaveState } from "./useMarkdownEditor";
 
@@ -23,6 +20,9 @@ interface EditorActionOptions {
 }
 
 export function useEditorActions({ content, title, previewRef, selectedNote, userId, updateNote, setSaveState }: EditorActionOptions) {
+  const selectedNoteId = selectedNote?.id;
+  const draftRef = useRef({ content, title });
+  draftRef.current = { content, title };
   const handleCopyMarkdown = useCallback(() => {
     if (!content) return;
     navigator.clipboard.writeText(content).then(() => {
@@ -117,27 +117,29 @@ export function useEditorActions({ content, title, previewRef, selectedNote, use
   }, [title, previewRef]);
 
   const saveNote = useCallback(async () => {
-    if (!selectedNote || !userId) return;
+    if (!selectedNoteId || !userId) return;
 
-    if (content.length > NOTE_BODY_MAX_LENGTH) {
+    const { content: draftContent, title: draftTitle } = draftRef.current;
+
+    if (draftContent.length > NOTE_BODY_MAX_LENGTH) {
       toast.error(`Note content exceeds ${NOTE_BODY_MAX_LENGTH.toLocaleString()} characters`);
       setSaveState("error");
       return;
     }
 
-    const noteId = selectedNote.id;
+    const noteId = selectedNoteId;
     setSaveState("saving");
     try {
-      const tagMatches = content.match(/#(\w+)/g);
+      const tagMatches = draftContent.match(/#(\w+)/g);
       const tags = tagMatches
         ? [...new Set(tagMatches.map((tag) => tag.slice(1)))]
         : [];
 
-      const updates: Partial<Note> = { markdown_body: content, tags };
-      const trimmedTitle = title.trim();
-      updates.title = isPlaceholderNoteTitle(trimmedTitle)
-        ? deriveTitleFromMarkdown(content)
-        : trimmedTitle;
+      const updates: Partial<Note> = {
+        markdown_body: draftContent,
+        tags,
+        title: persistedNoteTitle(draftTitle, draftContent),
+      };
 
       const didSave = await updateNote(noteId, updates);
       if (useAppStore.getState().selectedNote?.id === noteId) {
@@ -148,7 +150,7 @@ export function useEditorActions({ content, title, previewRef, selectedNote, use
         setSaveState("error");
       }
     }
-  }, [selectedNote, userId, content, title, updateNote, setSaveState]);
+  }, [selectedNoteId, userId, updateNote, setSaveState]);
 
   return {
     handleCopyMarkdown,

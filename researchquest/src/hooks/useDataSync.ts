@@ -26,10 +26,10 @@ import {
 import { useAppStore, type DataSyncResource } from "../store/appStore";
 import { useShallow } from "zustand/react/shallow";
 import { sortByUpdatedAt } from "../utils/sort";
+import { dedupeById, preferNewerByUpdatedAt } from "../utils/collections";
 import { todayKey } from "../utils/time";
 import { extractFunctionErrorMessage } from "../utils/errors";
 import type { Note, Paper, Idea } from "../types/database";
-import { dedupeById } from "../utils/collections";
 
 export function useDataSync(userId: string | undefined) {
 
@@ -180,7 +180,10 @@ export function useDataSync(userId: string | undefined) {
         fallbackError: "Failed to load notes.",
         setItems: setNotes,
         setLoading: setNotesLoading,
-        transform: sortByUpdatedAt,
+        transform: (rows) =>
+          sortByUpdatedAt(
+            preferNewerByUpdatedAt(rows, useAppStore.getState().notes),
+          ),
       });
 
     const fetchPapers = () =>

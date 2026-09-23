@@ -131,7 +131,11 @@ export function NotesView() {
       />
 
       <section className={`min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden bg-bg-base lg:flex ${isMobileEditorOpen ? "flex" : "hidden"}`} aria-label="Note editor">
-        {selectedNote ? <MarkdownEditor onBackToList={handleBackToList} /> : <EditorPlaceholder />}
+        {selectedNote ? (
+          <MarkdownEditor key={selectedNote.id} onBackToList={handleBackToList} />
+        ) : (
+          <EditorPlaceholder />
+        )}
       </section>
 
       <ConfirmDialog

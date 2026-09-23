@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { demoSupabase } from "../../lib/demoSupabase";
-import { DEMO_USER_ID } from "../../lib/demoData";
+import {
+  demoSupabase,
+  reloadDemoTablesFromStorage,
+  resetDemoTablesToSeed,
+  clearPersistedDemoTables,
+} from "../../lib/demoSupabase";
+import { DEMO_FIRST_RUN_NOTE_ID, DEMO_USER_ID } from "../../lib/demoData";
 
 describe("demoSupabase", () => {
   it("starts with an active demo session (first-run must not require a second sign-in)", async () => {
@@ -237,5 +242,35 @@ describe("demoSupabase", () => {
 
     expect(received).toBe("INSERT");
     channel.unsubscribe();
+  });
+
+  it("keeps note-first-run title across a demo seed reload", async () => {
+    await demoSupabase
+      .from("notes")
+      .update({
+        title: "Demo research synthesis",
+        markdown_body: "# Demo research synthesis\n\nBody",
+      })
+      .eq("id", DEMO_FIRST_RUN_NOTE_ID);
+
+    resetDemoTablesToSeed();
+    const seeded = await demoSupabase
+      .from("notes")
+      .select("title")
+      .eq("id", DEMO_FIRST_RUN_NOTE_ID)
+      .maybeSingle();
+    expect(seeded.data?.title).toBe("");
+
+    reloadDemoTablesFromStorage();
+    const restored = await demoSupabase
+      .from("notes")
+      .select("title, markdown_body")
+      .eq("id", DEMO_FIRST_RUN_NOTE_ID)
+      .maybeSingle();
+    expect(restored.data?.title).toBe("Demo research synthesis");
+    expect(String(restored.data?.markdown_body)).toContain("Demo research synthesis");
+
+    resetDemoTablesToSeed();
+    clearPersistedDemoTables();
   });
 });

@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { countWords, estimateReadingTime, displayNoteTitle } from "../../utils/text";
+import {
+  countWords,
+  estimateReadingTime,
+  displayNoteTitle,
+  persistedNoteTitle,
+  PLACEHOLDER_NOTE_TITLE,
+} from "../../utils/text";
 
 describe("text utils", () => {
   describe("countWords", () => {
@@ -75,6 +81,26 @@ describe("text utils", () => {
           markdown_body: "# Capture quickly\n\nBody",
         }),
       ).toBe("Capture quickly");
+    });
+  });
+
+  describe("persistedNoteTitle", () => {
+    it("stores an explicit title", () => {
+      expect(persistedNoteTitle("Demo research synthesis", "body")).toBe(
+        "Demo research synthesis",
+      );
+    });
+
+    it("stores a derived title from markdown when the field is empty", () => {
+      expect(
+        persistedNoteTitle("", "# Demo research synthesis\n\nBody"),
+      ).toBe("Demo research synthesis");
+    });
+
+    it("never writes the placeholder string as a real title", () => {
+      expect(persistedNoteTitle("", "")).toBe("");
+      expect(persistedNoteTitle(PLACEHOLDER_NOTE_TITLE, "")).toBe("");
+      expect(persistedNoteTitle("  Untitled Note  ", "   ")).toBe("");
     });
   });
 });

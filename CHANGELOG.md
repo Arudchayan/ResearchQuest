@@ -16,7 +16,9 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Creating a task no longer duplicates the row (submit guard + id-deduped
   optimistic/realtime apply).
 - Note sidebar titles follow the saved/derived title instead of staying
-  "Untitled Note" after edit.
+  "Untitled Note" after edit. Edited titles persist across reselect, route
+  revisit, and demo seed reload; "Untitled Note" is display-only and is
+  never written as the stored title.
 - Dark mode tokens apply to AppShell and sidebar together (`html` class +
   shell `effectiveTheme`).
 - Feeds chrome is hidden; `/feeds` is an alpha empty state when there are
