@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { BookOpen, CheckCircle2, Info, LoaderCircle } from "lucide-react";
+import { toast } from "sonner";
 import { useAppStore } from "../../store/appStore";
 import { navigateToView } from "../../lib/softNavigation";
 import type { CrossrefPaper, Paper, PaperDraft } from "../../types/database";
@@ -20,6 +21,19 @@ interface AddPaperViewProps {
   searchByQuery: (query: string, options?: PaperSearchOptions) => Promise<CrossrefPaper[]>;
 }
 
+const TABS = ["doi", "search", "import", "manual"] as const;
+type AddPaperTab = (typeof TABS)[number];
+
+function getInitialTab(): AddPaperTab {
+  const tab = new URLSearchParams(window.location.search).get("tab");
+  return (TABS as readonly string[]).includes(tab ?? "")
+    ? (tab as AddPaperTab)
+    : "doi";
+}
+
+// DOI syntax check (item 73): 10.<registrant>/<suffix>, e.g. 10.1038/nature12373.
+const DOI_PATTERN = /^10\.\d{4,}\/\S+$/i;
+
 const TAB_LABELS: Record<"doi" | "search" | "import" | "manual", string> = {
   doi: "DOI Search",
   search: "Keyword Search",
@@ -35,7 +49,7 @@ const TAB_DESCRIPTIONS: Record<keyof typeof TAB_LABELS, string> = {
 };
 
 export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: AddPaperViewProps) {
-  const [activeTab, setActiveTab] = useState<"doi" | "search" | "manual" | "import">("doi");
+  const [activeTab, setActiveTab] = useState<AddPaperTab>(getInitialTab);
   const [successMessage, setSuccessMessage] = useState("");
   const [isAdding, setIsAdding] = useState(false);
   const setSelectedPaper = useAppStore((state) => state.setSelectedPaper);
@@ -62,6 +76,7 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
     selectedEntryIds,
     setSelectedEntryIds,
     importProgress,
+    importStats,
     handleFileChange,
     handleImport,
   } = useBibTeXImport(onAdd, onAddBatch);
@@ -100,6 +115,16 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
     setTimeout(() => setSuccessMessage(""), 4000);
   }, [setSelectedPaper]);
 
+  const switchTab = useCallback((tab: AddPaperTab) => {
+    setSearchError("");
+    setImportError("");
+    setActiveTab(tab);
+    // Deep-linkable tabs (item 68): keep ?tab= in sync without navigating.
+    const params = new URLSearchParams(window.location.search);
+    params.set("tab", tab);
+    window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
+  }, [setSearchError, setImportError]);
+
   const handleDOISearchAction = async (doi: string) => {
     setHasSearchedDOI(true);
     await performDOISearch(doi);
@@ -114,9 +139,12 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
         showSuccess("Paper added successfully", created);
         setDoiInput("");
         setDoiResult(null);
+      } else {
+        toast.error("Failed to add paper. Please try again.");
       }
     } catch (err) {
       setSearchError("Failed to add paper.");
+      toast.error("Failed to add paper. Please try again.");
     } finally {
       setIsAdding(false);
     }
@@ -141,9 +169,12 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
         setSearchQuery("");
         setSearchResults([]);
         setSelectedResult(null);
+      } else {
+        toast.error("Failed to add paper. Please try again.");
       }
     } catch (err) {
       setSearchError("Failed to add paper.");
+      toast.error("Failed to add paper. Please try again.");
     } finally {
       setIsAdding(false);
     }
@@ -154,11 +185,18 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
       setManualError("Title is required");
       return;
     }
+    const trimmedDoi = manualDoi.trim();
+    if (trimmedDoi && !DOI_PATTERN.test(trimmedDoi)) {
+      setManualError("Invalid DOI format. A DOI looks like 10.1234/example.");
+      toast.error("Invalid DOI format. A DOI looks like 10.1234/example.");
+      return;
+    }
     const trimmedUrl = manualUrl.trim();
     if (trimmedUrl && !isValidUrl(trimmedUrl)) {
       setManualError(
         "Invalid URL protocol. Only http:, https:, and mailto: URLs are allowed.",
       );
+      toast.error("Invalid URL. Only http:, https:, and mailto: URLs are allowed.");
       return;
     }
     setManualError("");
@@ -167,24 +205,47 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
       const paperData: PaperDraft = {
         title: manualTitle.trim(),
         authors: manualAuthors.split(",").map(a => a.trim()).filter(Boolean),
-        ...(manualDoi.trim() ? { doi: manualDoi.trim() } : {}),
+        ...(trimmedDoi ? { doi: trimmedDoi } : {}),
         ...(trimmedUrl ? { source_url: trimmedUrl } : {}),
       };
       const created = await onAdd(paperData);
       if (created) {
         showSuccess("Paper added successfully", created);
         setManualTitle(""); setManualAuthors(""); setManualDoi(""); setManualUrl("");
+      } else {
+        setManualError("Failed to add paper.");
+        toast.error("Failed to add paper. Please try again.");
       }
     } catch (err) {
       setManualError("Failed to add paper.");
+      toast.error("Failed to add paper. Please try again.");
     } finally {
       setManualLoading(false);
     }
   };
 
   const handleImportAction = async () => {
-    const count = await handleImport();
-    if (count > 0) showSuccess(`Successfully imported ${count} papers`);
+    if (selectedEntryIds.size === 0) {
+      toast.error("Select at least one BibTeX entry before importing.");
+      return;
+    }
+    const total = selectedEntryIds.size;
+    try {
+      const count = await handleImport();
+      const failed = total - count;
+      if (count > 0 && failed === 0) {
+        showSuccess(`Successfully imported ${count} papers`);
+      } else if (count > 0) {
+        showSuccess(`Imported ${count} of ${total} papers`);
+        toast.error(
+          `${failed} ${failed === 1 ? "entry" : "entries"} failed to import. Failed entries stay selected for retry.`,
+        );
+      } else {
+        toast.error("Import failed. No papers were added — try again.");
+      }
+    } catch (err) {
+      toast.error("Import failed. Please try again.");
+    }
   };
 
   const isSearchTab = activeTab === "doi" || activeTab === "search";
@@ -192,30 +253,6 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
     (isSearchTab && searchLoading) ||
     (activeTab === "manual" && manualLoading) ||
     (activeTab === "import" && importLoading);
-  const emptyState =
-    activeTab === "doi" &&
-    hasSearchedDOI &&
-    !searchLoading &&
-    !doiResult &&
-    !searchError
-      ? "No paper matched that DOI. Try a keyword search or create the record manually."
-      : activeTab === "search" &&
-          hasSearchedQuery &&
-          !searchLoading &&
-          searchResults.length === 0 &&
-          !searchError
-        ? "No Crossref results matched those keywords. Try broader terms or add the paper manually."
-        : activeTab === "import" &&
-            !importLoading &&
-            !importError &&
-            parsedEntries.length === 0
-          ? "Upload a .bib file to preview its entries before importing."
-          : activeTab === "manual" &&
-              !manualLoading &&
-              !manualError &&
-              !manualTitle.trim()
-            ? "Add a title first; authors, DOI, and source URL are optional but help keep the record traceable."
-            : null;
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -267,9 +304,7 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
 
           event.preventDefault();
           const nextTab = tabs[nextIndex]!;
-          setSearchError("");
-          setImportError("");
-          setActiveTab(nextTab);
+          switchTab(nextTab);
           document.getElementById(`tab-${nextTab}`)?.focus();
         }}
       >
@@ -283,9 +318,7 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
             aria-controls={`tabpanel-${tab}`}
             id={`tab-${tab}`}
             onClick={() => {
-              setSearchError("");
-              setImportError("");
-              setActiveTab(tab);
+              switchTab(tab);
             }}
             className={`relative px-6 py-3 text-small font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2 ${activeTab === tab ? "text-primary-500" : "text-text-secondary hover:text-text-primary"}`}
           >
@@ -298,11 +331,6 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
       </div>
 
       <div className="bg-bg-surface rounded-lg border border-border-subtle shadow-sm p-6">
-        {searchError && (activeTab === "doi" || activeTab === "search") && (
-          <div role="alert" className="mb-4 rounded-control border border-destructive bg-destructive-bg p-3 text-small text-destructive">
-            {searchError}
-          </div>
-        )}
         <div className="mb-6 flex items-start gap-3 rounded-control border border-border-subtle bg-bg-elevated p-3 text-small text-text-secondary">
           <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary-500" aria-hidden="true" />
           <p>{TAB_DESCRIPTIONS[activeTab]}</p>
@@ -316,11 +344,6 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
             {activeTab === "manual" && "Adding your paper to the library…"}
           </div>
         )}
-        {emptyState && (
-          <p className="mb-4 rounded-control bg-primary-50 p-3 text-small text-text-secondary dark:bg-primary-900/20" aria-live="polite">
-            {emptyState}
-          </p>
-        )}
         {activeTab === "doi" && (
           <div role="tabpanel" id="tabpanel-doi" aria-labelledby="tab-doi">
             <DOISearchTab
@@ -332,6 +355,8 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
               isAdding={isAdding}
               doiResult={doiResult}
               isValidUrl={isValidUrl}
+              error={searchError}
+              hasSearched={hasSearchedDOI}
             />
           </div>
         )}
@@ -354,6 +379,8 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
               sortOrder={sortOrder}
               setSortOrder={setSortOrder}
               isValidUrl={isValidUrl}
+              error={searchError}
+              hasSearched={hasSearchedQuery}
             />
           </div>
         )}
@@ -376,6 +403,7 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
                 setSelectedEntryIds(next);
               }}
               importProgress={importProgress}
+              importStats={importStats}
             />
           </div>
         )}

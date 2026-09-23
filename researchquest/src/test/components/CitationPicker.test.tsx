@@ -108,4 +108,34 @@ describe("CitationPicker", () => {
       "[(Turing, 1950)](https://example.com/2)",
     );
   });
+
+  it("calls onLinkEntity with the paper id so backlinks see the citation", () => {
+    const handleLink = vi.fn();
+    render(
+      <CitationPicker
+        open={true}
+        onOpenChange={vi.fn()}
+        onSelect={vi.fn()}
+        onLinkEntity={handleLink}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Quantum Computing"));
+
+    expect(handleLink).toHaveBeenCalledWith("paper-1");
+  });
+
+  it("offers an Add-paper action when nothing matches", async () => {
+    render(
+      <CitationPicker open={true} onOpenChange={vi.fn()} onSelect={vi.fn()} />,
+    );
+
+    fireEvent.change(screen.getByPlaceholderText(/Search papers/i), {
+      target: { value: "zzz-no-such-paper" },
+    });
+
+    expect(
+      await screen.findByRole("button", { name: /add paper/i }),
+    ).toBeInTheDocument();
+  });
 });

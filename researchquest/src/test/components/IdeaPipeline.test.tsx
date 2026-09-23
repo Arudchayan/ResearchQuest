@@ -382,6 +382,7 @@ describe("Idea pipeline: IdeaDetailView actions", () => {
         title: "Mature Idea",
         markdown_body: "# Mature Idea\n\n> Mature idea description\n",
         tags: ["draft"],
+        linked_entity_ids: ["idea-2"],
       });
       expect(createTaskMock).toHaveBeenCalledWith({
         title: "Draft: Mature Idea",

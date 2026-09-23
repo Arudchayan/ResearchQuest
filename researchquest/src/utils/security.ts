@@ -100,6 +100,17 @@ export function isStrongPassword(password: string): {
 }
 
 /**
+ * Validates a DOI (Digital Object Identifier) such as `10.1038/nature12373`.
+ * Accepts an optional `doi:` prefix and trims surrounding whitespace.
+ */
+export function isValidDoi(value: string): boolean {
+  if (!value || typeof value !== "string") return false;
+  const trimmed = value.trim().replace(/^doi:\s*/i, "");
+  if (!trimmed) return false;
+  return /^10\.\d{4,9}\/[-._;()/:A-Z0-9]+$/i.test(trimmed);
+}
+
+/**
  * Maximum file size for uploads (5MB)
  * Prevents DoS attacks via large file uploads
  */

@@ -49,6 +49,15 @@ export function MarkdownEditor({ onBackToList }: MarkdownEditorProps) {
   const { linkDialogOpen, openLinkDialog, closeLinkDialog, handleLinkSubmit, linkTextValue, setLinkTextValue, linkUrlValue, setLinkUrlValue, linkError, linkUrlInputRef } = useLinkDialog(editorViewRef);
   const { handleCopyMarkdown, handleCopyRichText, handleExport, handlePrint, saveNote } = useEditorActions({ content, title, previewRef, selectedNote, userId, updateNote, setSaveState });
 
+  // Item 75: persist a linked_entity_ids row (not text-only) so useBacklinks
+  // sees the citation as a real link.
+  const handleCitationLinkEntity = useCallback((entityId: string) => {
+    if (!selectedNote || selectedNote.linked_entity_ids?.includes(entityId)) return;
+    void updateNote(selectedNote.id, {
+      linked_entity_ids: [...(selectedNote.linked_entity_ids ?? []), entityId],
+    });
+  }, [selectedNote, updateNote]);
+
   // Auto-save
   useEffect(() => {
     if (!selectedNote || !userId) return;
@@ -139,6 +148,7 @@ export function MarkdownEditor({ onBackToList }: MarkdownEditorProps) {
           open={citationPickerOpen}
           onOpenChange={setCitationPickerOpen}
           onSelect={(c) => handleCitationSelect(c, setCitationPickerOpen)}
+          onLinkEntity={handleCitationLinkEntity}
         />
       )}
     </div>

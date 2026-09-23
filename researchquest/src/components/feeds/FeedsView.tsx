@@ -33,11 +33,13 @@ export function FeedsView() {
   const [type, setType] = useState<FeedTypeFilter>("all");
   const [status, setStatus] = useState<FeedStatusFilter>("new");
   const userId = useAppStore((state) => state.user?.id);
+  const setCurrentView = useAppStore((state) => state.setCurrentView);
   const {
     items,
     loading,
     error,
     actionItemId,
+    busyAction,
     refreshFeedItems,
     archiveFeedItem,
     markFeedItemTriaged,
@@ -46,6 +48,12 @@ export function FeedsView() {
 
   const handlePromote = (itemId: string, target: FeedPromoteTarget) => {
     void promoteFeedItem(itemId, target);
+  };
+
+  const hasActiveFilters = type !== "all" || status !== "new";
+  const clearFilters = () => {
+    setType("all");
+    setStatus("new");
   };
 
   return (
@@ -162,9 +170,38 @@ export function FeedsView() {
                 Nothing to triage
               </h2>
               <p className="mx-auto mt-2 max-w-md text-small text-text-secondary">
-                Try a different filter, or check back when agents ingest more
-                feed items.
+                {hasActiveFilters
+                  ? "No items match these filters. Clear them, add a paper manually, or review what you already promoted."
+                  : "Try a different filter, or check back when agents ingest more feed items."}
               </p>
+              <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+                {hasActiveFilters && (
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-border-moderate bg-bg-surface px-3 py-2 text-small font-medium text-text-secondary shadow-sm transition-colors hover:border-border-strong hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
+                  >
+                    Clear filters
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCurrentView("papers");
+                    window.history.pushState(null, "", "/papers");
+                  }}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-text-primary px-3 py-2 text-small font-medium text-bg-base shadow-sm transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
+                >
+                  Add paper manually
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatus("promoted")}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-border-moderate bg-bg-surface px-3 py-2 text-small font-medium text-text-secondary shadow-sm transition-colors hover:border-border-strong hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
+                >
+                  Jump to promoted
+                </button>
+              </div>
             </div>
           ) : (
             <div className="space-y-3">
@@ -173,6 +210,7 @@ export function FeedsView() {
                   key={item.id}
                   item={item}
                   actionItemId={actionItemId}
+                  busyAction={busyAction}
                   onArchive={archiveFeedItem}
                   onMarkTriaged={markFeedItemTriaged}
                   onPromote={handlePromote}

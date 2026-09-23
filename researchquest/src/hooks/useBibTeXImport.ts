@@ -25,14 +25,14 @@ export function useBibTeXImport(
 
     setLoading(true);
     setError("");
-    setParsedEntries([]);
-    setSelectedEntryIds(new Set());
     setImportStats(null);
 
     try {
       const text = await file.text();
       const entries = parseBibTeX(text);
       if (entries.length === 0) {
+        // Retry-safe (item 72): keep the previous parsed entries on parse
+        // failure so a bad file never wipes a good parse.
         setError("No valid BibTeX entries found in file.");
       } else {
         setParsedEntries(entries);
@@ -85,8 +85,8 @@ export function useBibTeXImport(
     setImportStats({ success: successCount, failed: failedCount });
     setLoading(false);
     setImportProgress(null);
-    setParsedEntries([]);
-    setSelectedEntryIds(new Set());
+    // Keep parsed entries + selection after import (item 72): the dialog
+    // surfaces importStats so failed entries stay selectable for retry.
 
     return successCount;
   }, [onAdd, onAddBatch, parsedEntries, selectedEntryIds]);

@@ -18,6 +18,8 @@ interface DOISearchTabProps {
   isAdding: boolean;
   doiResult: CrossrefPaper | null;
   isValidUrl: (url: string) => boolean;
+  error: string;
+  hasSearched: boolean;
 }
 
 export function DOISearchTab({
@@ -28,11 +30,23 @@ export function DOISearchTab({
   loading,
   isAdding,
   doiResult,
+  error,
+  hasSearched,
 }: DOISearchTabProps) {
   const doiInputRef = useRef<HTMLInputElement>(null);
 
   return (
-    <div className="space-y-6" role="tabpanel" id="view-panel-doi">
+    <div className="space-y-6" id="view-panel-doi">
+      {error && (
+        <div role="alert" className="rounded-control border border-destructive bg-destructive-bg p-3 text-small text-destructive">
+          {error}
+        </div>
+      )}
+      {!error && hasSearched && !loading && !doiResult && (
+        <p className="rounded-control bg-primary-50 p-3 text-small text-text-secondary dark:bg-primary-900/20" aria-live="polite">
+          No paper matched that DOI. Try a keyword search or create the record manually.
+        </p>
+      )}
       <form
         onSubmit={(e) => {
           e.preventDefault();

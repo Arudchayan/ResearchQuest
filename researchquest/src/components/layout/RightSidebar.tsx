@@ -10,6 +10,7 @@ import {
   Hash,
   CalendarCheck,
   BookOpen,
+  Plus,
 } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
 import { useMemo } from "react";
@@ -19,6 +20,7 @@ import { logger } from "../../utils/logger";
 import { formatTimeUntil, formatDateLabel } from "../../utils/time";
 import { useBacklinks } from "../../hooks/useBacklinks";
 import { useRelatedItems } from "../../hooks/useRelatedItems";
+import { useNotes } from "../../hooks/useNotes";
 import { useShallow } from "zustand/react/shallow";
 import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
 import { getTopN } from "../../utils/collections";
@@ -142,6 +144,26 @@ export function RightSidebar() {
     user?.id,
     { enabled: isRightSidebarOpen },
   );
+  const { createNote } = useNotes(user?.id);
+
+  // Item 75: inline link action — create a note already linked to the
+  // currently viewed entity so backlinks pick it up immediately.
+  const handleCreateLinkedNote = async () => {
+    if (!currentEntityId || !currentEntity) return;
+    const newNote = await createNote({
+      title: `Notes on: ${currentEntity.title}`,
+      markdown_body: "",
+      linked_entity_ids: [currentEntityId],
+    });
+    if (newNote) {
+      setSelectedNote(newNote);
+      setSelectedPaper(null);
+      setSelectedIdea(null);
+      setCurrentView("notes");
+      window.history.pushState(null, "", `/notes/${newNote.id}`);
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    }
+  };
 
   // No realtime subscriptions here — all data is read from the Zustand store
   // which is kept up to date by useDataSync (daily_logs, papers, ideas) and
@@ -278,9 +300,19 @@ export function RightSidebar() {
                   Loading...
                 </div>
               ) : backlinks.length === 0 ? (
-                <div className="text-caption text-text-tertiary" role="status" aria-live="polite">
-                  No items link to this yet. Link from notes or ideas to create
-                  connections.
+                <div className="space-y-2">
+                  <div className="text-caption text-text-tertiary" role="status" aria-live="polite">
+                    No items link to this yet. Link from notes or ideas to create
+                    connections.
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void handleCreateLinkedNote()}
+                    className="inline-flex items-center gap-1.5 rounded-control border border-border-subtle bg-bg-base px-2.5 py-1.5 text-caption font-medium text-text-primary transition-colors hover:border-primary-400 hover:bg-primary-500/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
+                  >
+                    <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                    Create linked note
+                  </button>
                 </div>
               ) : (
                 <div className="space-y-2">
