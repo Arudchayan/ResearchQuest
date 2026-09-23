@@ -38,7 +38,9 @@ test.describe("first-run demo click", () => {
 
     // Gate card receipt (loop line, solid CTA, quiet Sign In, no Submit).
     await expect(
-      page.getByText("One topic. Three papers. A note. A focus session."),
+      page.getByText(
+        "Four sample topics. Papers, notes, and Focus Studio to explore.",
+      ),
     ).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText(/Submit application/i)).toHaveCount(0);
 
@@ -81,6 +83,11 @@ test.describe("first-run demo click", () => {
 
     await expect(
       page.getByRole("region", { name: /Demo workspace/i }),
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        "Four sample topics — you’re on AI Agents (three papers + a note). Focus Studio starts empty. Explore freely — nothing here affects real data.",
+      ),
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: /Go to full workspace/i }),

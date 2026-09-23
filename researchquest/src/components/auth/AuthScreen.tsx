@@ -149,7 +149,7 @@ export function AuthScreen() {
             Scholar Access
           </p>
           <p className="text-small text-text-secondary mt-3">
-            One topic. Three papers. A note. A focus session.
+            Four sample topics. Papers, notes, and Focus Studio to explore.
           </p>
           <p className="text-caption text-text-tertiary mt-2">
             Demo workspace is sample data on this device. Sign in only if you
