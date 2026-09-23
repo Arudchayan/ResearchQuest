@@ -321,7 +321,7 @@ export function CommandPalette() {
 
   const handleOpenDataManagement = () => {
     // Open the dialog owned by the palette instead of relying on the Sidebar
-    // listener: the Sidebar is unmounted in Zen mode and first-run landing,
+    // listener: the Sidebar is unmounted in Zen mode,
     // which made the old `open-data-management` event a silent no-op.
     setShowDataDialog(true);
     setOpen(false);

@@ -20,7 +20,11 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Dark mode tokens apply to AppShell and sidebar together (`html` class +
   shell `effectiveTheme`).
 - Feeds chrome is hidden; `/feeds` is an alpha empty state when there are
-  0 sources (orphan items are not shown as a working inbox).
+  0 sources (filters/promote/refresh stay hidden; orphan items are not shown
+  and are not mass-deleted).
+- Demo first-run uses the full workspace shell with a demo banner, exit CTAs,
+  and a single OnboardingGuide. Papers/tasks/ideas no longer each mount a
+  copy of the guide.
 
 ### Added
 
@@ -56,6 +60,9 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
   for an existing live account.
 - Focus Studio Start stays disabled until a target is selected, with hint
   copy. Onboarding on Focus is opt-in via Tips.
+- Canonical live demo is `https://research-quest-wine.vercel.app`; table
+  docs now include all 21 tables (`topic_*` junctions). Unused
+  `@types/react-router-dom` removed.
 - Standardized CI on Node.js 22 and pnpm 10.12.1.
 - Added reproducible frozen-lockfile installs, workflow concurrency, and timeouts.
 

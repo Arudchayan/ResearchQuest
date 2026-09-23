@@ -20,10 +20,13 @@ blocking item is complete.
 ## Repository settings
 
 - [ ] Set description: “An open-source research workspace for papers, notes, ideas, tasks, and focus sessions.”
+- [ ] Set homepage to `https://research-quest-wine.vercel.app` (canonical live demo). Keep `https://rq.arudchayan.com` as an additional alias on Vercel project `research-quest`. Do not delete the historical Vercel twin without checking aliases.
 - [ ] Add topics: `research`, `knowledge-management`, `react`, `typescript`, `supabase`, `open-source`.
 - [ ] Make the repository public.
 - [ ] Protect `master`: require pull requests and passing CI, and block force pushes and deletion.
 - [ ] Enable private vulnerability reporting.
+- [ ] Enable GitHub Secret Scanning and push protection (currently off; CI TruffleHog does not replace this).
+- [ ] Enable Dependabot security updates (distinct from version-update PRs in `.github/dependabot.yml`).
 
 ## Release
 

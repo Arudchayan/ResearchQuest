@@ -12,8 +12,6 @@ import { logger } from "../../utils/logger";
 import { Button } from "../ui/button";
 import { InlineError } from "../ui/ErrorFallback";
 import { PageHeader } from "../ui/PageHeader";
-import { isDemoMode } from "../../lib/supabase";
-import { DEMO_FIRST_RUN_TOPIC_ID, isDemoFirstRunPath } from "../../lib/demoData";
 import { parseRoute } from "../../lib/router";
 import { navigateToView } from "../../lib/softNavigation";
 
@@ -53,7 +51,6 @@ export function TopicsView() {
       const pathname = window.location.pathname;
       const route = parseRoute(pathname);
       if (route.view !== "topics") return;
-      if (isDemoFirstRunPath(pathname)) return;
       if (!route.itemId) {
         setSelectedTopic(null);
         return;
@@ -119,8 +116,10 @@ export function TopicsView() {
           const bCount = b.note_count + b.paper_count + b.idea_count;
           return bCount - aCount;
         }
-        default:
-          return 0;
+        default: {
+          const _exhaustive: never = sortOption;
+          return _exhaustive;
+        }
       }
     });
   }, [topics, searchQuery, sortOption, hiddenTopicIds, searchableTopics]);
@@ -285,15 +284,8 @@ export function TopicsView() {
     navigateToView("topics", "/topics");
   }, [setSelectedTopic]);
 
-  const isFirstRunLanding =
-    isDemoMode &&
-    typeof window !== "undefined" &&
-    isDemoFirstRunPath(window.location.pathname);
-
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-bg-base md:flex-row">
-      {/* List Panel — hidden on demo first-run so the seeded topic is the only screen */}
-      {!isFirstRunLanding && (
       <div
         className={`flex min-h-0 w-full flex-1 flex-shrink-0 flex-col border-b border-border-subtle bg-bg-elevated/60 transition-colors duration-theme md:h-full md:w-80 md:flex-none md:border-b-0 md:border-r ${
           selectedTopic ? "hidden md:flex" : "flex"
@@ -450,13 +442,11 @@ export function TopicsView() {
           />
         </div>
       </div>
-      )}
 
       {/* Detail Panel */}
       <div className={`min-h-0 min-w-0 flex-1 flex-col overflow-y-auto bg-bg-surface ${selectedTopic ? "flex" : "hidden md:flex"}`}>
         {selectedTopic ? (
           <>
-            {!(isDemoMode && selectedTopic.id === DEMO_FIRST_RUN_TOPIC_ID) && (
             <div className="flex shrink-0 items-center gap-3 border-b border-border-subtle bg-bg-surface p-4 md:hidden">
               <Button
                 type="button"
@@ -471,17 +461,12 @@ export function TopicsView() {
                 Topics
               </span>
             </div>
-            )}
             <TopicDetailView
               topic={selectedTopic}
               onUpdate={handleUpdateTopic}
               onDelete={handleDeleteWithUndo}
             />
           </>
-        ) : isFirstRunLanding ? (
-          <div className="flex h-full items-center justify-center p-6 text-small text-text-secondary">
-            Loading your topic…
-          </div>
         ) : (
           <div
             role="status"

@@ -31,4 +31,24 @@ describe("create-admin-user retirement", () => {
     expect(fn).toContain("GONE");
     expect(config).toMatch(/\[functions\.create-admin-user\][\s\S]*verify_jwt = true/);
   });
+
+  it("keeps the 410 stub in the deploy runbook", () => {
+    const runbook = readFileSync(
+      resolve(__dirname, "../../../..", "docs/deploy-runbook.md"),
+      "utf8",
+    );
+    expect(runbook).toContain("create-admin-user");
+    expect(runbook).toContain("410");
+    expect(runbook).toContain("supabase functions deploy create-admin-user");
+  });
+});
+
+describe("hygiene", () => {
+  it("does not ship unused react-router types without a runtime router", () => {
+    const pkg = readFileSync(
+      resolve(__dirname, "../../../package.json"),
+      "utf8",
+    );
+    expect(pkg).not.toContain("react-router-dom");
+  });
 });

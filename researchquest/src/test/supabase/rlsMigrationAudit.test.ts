@@ -149,7 +149,7 @@ describe("supabase RLS migration audit", () => {
     for (const file of tableFiles) {
       for (const table of tablesFromSchema(file.sql)) tables.add(table);
     }
-    expect(tables.size).toBeGreaterThan(0);
+    expect(tables.size).toBe(21);
 
     const allMigrations = migrations.map((file) => file.sql).join("\n");
     const missing: string[] = [];

@@ -32,7 +32,6 @@ import { InlineError } from "../ui/ErrorFallback";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { PageHeader } from "../ui/PageHeader";
-import { OnboardingGuide } from "../layout/OnboardingGuide";
 import type { TaskFilter, TaskPriority, TaskCategory, SortOption } from "./taskTypes";
 import { PRIORITIES, CATEGORIES, PRIORITY_ORDER } from "./taskTypes";
 import { TaskCard, isOverdue } from "./TaskCard";
@@ -506,12 +505,6 @@ export function TaskManager() {
         </div>
       </div>
 
-      {/* Task List */}
-      {/* Pinned above the list scroll region (not inside it) so the guide
-          never scrolls away and renders exactly once per view. */}
-      <div className="shrink-0 px-4 pt-4 sm:px-6 sm:pt-6">
-        <OnboardingGuide />
-      </div>
       {tasksSyncError && (
         <InlineError
           message={tasksSyncError.message}

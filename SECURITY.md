@@ -45,3 +45,4 @@ Out of scope:
 - Rotate keys if this repository’s history ever contained a live project URL or anon JWT.
 - Treat every `VITE_*` value as public: Vite embeds it in the browser bundle. Never use this namespace for account passwords or privileged secrets.
 - After rewriting Git history to remove a secret, rotate or revoke the original credential and run the full-history secret scan successfully before publishing a repository.
+- Enable GitHub Secret Scanning, push protection, and Dependabot **security updates** on the public GitHub repo. CI already runs TruffleHog + `pnpm audit`, and `.github/dependabot.yml` opens version-update PRs — those do not replace the GitHub security-update toggle.

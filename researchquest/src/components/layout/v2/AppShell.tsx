@@ -8,8 +8,6 @@ import { useAppStore } from "../../../store/appStore";
 import { cn } from "../../../lib/utils";
 import { useShallow } from "zustand/react/shallow";
 import { Tooltip, TooltipTrigger, TooltipContent } from "../../ui/tooltip";
-import { isDemoMode } from "../../../lib/supabase";
-import { isDemoFirstRunPath } from "../../../lib/demoData";
 
 interface AppShellProps {
   children: ReactNode;
@@ -37,11 +35,6 @@ export function AppShell({ children }: AppShellProps) {
       effectiveTheme: state.effectiveTheme,
     })),
   );
-
-  const pathMatchesFirstRun =
-    typeof window !== "undefined" && isDemoFirstRunPath(window.location.pathname);
-
-  const isFirstRunLanding = isDemoMode && pathMatchesFirstRun;
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -121,20 +114,6 @@ export function AppShell({ children }: AppShellProps) {
       document.body.style.overflow = "unset";
     };
   }, [isMobileSidebarOpen, setIsMobileSidebarOpen]);
-
-  if (isFirstRunLanding) {
-    return (
-      <div
-        data-testid="app-shell"
-        data-first-run="true"
-        className={`relative flex min-h-[100dvh] w-full min-w-0 overflow-x-hidden bg-bg-base font-sans text-text-primary selection:bg-primary-500 selection:text-bg-base ${effectiveTheme}`}
-      >
-        <main id="main-content" className="min-w-0 flex-1 overflow-auto" tabIndex={-1}>
-          {children}
-        </main>
-      </div>
-    );
-  }
 
   return (
     <div
