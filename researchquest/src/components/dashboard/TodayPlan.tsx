@@ -170,7 +170,7 @@ export function TodayPlan({
                   onChange={() => {
                     void completeTask(task.id);
                   }}
-                  className="h-4 w-4 shrink-0 accent-primary-500"
+                  className="h-4 w-4 shrink-0 accent-[var(--primary-500)]"
                 />
                 <button
                   type="button"
