@@ -105,21 +105,21 @@ describe("PR12 layout wrappers + containment (static guards)", () => {
     );
   });
 
-  it("OnboardingGuide mounts once on the first-run topic, not per library view", () => {
+  it("OnboardingGuide welcome stays on the first-run topic; contextual tips live in the shell", () => {
     for (const file of [
       "src/components/tasks/TaskManager.tsx",
       "src/components/papers/PapersView.tsx",
       "src/components/ideas/IdeasBoard.tsx",
       "src/components/focus/FocusWorkspace.tsx",
-      "src/components/layout/v2/AppShell.tsx",
     ]) {
       expect(src(file)).not.toContain("<OnboardingGuide");
     }
     const topic = src("src/components/topics/TopicDetailView.tsx");
     expect(topic.match(/<OnboardingGuide/g)?.length ?? 0).toBe(1);
-    expect(src("src/components/layout/v2/AppShell.tsx")).not.toContain(
-      "data-first-run",
-    );
+    const shell = src("src/components/layout/v2/AppShell.tsx");
+    expect(shell.match(/<OnboardingGuide/g)?.length ?? 0).toBe(1);
+    expect(shell).toContain('variant="contextual"');
+    expect(shell).not.toContain("data-first-run");
   });
 
   it("Feeds hides inbox chrome until a source exists (orphan items stay)", () => {

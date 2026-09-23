@@ -1,6 +1,7 @@
 {
   "name": "ResearchQuest",
   "short_name": "ResearchQuest",
+  "description": "Alpha research workspace for papers, notes, ideas, tasks, and focus sessions.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#FDFDFB",

@@ -11,6 +11,9 @@ vi.mock("../../../components/layout/v2/Sidebar", () => ({
 vi.mock("../../../components/layout/RightSidebar", () => ({
   RightSidebar: () => <div data-testid="right-sidebar">RightSidebar</div>,
 }));
+vi.mock("../../../components/layout/OnboardingGuide", () => ({
+  OnboardingGuide: () => null,
+}));
 
 // Mock lucide-react icons
 vi.mock("lucide-react", () => ({

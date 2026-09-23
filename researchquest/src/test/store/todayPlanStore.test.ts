@@ -5,6 +5,10 @@ import {
 } from "../../store/todayPlanStore";
 import { todayKey } from "../../utils/time";
 import type { Task } from "../../types/database";
+import {
+  tipForView,
+  useOnboardingTipsStore,
+} from "../../store/onboardingTipsStore";
 
 function task(overrides: Partial<Task>): Task {
   return {
@@ -26,6 +30,7 @@ describe("todayPlanStore", () => {
       orderedIds: [],
       pendingFocusTaskId: null,
     });
+    useOnboardingTipsStore.setState({ doneIds: [] });
   });
 
   it("includes due-today and pinned incomplete tasks in pin order", () => {
@@ -39,6 +44,7 @@ describe("todayPlanStore", () => {
       "pinned",
       "due",
     ]);
+    expect(tipForView("dashboard")).toBeNull();
   });
 
   it("clears order when the calendar day rolls", () => {

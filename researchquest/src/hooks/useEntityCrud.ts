@@ -15,6 +15,7 @@ import { sortByUpdatedAt } from "../utils/sort";
 import { dedupeById } from "../utils/collections";
 import { logger } from "../utils/logger";
 import { useAppStore } from "../store/appStore";
+import { completeOnboardingCreate } from "../store/onboardingTipsStore";
 
 export type AppStoreState = ReturnType<typeof useAppStore.getState>;
 
@@ -300,6 +301,7 @@ export function useEntityCrud<
       setItemsStore(applySort(dedupeById([result.data, ...currentItems()])));
 
       cfg.afterCreate?.(cfg.userId, result.data);
+      completeOnboardingCreate(cfg.tableName);
       if (cfg.xpCreate) {
         awardXPAndNotify(
           cfg.userId,

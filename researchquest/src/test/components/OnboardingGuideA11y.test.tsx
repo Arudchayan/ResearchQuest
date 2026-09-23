@@ -1,6 +1,11 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, beforeEach } from "vitest";
 import { OnboardingGuide } from "../../components/layout/OnboardingGuide";
+import {
+  completeOnboardingTip,
+  tipForView,
+  useOnboardingTipsStore,
+} from "../../store/onboardingTipsStore";
 
 const STORAGE_KEY = "rq_test_onboarding_pr12";
 
@@ -80,3 +85,43 @@ describe("OnboardingGuide accessibility", () => {
     ).not.toBeInTheDocument();
   });
 });
+
+describe("OnboardingGuide contextual tips", () => {
+  beforeEach(() => {
+    window.localStorage.removeItem("researchquest-onboarding-tips");
+    useOnboardingTipsStore.setState({ doneIds: [] });
+  });
+
+  it("shows the papers coachmark until that action is done", () => {
+    const { rerender } = render(
+      <OnboardingGuide variant="contextual" view="papers" />,
+    );
+    expect(
+      screen.getByRole("region", { name: "Workspace tip" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Add a paper")).toBeInTheDocument();
+
+    rerender(<OnboardingGuide variant="contextual" view="notes" />);
+    expect(screen.getByText("Capture a note")).toBeInTheDocument();
+    expect(screen.queryByText("Add a paper")).not.toBeInTheDocument();
+
+    completeOnboardingTip("add-paper");
+    rerender(<OnboardingGuide variant="contextual" view="papers" />);
+    expect(
+      screen.queryByRole("region", { name: "Workspace tip" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("dismisses a contextual tip without blocking the rest of the catalog", () => {
+    render(<OnboardingGuide variant="contextual" view="ideas" />);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Dismiss workspace tip" }),
+    );
+    expect(
+      screen.queryByRole("region", { name: "Workspace tip" }),
+    ).not.toBeInTheDocument();
+    expect(tipForView("ideas")).toBeNull();
+    expect(tipForView("tasks")?.id).toBe("add-task");
+  });
+});
+

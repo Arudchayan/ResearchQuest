@@ -523,6 +523,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     }
     setStartedAt(Date.now());
     setIsRunning(true);
+    dismissOnboarding();
   };
 
   const handleOpenInWorkspace = () => {

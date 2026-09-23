@@ -1,9 +1,19 @@
 import { useCallback, useState } from "react";
 import { Compass, NotebookPen, Target, X } from "lucide-react";
 import { Button } from "../ui/button";
+import { useShellStore } from "../../store/shellStore";
+import {
+  completeOnboardingTip,
+  tipForView,
+  useOnboardingTipsStore,
+  type ContextualTipId,
+} from "../../store/onboardingTipsStore";
+import type { AppView } from "../../lib/router";
 
 interface OnboardingGuideProps {
   storageKey?: string;
+  variant?: "welcome" | "contextual";
+  view?: AppView;
 }
 
 const DEFAULT_STORAGE_KEY = "rq_onboarding_complete";
@@ -29,9 +39,35 @@ const STEPS = [
   },
 ];
 
+const CONTEXTUAL_ICONS: Record<
+  ContextualTipId,
+  typeof Compass | typeof NotebookPen | typeof Target
+> = {
+  "plan-today": Compass,
+  "capture-note": NotebookPen,
+  "add-paper": Target,
+  "capture-idea": NotebookPen,
+  "add-task": Target,
+};
+
 export function OnboardingGuide({
   storageKey = DEFAULT_STORAGE_KEY,
+  variant = "welcome",
+  view,
 }: OnboardingGuideProps) {
+  switch (variant) {
+    case "welcome":
+      return <WelcomeGuide storageKey={storageKey} />;
+    case "contextual":
+      return <ContextualGuide view={view} />;
+    default: {
+      const _exhaustive: never = variant;
+      return _exhaustive;
+    }
+  }
+}
+
+function WelcomeGuide({ storageKey }: { storageKey: string }) {
   const [stepIndex, setStepIndex] = useState(0);
   const [dismissed, setDismissed] = useState(() => {
     if (typeof window === "undefined") {
@@ -68,10 +104,10 @@ export function OnboardingGuide({
 
   return (
     <section
-              aria-label="Onboarding guide"
-              className="mb-4 rounded-surface border border-border-moderate bg-bg-surface shadow-sm"
-            >
-              <div className="flex items-start gap-3 p-3 sm:p-4">
+      aria-label="Onboarding guide"
+      className="mb-4 rounded-surface border border-border-moderate bg-bg-surface shadow-sm"
+    >
+      <div className="flex items-start gap-3 p-3 sm:p-4">
         <div className="flex-shrink-0 rounded-xl bg-primary-500/10 p-3 text-primary-600">
           <Icon className="w-6 h-6" aria-hidden="true" />
         </div>
@@ -128,12 +164,68 @@ export function OnboardingGuide({
                 type="button"
                 size="sm"
                 onClick={isLastStep ? handleDismiss : nextStep}
-                aria-label={isLastStep ? "Complete onboarding" : "Next onboarding tip"}
+                aria-label={
+                  isLastStep ? "Complete onboarding" : "Next onboarding tip"
+                }
               >
                 {isLastStep ? "Done" : "Next tip"}
               </Button>
             </div>
           </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ContextualGuide({ view }: { view?: AppView }) {
+  const shellView = useShellStore((state) => state.currentView);
+  const doneIds = useOnboardingTipsStore((state) => state.doneIds);
+  const resolvedView = view ?? shellView;
+  const tip = tipForView(resolvedView);
+
+  const handleDismiss = useCallback(() => {
+    const active = tipForView(resolvedView);
+    if (active) completeOnboardingTip(active.id);
+  }, [resolvedView]);
+
+  if (!tip || doneIds.includes(tip.id)) {
+    return null;
+  }
+
+  const Icon = CONTEXTUAL_ICONS[tip.id];
+
+  return (
+    <section
+      aria-label="Workspace tip"
+      className="rounded-surface border border-border-moderate bg-bg-surface shadow-sm"
+    >
+      <div className="flex items-start gap-3 p-3 sm:p-4">
+        <div className="flex-shrink-0 rounded-xl bg-primary-500/10 p-3 text-primary-600">
+          <Icon className="w-5 h-5" aria-hidden="true" />
+        </div>
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p className="text-caption font-semibold uppercase tracking-wide text-primary-500">
+                Tip
+              </p>
+              <p className="text-body font-semibold text-text-primary">
+                {tip.title}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={handleDismiss}
+              className="shrink-0 rounded-full text-text-tertiary hover:bg-bg-base hover:text-text-primary"
+              aria-label="Dismiss workspace tip"
+            >
+              <X className="w-4 h-4" aria-hidden="true" />
+            </Button>
+          </div>
+          <p className="text-small text-text-secondary">{tip.description}</p>
         </div>
       </div>
     </section>
