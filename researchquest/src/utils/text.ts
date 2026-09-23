@@ -48,3 +48,20 @@ export function displayNoteTitle(note: {
   }
   return deriveTitleFromMarkdown(note.markdown_body ?? "");
 }
+
+/**
+ * Title written to storage. Empty / "Untitled Note" is not a real title —
+ * persist a derived first line, or an empty string so the placeholder stays
+ * a display-only fallback.
+ */
+export function persistedNoteTitle(
+  title: string | null | undefined,
+  markdownBody: string,
+): string {
+  const trimmed = title?.trim() ?? "";
+  if (!isPlaceholderNoteTitle(trimmed)) {
+    return trimmed;
+  }
+  const derived = deriveTitleFromMarkdown(markdownBody);
+  return isPlaceholderNoteTitle(derived) ? "" : derived;
+}

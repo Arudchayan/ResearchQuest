@@ -1,7 +1,10 @@
 import { useCallback, useRef } from "react";
 import { supabase } from "../lib/supabase";
+import { cacheKeyForList, writeListCache } from "../lib/idbCache";
 import { XP_REWARDS } from "../utils/gamification";
+import { preferNewerByUpdatedAt } from "../utils/collections";
 import { useEntityCrud, type AppStoreState } from "./useEntityCrud";
+import { useAppStore } from "../store/appStore";
 import type { Note } from "../types/database";
 
 export const NOTE_TITLE_MAX_LENGTH = 255;
@@ -93,6 +96,12 @@ export function useNotes(userId: string | undefined) {
       action: "update_note",
       skipXpToast: true,
     },
+    afterUpdateSuccess: (uid) => {
+      void writeListCache(
+        cacheKeyForList("notes", uid),
+        useAppStore.getState().notes,
+      );
+    },
   });
 
   const { error, setError, setItems } = crud;
@@ -112,7 +121,7 @@ export function useNotes(userId: string | undefined) {
       setError(fetchError.message);
     } else {
       // Data is already sorted by updated_at desc from the DB query above
-      setItems(data || []);
+      setItems(preferNewerByUpdatedAt(data || [], useAppStore.getState().notes));
     }
   }, [userId, setError, setItems]);
 

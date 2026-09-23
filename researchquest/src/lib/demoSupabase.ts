@@ -57,7 +57,69 @@ type QueryResult = {
   count: number | null;
 };
 
-const tables: Record<TableName, Row[]> = buildDemoTables();
+export const DEMO_TABLES_STORAGE_KEY = "rq_demo_tables_v1";
+
+const tables: Record<TableName, Row[]> = {};
+
+function assignTables(next: Record<TableName, Row[]>): void {
+  for (const key of Object.keys(tables)) {
+    delete tables[key];
+  }
+  Object.assign(tables, next);
+}
+
+function readPersistedTables(): Record<TableName, Row[]> | null {
+  try {
+    if (typeof localStorage === "undefined") return null;
+    const raw = localStorage.getItem(DEMO_TABLES_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return null;
+    }
+    const notes = (parsed as Record<string, unknown>).notes;
+    if (!Array.isArray(notes)) return null;
+    return parsed as Record<TableName, Row[]>;
+  } catch {
+    return null;
+  }
+}
+
+export function persistDemoTables(): void {
+  try {
+    if (typeof localStorage === "undefined") return;
+    localStorage.setItem(DEMO_TABLES_STORAGE_KEY, JSON.stringify(tables));
+  } catch {
+    // Quota / private-mode: demo stays in-memory for this document only.
+  }
+}
+
+export function clearPersistedDemoTables(): void {
+  try {
+    if (typeof localStorage === "undefined") return;
+    localStorage.removeItem(DEMO_TABLES_STORAGE_KEY);
+  } catch {
+    // Ignore private-mode errors.
+  }
+}
+
+/** Replace in-memory tables with the first-run seed without touching storage. */
+export function resetDemoTablesToSeed(): void {
+  assignTables(buildDemoTables());
+}
+
+/** Simulate a document reload: hydrate in-memory tables from localStorage. */
+export function reloadDemoTablesFromStorage(): boolean {
+  const persisted = readPersistedTables();
+  if (!persisted) {
+    assignTables(buildDemoTables());
+    return false;
+  }
+  assignTables(persisted);
+  return true;
+}
+
+Object.assign(tables, readPersistedTables() ?? buildDemoTables());
 
 function makeSession(email: string): Session {
   return {
@@ -562,6 +624,7 @@ class DemoQuery {
     return new Promise((resolve, reject) => {
       try {
         const result = this.execute();
+        if (this.operation !== "read") persistDemoTables();
         resolve(result as QueryResult);
       } catch (error) {
         reject(error);

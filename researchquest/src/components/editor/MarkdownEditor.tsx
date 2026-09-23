@@ -49,12 +49,22 @@ export function MarkdownEditor({ onBackToList }: MarkdownEditorProps) {
   const { linkDialogOpen, openLinkDialog, closeLinkDialog, handleLinkSubmit, linkTextValue, setLinkTextValue, linkUrlValue, setLinkUrlValue, linkError, linkUrlInputRef } = useLinkDialog(editorViewRef);
   const { handleCopyMarkdown, handleCopyRichText, handleExport, handlePrint, saveNote } = useEditorActions({ content, title, previewRef, selectedNote, userId, updateNote, setSaveState });
 
-  // Auto-save
+  const saveNoteRef = useRef(saveNote);
+  saveNoteRef.current = saveNote;
+
+  // Auto-save on a note-id key, not selectedNote object identity. Flush the
+  // in-flight draft on unmount so leaving the route cannot drop the title.
   useEffect(() => {
-    if (!selectedNote || !userId) return;
+    if (!selectedNote?.id || !userId) return;
     const timer = setTimeout(() => { void saveNote(); }, 1000);
     return () => clearTimeout(timer);
   }, [content, title, selectedNote?.id, userId, saveNote]);
+
+  useEffect(() => {
+    return () => {
+      void saveNoteRef.current();
+    };
+  }, []);
 
   const handleGlobalKeyDown = useCallback((event: KeyboardEvent) => {
     if (!(event.metaKey || event.ctrlKey) || !event.shiftKey || linkDialogOpen) return;

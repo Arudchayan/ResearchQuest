@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { DEMO_FIRST_RUN_PATH } from "./demoData";
-import { demoSupabase } from "./demoSupabase";
+import { clearPersistedDemoTables, demoSupabase } from "./demoSupabase";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -58,6 +58,7 @@ export function enableDemoModeAndReload(options?: {
 export function disableDemoModeAndReload(nextPath = "/"): void {
   try {
     localStorage.removeItem(DEMO_MODE_STORAGE_KEY);
+    clearPersistedDemoTables();
   } catch {
     // Ignore private-mode errors; navigation still leaves demo when the
     // build-time flag is off.

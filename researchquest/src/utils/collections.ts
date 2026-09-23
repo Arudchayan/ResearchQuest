@@ -14,6 +14,26 @@ export function dedupeById<T extends { id: string }>(items: T[]): T[] {
 }
 
 /**
+ * When a refetch returns an older snapshot of a row the client already
+ * updated, keep the newer local copy. Incoming-only rows still replace;
+ * current-only rows are not resurrected (so deletes stay deleted).
+ */
+export function preferNewerByUpdatedAt<T extends { id: string; updated_at: string }>(
+  incoming: T[],
+  current: T[],
+): T[] {
+  if (current.length === 0) return incoming;
+  const currentById = new Map(current.map((item) => [item.id, item]));
+  return incoming.map((item) => {
+    const local = currentById.get(item.id);
+    if (!local) return item;
+    return Date.parse(local.updated_at) > Date.parse(item.updated_at)
+      ? local
+      : item;
+  });
+}
+
+/**
  * PERFORMANCE OPTIMIZATION:
  * Gets the top N items from an array in a single O(N) pass without sorting the entire array.
  * Useful for widgets that only need to display a small slice of a large collection.
