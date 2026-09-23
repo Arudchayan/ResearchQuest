@@ -297,7 +297,7 @@ export function useEntityCrud<
       toast.success(
         `${cfg.entityLabel} ${cfg.createVerb === "add" ? "added" : "created"} successfully`,
       );
-      setItemsStore(applySort([result.data, ...currentItems()]));
+      setItemsStore(applySort(dedupeById([result.data, ...currentItems()])));
 
       cfg.afterCreate?.(cfg.userId, result.data);
       if (cfg.xpCreate) {

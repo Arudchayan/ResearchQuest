@@ -125,4 +125,10 @@ describe("AppShell Zen Mode", () => {
 
     expect(useAppStore.getState().isRightSidebarOpen).toBe(true);
   });
+
+  it("applies the effective theme class to the shell so sidebar and main share tokens", () => {
+    useAppStore.setState({ effectiveTheme: "dark" });
+    renderAppShell();
+    expect(screen.getByTestId("app-shell")).toHaveClass("dark");
+  });
 });

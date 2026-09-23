@@ -5,6 +5,10 @@ import DOMPurify from "dompurify";
 import { NOTE_BODY_MAX_LENGTH } from "../../../hooks/useNotes";
 import { useAppStore } from "../../../store/appStore";
 import { downloadFile } from "../../../utils/export";
+import {
+  deriveTitleFromMarkdown,
+  isPlaceholderNoteTitle,
+} from "../../../utils/text";
 import type { Note } from "../../../types/database";
 import type { SaveState } from "./useMarkdownEditor";
 
@@ -131,9 +135,9 @@ export function useEditorActions({ content, title, previewRef, selectedNote, use
 
       const updates: Partial<Note> = { markdown_body: content, tags };
       const trimmedTitle = title.trim();
-      if (trimmedTitle) {
-        updates.title = trimmedTitle;
-      }
+      updates.title = isPlaceholderNoteTitle(trimmedTitle)
+        ? deriveTitleFromMarkdown(content)
+        : trimmedTitle;
 
       const didSave = await updateNote(noteId, updates);
       if (useAppStore.getState().selectedNote?.id === noteId) {

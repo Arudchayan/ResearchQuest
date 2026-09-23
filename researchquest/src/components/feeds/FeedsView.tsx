@@ -1,5 +1,5 @@
 import { Inbox, RefreshCw } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   FEED_ITEM_STATUSES,
   FEED_ITEM_TYPES,
@@ -10,6 +10,7 @@ import {
 import { useAppStore } from "../../store/appStore";
 import type { FeedPromoteTarget } from "../../types/database";
 import { cn } from "../../lib/utils";
+import { supabase } from "../../lib/supabase";
 import { PageHeader } from "../ui/PageHeader";
 import { FeedItemCard } from "./FeedItemCard";
 
@@ -32,6 +33,7 @@ const STATUS_LABELS: Record<FeedStatusFilter, string> = {
 export function FeedsView() {
   const [type, setType] = useState<FeedTypeFilter>("all");
   const [status, setStatus] = useState<FeedStatusFilter>("new");
+  const [sourceCount, setSourceCount] = useState<number | null>(null);
   const userId = useAppStore((state) => state.user?.id);
   const {
     items,
@@ -43,6 +45,28 @@ export function FeedsView() {
     markFeedItemTriaged,
     promoteFeedItem,
   } = useFeedItems(userId, { type, status });
+
+  useEffect(() => {
+    if (!userId) {
+      setSourceCount(0);
+      return;
+    }
+    let cancelled = false;
+    void supabase
+      .from("feed_sources")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .then(({ count, error: sourceError }) => {
+        if (cancelled) return;
+        setSourceCount(sourceError ? 0 : count ?? 0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  const ingestReady = (sourceCount ?? 0) > 0;
+  const visibleItems = ingestReady ? items : [];
 
   const handlePromote = (itemId: string, target: FeedPromoteTarget) => {
     void promoteFeedItem(itemId, target);
@@ -58,7 +82,7 @@ export function FeedsView() {
               Feeds
             </span>
           }
-          description="Review incoming research leads, archive noise, or promote items into papers, tasks, and notes."
+          description="Alpha: source and RSS management is not shipped. Orphan inbox items are hidden until ingest is connected."
           actions={
             <button
               type="button"
@@ -131,11 +155,11 @@ export function FeedsView() {
         <section aria-label="Feed items">
           <div className="mb-3 flex items-center justify-between">
             <p className="text-small text-text-secondary">
-              {loading ? "Loading feed items..." : `${items.length} item${items.length === 1 ? "" : "s"}`}
+              {loading || sourceCount === null ? "Loading feed items..." : `${visibleItems.length} item${visibleItems.length === 1 ? "" : "s"}`}
             </p>
           </div>
 
-          {loading ? (
+          {loading || sourceCount === null ? (
             <div className="space-y-3" role="status" aria-live="polite">
               {[0, 1, 2].map((index) => (
                 <div
@@ -149,7 +173,7 @@ export function FeedsView() {
             <div className="surface-card p-6 text-text-secondary">
               {error}
             </div>
-          ) : items.length === 0 ? (
+          ) : visibleItems.length === 0 ? (
             <div
               role="status"
               aria-live="polite"
@@ -159,16 +183,18 @@ export function FeedsView() {
                 <Inbox className="h-5 w-5" aria-hidden="true" />
               </span>
               <h2 className="mt-4 font-serif text-xl font-semibold text-text-primary">
-                Nothing to triage
+                Feeds is in alpha
               </h2>
               <p className="mx-auto mt-2 max-w-md text-small text-text-secondary">
-                Try a different filter, or check back when agents ingest more
-                feed items.
+                Source and RSS management is not shipped yet, so this inbox
+                stays empty until ingest is connected. Existing orphan items
+                without a source are not shown. The rest of the workspace —
+                topics, papers, notes, and Focus — is the product loop.
               </p>
             </div>
           ) : (
             <div className="space-y-3">
-              {items.map((item) => (
+              {visibleItems.map((item) => (
                 <FeedItemCard
                   key={item.id}
                   item={item}

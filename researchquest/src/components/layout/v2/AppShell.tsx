@@ -9,7 +9,7 @@ import { cn } from "../../../lib/utils";
 import { useShallow } from "zustand/react/shallow";
 import { Tooltip, TooltipTrigger, TooltipContent } from "../../ui/tooltip";
 import { isDemoMode } from "../../../lib/supabase";
-import { DEMO_FIRST_RUN_TOPIC_ID } from "../../../lib/demoData";
+import { isDemoFirstRunPath } from "../../../lib/demoData";
 
 interface AppShellProps {
   children: ReactNode;
@@ -27,7 +27,7 @@ export function AppShell({ children }: AppShellProps) {
     isZenMode,
     toggleZenMode,
     currentView,
-    selectedTopic,
+    effectiveTheme,
   } = useAppStore(
     useShallow((state) => ({
       isMobileSidebarOpen: state.isMobileSidebarOpen,
@@ -36,19 +36,14 @@ export function AppShell({ children }: AppShellProps) {
       isZenMode: state.isZenMode,
       toggleZenMode: state.toggleZenMode,
       currentView: state.currentView,
-      selectedTopic: state.selectedTopic,
+      effectiveTheme: state.effectiveTheme,
     })),
   );
 
   const pathMatchesFirstRun =
-    typeof window !== "undefined" &&
-    window.location.pathname === `/topics/${DEMO_FIRST_RUN_TOPIC_ID}`;
+    typeof window !== "undefined" && isDemoFirstRunPath(window.location.pathname);
 
-  const isFirstRunLanding =
-    isDemoMode &&
-    (pathMatchesFirstRun ||
-      (currentView === "topics" &&
-        selectedTopic?.id === DEMO_FIRST_RUN_TOPIC_ID));
+  const isFirstRunLanding = isDemoMode && pathMatchesFirstRun;
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -134,7 +129,7 @@ export function AppShell({ children }: AppShellProps) {
       <div
         data-testid="app-shell"
         data-first-run="true"
-        className="relative flex min-h-[100dvh] w-full min-w-0 overflow-x-hidden bg-bg-base font-sans text-text-primary selection:bg-primary-500 selection:text-bg-base"
+        className={`relative flex min-h-[100dvh] w-full min-w-0 overflow-x-hidden bg-bg-base font-sans text-text-primary selection:bg-primary-500 selection:text-bg-base ${effectiveTheme}`}
       >
         <main id="main-content" className="min-w-0 flex-1 overflow-auto" tabIndex={-1}>
           {children}
@@ -146,7 +141,7 @@ export function AppShell({ children }: AppShellProps) {
   return (
     <div
       data-testid="app-shell"
-      className="relative flex min-h-[100dvh] w-full min-w-0 overflow-x-hidden bg-bg-base font-sans text-text-primary selection:bg-primary-500 selection:text-bg-base"
+      className={`relative flex min-h-[100dvh] w-full min-w-0 overflow-x-hidden bg-bg-base font-sans text-text-primary selection:bg-primary-500 selection:text-bg-base ${effectiveTheme}`}
     >
       {/* Skip to content link for accessibility */}
       <a
@@ -159,7 +154,7 @@ export function AppShell({ children }: AppShellProps) {
       {/* Desktop Sidebar */}
       {!isZenMode && (
         <div
-          className="hidden min-h-[100dvh] shrink-0 lg:block"
+          className="hidden min-h-[100dvh] shrink-0 bg-bg-surface text-text-primary lg:block"
           {...(isMobileSidebarOpen ? { inert: true } : {})}
         >
           <Sidebar />
@@ -183,7 +178,7 @@ export function AppShell({ children }: AppShellProps) {
           aria-label="Main navigation"
           aria-modal="true"
           className={cn(
-            "fixed inset-y-0 left-0 z-50 flex w-64 max-w-[calc(100vw-1rem)] flex-col border-r border-border-subtle bg-bg-elevated shadow-lg lg:hidden",
+            "fixed inset-y-0 left-0 z-50 flex w-64 max-w-[calc(100vw-1rem)] flex-col border-r border-border-subtle bg-bg-surface text-text-primary shadow-lg lg:hidden",
           )}
         >
           <Sidebar />

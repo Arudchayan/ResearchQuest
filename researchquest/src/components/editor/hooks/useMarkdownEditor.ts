@@ -2,7 +2,11 @@ import { useState, useEffect, useLayoutEffect, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useAppStore } from "../../../store/appStore";
 import { useNotes } from "../../../hooks/useNotes";
-import { countWords } from "../../../utils/text";
+import {
+  countWords,
+  deriveTitleFromMarkdown,
+  isPlaceholderNoteTitle,
+} from "../../../utils/text";
 
 export type ViewMode = "split" | "edit" | "preview";
 export type SaveState = "saving" | "saved" | "error";
@@ -29,20 +33,28 @@ export function useMarkdownEditor() {
   const [viewMode, setViewMode] = useState<ViewMode>("split");
   const [saveState, setSaveState] = useState<SaveState>("saved");
 
-  // Load selected note
+  const selectedNoteId = selectedNote?.id;
+
+  // Load selected note only when the identity changes. Store updates from
+  // autosave must not clobber in-progress title/body edits.
   useLayoutEffect(() => {
-    if (selectedNote) {
-      setContent(selectedNote.markdown_body);
-      setTitle(selectedNote.title || "");
-      setDebouncedContent(selectedNote.markdown_body);
+    const note = useAppStore.getState().selectedNote;
+    if (note && note.id === selectedNoteId) {
+      setContent(note.markdown_body);
+      setTitle(
+        isPlaceholderNoteTitle(note.title)
+          ? deriveTitleFromMarkdown(note.markdown_body)
+          : note.title.trim(),
+      );
+      setDebouncedContent(note.markdown_body);
       setSaveState("saved");
-    } else {
+    } else if (!selectedNoteId) {
       setContent("");
       setTitle("");
       setDebouncedContent("");
       setSaveState("saved");
     }
-  }, [selectedNote]);
+  }, [selectedNoteId]);
 
   // Debounce content updates for preview
   useEffect(() => {

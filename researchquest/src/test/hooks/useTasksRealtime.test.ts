@@ -67,4 +67,37 @@ describe("useTasks realtime subscription", () => {
     second.unmount();
     expect(channelUnsubscribe).toHaveBeenCalledTimes(1);
   });
+
+  it("does not duplicate a task when realtime INSERT echoes an existing id", async () => {
+    const hook = renderHook(() => useTasks(userId));
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const handler = channelOn.mock.calls[0][2] as (payload: {
+      eventType: string;
+      new: Record<string, unknown>;
+      old: Record<string, unknown>;
+    }) => void;
+
+    const task = {
+      id: "task-dup",
+      user_id: userId,
+      title: "Review demo workspace flow",
+      completed: false,
+      created_at: "2026-09-23T12:00:00.000Z",
+      updated_at: "2026-09-23T12:00:00.000Z",
+    };
+    useAppStore.setState({ tasks: [task as never] });
+
+    act(() => {
+      handler({ eventType: "INSERT", new: task, old: {} });
+      handler({ eventType: "INSERT", new: task, old: {} });
+    });
+
+    expect(
+      useAppStore.getState().tasks.filter((item) => item.id === "task-dup"),
+    ).toHaveLength(1);
+    hook.unmount();
+  });
 });

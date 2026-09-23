@@ -93,6 +93,26 @@ describe("TopicsView", () => {
     expect(screen.getByText("Select a topic")).toBeInTheDocument();
   });
 
+  it("opens the topics index even when a first-run topic is still selected", () => {
+    window.history.replaceState(null, "", "/topics");
+    useAppStore.setState({
+      selectedTopic: {
+        ...mockTopics[0],
+        id: "topic-ai-agents",
+        name: "AI Agents for Research",
+      },
+      topics: mockTopics,
+    });
+
+    render(<TopicsView />);
+
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Topics" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Machine Learning")).toBeInTheDocument();
+    expect(useAppStore.getState().selectedTopic).toBeNull();
+  });
+
   it("allows creating a new topic", async () => {
     const mockCreateTopic = vi.fn().mockResolvedValue({ id: "new-id", name: "New Topic" });
     (useTopics as any).mockReturnValue({

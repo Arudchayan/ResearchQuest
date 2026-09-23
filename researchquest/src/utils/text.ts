@@ -1,3 +1,9 @@
+export const PLACEHOLDER_NOTE_TITLE = "Untitled Note";
+
+export function isPlaceholderNoteTitle(title: string | null | undefined): boolean {
+  return !title?.trim() || title.trim() === PLACEHOLDER_NOTE_TITLE;
+}
+
 export function countWords(text: string): number {
   const trimmed = text.trim();
   return trimmed ? trimmed.split(/\s+/u).length : 0;
@@ -28,6 +34,17 @@ export function deriveTitleFromMarkdown(markdownBody: string): string {
       .map((l) => l.trim())
       .find((l) => l)
       ?.replace(/^#+\s*/, "")
-      .trim() || "Untitled Note"
+      .trim() || PLACEHOLDER_NOTE_TITLE
   );
+}
+
+/** Sidebar / list title: explicit title, else first markdown line. */
+export function displayNoteTitle(note: {
+  title?: string | null;
+  markdown_body?: string | null;
+}): string {
+  if (!isPlaceholderNoteTitle(note.title)) {
+    return note.title!.trim();
+  }
+  return deriveTitleFromMarkdown(note.markdown_body ?? "");
 }

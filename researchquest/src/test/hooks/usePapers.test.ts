@@ -353,6 +353,26 @@ describe("usePapers Hook", () => {
       expect(searchResult).toEqual(mockSearchResult);
     });
 
+    it("rejects a DOI payload whose DOI does not match the request", async () => {
+      mockSupabaseClient.functions.invoke.mockResolvedValue({
+        data: {
+          data: {
+            title: "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks",
+            authors: ["Patrick Lewis"],
+            doi: "10.48550/arXiv.2005.11401",
+          },
+        },
+        error: null,
+      });
+
+      const { result } = renderHook(() => usePapers("test-user-id"));
+      const searchResult = await result.current.searchPaperByDOI(
+        "10.48550/arXiv.1706.03762",
+      );
+
+      expect(searchResult).toBeNull();
+    });
+
     it("should search papers by query", async () => {
       const mockSearchResults = [
         {

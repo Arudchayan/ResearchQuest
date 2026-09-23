@@ -3,6 +3,7 @@ import { Trash2, Clock } from "lucide-react";
 import { cn } from "../../lib/utils";
 import type { Note } from "../../types/database";
 import { highlightMatch } from "../../utils/highlight";
+import { displayNoteTitle } from "../../utils/text";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
 const relativeTime = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
@@ -42,7 +43,8 @@ export const NoteCard = React.memo(function NoteCard({
     onDelete(note.id);
   };
 
-  const title = note.title || "Untitled Note";
+  const title = displayNoteTitle(note);
+  const isPlaceholder = title === "Untitled Note";
 
   return (
     <div
@@ -69,10 +71,10 @@ export const NoteCard = React.memo(function NoteCard({
           <h3
             className={cn(
               "truncate text-body font-medium",
-              !note.title ? "italic text-text-tertiary" : "text-text-primary",
+              isPlaceholder ? "italic text-text-tertiary" : "text-text-primary",
             )}
           >
-            {note.title ? highlightMatch(note.title, highlightQuery) : "Untitled Note"}
+            {highlightMatch(title, highlightQuery)}
           </h3>
         </button>
         <Tooltip>

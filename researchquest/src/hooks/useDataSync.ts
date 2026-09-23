@@ -324,7 +324,9 @@ export function useDataSync(userId: string | undefined) {
       channelName: `papers_realtime_sync_${userId}`,
       onInsert: (newPaper) => {
         setPapers(
-          sortByUpdatedAt([newPaper, ...useAppStore.getState().papers]),
+          sortByUpdatedAt(
+            dedupeById([newPaper, ...useAppStore.getState().papers]),
+          ),
         );
         syncSelectedPaper(newPaper);
       },

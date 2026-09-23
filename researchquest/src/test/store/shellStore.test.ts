@@ -15,3 +15,15 @@ describe("shellStore setCurrentView", () => {
     expect(useShellStore.getState().currentView).toBe("papers");
   });
 });
+
+describe("shellStore theme", () => {
+  it("applies the theme class on the document element", () => {
+    document.documentElement.classList.remove("light", "dark");
+    useShellStore.getState().setTheme("dark");
+    expect(document.documentElement.classList.contains("dark")).toBe(true);
+    expect(useShellStore.getState().effectiveTheme).toBe("dark");
+    useShellStore.getState().setTheme("light");
+    expect(document.documentElement.classList.contains("light")).toBe(true);
+    expect(document.documentElement.classList.contains("dark")).toBe(false);
+  });
+});

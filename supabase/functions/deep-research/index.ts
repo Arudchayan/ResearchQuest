@@ -44,6 +44,10 @@ const DEFAULT_DEV_ALLOWED_ORIGINS = [
   "http://127.0.0.1:5175",
   "http://127.0.0.1:4173",
 ];
+const PRODUCTION_APP_ORIGINS = [
+  "https://research-quest-wine.vercel.app",
+  "https://rq.arudchayan.com",
+];
 
 interface RateLimitBucket {
   timestamps: number[];
@@ -59,7 +63,7 @@ const rateLimitBuckets = new Map<string, RateLimitBucket>();
 function parseAllowedOrigins(): string[] {
   const configured = Deno.env.get("ALLOWED_ORIGINS");
   if (!configured || !configured.trim()) {
-    return DEFAULT_DEV_ALLOWED_ORIGINS;
+    return [...PRODUCTION_APP_ORIGINS, ...DEFAULT_DEV_ALLOWED_ORIGINS];
   }
   return configured
     .split(",")

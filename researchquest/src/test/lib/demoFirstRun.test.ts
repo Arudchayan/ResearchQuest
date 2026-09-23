@@ -4,6 +4,7 @@ import {
   DEMO_FIRST_RUN_NOTE_ID,
   DEMO_FIRST_RUN_PATH,
   DEMO_FIRST_RUN_TOPIC_ID,
+  isDemoFirstRunPath,
 } from "../../lib/demoData";
 
 describe("demo first-run seed and entry", () => {
@@ -52,5 +53,12 @@ describe("demo first-run seed and entry", () => {
     expect(assign).toHaveBeenCalledWith(DEMO_FIRST_RUN_PATH);
     expect(DEMO_FIRST_RUN_PATH).toBe(`/topics/${DEMO_FIRST_RUN_TOPIC_ID}`);
     expect(DEMO_FIRST_RUN_PATH).not.toBe("/");
+  });
+
+  it("treats only the seeded topic path as first-run, not /topics", () => {
+    expect(isDemoFirstRunPath("/topics/topic-ai-agents")).toBe(true);
+    expect(isDemoFirstRunPath("/topics")).toBe(false);
+    expect(isDemoFirstRunPath("/topics/")).toBe(false);
+    expect(isDemoFirstRunPath("/notes")).toBe(false);
   });
 });

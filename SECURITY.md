@@ -40,7 +40,7 @@ Out of scope:
 ## Hardening notes for operators
 
 - Never put `SUPABASE_SERVICE_ROLE_KEY` in Vite/`VITE_*` env vars — anon key only in the client.
-- Do **not** deploy `supabase/functions/create-admin-user` to production unless you set a strong `ADMIN_API_KEY` and understand it creates users via the Admin API.
+- Do **not** restore Admin API user-creation in `supabase/functions/create-admin-user`. Production is a 410 Gone stub with `verify_jwt = true`; keep that stub deployed so a catch-all deploy cannot revive the old endpoint. Create users from the Supabase Dashboard or CLI.
 - Apply all migrations under `supabase/migrations/` before exposing a project; early permissive policies are superseded by later hardening migrations.
 - Rotate keys if this repository’s history ever contained a live project URL or anon JWT.
 - Treat every `VITE_*` value as public: Vite embeds it in the browser bundle. Never use this namespace for account passwords or privileged secrets.

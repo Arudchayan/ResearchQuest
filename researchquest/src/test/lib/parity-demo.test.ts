@@ -132,8 +132,11 @@ describe("demo parity harness (item 49)", () => {
       search_query: "RAG",
       limit_count: 5,
     });
-    expect(foreign.error).toBeNull();
-    expect(foreign.data).toEqual([]);
+    expect(foreign.error).toMatchObject({
+      message: "permission denied",
+      code: "42501",
+    });
+    expect(foreign.data).toBeNull();
   });
 
   it("keeps save_idea_with_links parity with the exact arg signature", async () => {

@@ -55,6 +55,15 @@ describe("Sidebar (v2)", () => {
     expect(notesLink).toHaveAttribute("href", "/notes");
   });
 
+  it("routes Topics to the index, not a first-run deep link", () => {
+    render(<TooltipProvider><Sidebar /></TooltipProvider>);
+
+    const topicsLink = screen.getByText("Topics").closest("a");
+    expect(topicsLink).toHaveAttribute("href", "/topics");
+    expect(topicsLink).not.toHaveAttribute("href", "/topics/topic-ai-agents");
+    expect(screen.queryByText("Feeds")).not.toBeInTheDocument();
+  });
+
   it("updates view and URL on click without a full navigation", () => {
     render(<TooltipProvider><Sidebar /></TooltipProvider>);
 

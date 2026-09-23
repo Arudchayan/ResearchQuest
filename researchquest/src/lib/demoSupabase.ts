@@ -15,6 +15,7 @@ import {
   DEMO_USERNAME,
   type Row as DemoRow,
 } from "./demoData";
+import { doisMatch, normalizeDoi } from "../utils/paperUtils";
 
 type Row = DemoRow;
 type TableName = string;
@@ -669,6 +670,20 @@ const demoFunctions = {
           type: "preprint",
         },
       ];
+      const doi =
+        typeof body.doi === "string" ? normalizeDoi(body.doi) : "";
+      if (doi) {
+        const match = mockPapers.find((paper) => doisMatch(paper.doi, doi));
+        if (!match) {
+          return {
+            data: {
+              error: { code: "NOT_FOUND", message: "Paper not found" },
+            },
+            error: null,
+          };
+        }
+        return { data: { data: match, error: null }, error: null };
+      }
       const isQuery = Boolean(body.query);
       const result = isQuery ? mockPapers.slice(0, Number(body.rows) || 3) : mockPapers[0];
       return { data: { data: result, error: null }, error: null };
@@ -758,17 +773,22 @@ export const demoSupabase = {
     return new DemoQuery(tableName);
   },
   rpc(functionName: string, args: Record<string, unknown>) {
+    const permissionDenied = {
+      data: null,
+      error: { message: "permission denied", code: "42501" },
+    };
     if (functionName === "global_search") {
-      // Demo equivalent of the `global_search(search_user_id, search_query,
-      // limit_count)` Postgres RPC (supabase/migrations/1762624300_...). The
-      // server-search path (`serverSearch` in lib/apiGateway.ts) calls this
-      // same signature, so demo search resolves through the identical op.
+      // Demo equivalent of the hardened global_search RPC: search_user_id
+      // must equal the demo caller (auth.uid() in live).
       const userId = String(args.search_user_id ?? "");
       const query = String(args.search_query ?? "").trim().toLowerCase();
       const rawLimit = Number(args.limit_count ?? 20);
       const limit = Number.isFinite(rawLimit)
         ? Math.max(Math.trunc(rawLimit), 1)
         : 20;
+      if (userId !== DEMO_USER_ID) {
+        return Promise.resolve(permissionDenied);
+      }
       if (!userId || !query) {
         return Promise.resolve({ data: [], error: null });
       }
@@ -846,11 +866,17 @@ export const demoSupabase = {
       return Promise.resolve({ data: scored.slice(0, limit), error: null });
     }
     if (functionName === "save_idea_with_links") {
+      if (String(args.p_user_id ?? "") !== DEMO_USER_ID) {
+        return Promise.resolve(permissionDenied);
+      }
       const ideas = (tables.ideas ??= []);
       const now = new Date().toISOString();
       if (args.p_idea_id) {
         const existing = ideas.find((idea) => idea.id === args.p_idea_id);
         if (existing) {
+          if (String(existing.user_id) !== DEMO_USER_ID) {
+            return Promise.resolve(permissionDenied);
+          }
           Object.assign(existing, {
             title: args.p_title,
             description: args.p_description ?? null,
@@ -865,7 +891,7 @@ export const demoSupabase = {
       }
       const created: Row = {
         id: generateId("idea"),
-        user_id: args.p_user_id,
+        user_id: DEMO_USER_ID,
         title: args.p_title,
         description: args.p_description ?? null,
         stage: args.p_stage ?? "Seed",

@@ -110,12 +110,14 @@ describe("PR12 layout wrappers + containment (static guards)", () => {
       "src/components/tasks/TaskManager.tsx",
       "src/components/papers/PapersView.tsx",
       "src/components/ideas/IdeasBoard.tsx",
-      "src/components/focus/FocusWorkspace.tsx",
     ]) {
       const text = src(file);
       const guideCount = text.match(/<OnboardingGuide/g)?.length ?? 0;
       expect(guideCount).toBe(1);
     }
+    expect(src("src/components/focus/FocusWorkspace.tsx")).not.toContain(
+      "<OnboardingGuide",
+    );
     // Guide precedes each view's scroll container in source order.
     const papers = src("src/components/papers/PapersView.tsx");
     expect(papers.indexOf("<OnboardingGuide")).toBeLessThan(

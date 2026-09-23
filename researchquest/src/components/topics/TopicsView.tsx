@@ -13,7 +13,9 @@ import { Button } from "../ui/button";
 import { InlineError } from "../ui/ErrorFallback";
 import { PageHeader } from "../ui/PageHeader";
 import { isDemoMode } from "../../lib/supabase";
-import { DEMO_FIRST_RUN_TOPIC_ID } from "../../lib/demoData";
+import { DEMO_FIRST_RUN_TOPIC_ID, isDemoFirstRunPath } from "../../lib/demoData";
+import { parseRoute } from "../../lib/router";
+import { navigateToView } from "../../lib/softNavigation";
 
 const UNDO_WINDOW_MS = 6000;
 
@@ -45,6 +47,27 @@ export function TopicsView() {
   const [sortOption, setSortOption] = useState<SortOption>("updated_desc");
   const [hiddenTopicIds, setHiddenTopicIds] = useState<Set<string>>(new Set());
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const syncTopicsRoute = () => {
+      const pathname = window.location.pathname;
+      const route = parseRoute(pathname);
+      if (route.view !== "topics") return;
+      if (isDemoFirstRunPath(pathname)) return;
+      if (!route.itemId) {
+        setSelectedTopic(null);
+        return;
+      }
+      const match = useAppStore
+        .getState()
+        .topics.find((topic) => topic.id === route.itemId);
+      setSelectedTopic(match ?? null);
+    };
+
+    syncTopicsRoute();
+    window.addEventListener("popstate", syncTopicsRoute);
+    return () => window.removeEventListener("popstate", syncTopicsRoute);
+  }, [setSelectedTopic]);
 
   // ⚡ PERFORMANCE OPTIMIZATION: Pre-compute derived text fields for faster searching
   const searchableTopics = useMemo(() => {
@@ -249,11 +272,23 @@ export function TopicsView() {
     }
   };
 
+  const handleSelectTopic = useCallback(
+    (topic: (typeof filteredTopics)[number]) => {
+      setSelectedTopic(topic);
+      navigateToView("topics", `/topics/${topic.id}`);
+    },
+    [setSelectedTopic],
+  );
+
+  const handleBackToIndex = useCallback(() => {
+    setSelectedTopic(null);
+    navigateToView("topics", "/topics");
+  }, [setSelectedTopic]);
+
   const isFirstRunLanding =
     isDemoMode &&
-    (selectedTopic?.id === DEMO_FIRST_RUN_TOPIC_ID ||
-      (typeof window !== "undefined" &&
-        window.location.pathname === `/topics/${DEMO_FIRST_RUN_TOPIC_ID}`));
+    typeof window !== "undefined" &&
+    isDemoFirstRunPath(window.location.pathname);
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-bg-base md:flex-row">
@@ -410,7 +445,7 @@ export function TopicsView() {
             topics={filteredTopics}
             loading={loading}
             highlightQuery={searchQuery}
-            onSelectTopic={setSelectedTopic}
+            onSelectTopic={handleSelectTopic}
             onDeleteTopic={handleDeleteWithUndo}
           />
         </div>
@@ -427,7 +462,7 @@ export function TopicsView() {
                 type="button"
                 variant="outline"
                 size="icon"
-                onClick={() => setSelectedTopic(null)}
+                onClick={handleBackToIndex}
                 aria-label="Back to topics"
               >
                 <ArrowLeft className="h-4 w-4" aria-hidden="true" />

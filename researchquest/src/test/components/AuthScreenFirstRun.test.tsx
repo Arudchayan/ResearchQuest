@@ -66,4 +66,14 @@ describe("AuthScreen first-run", () => {
       screen.queryByRole("button", { name: /Create Account/i }),
     ).not.toBeInTheDocument();
   });
+
+  it("distinguishes demo workspace from a live signed-in account", () => {
+    render(<AuthScreen />);
+    expect(
+      screen.getByText(/sample data on this device/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/already have a live ResearchQuest account/i),
+    ).toBeInTheDocument();
+  });
 });

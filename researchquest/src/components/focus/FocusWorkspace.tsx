@@ -40,7 +40,6 @@ import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader } from "../ui/card";
 import { Input } from "../ui/input";
 import { PageHeader } from "../ui/PageHeader";
-import { OnboardingGuide } from "../layout/OnboardingGuide";
 import {
   type FocusTargetType,
   type SelectedTarget,
@@ -551,7 +550,6 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     <div className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6 lg:p-8">
       {/* Bridge guide pinned above the page content (renders once per view,
           owned here instead of an App-level wrapper). */}
-      <OnboardingGuide storageKey="rq_focus_onboarding_bridge" />
       <PageHeader
         className="-mx-4 sm:-mx-6 lg:-mx-8"
         title={
@@ -752,6 +750,14 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                     size="lg"
                     onClick={toggleTimer}
                     disabled={!selectedItem || sessionLength === 0}
+                    title={
+                      !selectedItem
+                        ? "Select a target from Today or the library to start"
+                        : undefined
+                    }
+                    aria-describedby={
+                      !selectedItem ? "focus-start-hint" : undefined
+                    }
                   >
                     {isRunning ? (
                       <Pause className="h-5 w-5" aria-hidden="true" />
@@ -776,6 +782,15 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                     <RotateCcw className="h-4 w-4" aria-hidden="true" /> Reset
                   </Button>
                 </div>
+                {!selectedItem && (
+                  <p
+                    id="focus-start-hint"
+                    className="text-center text-small text-text-secondary"
+                  >
+                    Select a target from Today or the library to enable Start
+                    focus.
+                  </p>
+                )}
 
                 <div className="flex w-full max-w-sm flex-wrap items-center justify-center gap-2 border-t border-border-subtle pt-4">
                   <Button
@@ -923,8 +938,9 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                   role="status"
                   aria-live="polite"
                 >
-                  Select a target from the lists to preview its details and
-                  plan your focus session.
+                  Select a target from Today or the library to preview its
+                  details. Start focus stays disabled until a target is
+                  selected.
                 </div>
               )}
             </CardContent>

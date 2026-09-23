@@ -205,6 +205,16 @@ describe("demoSupabase", () => {
     expect(queryResult.data?.data?.length).toBe(2);
   });
 
+  it("resolves the Attention Is All You Need arXiv DOI instead of the first mock paper", async () => {
+    const result = await demoSupabase.functions.invoke("fetch-paper", {
+      body: { doi: "https://doi.org/10.48550/arXiv.1706.03762" },
+    });
+    expect(result.error).toBeNull();
+    expect(result.data?.data?.title).toBe("Attention Is All You Need");
+    expect(result.data?.data?.doi).toBe("10.48550/arXiv.1706.03762");
+    expect(result.data?.data?.title).not.toContain("Retrieval-Augmented");
+  });
+
   it("subscribes and emits realtime channel events", async () => {
     let received: string | null = null;
     const channel = demoSupabase

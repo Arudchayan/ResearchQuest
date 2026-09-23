@@ -5,12 +5,26 @@ const DEV_ORIGINS = [
   "http://127.0.0.1:4173",
 ];
 
+/** Live app hosts. Keep these in ALLOWED_ORIGINS; also used as a fallback so
+ *  an unset secret does not break production browser calls. */
+export const PRODUCTION_APP_ORIGINS = [
+  "https://research-quest-wine.vercel.app",
+  "https://rq.arudchayan.com",
+];
+
+function parseOriginList(value: string): string[] {
+  return value
+    .split(",")
+    .map((origin) => origin.trim().replace(/\/$/, ""))
+    .filter(Boolean);
+}
+
 export function getAllowedOrigins(): string[] {
   const fromEnv = Deno.env.get("ALLOWED_ORIGINS");
   if (fromEnv && fromEnv.trim()) {
-    return fromEnv.split(",").map((o) => o.trim()).filter(Boolean);
+    return parseOriginList(fromEnv);
   }
-  return DEV_ORIGINS;
+  return [...PRODUCTION_APP_ORIGINS, ...DEV_ORIGINS];
 }
 
 export function buildCorsHeaders(req: Request): Record<string, string> {
