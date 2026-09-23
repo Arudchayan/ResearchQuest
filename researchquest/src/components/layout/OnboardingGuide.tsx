@@ -8,6 +8,7 @@ import {
   useOnboardingTipsStore,
   type ContextualTipId,
 } from "../../store/onboardingTipsStore";
+import { isDemoFirstRunPath } from "../../lib/demoData";
 import type { AppView } from "../../lib/router";
 
 interface OnboardingGuideProps {
@@ -188,6 +189,13 @@ function ContextualGuide({ view }: { view?: AppView }) {
     const active = tipForView(resolvedView);
     if (active) completeOnboardingTip(active.id);
   }, [resolvedView]);
+
+  if (
+    typeof window !== "undefined" &&
+    isDemoFirstRunPath(window.location.pathname)
+  ) {
+    return null;
+  }
 
   if (!tip || doneIds.includes(tip.id)) {
     return null;

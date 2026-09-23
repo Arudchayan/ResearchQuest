@@ -1,6 +1,7 @@
 import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { OnboardingGuide } from "../../components/layout/OnboardingGuide";
+import { DEMO_FIRST_RUN_PATH } from "../../lib/demoData";
 import {
   completeOnboardingTip,
   tipForView,
@@ -92,6 +93,10 @@ describe("OnboardingGuide contextual tips", () => {
     useOnboardingTipsStore.setState({ doneIds: [] });
   });
 
+  afterEach(() => {
+    window.history.replaceState(null, "", "/");
+  });
+
   it("shows the papers coachmark until that action is done", () => {
     const { rerender } = render(
       <OnboardingGuide variant="contextual" view="papers" />,
@@ -122,6 +127,26 @@ describe("OnboardingGuide contextual tips", () => {
     ).not.toBeInTheDocument();
     expect(tipForView("ideas")).toBeNull();
     expect(tipForView("tasks")?.id).toBe("add-task");
+  });
+
+  it("does not show a contextual overlay on the demo first-run door", () => {
+    window.history.replaceState(null, "", DEMO_FIRST_RUN_PATH);
+    render(<OnboardingGuide variant="contextual" view="dashboard" />);
+    expect(
+      screen.queryByRole("region", { name: "Workspace tip" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("still shows the welcome carousel on the first-run topic", () => {
+    window.localStorage.removeItem(STORAGE_KEY);
+    window.history.replaceState(null, "", DEMO_FIRST_RUN_PATH);
+    render(<OnboardingGuide storageKey={STORAGE_KEY} />);
+    expect(
+      screen.getByRole("region", { name: "Onboarding guide" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("region", { name: "Workspace tip" }),
+    ).not.toBeInTheDocument();
   });
 });
 
