@@ -113,16 +113,25 @@ describe("FocusWorkspace", () => {
     vi.useRealTimers();
   });
 
-  it("renders correctly", () => {
+  it("fresh Focus is empty until a target is picked", () => {
     render(<FocusWorkspace userId={userId} />);
     expect(
       screen.getByText(/Design an intentional deep work session/i),
     ).toBeInTheDocument();
+    expect(screen.getByText("Select a focus target")).toBeInTheDocument();
+    expect(screen.getByText("25:00")).toBeInTheDocument();
     const startButton = screen.getByRole("button", { name: /Start focus/i });
     expect(startButton).toBeDisabled();
     expect(
+      screen.queryByRole("button", { name: /^Continue$/i }),
+    ).not.toBeInTheDocument();
+    expect(window.localStorage.getItem(FOCUS_SESSION_STORAGE_KEY)).toBeNull();
+    expect(
       screen.getByText(/Select a target from Today or the library to enable Start/i),
     ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("My Note"));
+    expect(screen.getByRole("button", { name: /Start focus/i })).not.toBeDisabled();
   });
 
   it("awards XP upon session completion", async () => {
@@ -196,7 +205,7 @@ describe("FocusWorkspace", () => {
     );
   });
 
-  it("restores a running session with accurate elapsed time after remount", async () => {
+  it("lands a stored running session paused with Continue after remount", async () => {
     const { unmount } = render(<FocusWorkspace userId={userId} />);
     fireEvent.click(screen.getByText("My Note"));
     fireEvent.click(screen.getByText("Start focus"));
@@ -208,19 +217,33 @@ describe("FocusWorkspace", () => {
 
     unmount();
 
-    // Timer keeps "running" (wall clock) while the component is unmounted.
+    // Wall clock may still advance while away; the remount must not auto-run.
     await act(async () => {
       vi.advanceTimersByTime(2 * 60 * 1000);
     });
 
-    const { getByText } = render(<FocusWorkspace userId={userId} />);
-    expect(getByText("18:00")).toBeInTheDocument();
+    const view = render(<FocusWorkspace userId={userId} />);
+    expect(view.getByText("18:00")).toBeInTheDocument();
+    expect(view.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(
+      view.queryByRole("button", { name: /^Pause$/i }),
+    ).not.toBeInTheDocument();
 
-    // The restored session is still running and ticks down.
+    const stored = JSON.parse(
+      window.localStorage.getItem(FOCUS_SESSION_STORAGE_KEY)!,
+    );
+    expect(stored.isRunning).toBe(false);
+
     await act(async () => {
       vi.advanceTimersByTime(60 * 1000);
     });
-    expect(getByText("17:00")).toBeInTheDocument();
+    expect(view.getByText("18:00")).toBeInTheDocument();
+
+    fireEvent.click(view.getByRole("button", { name: /^Continue$/i }));
+    await act(async () => {
+      vi.advanceTimersByTime(60 * 1000);
+    });
+    expect(view.getByText("17:00")).toBeInTheDocument();
   });
 
   it("completes a session that ended while away, awarding XP only once", async () => {
@@ -270,7 +293,7 @@ describe("FocusWorkspace", () => {
     expect(next.getByText("Start focus")).toBeInTheDocument();
   });
 
-  it("StrictMode double-mount keeps a restored running session intact and awards XP exactly once", async () => {
+  it("StrictMode remount of a stored running session lands paused until Continue", async () => {
     // Seed a running session that started 5 minutes ago.
     saveFocusSession({
       version: 1,
@@ -282,7 +305,7 @@ describe("FocusWorkspace", () => {
       hasCompletedSession: false,
     });
 
-    const { unmount, getByText } = render(
+    const { unmount, getByText, getByRole } = render(
       <StrictMode>
         <FocusWorkspace userId={userId} />
       </StrictMode>,
@@ -290,15 +313,20 @@ describe("FocusWorkspace", () => {
 
     // The second StrictMode setup must not wipe the restored session.
     expect(getByText("20:00")).toBeInTheDocument();
+    expect(getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
 
-    // Storage must still hold the running session after the double-mount.
     const stored = JSON.parse(
       window.localStorage.getItem(FOCUS_SESSION_STORAGE_KEY)!,
     );
-    expect(stored.isRunning).toBe(true);
+    expect(stored.isRunning).toBe(false);
     expect(stored.timeLeft).toBe(20 * 60);
 
-    // The restored timer continues ticking.
+    await act(async () => {
+      vi.advanceTimersByTime(60 * 1000);
+    });
+    expect(getByText("20:00")).toBeInTheDocument();
+
+    fireEvent.click(getByRole("button", { name: /^Continue$/i }));
     await act(async () => {
       vi.advanceTimersByTime(60 * 1000);
     });
@@ -340,13 +368,13 @@ describe("FocusWorkspace", () => {
     fireEvent.click(screen.getByText("Start focus"));
     expect(getByText(/SESSION 01 · 25 MIN · NOTE/)).toBeInTheDocument();
 
-    // Pausing and resuming does not count as a new session.
+    // Pausing and continuing does not count as a new session.
     await act(async () => {
       vi.advanceTimersByTime(1000);
     });
     fireEvent.click(screen.getByText("Pause"));
-    expect(getByText("Resume")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("Resume"));
+    expect(getByText("Continue")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Continue"));
     expect(getByText(/SESSION 01 · 25 MIN · NOTE/)).toBeInTheDocument();
 
     await act(async () => {

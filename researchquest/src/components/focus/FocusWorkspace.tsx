@@ -99,12 +99,10 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     }
     return restoredSession.timeLeft;
   });
-  const [isRunning, setIsRunning] = useState(
-    restoredSession?.isRunning ?? false,
-  );
-  const [startedAt, setStartedAt] = useState<number | null>(
-    restoredSession?.startedAt ?? null,
-  );
+  // Restored snapshots land paused. Wall-clock may still update timeLeft
+  // above; the scholar must press Continue before isRunning becomes true.
+  const [isRunning, setIsRunning] = useState(false);
+  const [startedAt, setStartedAt] = useState<number | null>(null);
   const [customMinutes, setCustomMinutes] = useState("");
   const [hasCompletedSession, setHasCompletedSession] = useState(
     restoredSession?.hasCompletedSession ?? false,
@@ -765,7 +763,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                     ) : (
                       <Play className="h-5 w-5" aria-hidden="true" />
                     )}
-                    {isRunning ? "Pause" : isPaused ? "Resume" : "Start focus"}
+                    {isRunning ? "Pause" : isPaused ? "Continue" : "Start focus"}
                   </Button>
                   <Button
                     type="button"
