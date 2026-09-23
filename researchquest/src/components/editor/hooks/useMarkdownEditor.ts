@@ -44,7 +44,7 @@ export function useMarkdownEditor() {
       setTitle(
         isPlaceholderNoteTitle(note.title)
           ? deriveTitleFromMarkdown(note.markdown_body)
-          : note.title.trim(),
+          : (note.title ?? "").trim(),
       );
       setDebouncedContent(note.markdown_body);
       setSaveState("saved");

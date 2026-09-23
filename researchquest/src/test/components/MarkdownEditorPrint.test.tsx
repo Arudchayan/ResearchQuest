@@ -91,6 +91,12 @@ vi.mock("../../utils/gamification", () => ({
 vi.mock("../../utils/text", () => ({
   countWords: () => 10,
   estimateReadingTime: () => "1 min",
+  deriveTitleFromMarkdown: (body: string) => body.split("\n")[0] || "Untitled Note",
+  isPlaceholderNoteTitle: (title?: string | null) =>
+    !title?.trim() || title.trim() === "Untitled Note",
+  displayNoteTitle: (note: { title?: string | null }) =>
+    note.title?.trim() || "Untitled Note",
+  PLACEHOLDER_NOTE_TITLE: "Untitled Note",
 }));
 
 describe("MarkdownEditor Print", () => {

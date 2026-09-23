@@ -26,7 +26,6 @@ export function AppShell({ children }: AppShellProps) {
     isRightSidebarOpen,
     isZenMode,
     toggleZenMode,
-    currentView,
     effectiveTheme,
   } = useAppStore(
     useShallow((state) => ({
@@ -35,7 +34,6 @@ export function AppShell({ children }: AppShellProps) {
       isRightSidebarOpen: state.isRightSidebarOpen,
       isZenMode: state.isZenMode,
       toggleZenMode: state.toggleZenMode,
-      currentView: state.currentView,
       effectiveTheme: state.effectiveTheme,
     })),
   );

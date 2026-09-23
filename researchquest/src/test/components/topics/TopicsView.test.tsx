@@ -14,6 +14,11 @@ vi.mock("../../../components/ui/ConfirmDialog", () => ({
     config: {},
   }),
 }));
+vi.mock("../../../components/topics/TopicDetailView", () => ({
+  TopicDetailView: ({ topic }: { topic: { name: string } }) => (
+    <div>Detail {topic.name}</div>
+  ),
+}));
 vi.mock("../../../components/topics/TopicList", () => ({
   TopicList: ({ topics, onDeleteTopic, onSelectTopic }: any) => (
     <div>
@@ -73,6 +78,7 @@ describe("TopicsView", () => {
     (useTopics as any).mockReturnValue({
       topics: mockTopics,
       loading: false,
+      quests: [],
       createTopic: vi.fn().mockResolvedValue({ id: "new-id", name: "New Topic" }),
       updateTopic: vi.fn().mockResolvedValue(true),
       deleteTopic: vi.fn().mockResolvedValue(true),
@@ -93,7 +99,7 @@ describe("TopicsView", () => {
     expect(screen.getByText("Select a topic")).toBeInTheDocument();
   });
 
-  it("opens the topics index even when a first-run topic is still selected", () => {
+  it("opens the topics index even when a first-run topic is still selected", async () => {
     window.history.replaceState(null, "", "/topics");
     useAppStore.setState({
       selectedTopic: {
@@ -110,7 +116,9 @@ describe("TopicsView", () => {
       screen.getByRole("heading", { level: 1, name: "Topics" }),
     ).toBeInTheDocument();
     expect(screen.getByText("Machine Learning")).toBeInTheDocument();
-    expect(useAppStore.getState().selectedTopic).toBeNull();
+    await waitFor(() => {
+      expect(useAppStore.getState().selectedTopic).toBeNull();
+    });
   });
 
   it("allows creating a new topic", async () => {
