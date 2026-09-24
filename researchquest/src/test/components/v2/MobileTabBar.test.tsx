@@ -88,11 +88,11 @@ describe("MobileTabBar (v2)", () => {
     expect(window.history.pushState).toHaveBeenCalledWith(null, "", "/notes");
   });
 
-  it("does not offer Feeds in the library sheet", async () => {
+  it("offers Feeds in the library sheet", async () => {
     renderTabBar();
     fireEvent.click(screen.getByRole("button", { name: "Library" }));
     await screen.findByRole("dialog", { name: "Library" });
-    expect(screen.queryByText("Feeds")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Feeds" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Topics" })).toBeInTheDocument();
   });
 

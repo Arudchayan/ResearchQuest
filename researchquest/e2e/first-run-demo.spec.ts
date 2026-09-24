@@ -108,7 +108,7 @@ test.describe("first-run demo click", () => {
       page.getByRole("button", { name: /^Delete$/i }),
     ).toBeVisible();
     await expect(page.getByRole("link", { name: /^Today$/i })).toBeVisible();
-    await expect(page.getByRole("link", { name: /^Feeds$/i })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: /^Feeds$/i })).toBeVisible();
     await expect(page.locator('[data-first-run="true"]')).toHaveCount(0);
 
     await page.screenshot({

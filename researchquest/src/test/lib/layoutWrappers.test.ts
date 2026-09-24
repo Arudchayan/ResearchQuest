@@ -123,13 +123,12 @@ describe("PR12 layout wrappers + containment (static guards)", () => {
     expect(shell).not.toContain("data-first-run");
   });
 
-  it("Feeds hides inbox chrome until a source exists (orphan items stay)", () => {
+  it("Feeds lists inbox items even with 0 sources and keeps an honesty note", () => {
     const feeds = src("src/components/feeds/FeedsView.tsx");
-    expect(feeds).toContain("const ingestReady = (sourceCount ?? 0) > 0");
-    expect(feeds).toContain("const visibleItems = ingestReady ? items : []");
-    expect(feeds).toContain("ingestReady ? (");
-    expect(feeds).toContain("are not deleted");
-    expect(feeds).toContain("AlphaEmptyState");
+    expect(feeds).not.toContain("const ingestReady = (sourceCount ?? 0) > 0");
+    expect(feeds).not.toContain("const visibleItems = ingestReady ? items : []");
+    expect(feeds).toContain("Source and RSS management is not fully shipped");
+    expect(feeds).toContain("items.map");
   });
 
   it("dashboard counts grid steps through an intermediate breakpoint (no orphan)", () => {

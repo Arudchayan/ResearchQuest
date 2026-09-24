@@ -15,6 +15,7 @@ import {
   Database,
   LayoutDashboard,
   Hash,
+  Inbox,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAppStore } from "../../store/appStore";
@@ -457,6 +458,10 @@ export function CommandPalette() {
             <Command.Item onSelect={() => handleNavigate("topics")}>
               <Hash />
               <span>Go to Topics</span>
+            </Command.Item>
+            <Command.Item onSelect={() => handleNavigate("feeds")}>
+              <Inbox />
+              <span>Go to Feeds</span>
             </Command.Item>
             <Command.Item onSelect={() => handleNavigate("focus")}>
               <Target />

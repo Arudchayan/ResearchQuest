@@ -23,6 +23,7 @@ const NAVIGATION_SHORTCUTS: Record<string, { view: AppView; url: string }> = {
   "5": { view: "tasks", url: "/tasks" },
   "6": { view: "focus", url: "/focus" },
   "7": { view: "topics", url: "/topics" },
+  "8": { view: "feeds", url: "/feeds" },
 };
 
 const isMac =
@@ -66,6 +67,7 @@ const SHORTCUTS: ShortcutSection[] = [
       { keys: [META_KEY, "Alt", "5"], description: "Go to Tasks" },
       { keys: [META_KEY, "Alt", "6"], description: "Go to Focus" },
       { keys: [META_KEY, "Alt", "7"], description: "Go to Topics" },
+      { keys: [META_KEY, "Alt", "8"], description: "Go to Feeds" },
     ],
   },
   {

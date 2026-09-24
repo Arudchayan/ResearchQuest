@@ -204,6 +204,7 @@ describe("CommandPalette", () => {
     await waitFor(() => {
       expect(screen.getByText("Go to Notes")).toBeInTheDocument();
       expect(screen.getByText("Go to Papers")).toBeInTheDocument();
+      expect(screen.getByText("Go to Feeds")).toBeInTheDocument();
     });
   });
 
