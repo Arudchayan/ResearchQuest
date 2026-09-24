@@ -80,6 +80,36 @@ export function loadStoredFocusSession(): FocusSessionSnapshot | null {
   }
 }
 
+/** Wall-clock remaining. `isRunning` in storage is never permission to auto-run. */
+export function remainingSecondsOnRestore(
+  snapshot: FocusSessionSnapshot,
+  now = Date.now(),
+): number {
+  if (snapshot.startedAt !== null) {
+    return Math.max(
+      0,
+      snapshot.sessionLength -
+        Math.floor((now - snapshot.startedAt) / 1000),
+    );
+  }
+  return snapshot.timeLeft;
+}
+
+/** Remount of an in-progress snapshot must show Continue even at full duration. */
+export function restoredSessionNeedsContinue(
+  snapshot: FocusSessionSnapshot | null,
+): boolean {
+  if (!snapshot || snapshot.hasCompletedSession || !snapshot.selectedTarget) {
+    return false;
+  }
+  return (
+    snapshot.isRunning ||
+    snapshot.startedAt !== null ||
+    snapshot.timeLeft < snapshot.sessionLength ||
+    (snapshot.sessionCount ?? 0) > 0
+  );
+}
+
 export function saveFocusSession(snapshot: FocusSessionSnapshot): void {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(
@@ -91,6 +121,49 @@ export function saveFocusSession(snapshot: FocusSessionSnapshot): void {
 export function clearStoredFocusSession(): void {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(FOCUS_SESSION_STORAGE_KEY);
+}
+
+/** Persist in-progress Focus state without storing permission to auto-run. */
+export function persistPausedFocusSession(input: {
+  selectedTarget: SelectedTarget | null;
+  sessionLength: number;
+  liveIsRunning: boolean;
+  liveStartedAt: number | null;
+  timeLeft: number;
+  hasCompletedSession: boolean;
+  sessionCount: number;
+  keepAlive: boolean;
+  now?: number;
+}): number {
+  const now = input.now ?? Date.now();
+  const remaining =
+    input.liveIsRunning && input.liveStartedAt !== null
+      ? Math.max(
+          0,
+          input.sessionLength -
+            Math.floor((now - input.liveStartedAt) / 1000),
+        )
+      : input.timeLeft;
+  const hasActiveSession =
+    input.liveIsRunning ||
+    input.hasCompletedSession ||
+    input.keepAlive ||
+    (input.selectedTarget !== null && remaining < input.sessionLength);
+  if (!hasActiveSession) {
+    clearStoredFocusSession();
+    return remaining;
+  }
+  saveFocusSession({
+    version: 1,
+    selectedTarget: input.selectedTarget,
+    sessionLength: input.sessionLength,
+    isRunning: false,
+    startedAt: input.liveIsRunning ? input.liveStartedAt : null,
+    timeLeft: remaining,
+    hasCompletedSession: input.hasCompletedSession,
+    sessionCount: input.sessionCount,
+  });
+  return remaining;
 }
 
 export function formatTime(seconds: number) {

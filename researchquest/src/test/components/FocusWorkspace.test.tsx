@@ -246,6 +246,86 @@ describe("FocusWorkspace", () => {
     expect(view.getByText("17:00")).toBeInTheDocument();
   });
 
+  function dispatchPageShow(persisted: boolean) {
+    const event = new Event("pageshow");
+    Object.defineProperty(event, "persisted", {
+      configurable: true,
+      value: persisted,
+    });
+    window.dispatchEvent(event);
+  }
+
+  it("does not persist isRunning true after Start", async () => {
+    render(<FocusWorkspace userId={userId} />);
+    fireEvent.click(screen.getByText("My Note"));
+    fireEvent.click(screen.getByText("Start focus"));
+    expect(screen.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
+
+    const stored = JSON.parse(
+      window.localStorage.getItem(FOCUS_SESSION_STORAGE_KEY)!,
+    );
+    expect(stored.isRunning).toBe(false);
+    expect(stored.selectedTarget).toEqual({ type: "note", id: "note-1" });
+    expect(stored.startedAt).not.toBeNull();
+  });
+
+  it("Start then remount with persisted isRunning true lands Continue, not running", async () => {
+    const { unmount } = render(<FocusWorkspace userId={userId} />);
+    fireEvent.click(screen.getByText("My Note"));
+    fireEvent.click(screen.getByText("Start focus"));
+    expect(screen.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
+
+    // Crash-style snapshot: storage still says running (wine hard-refresh).
+    saveFocusSession({
+      version: 1,
+      selectedTarget: { type: "note", id: "note-1" },
+      sessionLength: 25 * 60,
+      isRunning: true,
+      startedAt: Date.now(),
+      timeLeft: 25 * 60,
+      hasCompletedSession: false,
+      sessionCount: 1,
+    });
+    unmount();
+
+    const view = render(<FocusWorkspace userId={userId} />);
+    expect(view.getByText("25:00")).toBeInTheDocument();
+    expect(view.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(
+      view.queryByRole("button", { name: /^Pause$/i }),
+    ).not.toBeInTheDocument();
+
+    await act(async () => {
+      vi.advanceTimersByTime(60 * 1000);
+    });
+    expect(view.getByText("25:00")).toBeInTheDocument();
+  });
+
+  it("bfcache pageshow of a running session lands paused with Continue", async () => {
+    render(<FocusWorkspace userId={userId} />);
+    fireEvent.click(screen.getByText("My Note"));
+    fireEvent.click(screen.getByText("Start focus"));
+    await act(async () => {
+      vi.advanceTimersByTime(60 * 1000);
+    });
+    expect(screen.getByText("24:00")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
+
+    await act(async () => {
+      dispatchPageShow(true);
+    });
+
+    expect(screen.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Pause$/i }),
+    ).not.toBeInTheDocument();
+
+    await act(async () => {
+      vi.advanceTimersByTime(60 * 1000);
+    });
+    expect(screen.getByText("24:00")).toBeInTheDocument();
+  });
+
   it("completes a session that ended while away, awarding XP only once", async () => {
     const { unmount } = render(<FocusWorkspace userId={userId} />);
     fireEvent.click(screen.getByText("My Note"));
