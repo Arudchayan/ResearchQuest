@@ -51,8 +51,9 @@ import {
   extractPaperPreview,
   extractTaskPreview,
   loadStoredFocusSession,
-  saveFocusSession,
-  clearStoredFocusSession,
+  persistPausedFocusSession,
+  remainingSecondsOnRestore,
+  restoredSessionNeedsContinue,
 } from "./focusUtils";
 import { FocusTargetAside } from "./FocusTargetAside";
 
@@ -73,7 +74,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   const setSelectedNote = useAppStore((state) => state.setSelectedNote);
   const setSelectedPaper = useAppStore((state) => state.setSelectedPaper);
 
-  const [restoredSession] = useState(loadStoredFocusSession);
+  const [restoredSession] = useState(() => loadStoredFocusSession());
 
   const [selectedTarget, setSelectedTarget] = useState<SelectedTarget | null>(
     restoredSession?.selectedTarget ?? null,
@@ -90,19 +91,15 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   );
   const [timeLeft, setTimeLeft] = useState(() => {
     if (!restoredSession) return DEFAULT_SESSION_LENGTH;
-    if (restoredSession.isRunning && restoredSession.startedAt !== null) {
-      return Math.max(
-        0,
-        restoredSession.sessionLength -
-          Math.floor((Date.now() - restoredSession.startedAt) / 1000),
-      );
-    }
-    return restoredSession.timeLeft;
+    return remainingSecondsOnRestore(restoredSession);
   });
-  // Restored snapshots land paused. Wall-clock may still update timeLeft
-  // above; the scholar must press Continue before isRunning becomes true.
+  // Restored snapshots land paused. Persistence may remember task/elapsed
+  // (and startedAt for wall-clock); live isRunning is never copied from storage.
   const [isRunning, setIsRunning] = useState(false);
   const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [resumeHold, setResumeHold] = useState(() =>
+    restoredSessionNeedsContinue(restoredSession),
+  );
   const [customMinutes, setCustomMinutes] = useState("");
   const [hasCompletedSession, setHasCompletedSession] = useState(
     restoredSession?.hasCompletedSession ?? false,
@@ -261,7 +258,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   }, [isRunning, completeSession]);
 
   useEffect(() => {
-    if (hasCompletedSession || !restoredSession?.isRunning || timeLeft > 0) {
+    if (hasCompletedSession || !restoredSession || timeLeft > 0) {
       return;
     }
     completeSession();
@@ -273,7 +270,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     !isRunning &&
     !hasCompletedSession &&
     effectiveTimeLeft > 0 &&
-    effectiveTimeLeft < sessionLength;
+    (effectiveTimeLeft < sessionLength || resumeHold);
   const progress =
     sessionLength > 0 ? (sessionLength - effectiveTimeLeft) / sessionLength : 0;
   const durationMinutes = Math.floor(sessionLength / 60);
@@ -281,35 +278,85 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   const sessionOrdinal = Math.max(1, sessionCount);
 
   useEffect(() => {
-    const hasActiveSession =
-      isRunning ||
-      hasCompletedSession ||
-      (selectedTarget !== null && effectiveTimeLeft < sessionLength);
-
-    if (!hasActiveSession) {
-      clearStoredFocusSession();
-      return;
-    }
-
-    saveFocusSession({
-      version: 1,
+    persistPausedFocusSession({
       selectedTarget,
       sessionLength,
-      isRunning,
-      startedAt: isRunning ? startedAt : null,
+      liveIsRunning: isRunning,
+      liveStartedAt: startedAt,
       timeLeft: effectiveTimeLeft,
       hasCompletedSession,
       sessionCount,
+      keepAlive: resumeHold,
     });
   }, [
     isRunning,
     startedAt,
     hasCompletedSession,
+    resumeHold,
     selectedTarget,
     sessionLength,
     effectiveTimeLeft,
     sessionCount,
   ]);
+
+  const persistRef = useRef({
+    isRunning,
+    startedAt,
+    selectedTarget,
+    sessionLength,
+    timeLeft: effectiveTimeLeft,
+    hasCompletedSession,
+    sessionCount,
+    resumeHold,
+  });
+  persistRef.current = {
+    isRunning,
+    startedAt,
+    selectedTarget,
+    sessionLength,
+    timeLeft: effectiveTimeLeft,
+    hasCompletedSession,
+    sessionCount,
+    resumeHold,
+  };
+
+  useEffect(() => {
+    const writePausedSnapshot = () => {
+      const snap = persistRef.current;
+      return persistPausedFocusSession({
+        selectedTarget: snap.selectedTarget,
+        sessionLength: snap.sessionLength,
+        liveIsRunning: snap.isRunning,
+        liveStartedAt: snap.startedAt,
+        timeLeft: snap.timeLeft,
+        hasCompletedSession: snap.hasCompletedSession,
+        sessionCount: snap.sessionCount,
+        keepAlive: snap.resumeHold,
+      });
+    };
+
+    const onPageHide = () => {
+      writePausedSnapshot();
+    };
+    const onPageShow = (event: Event) => {
+      const persisted = Boolean(
+        "persisted" in event && (event as PageTransitionEvent).persisted,
+      );
+      if (!persisted) return;
+      const remaining = writePausedSnapshot();
+      setTimeLeft(remaining);
+      setIsRunning(false);
+      setStartedAt(null);
+      setResumeHold(true);
+    };
+
+    window.addEventListener("pagehide", onPageHide);
+    window.addEventListener("pageshow", onPageShow);
+    return () => {
+      window.removeEventListener("pagehide", onPageHide);
+      window.removeEventListener("pageshow", onPageShow);
+    };
+  }, []);
 
   const quickTargets = useMemo(() => {
     // ⚡ PERFORMANCE OPTIMIZATION:
@@ -497,6 +544,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     setHasCompletedSession(false);
     setIsRunning(false);
     setStartedAt(null);
+    setResumeHold(false);
     setTimeLeft(sessionLength);
   };
 
@@ -776,6 +824,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                       setIsRunning(false);
                       setStartedAt(null);
                       setHasCompletedSession(false);
+                      setResumeHold(false);
                     }}
                   >
                     <RotateCcw className="h-4 w-4" aria-hidden="true" /> Reset
