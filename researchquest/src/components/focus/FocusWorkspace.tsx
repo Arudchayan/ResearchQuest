@@ -240,6 +240,14 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     completeTask,
   ]);
 
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stopTimerNow = () => {
+    if (timerRef.current == null) return;
+    window.clearInterval(timerRef.current);
+    timerRef.current = null;
+  };
+
   useEffect(() => {
     if (!isRunning) return;
 
@@ -247,14 +255,19 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           window.clearInterval(timer);
+          if (timerRef.current === timer) timerRef.current = null;
           completeSession();
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
+    timerRef.current = timer;
 
-    return () => window.clearInterval(timer);
+    return () => {
+      window.clearInterval(timer);
+      if (timerRef.current === timer) timerRef.current = null;
+    };
   }, [isRunning, completeSession]);
 
   useEffect(() => {
@@ -321,40 +334,61 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   };
 
   useEffect(() => {
-    const writePausedSnapshot = () => {
+    const freezeLiveTimer = () => {
+      stopTimerNow();
       const snap = persistRef.current;
-      return persistPausedFocusSession({
-        selectedTarget: snap.selectedTarget,
-        sessionLength: snap.sessionLength,
-        liveIsRunning: snap.isRunning,
-        liveStartedAt: snap.startedAt,
-        timeLeft: snap.timeLeft,
-        hasCompletedSession: snap.hasCompletedSession,
-        sessionCount: snap.sessionCount,
-        keepAlive: snap.resumeHold,
+      const remaining =
+        snap.isRunning && snap.startedAt !== null
+          ? Math.max(
+              0,
+              snap.sessionLength -
+                Math.floor((Date.now() - snap.startedAt) / 1000),
+            )
+          : snap.timeLeft;
+      const inProgress =
+        snap.isRunning ||
+        snap.resumeHold ||
+        (snap.selectedTarget !== null && remaining < snap.sessionLength);
+      persistRef.current = {
+        ...snap,
+        isRunning: false,
+        startedAt: null,
+        timeLeft: remaining,
+        resumeHold: inProgress,
+      };
+      persistPausedFocusSession({
+        selectedTarget: persistRef.current.selectedTarget,
+        sessionLength: persistRef.current.sessionLength,
+        liveIsRunning: false,
+        liveStartedAt: null,
+        timeLeft: remaining,
+        hasCompletedSession: persistRef.current.hasCompletedSession,
+        sessionCount: persistRef.current.sessionCount,
+        keepAlive: inProgress,
       });
+      return { remaining, inProgress };
     };
 
     const onPageHide = () => {
-      writePausedSnapshot();
+      freezeLiveTimer();
     };
-    const onPageShow = (event: Event) => {
-      const persisted = Boolean(
-        "persisted" in event && (event as PageTransitionEvent).persisted,
-      );
-      if (!persisted) return;
-      const remaining = writePausedSnapshot();
+    const onPageShow = () => {
+      const { remaining, inProgress } = freezeLiveTimer();
       setTimeLeft(remaining);
       setIsRunning(false);
       setStartedAt(null);
-      setResumeHold(true);
+      if (inProgress) setResumeHold(true);
     };
 
     window.addEventListener("pagehide", onPageHide);
     window.addEventListener("pageshow", onPageShow);
+    document.addEventListener("freeze", onPageHide);
+    document.addEventListener("resume", onPageShow);
     return () => {
       window.removeEventListener("pagehide", onPageHide);
       window.removeEventListener("pageshow", onPageShow);
+      document.removeEventListener("freeze", onPageHide);
+      document.removeEventListener("resume", onPageShow);
     };
   }, []);
 

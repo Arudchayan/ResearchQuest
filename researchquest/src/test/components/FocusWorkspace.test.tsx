@@ -326,6 +326,34 @@ describe("FocusWorkspace", () => {
     expect(screen.getByText("24:00")).toBeInTheDocument();
   });
 
+  it("Start then hard-refresh pageshow (persisted false) shows Continue and does not auto-tick", async () => {
+    render(<FocusWorkspace userId={userId} />);
+    fireEvent.click(screen.getByText("My Note"));
+    fireEvent.click(screen.getByText("Start focus"));
+    await act(async () => {
+      vi.advanceTimersByTime(21 * 1000);
+    });
+    expect(screen.getByText("24:39")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
+
+    // Live wine/QA hard refresh: pageshow with persisted=false while the
+    // timer heap can still be alive (bfcache / reload restore).
+    await act(async () => {
+      window.dispatchEvent(new Event("pagehide"));
+      dispatchPageShow(false);
+    });
+
+    expect(screen.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Pause$/i }),
+    ).not.toBeInTheDocument();
+
+    await act(async () => {
+      vi.advanceTimersByTime(18 * 1000);
+    });
+    expect(screen.getByText("24:39")).toBeInTheDocument();
+  });
+
   it("completes a session that ended while away, awarding XP only once", async () => {
     const { unmount } = render(<FocusWorkspace userId={userId} />);
     fireEvent.click(screen.getByText("My Note"));
