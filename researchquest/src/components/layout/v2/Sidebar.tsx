@@ -17,6 +17,7 @@ import {
   Maximize2,
   Hash,
   BookOpen,
+  Inbox,
   LayoutDashboard,
   Target,
 } from "lucide-react";
@@ -89,6 +90,7 @@ export function Sidebar() {
         { id: "papers", label: "Papers", icon: BookOpen },
         { id: "ideas", label: "Ideas", icon: Lightbulb },
         { id: "topics", label: "Topics", icon: Hash },
+        { id: "feeds", label: "Feeds", icon: Inbox },
       ],
     },
   ];

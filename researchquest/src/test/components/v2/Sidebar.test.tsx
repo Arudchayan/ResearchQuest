@@ -53,6 +53,8 @@ describe("Sidebar (v2)", () => {
     expect(todayLink).toHaveAttribute("href", "/");
     const notesLink = screen.getByText("Notes").closest("a");
     expect(notesLink).toHaveAttribute("href", "/notes");
+    const feedsLink = screen.getByText("Feeds").closest("a");
+    expect(feedsLink).toHaveAttribute("href", "/feeds");
   });
 
   it("routes Topics to the index, not a first-run deep link", () => {
@@ -61,7 +63,6 @@ describe("Sidebar (v2)", () => {
     const topicsLink = screen.getByText("Topics").closest("a");
     expect(topicsLink).toHaveAttribute("href", "/topics");
     expect(topicsLink).not.toHaveAttribute("href", "/topics/topic-ai-agents");
-    expect(screen.queryByText("Feeds")).not.toBeInTheDocument();
   });
 
   it("updates view and URL on click without a full navigation", () => {

@@ -21,9 +21,9 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
   never written as the stored title.
 - Dark mode tokens apply to AppShell and sidebar together (`html` class +
   shell `effectiveTheme`).
-- Feeds chrome is hidden; `/feeds` is an alpha empty state when there are
-  0 sources (filters/promote/refresh stay hidden; orphan items are not shown
-  and are not mass-deleted).
+- Feeds is back in primary nav. `/feeds` lists real `feed_items` even when
+  `feed_sources` is empty / items have null `source_id`. Source/RSS
+  management stays incomplete; orphan inbox rows are shown, not deleted.
 - Demo first-run uses the full workspace shell with a demo banner, exit CTAs,
   and a single OnboardingGuide. Papers/tasks/ideas no longer each mount a
   copy of the guide.
