@@ -692,14 +692,14 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                     {formatTime(effectiveTimeLeft)}
                   </div>
 
-                  <p className="mt-4 font-mono text-caption tabular-nums tracking-[0.14em] text-text-tertiary">
+                  <p className="mt-4 font-mono text-caption tabular-nums tracking-[0.14em] text-text-secondary">
                     SESSION {String(sessionOrdinal).padStart(2, "0")} ·{" "}
                     {durationMinutes} MIN ·{" "}
                     {selectedTarget ? selectedTarget.type.toUpperCase() : "FOCUS"}
                   </p>
 
                   <div className="mt-6 w-full space-y-2">
-                    <div className="flex items-center justify-between gap-4 text-caption text-text-tertiary">
+                    <div className="flex items-center justify-between gap-4 text-caption text-text-secondary">
                       <span>Time remaining</span>
                       <span className="font-mono tabular-nums">
                         {Math.round(progress * 100)}% complete
