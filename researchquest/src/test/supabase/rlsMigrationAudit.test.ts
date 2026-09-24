@@ -10,11 +10,13 @@
  *  3. Effective CREATE POLICY expressions wrap auth.* / current_setting() as
  *     (select …) so auth_rls_initplan stays clear (Supabase lint 0003).
  *  4. Topic junction FKs used by RLS have covering indexes.
- *  5. No migration (re)creates an exec_sql RPC (removed in 1764410000).
- *  6. Every SECURITY DEFINER function's *effective* (last-in-chain)
+ *  5. Topic junction WITH CHECK binds parent topics.user_id (and entity
+ *     owner) so INSERT/UPDATE cannot attach a foreign topic or child.
+ *  6. No migration (re)creates an exec_sql RPC (removed in 1764410000).
+ *  7. Every SECURITY DEFINER function's *effective* (last-in-chain)
  *     definition pins SET search_path.
  *
- * Checks 2-6 evaluate the concatenated migrations in filename order so later
+ * Checks 2-7 evaluate the concatenated migrations in filename order so later
  * remediations (e.g. 1764802000) count towards the effective state, while
  * historical statements remain untouched.
  */
@@ -305,6 +307,95 @@ describe("supabase RLS migration audit", () => {
         missing.push(`${table}.${column}`);
       }
     }
+    expect(missing).toEqual([]);
+  });
+
+  it("binds topic junction WITH CHECK to parent topics.user_id and entity owner", async () => {
+    const migrations = await readSqlDir(migrationsDir);
+    const policies = effectivePolicies(migrations);
+    const junctions: Array<{
+      table: string;
+      policy: string;
+      entityTable: string | null;
+      entityColumn: string | null;
+    }> = [
+      {
+        table: "topic_notes",
+        policy: "Users manage own topic_notes",
+        entityTable: "notes",
+        entityColumn: "note_id",
+      },
+      {
+        table: "topic_papers",
+        policy: "Users manage own topic_papers",
+        entityTable: "papers",
+        entityColumn: "paper_id",
+      },
+      {
+        table: "topic_ideas",
+        policy: "Users manage own topic_ideas",
+        entityTable: "ideas",
+        entityColumn: "idea_id",
+      },
+      {
+        table: "topic_quests",
+        policy: "Users manage own topic quests",
+        entityTable: null,
+        entityColumn: null,
+      },
+    ];
+
+    const missing: string[] = [];
+    for (const spec of junctions) {
+      const statement = policies.get(policyKey(spec.table, spec.policy));
+      if (!statement) {
+        missing.push(`${spec.table}: missing policy`);
+        continue;
+      }
+
+      const usingMatch = /USING\s*\(([\s\S]*?)\)\s*WITH\s+CHECK/i.exec(
+        statement,
+      );
+      const checkMatch = /WITH\s+CHECK\s*\(([\s\S]*)\)\s*$/i.exec(statement);
+      const usingClause = usingMatch?.[1] ?? "";
+      const checkClause = checkMatch?.[1] ?? "";
+
+      if (!/\(\s*select\s+auth\.uid\(\)\s*\)\s*=\s*user_id/i.test(usingClause)) {
+        missing.push(`${spec.table}: USING not owner-scoped`);
+      }
+      if (/\bEXISTS\b/i.test(usingClause)) {
+        missing.push(`${spec.table}: USING unexpectedly has EXISTS`);
+      }
+      if (!checkClause) {
+        missing.push(`${spec.table}: missing WITH CHECK`);
+        continue;
+      }
+      if (!/\(\s*select\s+auth\.uid\(\)\s*\)\s*=\s*user_id/i.test(checkClause)) {
+        missing.push(`${spec.table}: WITH CHECK missing junction user_id`);
+      }
+      if (
+        !/EXISTS\s*\(\s*SELECT\s+1\s+FROM\s+(?:public\s*\.\s*)?topics\b[\s\S]*user_id\s*=\s*\(\s*select\s+auth\.uid\(\)\s*\)/i.test(
+          checkClause,
+        )
+      ) {
+        missing.push(`${spec.table}: WITH CHECK missing parent topics.user_id`);
+      }
+      if (spec.entityTable && spec.entityColumn) {
+        const entityPattern = new RegExp(
+          `EXISTS\\s*\\(\\s*SELECT\\s+1\\s+FROM\\s+(?:public\\s*\\.\\s*)?${spec.entityTable}\\b[\\s\\S]*${spec.entityColumn}[\\s\\S]*user_id\\s*=\\s*\\(\\s*select\\s+auth\\.uid\\(\\)\\s*\\)`,
+          "i",
+        );
+        if (!entityPattern.test(checkClause)) {
+          missing.push(
+            `${spec.table}: WITH CHECK missing ${spec.entityTable}.${spec.entityColumn} owner`,
+          );
+        }
+      }
+      if (/\bWITH\s+CHECK\s*\(\s*true\s*\)/i.test(statement)) {
+        missing.push(`${spec.table}: permissive WITH CHECK (true)`);
+      }
+    }
+
     expect(missing).toEqual([]);
   });
 
