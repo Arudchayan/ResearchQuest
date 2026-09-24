@@ -336,8 +336,12 @@ describe("FocusWorkspace", () => {
     expect(screen.getByText("24:39")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
 
-    // Live wine/QA hard refresh: pageshow with persisted=false while the
-    // timer heap can still be alive (bfcache / reload restore).
+    // QA Soft FAIL bar on 336d9f95 (#798):
+    // 01_running = Pause while ticking (valid).
+    // 02_after_hard_refresh = still Pause at 24:39 (BUG — must be Continue).
+    // 03_after_wait = 24:21 still Pause (BUG — clock must stay frozen).
+    // Hard refresh fires pageshow persisted=false while the timer heap can
+    // still be alive.
     await act(async () => {
       window.dispatchEvent(new Event("pagehide"));
       dispatchPageShow(false);
@@ -352,6 +356,10 @@ describe("FocusWorkspace", () => {
       vi.advanceTimersByTime(18 * 1000);
     });
     expect(screen.getByText("24:39")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Pause$/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("completes a session that ended while away, awarding XP only once", async () => {
