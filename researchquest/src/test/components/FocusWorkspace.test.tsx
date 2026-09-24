@@ -360,6 +360,17 @@ describe("FocusWorkspace", () => {
     expect(supabaseInsert).toHaveBeenCalledTimes(1);
   });
 
+  it("uses secondary text tokens for timer metadata on the gridded session chrome", () => {
+    render(<FocusWorkspace userId={userId} />);
+    const sessionLabel = screen.getByText(/SESSION 01 · 25 MIN · FOCUS/);
+    expect(sessionLabel).toHaveClass("text-text-secondary");
+    expect(sessionLabel).not.toHaveClass("text-text-tertiary");
+    const remainingRow = screen.getByText("Time remaining").parentElement;
+    expect(remainingRow).toHaveClass("text-text-secondary");
+    expect(remainingRow).not.toHaveClass("text-text-tertiary");
+    expect(screen.getByText(/0% complete/)).toBeInTheDocument();
+  });
+
   it("shows a printed session label and increments the ordinal on each fresh start", async () => {
     const { unmount, getByText } = render(<FocusWorkspace userId={userId} />);
     expect(getByText(/SESSION 01 · 25 MIN · FOCUS/)).toBeInTheDocument();
