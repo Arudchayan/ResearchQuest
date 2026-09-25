@@ -347,14 +347,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     stopTimerNow();
     runArmedRef.current = false;
     const snap = persistRef.current;
-    const remaining =
-      snap.isRunning && snap.startedAt !== null
-        ? Math.max(
-            0,
-            snap.sessionLength -
-              Math.floor((Date.now() - snap.startedAt) / 1000),
-          )
-        : snap.timeLeft;
+    const remaining = snap.timeLeft;
     const inProgress =
       snap.isRunning ||
       snap.resumeHold ||

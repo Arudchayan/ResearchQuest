@@ -64,6 +64,24 @@ describe("focus session hydrate", () => {
     expect(stored.timeLeft).toBe(24 * 60 + 4);
   });
 
+  it("persist writes last painted timeLeft, not wall-clock since a Continue startedAt", () => {
+    persistPausedFocusSession({
+      selectedTarget: { type: "note", id: "note-1" },
+      sessionLength: 25 * 60,
+      liveIsRunning: true,
+      liveStartedAt: Date.now() - 2 * 1000,
+      timeLeft: 24 * 60 + 41,
+      hasCompletedSession: false,
+      sessionCount: 1,
+      keepAlive: true,
+    });
+    const stored = JSON.parse(
+      window.localStorage.getItem(FOCUS_SESSION_STORAGE_KEY)!,
+    ) as FocusSessionSnapshot;
+    expect(stored.isRunning).toBe(false);
+    expect(stored.timeLeft).toBe(24 * 60 + 41);
+  });
+
   it("saveFocusSession running crash snapshot still hydrates as Continue-hold", () => {
     const snapshot = runningSnapshot();
     saveFocusSession(snapshot);

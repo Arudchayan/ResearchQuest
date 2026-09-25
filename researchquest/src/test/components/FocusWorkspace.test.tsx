@@ -461,6 +461,32 @@ describe("FocusWorkspace", () => {
     });
   });
 
+  it("visibility hide after Continue freezes last painted remaining, not wall-clock since Continue", async () => {
+    render(<FocusWorkspace userId={userId} />);
+    fireEvent.click(screen.getByText("My Note"));
+    fireEvent.click(screen.getByText("Start focus"));
+    await act(async () => {
+      vi.advanceTimersByTime(17 * 1000);
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^Pause$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^Continue$/i }));
+    await act(async () => {
+      vi.advanceTimersByTime(2 * 1000);
+    });
+    expect(screen.getByText("24:41")).toBeInTheDocument();
+
+    await act(async () => {
+      dispatchVisibility(true);
+    });
+
+    expect(screen.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(screen.getByText("24:41")).toBeInTheDocument();
+    await act(async () => {
+      vi.advanceTimersByTime(18 * 1000);
+    });
+    expect(screen.getByText("24:41")).toBeInTheDocument();
+  });
+
   it("wine persistPaused snapshot (isRunning false, startedAt set) hydrates Continue, frozen", async () => {
     // After Start, persistPausedFocusSession writes isRunning:false but keeps
     // startedAt. Wine cold mount must not treat that as permission to run.
