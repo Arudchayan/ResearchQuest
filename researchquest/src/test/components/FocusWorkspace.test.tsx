@@ -1,8 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, act, fireEvent } from "@testing-library/react";
-import { StrictMode } from "react";
+import { StrictMode, useEffect, useState } from "react";
 import { FocusWorkspace } from "../../components/focus/FocusWorkspace";
 import { useAppStore } from "../../store/appStore";
+import {
+  currentFocusHydrateEpoch,
+  subscribeFocusHydrateEpoch,
+} from "../../components/focus/focusSessionGuard";
 
 const { supabaseInsert, completeTaskMock } = vi.hoisted(() => ({
   supabaseInsert: vi.fn().mockResolvedValue({ error: null }),
@@ -522,6 +526,43 @@ describe("FocusWorkspace", () => {
     });
     expect(view.getByText("24:39")).toBeInTheDocument();
     expect(view.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+  });
+
+  function KeyedFocusWorkspace({ userId }: { userId: string }) {
+    const [epoch, setEpoch] = useState(() => currentFocusHydrateEpoch());
+    useEffect(() => {
+      return subscribeFocusHydrateEpoch(() => {
+        setEpoch(currentFocusHydrateEpoch());
+      });
+    }, []);
+    return <FocusWorkspace key={epoch} userId={userId} />;
+  }
+
+  it("pagehide remounts keyed Focus from rq_focus_session Continue, frozen", async () => {
+    render(<KeyedFocusWorkspace userId={userId} />);
+    fireEvent.click(screen.getByText("My Note"));
+    fireEvent.click(screen.getByText("Start focus"));
+    await act(async () => {
+      vi.advanceTimersByTime(21 * 1000);
+    });
+    expect(screen.getByText("24:39")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
+
+    await act(async () => {
+      dispatchPageHide();
+    });
+
+    expect(screen.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Pause$/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("24:39")).toBeInTheDocument();
+
+    await act(async () => {
+      vi.advanceTimersByTime(18 * 1000);
+    });
+    expect(screen.getByText("24:39")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
   });
 
   it("wine visibility hide of a running session lands Continue and does not auto-tick", async () => {

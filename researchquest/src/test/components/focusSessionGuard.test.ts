@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   bumpFocusRunEpoch,
+  currentFocusHydrateEpoch,
   currentFocusRunEpoch,
   ensureFocusSessionGuardAttached,
   registerFocusFreeze,
+  subscribeFocusHydrateEpoch,
 } from "../../components/focus/focusSessionGuard";
 
 describe("focusSessionGuard", () => {
@@ -67,10 +69,54 @@ describe("focusSessionGuard", () => {
     unregister();
   });
 
-  it("bumpFocusRunEpoch invalidates a captured interval epoch", () => {
-    const epoch = bumpFocusRunEpoch();
-    expect(currentFocusRunEpoch()).toBe(epoch);
-    bumpFocusRunEpoch();
-    expect(currentFocusRunEpoch()).not.toBe(epoch);
+  it("pagehide bumps hydrate epoch so App can remount from storage", () => {
+    const listener = vi.fn();
+    const unsubscribe = subscribeFocusHydrateEpoch(listener);
+    const before = currentFocusHydrateEpoch();
+    const unregister = registerFocusFreeze({
+      freeze: vi.fn(),
+      isLive: () => true,
+    });
+
+    window.dispatchEvent(new Event("pagehide"));
+    expect(currentFocusHydrateEpoch()).toBeGreaterThan(before);
+    expect(listener).toHaveBeenCalled();
+
+    unregister();
+    unsubscribe();
+  });
+
+  it("visibility hide does not bump hydrate epoch", () => {
+    const listener = vi.fn();
+    const unsubscribe = subscribeFocusHydrateEpoch(listener);
+    const before = currentFocusHydrateEpoch();
+    const unregister = registerFocusFreeze({
+      freeze: vi.fn(),
+      isLive: () => true,
+    });
+
+    Object.defineProperty(document, "hidden", {
+      configurable: true,
+      get: () => true,
+    });
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => "hidden",
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+    expect(currentFocusHydrateEpoch()).toBe(before);
+    expect(listener).not.toHaveBeenCalled();
+
+    Object.defineProperty(document, "hidden", {
+      configurable: true,
+      get: () => false,
+    });
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => "visible",
+    });
+
+    unregister();
+    unsubscribe();
   });
 });

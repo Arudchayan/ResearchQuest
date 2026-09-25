@@ -1,13 +1,13 @@
 /**
- * Eager page-lifecycle freeze for Focus.
+ * Eager Focus remount + freeze.
  *
- * FocusWorkspace is lazy-loaded. React layout/bubble listeners on that chunk
- * do not run on wine/QA hard refresh (document may hide without visibilitychange,
- * and unload can skip bubble-phase pagehide). This module attaches capture-phase
- * listeners once — imported from main.tsx so they exist before the lazy view.
+ * Hard refresh must land Continue from cold hydrate of `rq_focus_session`,
+ * not from setState on a surviving live heap. Capture-phase pagehide/pageshow
+ * bump a hydrate epoch so App remounts FocusWorkspace; that instance loads
+ * storage paused. Freeze still disarms any interval on the outgoing instance.
  *
- * Cold hydrate from rq_focus_session must still land Continue without these
- * events. The guard only disarms a live heap that never unmounted.
+ * Visibility hide only freezes the live heap (does not remount). That is not
+ * sufficient for QA/wine hard refresh.
  */
 
 export type FocusFreezeRegistration = {
@@ -18,12 +18,26 @@ export type FocusFreezeRegistration = {
 let attached = false;
 let registration: FocusFreezeRegistration | null = null;
 let runEpoch = 0;
+let hydrateEpoch = 0;
+const hydrateListeners = new Set<() => void>();
 
 const listenerOpts: AddEventListenerOptions = { capture: true };
+
+function notifyHydrateEpoch(): void {
+  hydrateEpoch += 1;
+  hydrateListeners.forEach((listener) => {
+    listener();
+  });
+}
 
 function fireFreeze(): void {
   runEpoch += 1;
   registration?.freeze();
+}
+
+function fireHardRefreshRemount(): void {
+  fireFreeze();
+  notifyHydrateEpoch();
 }
 
 function onPageShow(event: Event): void {
@@ -31,7 +45,7 @@ function onPageShow(event: Event): void {
     "persisted" in event && (event as PageTransitionEvent).persisted,
   );
   if (!persisted && !registration?.isLive()) return;
-  fireFreeze();
+  fireHardRefreshRemount();
 }
 
 function onVisibilityChange(): void {
@@ -48,15 +62,30 @@ export function bumpFocusRunEpoch(): number {
   return runEpoch;
 }
 
+export function currentFocusHydrateEpoch(): number {
+  return hydrateEpoch;
+}
+
+export function subscribeFocusHydrateEpoch(listener: () => void): () => void {
+  hydrateListeners.add(listener);
+  return () => {
+    hydrateListeners.delete(listener);
+  };
+}
+
 export function ensureFocusSessionGuardAttached(): void {
   if (attached || typeof window === "undefined") return;
   attached = true;
-  window.addEventListener("pagehide", fireFreeze, listenerOpts);
-  window.addEventListener("beforeunload", fireFreeze, listenerOpts);
-  window.addEventListener("unload", fireFreeze, listenerOpts);
-  window.addEventListener("freeze", fireFreeze, listenerOpts);
+  window.addEventListener("pagehide", fireHardRefreshRemount, listenerOpts);
+  window.addEventListener("beforeunload", fireHardRefreshRemount, listenerOpts);
+  window.addEventListener("unload", fireHardRefreshRemount, listenerOpts);
+  window.addEventListener("freeze", fireHardRefreshRemount, listenerOpts);
   window.addEventListener("pageshow", onPageShow, listenerOpts);
-  document.addEventListener("visibilitychange", onVisibilityChange, listenerOpts);
+  document.addEventListener(
+    "visibilitychange",
+    onVisibilityChange,
+    listenerOpts,
+  );
 }
 
 export function registerFocusFreeze(
