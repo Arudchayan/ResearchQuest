@@ -80,17 +80,22 @@ export function loadStoredFocusSession(): FocusSessionSnapshot | null {
   }
 }
 
-/** Wall-clock remaining. `isRunning` in storage is never permission to auto-run. */
+/**
+ * Remount remaining. `startedAt` / `isRunning` in storage are never permission
+ * to keep ticking — freeze at the last painted `timeLeft` unless the session
+ * already expired while away (remaining 0 → complete).
+ */
 export function remainingSecondsOnRestore(
   snapshot: FocusSessionSnapshot,
   now = Date.now(),
 ): number {
   if (snapshot.startedAt !== null) {
-    return Math.max(
+    const wallRemaining = Math.max(
       0,
       snapshot.sessionLength -
         Math.floor((now - snapshot.startedAt) / 1000),
     );
+    if (wallRemaining <= 0) return 0;
   }
   return snapshot.timeLeft;
 }
