@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { EyeOpenIcon, EyeClosedIcon } from "@radix-ui/react-icons";
 import { FlaskConical } from "lucide-react";
-import { DEMO_FIRST_RUN_PATH } from "../../lib/demoData";
+import { demoEntryPath } from "../../lib/demoEntry";
 import { enableDemoModeAndReload, supabase } from "../../lib/supabase";
 
 type AuthMessage = {
@@ -132,6 +132,7 @@ export function AuthScreen() {
   }, [email]);
 
   const isBusy = loading || resetting;
+  const demoPath = demoEntryPath(new URL(window.location.href));
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-bg-base transition-colors">
@@ -165,11 +166,11 @@ export function AuthScreen() {
               then the browser navigates to the seeded topic.
             */}
             <a
-              href={DEMO_FIRST_RUN_PATH}
+              href={demoPath}
               data-rq-demo-entry
               onClick={(event) => {
                 event.preventDefault();
-                enableDemoModeAndReload();
+                enableDemoModeAndReload(demoPath);
               }}
               aria-disabled={isBusy || undefined}
               className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-black text-white rounded-sm hover:opacity-90 transition-opacity font-medium"

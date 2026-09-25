@@ -227,7 +227,7 @@ function App() {
     if (!loading && !user) {
       const route = parseRoute(window.location.pathname);
       if (route.isValid && route.view !== "dashboard") {
-        setPendingPath(window.location.pathname);
+        setPendingPath(`${window.location.pathname}${window.location.search}${window.location.hash}`);
       }
     }
   }, [loading, user]);
@@ -235,7 +235,7 @@ function App() {
   // After sign-in, navigate to the saved deep-link path
   useEffect(() => {
     if (user && pendingPath) {
-      const route = parseRoute(pendingPath);
+      const route = parseRoute(new URL(pendingPath, window.location.origin).pathname);
       navigateToView(route.isValid && route.view ? route.view : "dashboard", pendingPath);
       setPendingPath(null);
     }

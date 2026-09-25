@@ -35,6 +35,8 @@ import { PageHeader } from "../ui/PageHeader";
 import type { TaskFilter, TaskPriority, TaskCategory, SortOption } from "./taskTypes";
 import { PRIORITIES, CATEGORIES, PRIORITY_ORDER } from "./taskTypes";
 import { TaskCard, isOverdue } from "./TaskCard";
+import { clearLearningTaskHandoff, readLearningTaskHandoff } from "./learningHandoff";
+import { subscribeSoftNavigation } from "../../lib/softNavigation";
 
 export function TaskManager() {
   const [userId, setUserId] = useState<string | undefined>(undefined);
@@ -60,6 +62,9 @@ export function TaskManager() {
   );
   const [projectFilter, setProjectFilter] = useState<string>("all");
   const [showAddModal, setShowAddModal] = useState(false);
+  const [isLearningHandoff, setIsLearningHandoff] = useState(false);
+  const [learningReturnUrl, setLearningReturnUrl] = useState("https://learning-platform-chi-ten.vercel.app/");
+  const [taskSaveError, setTaskSaveError] = useState<string | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOption, setSortOption] = useState<SortOption>("due_date");
@@ -82,6 +87,33 @@ export function TaskManager() {
   const [formPriority, setFormPriority] = useState<TaskPriority>("medium");
   const [formCategory, setFormCategory] = useState<TaskCategory>("Research");
   const [formDueDate, setFormDueDate] = useState("");
+
+  useEffect(() => {
+    const applyHandoff = () => {
+      const url = new URL(window.location.href);
+      const draft = readLearningTaskHandoff(url);
+      if (!draft) return;
+      setEditingTask(null);
+      setFormTitle(draft.title);
+      setFormDescription(draft.description);
+      setFormPriority("medium");
+      setFormCategory("Study");
+      setFormDueDate("");
+      setIsLearningHandoff(true);
+      setLearningReturnUrl(draft.lessonUrl || "https://learning-platform-chi-ten.vercel.app/");
+      setTaskSaveError(null);
+      setShowAddModal(true);
+      window.history.replaceState(window.history.state, "", clearLearningTaskHandoff(url));
+    };
+
+    applyHandoff();
+    const unsubscribe = subscribeSoftNavigation(applyHandoff);
+    window.addEventListener("popstate", applyHandoff);
+    return () => {
+      unsubscribe();
+      window.removeEventListener("popstate", applyHandoff);
+    };
+  }, []);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -177,18 +209,27 @@ export function TaskManager() {
     totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Synchronous guard: React state updates are async, so two rapid submits
+  // (e.g. double requestSubmit) would both pass the isSubmitting check.
+  const savePendingRef = useRef(false);
 
   const handleAddTask = async () => {
-    if (!formTitle.trim() || isSubmitting) return;
+    if (!formTitle.trim() || isSubmitting || savePendingRef.current) return;
+    savePendingRef.current = true;
     setIsSubmitting(true);
+    setTaskSaveError(null);
     try {
-      await createTask({
+      const saved = await createTask({
         title: formTitle,
         ...(formDescription ? { description: formDescription } : {}),
         priority: formPriority,
         category: formCategory,
         ...(formDueDate ? { due_date: formDueDate } : {}),
       });
+      if (!saved) {
+        setTaskSaveError("Task was not saved. Check the fields and try again.");
+        return;
+      }
 
       setFormTitle("");
       setFormDescription("");
@@ -196,7 +237,13 @@ export function TaskManager() {
       setFormCategory("Research");
       setFormDueDate("");
       setShowAddModal(false);
+      setIsLearningHandoff(false);
+      setLearningReturnUrl("https://learning-platform-chi-ten.vercel.app/");
+    } catch (error) {
+      logger.error("Failed to create task", error);
+      setTaskSaveError("Task was not saved. Please try again.");
     } finally {
+      savePendingRef.current = false;
       setIsSubmitting(false);
     }
   };
@@ -564,6 +611,9 @@ export function TaskManager() {
         isOpen={showAddModal || editingTask !== null}
         onClose={() => {
           setShowAddModal(false);
+          setTaskSaveError(null);
+          setIsLearningHandoff(false);
+          setLearningReturnUrl("https://learning-platform-chi-ten.vercel.app/");
           handleCancelEdit();
         }}
         onSubmit={(e) => {
@@ -586,6 +636,22 @@ export function TaskManager() {
         isSubmitDisabled={!formTitle.trim() || isSubmitting}
       >
         <div className="space-y-4">
+          {taskSaveError && !editingTask && (
+            <p role="alert" className="text-small text-destructive">{taskSaveError}</p>
+          )}
+          {isLearningHandoff && !editingTask && (
+            <p className="rounded-control border border-border-subtle bg-bg-elevated px-3 py-2 text-small text-text-secondary">
+              Started from Learning Atlas.{" "}
+              <a
+                href={learningReturnUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-primary-500 underline underline-offset-2"
+              >
+                Back to lesson
+              </a>
+            </p>
+          )}
           {/* Title */}
           <div>
             <Label

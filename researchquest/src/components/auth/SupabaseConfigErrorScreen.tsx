@@ -2,8 +2,10 @@ import {
   enableDemoModeAndReload,
   supabaseConfigErrorMessage,
 } from "../../lib/supabase";
+import { demoEntryPath } from "../../lib/demoEntry";
 
 export function SupabaseConfigErrorScreen() {
+  const demoPath = demoEntryPath(new URL(window.location.href));
   const handleReload = () => {
     window.location.reload();
   };
@@ -23,11 +25,11 @@ export function SupabaseConfigErrorScreen() {
         </p>
 
         <a
-          href="/topics/topic-ai-agents"
+          href={demoPath}
           data-rq-demo-entry
           onClick={(event) => {
             event.preventDefault();
-            enableDemoModeAndReload();
+            enableDemoModeAndReload(demoPath);
           }}
           className="mt-5 w-full flex items-center justify-center px-4 py-2 bg-primary-500 text-bg-base rounded-sm hover:opacity-90 transition-opacity font-medium"
         >

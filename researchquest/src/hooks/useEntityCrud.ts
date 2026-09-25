@@ -298,6 +298,7 @@ export function useEntityCrud<
       toast.success(
         `${cfg.entityLabel} ${cfg.createVerb === "add" ? "added" : "created"} successfully`,
       );
+      // Realtime may have inserted this row before the create response resolves.
       setItemsStore(applySort(dedupeById([result.data, ...currentItems()])));
 
       cfg.afterCreate?.(cfg.userId, result.data);
