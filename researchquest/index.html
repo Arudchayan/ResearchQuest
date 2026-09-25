@@ -146,6 +146,15 @@
         if (location.pathname === PATH) {
           armDemo();
         }
+        // The static first-run link is clickable before React mounts. Keep a
+        // valid lesson task handoff through that early demo entry as well.
+        if (location.pathname === "/tasks") {
+          var params = new URLSearchParams(location.search);
+          if (params.get("source") === "learning-platform" && (params.get("title") || "").trim()) {
+            var entryLink = document.querySelector("#rq-static-gate [data-rq-demo-entry]");
+            if (entryLink) entryLink.setAttribute("href", location.pathname + location.search + location.hash);
+          }
+        }
       } catch (e) {}
       document.addEventListener(
         "click",

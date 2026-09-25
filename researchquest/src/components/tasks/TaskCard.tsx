@@ -14,6 +14,7 @@ import type { Task } from "../../types/database";
 import { parseDateInput } from "../../utils/time";
 import { highlightMatch } from "../../utils/highlight";
 import type { TaskPriority } from "./taskTypes";
+import { savedAtlasLessonUrl } from "./savedLessonLink";
 
 const priorityBadgeVariants: Record<TaskPriority, BadgeVariant> = {
   high: "priority-high",
@@ -56,6 +57,10 @@ export function TaskCard({
 
   const overdue = !task.completed && isOverdue(task.due_date);
   const dueDate = task.due_date ? parseDateInput(task.due_date) : null;
+  const lessonUrl = savedAtlasLessonUrl(task.description);
+  const description = lessonUrl
+    ? task.description?.split(/\r?\n/).filter((line) => !line.startsWith("Open lesson: ")).join("\n")
+    : task.description;
 
   const handleToggle = async (e: MouseEvent) => {
     e.stopPropagation();
@@ -147,12 +152,23 @@ export function TaskCard({
             </div>
           </div>
 
-          {task.description && (
+          {description && (
             <p
               className={`${compact ? "mb-2 text-caption" : "mb-3 text-small"} break-words ${task.completed ? "text-text-tertiary" : "text-text-secondary"}`}
             >
-              {highlightMatch(task.description, highlightQuery)}
+              {highlightMatch(description, highlightQuery)}
             </p>
+          )}
+
+          {lessonUrl && (
+            <a
+              href={lessonUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mb-3 inline-flex min-h-11 items-center text-small font-medium text-primary-500 underline underline-offset-2"
+            >
+              Return to lesson
+            </a>
           )}
 
           {/* Metadata */}

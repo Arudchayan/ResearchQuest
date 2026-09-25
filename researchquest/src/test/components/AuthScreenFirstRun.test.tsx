@@ -57,6 +57,19 @@ describe("AuthScreen first-run", () => {
     );
   });
 
+  it("links a lesson handoff into the demo task draft", () => {
+    window.history.replaceState(null, "", "/tasks?source=learning-platform&subject=Biology&lesson=Cells&title=Review%20cells");
+    try {
+      render(<AuthScreen />);
+      expect(screen.getByRole("link", { name: /Use demo workspace/i })).toHaveAttribute(
+        "href",
+        "/tasks?source=learning-platform&subject=Biology&lesson=Cells&title=Review%20cells",
+      );
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
+  });
+
   it("does not offer Submit application / sign-up on the first-run screen", () => {
     render(<AuthScreen />);
 

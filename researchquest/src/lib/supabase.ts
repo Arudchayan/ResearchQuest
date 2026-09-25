@@ -27,13 +27,21 @@ export const isDemoMode =
 /** Enter demo and land on the seeded first-run topic — never the dashboard.
  *
  * Callers with unsaved drafts pass `hasUnsavedChanges: true` so the reload
- * does not discard work without confirmation. Returns `true` when navigation
- * was triggered, `false` when the user aborted.
+ * does not discard work without confirmation. Callers preserving a deep link
+ * (e.g. a Learning Platform task handoff) pass the destination path as the
+ * first argument. Returns `true` when navigation was triggered, `false` when
+ * the user aborted.
  */
-export function enableDemoModeAndReload(options?: {
-  hasUnsavedChanges?: boolean;
-  confirmMessage?: string;
-}): boolean {
+export function enableDemoModeAndReload(
+  pathOrOptions:
+    | string
+    | { hasUnsavedChanges?: boolean; confirmMessage?: string } = DEMO_FIRST_RUN_PATH,
+  maybeOptions?: { hasUnsavedChanges?: boolean; confirmMessage?: string },
+): boolean {
+  const path =
+    typeof pathOrOptions === "string" ? pathOrOptions : DEMO_FIRST_RUN_PATH;
+  const options =
+    typeof pathOrOptions === "string" ? maybeOptions : pathOrOptions;
   if (
     options?.hasUnsavedChanges === true &&
     typeof window !== "undefined" &&
@@ -50,7 +58,12 @@ export function enableDemoModeAndReload(options?: {
   } catch {
     // Ignore quota / private-mode errors; navigation still attempts demo.
   }
-  window.location.assign(DEMO_FIRST_RUN_PATH);
+  // Callers supply only same-origin app routes; guard this public helper too.
+  const destination =
+    path.startsWith("/") && !path.startsWith("//")
+      ? path
+      : DEMO_FIRST_RUN_PATH;
+  window.location.assign(destination);
   return true;
 }
 
