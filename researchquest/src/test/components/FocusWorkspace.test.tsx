@@ -143,6 +143,25 @@ describe("FocusWorkspace", () => {
     expect(screen.getByRole("button", { name: /Start focus/i })).not.toBeDisabled();
   });
 
+  it("visibility hide without a stored session stays Start-only, not Continue", async () => {
+    render(<FocusWorkspace userId={userId} />);
+    fireEvent.click(screen.getByText("My Note"));
+    expect(screen.getByRole("button", { name: /Start focus/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Continue$/i }),
+    ).not.toBeInTheDocument();
+
+    await act(async () => {
+      dispatchVisibility(true);
+    });
+
+    expect(screen.getByRole("button", { name: /Start focus/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Continue$/i }),
+    ).not.toBeInTheDocument();
+    expect(window.localStorage.getItem(FOCUS_SESSION_STORAGE_KEY)).toBeNull();
+  });
+
   it("awards XP upon session completion", async () => {
     render(<FocusWorkspace userId={userId} />);
 
