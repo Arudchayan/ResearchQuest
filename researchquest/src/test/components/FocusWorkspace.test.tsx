@@ -162,6 +162,46 @@ describe("FocusWorkspace", () => {
     expect(window.localStorage.getItem(FOCUS_SESSION_STORAGE_KEY)).toBeNull();
   });
 
+  it("cold remount with no stored rq_focus_session lands Start-only", () => {
+    expect(window.localStorage.getItem(FOCUS_SESSION_STORAGE_KEY)).toBeNull();
+    const { unmount } = render(<FocusWorkspace userId={userId} />);
+    fireEvent.click(screen.getByText("My Note"));
+    expect(screen.getByRole("button", { name: /Start focus/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Continue$/i }),
+    ).not.toBeInTheDocument();
+
+    unmount();
+    const view = render(<FocusWorkspace userId={userId} />);
+    expect(view.getByRole("button", { name: /Start focus/i })).toBeInTheDocument();
+    expect(
+      view.queryByRole("button", { name: /^Continue$/i }),
+    ).not.toBeInTheDocument();
+    expect(window.localStorage.getItem(FOCUS_SESSION_STORAGE_KEY)).toBeNull();
+  });
+
+  it("Reset then visibility hide stays Start-only, not Continue", async () => {
+    render(<FocusWorkspace userId={userId} />);
+    fireEvent.click(screen.getByText("My Note"));
+    fireEvent.click(screen.getByText("Start focus"));
+    expect(screen.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Reset"));
+    expect(screen.getByRole("button", { name: /Start focus/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Continue$/i }),
+    ).not.toBeInTheDocument();
+
+    await act(async () => {
+      dispatchVisibility(true);
+    });
+
+    expect(screen.getByRole("button", { name: /Start focus/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Continue$/i }),
+    ).not.toBeInTheDocument();
+    expect(window.localStorage.getItem(FOCUS_SESSION_STORAGE_KEY)).toBeNull();
+  });
+
   it("awards XP upon session completion", async () => {
     render(<FocusWorkspace userId={userId} />);
 

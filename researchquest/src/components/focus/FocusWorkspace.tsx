@@ -351,8 +351,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     const inProgress =
       snap.isRunning ||
       snap.resumeHold ||
-      (snap.selectedTarget !== null &&
-        (remaining < snap.sessionLength || snap.sessionCount > 0));
+      (snap.selectedTarget !== null && remaining < snap.sessionLength);
     persistRef.current = {
       ...snap,
       isRunning: false,

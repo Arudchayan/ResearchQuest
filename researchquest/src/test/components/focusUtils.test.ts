@@ -88,4 +88,31 @@ describe("focus session hydrate", () => {
     expect(restoredSessionNeedsContinue(snapshot)).toBe(true);
     expect(remainingSecondsOnRestore(snapshot)).toBe(snapshot.timeLeft);
   });
+
+  it("empty / never-started snapshot stays Start-only and does not persist", () => {
+    expect(restoredSessionNeedsContinue(null)).toBe(false);
+    persistPausedFocusSession({
+      selectedTarget: { type: "note", id: "note-1" },
+      sessionLength: 25 * 60,
+      liveIsRunning: false,
+      liveStartedAt: null,
+      timeLeft: 25 * 60,
+      hasCompletedSession: false,
+      sessionCount: 0,
+      keepAlive: false,
+    });
+    expect(window.localStorage.getItem(FOCUS_SESSION_STORAGE_KEY)).toBeNull();
+    expect(
+      restoredSessionNeedsContinue({
+        version: 1,
+        selectedTarget: { type: "note", id: "note-1" },
+        sessionLength: 25 * 60,
+        isRunning: false,
+        startedAt: null,
+        timeLeft: 25 * 60,
+        hasCompletedSession: false,
+        sessionCount: 0,
+      }),
+    ).toBe(false);
+  });
 });
