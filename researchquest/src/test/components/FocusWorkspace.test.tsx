@@ -26,6 +26,7 @@ import {
 } from "../../utils/alerts";
 import {
   saveFocusSession,
+  persistPausedFocusSession,
   FOCUS_SESSION_STORAGE_KEY,
 } from "../../components/focus/focusUtils";
 
@@ -111,6 +112,14 @@ describe("FocusWorkspace", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    Object.defineProperty(document, "hidden", {
+      configurable: true,
+      get: () => false,
+    });
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => "visible",
+    });
   });
 
   it("fresh Focus is empty until a target is picked", () => {
@@ -256,6 +265,18 @@ describe("FocusWorkspace", () => {
     window.dispatchEvent(event);
   }
 
+  function dispatchVisibility(hidden: boolean) {
+    Object.defineProperty(document, "hidden", {
+      configurable: true,
+      get: () => hidden,
+    });
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => (hidden ? "hidden" : "visible"),
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+  }
+
   it("does not persist isRunning true after Start", async () => {
     render(<FocusWorkspace userId={userId} />);
     fireEvent.click(screen.getByText("My Note"));
@@ -371,6 +392,102 @@ describe("FocusWorkspace", () => {
       vi.advanceTimersByTime(60 * 1000);
     });
     expect(screen.getByText("24:00")).toBeInTheDocument();
+  });
+
+  it("wine hard-refresh pageshow(false) of a live running heap lands Continue, frozen", async () => {
+    // Wine Soft FAIL after #801: Start → hard refresh still Pause and the
+    // clock kept ticking. Preview Soft PASS remounted React (cold hydrate).
+    // Wine reload can keep the heap and fire pageshow(persisted=false)
+    // without unmounting FocusWorkspace.
+    render(<FocusWorkspace userId={userId} />);
+    fireEvent.click(screen.getByText("My Note"));
+    fireEvent.click(screen.getByText("Start focus"));
+    await act(async () => {
+      vi.advanceTimersByTime(17 * 1000);
+    });
+    expect(screen.getByText("24:43")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
+
+    await act(async () => {
+      dispatchPageShow(false);
+    });
+
+    expect(screen.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Pause$/i }),
+    ).not.toBeInTheDocument();
+
+    await act(async () => {
+      vi.advanceTimersByTime(18 * 1000);
+    });
+    expect(screen.getByText("24:43")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+  });
+
+  it("wine visibility hide of a running session lands Continue and does not auto-tick", async () => {
+    render(<FocusWorkspace userId={userId} />);
+    fireEvent.click(screen.getByText("My Note"));
+    fireEvent.click(screen.getByText("Start focus"));
+    await act(async () => {
+      vi.advanceTimersByTime(17 * 1000);
+    });
+    expect(screen.getByText("24:43")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
+
+    await act(async () => {
+      dispatchVisibility(true);
+    });
+
+    expect(screen.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Pause$/i }),
+    ).not.toBeInTheDocument();
+
+    await act(async () => {
+      vi.advanceTimersByTime(18 * 1000);
+    });
+    expect(screen.getByText("24:43")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Continue$/i }));
+    expect(screen.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
+    await act(async () => {
+      vi.advanceTimersByTime(18 * 1000);
+    });
+    expect(screen.getByText("24:25")).toBeInTheDocument();
+
+    await act(async () => {
+      dispatchVisibility(false);
+    });
+  });
+
+  it("wine persistPaused snapshot (isRunning false, startedAt set) hydrates Continue, frozen", async () => {
+    // After Start, persistPausedFocusSession writes isRunning:false but keeps
+    // startedAt. Wine cold mount must not treat that as permission to run.
+    persistPausedFocusSession({
+      selectedTarget: { type: "note", id: "note-1" },
+      sessionLength: 25 * 60,
+      liveIsRunning: true,
+      liveStartedAt: Date.now() - 17 * 1000,
+      timeLeft: 24 * 60 + 43,
+      hasCompletedSession: false,
+      sessionCount: 1,
+      keepAlive: false,
+    });
+
+    const view = render(<FocusWorkspace userId={userId} />);
+    expect(view.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(
+      view.queryByRole("button", { name: /^Pause$/i }),
+    ).not.toBeInTheDocument();
+
+    await act(async () => {
+      vi.advanceTimersByTime(18 * 1000);
+    });
+    expect(view.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(
+      view.queryByRole("button", { name: /^Pause$/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("completes a session that ended while away, awarding XP only once", async () => {

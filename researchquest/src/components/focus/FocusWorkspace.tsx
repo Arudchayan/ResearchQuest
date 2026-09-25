@@ -409,7 +409,9 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     });
   }, [restoredSession]);
 
-  useEffect(() => {
+  // Layout (not passive): wine reload can hide the tab before pagehide, and
+  // React 19.3 production may commit a frame before useEffect listeners attach.
+  useLayoutEffect(() => {
     const onPageHide = () => {
       freezeLiveToContinue();
     };
@@ -418,19 +420,31 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
         "persisted" in event && (event as PageTransitionEvent).persisted,
       );
       // New-document pageshow is handled by cold hydrate (useLayoutEffect).
-      // Only freeze a live instance: bfcache restore, or a heap that is
-      // still running when pageshow fires (wine hard-refresh).
-      if (!persisted && !persistRef.current.isRunning) return;
+      // Freeze a live heap: bfcache, wine pageshow(persisted=false), or any
+      // restore that left the interval armed.
+      if (
+        !persisted &&
+        !persistRef.current.isRunning &&
+        !runArmedRef.current
+      ) {
+        return;
+      }
+      freezeLiveToContinue();
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState !== "hidden" && !document.hidden) return;
       freezeLiveToContinue();
     };
 
     window.addEventListener("pagehide", onPageHide);
     window.addEventListener("pageshow", onPageShow);
     window.addEventListener("beforeunload", onPageHide);
+    document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
       window.removeEventListener("pagehide", onPageHide);
       window.removeEventListener("pageshow", onPageShow);
       window.removeEventListener("beforeunload", onPageHide);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, []);
 
