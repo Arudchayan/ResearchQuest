@@ -315,6 +315,10 @@ describe("FocusWorkspace", () => {
     expect(view.getByText("19:00")).toBeInTheDocument();
   });
 
+  function dispatchPageHide() {
+    window.dispatchEvent(new Event("pagehide"));
+  }
+
   function dispatchPageShow(persisted: boolean) {
     const event = new Event("pageshow");
     Object.defineProperty(event, "persisted", {
@@ -481,6 +485,43 @@ describe("FocusWorkspace", () => {
     });
     expect(screen.getByText("24:43")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+  });
+
+  it("pagehide of a running session (no visibility hide) lands Continue, frozen, then remount stays Continue", async () => {
+    const { unmount } = render(<FocusWorkspace userId={userId} />);
+    fireEvent.click(screen.getByText("My Note"));
+    fireEvent.click(screen.getByText("Start focus"));
+    await act(async () => {
+      vi.advanceTimersByTime(21 * 1000);
+    });
+    expect(screen.getByText("24:39")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
+
+    await act(async () => {
+      dispatchPageHide();
+    });
+
+    expect(screen.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Pause$/i }),
+    ).not.toBeInTheDocument();
+    await act(async () => {
+      vi.advanceTimersByTime(18 * 1000);
+    });
+    expect(screen.getByText("24:39")).toBeInTheDocument();
+
+    unmount();
+    const view = render(<FocusWorkspace userId={userId} />);
+    expect(view.getByText("24:39")).toBeInTheDocument();
+    expect(view.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(
+      view.queryByRole("button", { name: /^Pause$/i }),
+    ).not.toBeInTheDocument();
+    await act(async () => {
+      vi.advanceTimersByTime(18 * 1000);
+    });
+    expect(view.getByText("24:39")).toBeInTheDocument();
+    expect(view.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
   });
 
   it("wine visibility hide of a running session lands Continue and does not auto-tick", async () => {

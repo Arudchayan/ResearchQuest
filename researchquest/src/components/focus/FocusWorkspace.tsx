@@ -55,6 +55,11 @@ import {
   remainingSecondsOnRestore,
   restoredSessionNeedsContinue,
 } from "./focusUtils";
+import {
+  bumpFocusRunEpoch,
+  currentFocusRunEpoch,
+  registerFocusFreeze,
+} from "./focusSessionGuard";
 import { FocusTargetAside } from "./FocusTargetAside";
 
 const DEFAULT_SESSION_LENGTH = 25 * 60;
@@ -260,7 +265,13 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
       return;
     }
 
+    const epoch = currentFocusRunEpoch();
     const timer = window.setInterval(() => {
+      if (epoch !== currentFocusRunEpoch()) {
+        window.clearInterval(timer);
+        if (timerRef.current === timer) timerRef.current = null;
+        return;
+      }
       setTimeLeft((prev) => {
         if (prev <= 1) {
           window.clearInterval(timer);
@@ -346,6 +357,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   const freezeLiveToContinue = () => {
     stopTimerNow();
     runArmedRef.current = false;
+    bumpFocusRunEpoch();
     const snap = persistRef.current;
     const remaining = snap.timeLeft;
     const inProgress =
@@ -374,11 +386,14 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     setStartedAt(null);
     if (inProgress) setResumeHold(true);
   };
+  const freezeRef = useRef(freezeLiveToContinue);
+  freezeRef.current = freezeLiveToContinue;
 
   // Cold mount / remount: hydrate from storage is already paused in useState,
   // but disarm before paint so an interval cannot start this mount.
   useLayoutEffect(() => {
     runArmedRef.current = false;
+    bumpFocusRunEpoch();
     stopTimerNow();
     if (!restoredSession) return;
     const remaining = remainingSecondsOnRestore(restoredSession);
@@ -401,43 +416,15 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     });
   }, [restoredSession]);
 
-  // Layout (not passive): wine reload can hide the tab before pagehide, and
-  // React 19.3 production may commit a frame before useEffect listeners attach.
+  // Capture-phase page lifecycle lives in focusSessionGuard (eager from main).
+  // Register the live freeze so wine/QA hard refresh can disarm without
+  // relying on bubble listeners on the lazy Focus chunk.
   useLayoutEffect(() => {
-    const onPageHide = () => {
-      freezeLiveToContinue();
-    };
-    const onPageShow = (event: Event) => {
-      const persisted = Boolean(
-        "persisted" in event && (event as PageTransitionEvent).persisted,
-      );
-      // New-document pageshow is handled by cold hydrate (useLayoutEffect).
-      // Freeze a live heap: bfcache, wine pageshow(persisted=false), or any
-      // restore that left the interval armed.
-      if (
-        !persisted &&
-        !persistRef.current.isRunning &&
-        !runArmedRef.current
-      ) {
-        return;
-      }
-      freezeLiveToContinue();
-    };
-    const onVisibilityChange = () => {
-      if (document.visibilityState !== "hidden" && !document.hidden) return;
-      freezeLiveToContinue();
-    };
-
-    window.addEventListener("pagehide", onPageHide);
-    window.addEventListener("pageshow", onPageShow);
-    window.addEventListener("beforeunload", onPageHide);
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    return () => {
-      window.removeEventListener("pagehide", onPageHide);
-      window.removeEventListener("pageshow", onPageShow);
-      window.removeEventListener("beforeunload", onPageHide);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-    };
+    return registerFocusFreeze({
+      freeze: () => freezeRef.current(),
+      isLive: () =>
+        persistRef.current.isRunning || runArmedRef.current,
+    });
   }, []);
 
   const quickTargets = useMemo(() => {
@@ -654,6 +641,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     if (isNotificationEnabled) {
       requestNotificationPermission();
     }
+    bumpFocusRunEpoch();
     runArmedRef.current = true;
     setStartedAt(Date.now());
     setIsRunning(true);
