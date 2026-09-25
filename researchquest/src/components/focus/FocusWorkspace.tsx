@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   Clock,
   Play,
@@ -93,8 +93,8 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     if (!restoredSession) return DEFAULT_SESSION_LENGTH;
     return remainingSecondsOnRestore(restoredSession);
   });
-  // Restored snapshots land paused. Persistence may remember task/elapsed
-  // (and startedAt for wall-clock); live isRunning is never copied from storage.
+  // Restored snapshots land paused. Storage may remember task/elapsed; live
+  // isRunning is never copied, and the interval stays disarmed until Continue.
   const [isRunning, setIsRunning] = useState(false);
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [resumeHold, setResumeHold] = useState(() =>
@@ -240,22 +240,45 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     completeTask,
   ]);
 
+  const completeSessionRef = useRef(completeSession);
+  completeSessionRef.current = completeSession;
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Start/Continue in this mount is the only way the interval may run.
+  // Hydrate and lifecycle freeze must not leave isRunning true able to
+  // restart the timer when completeSession's identity changes.
+  const runArmedRef = useRef(false);
+
+  const stopTimerNow = () => {
+    if (timerRef.current == null) return;
+    window.clearInterval(timerRef.current);
+    timerRef.current = null;
+  };
+
   useEffect(() => {
-    if (!isRunning) return;
+    if (!isRunning || !runArmedRef.current) {
+      stopTimerNow();
+      return;
+    }
 
     const timer = window.setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           window.clearInterval(timer);
-          completeSession();
+          if (timerRef.current === timer) timerRef.current = null;
+          runArmedRef.current = false;
+          completeSessionRef.current();
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
+    timerRef.current = timer;
 
-    return () => window.clearInterval(timer);
-  }, [isRunning, completeSession]);
+    return () => {
+      window.clearInterval(timer);
+      if (timerRef.current === timer) timerRef.current = null;
+    };
+  }, [isRunning]);
 
   useEffect(() => {
     if (hasCompletedSession || !restoredSession || timeLeft > 0) {
@@ -320,41 +343,94 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     resumeHold,
   };
 
-  useEffect(() => {
-    const writePausedSnapshot = () => {
-      const snap = persistRef.current;
-      return persistPausedFocusSession({
-        selectedTarget: snap.selectedTarget,
-        sessionLength: snap.sessionLength,
-        liveIsRunning: snap.isRunning,
-        liveStartedAt: snap.startedAt,
-        timeLeft: snap.timeLeft,
-        hasCompletedSession: snap.hasCompletedSession,
-        sessionCount: snap.sessionCount,
-        keepAlive: snap.resumeHold,
-      });
+  const freezeLiveToContinue = () => {
+    stopTimerNow();
+    runArmedRef.current = false;
+    const snap = persistRef.current;
+    const remaining =
+      snap.isRunning && snap.startedAt !== null
+        ? Math.max(
+            0,
+            snap.sessionLength -
+              Math.floor((Date.now() - snap.startedAt) / 1000),
+          )
+        : snap.timeLeft;
+    const inProgress =
+      snap.isRunning ||
+      snap.resumeHold ||
+      (snap.selectedTarget !== null &&
+        (remaining < snap.sessionLength || snap.sessionCount > 0));
+    persistRef.current = {
+      ...snap,
+      isRunning: false,
+      startedAt: null,
+      timeLeft: remaining,
+      resumeHold: inProgress,
     };
+    persistPausedFocusSession({
+      selectedTarget: persistRef.current.selectedTarget,
+      sessionLength: persistRef.current.sessionLength,
+      liveIsRunning: false,
+      liveStartedAt: null,
+      timeLeft: remaining,
+      hasCompletedSession: persistRef.current.hasCompletedSession,
+      sessionCount: persistRef.current.sessionCount,
+      keepAlive: inProgress,
+    });
+    setTimeLeft(remaining);
+    setIsRunning(false);
+    setStartedAt(null);
+    if (inProgress) setResumeHold(true);
+  };
 
+  // Cold mount / remount: hydrate from storage is already paused in useState,
+  // but disarm before paint so an interval cannot start this mount.
+  useLayoutEffect(() => {
+    runArmedRef.current = false;
+    stopTimerNow();
+    if (!restoredSession) return;
+    const remaining = remainingSecondsOnRestore(restoredSession);
+    setIsRunning(false);
+    setStartedAt(null);
+    setTimeLeft(remaining);
+    if (remaining > 0 && restoredSessionNeedsContinue(restoredSession)) {
+      setResumeHold(true);
+    }
+    persistPausedFocusSession({
+      selectedTarget: restoredSession.selectedTarget,
+      sessionLength: restoredSession.sessionLength,
+      liveIsRunning: false,
+      liveStartedAt: null,
+      timeLeft: remaining,
+      hasCompletedSession: restoredSession.hasCompletedSession,
+      sessionCount: restoredSession.sessionCount ?? 0,
+      keepAlive:
+        remaining > 0 && restoredSessionNeedsContinue(restoredSession),
+    });
+  }, [restoredSession]);
+
+  useEffect(() => {
     const onPageHide = () => {
-      writePausedSnapshot();
+      freezeLiveToContinue();
     };
     const onPageShow = (event: Event) => {
       const persisted = Boolean(
         "persisted" in event && (event as PageTransitionEvent).persisted,
       );
-      if (!persisted) return;
-      const remaining = writePausedSnapshot();
-      setTimeLeft(remaining);
-      setIsRunning(false);
-      setStartedAt(null);
-      setResumeHold(true);
+      // New-document pageshow is handled by cold hydrate (useLayoutEffect).
+      // Only freeze a live instance: bfcache restore, or a heap that is
+      // still running when pageshow fires (wine hard-refresh).
+      if (!persisted && !persistRef.current.isRunning) return;
+      freezeLiveToContinue();
     };
 
     window.addEventListener("pagehide", onPageHide);
     window.addEventListener("pageshow", onPageShow);
+    window.addEventListener("beforeunload", onPageHide);
     return () => {
       window.removeEventListener("pagehide", onPageHide);
       window.removeEventListener("pageshow", onPageShow);
+      window.removeEventListener("beforeunload", onPageHide);
     };
   }, []);
 
@@ -539,6 +615,8 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
 
   const handleTargetSelection = (target: SelectedTarget) => {
     sessionAwardedRef.current = false;
+    runArmedRef.current = false;
+    stopTimerNow();
     setAwardedXp(null);
     setSelectedTarget(target);
     setHasCompletedSession(false);
@@ -550,8 +628,11 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
 
   const toggleTimer = () => {
     if (isRunning) {
+      runArmedRef.current = false;
+      stopTimerNow();
       setIsRunning(false);
       setStartedAt(null);
+      setResumeHold(true);
       return;
     }
     if (hasCompletedSession || timeLeft <= 0) {
@@ -567,6 +648,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     if (isNotificationEnabled) {
       requestNotificationPermission();
     }
+    runArmedRef.current = true;
     setStartedAt(Date.now());
     setIsRunning(true);
     dismissOnboarding();
@@ -819,6 +901,8 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                     size="lg"
                     onClick={() => {
                       sessionAwardedRef.current = false;
+                      runArmedRef.current = false;
+                      stopTimerNow();
                       setAwardedXp(null);
                       setTimeLeft(sessionLength);
                       setIsRunning(false);

@@ -217,13 +217,14 @@ describe("FocusWorkspace", () => {
 
     unmount();
 
-    // Wall clock may still advance while away; the remount must not auto-run.
+    // Time away must not keep ticking; remount hydrates the last persisted
+    // remaining (20:00), not wall-clock 18:00.
     await act(async () => {
       vi.advanceTimersByTime(2 * 60 * 1000);
     });
 
     const view = render(<FocusWorkspace userId={userId} />);
-    expect(view.getByText("18:00")).toBeInTheDocument();
+    expect(view.getByText("20:00")).toBeInTheDocument();
     expect(view.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
     expect(
       view.queryByRole("button", { name: /^Pause$/i }),
@@ -237,13 +238,13 @@ describe("FocusWorkspace", () => {
     await act(async () => {
       vi.advanceTimersByTime(60 * 1000);
     });
-    expect(view.getByText("18:00")).toBeInTheDocument();
+    expect(view.getByText("20:00")).toBeInTheDocument();
 
     fireEvent.click(view.getByRole("button", { name: /^Continue$/i }));
     await act(async () => {
       vi.advanceTimersByTime(60 * 1000);
     });
-    expect(view.getByText("17:00")).toBeInTheDocument();
+    expect(view.getByText("19:00")).toBeInTheDocument();
   });
 
   function dispatchPageShow(persisted: boolean) {
@@ -299,6 +300,52 @@ describe("FocusWorkspace", () => {
       vi.advanceTimersByTime(60 * 1000);
     });
     expect(view.getByText("25:00")).toBeInTheDocument();
+  });
+
+  it("cold hydrate from storage (QA hard-refresh) shows Continue and does not auto-tick", async () => {
+    // #800 Soft FAIL: 02_after_hard_refresh still Pause at 24:04; 03_after_wait
+    // ticked to 23:32. Event-dispatch of pagehide/pageshow is not this path —
+    // a hard refresh remounts React and hydrates from rq_focus_session.
+    // startedAt is 2 minutes ago so wall-clock remaining would be 23:00 if
+    // hydrate were allowed to keep running; last painted remaining is 24:04.
+    saveFocusSession({
+      version: 1,
+      selectedTarget: { type: "note", id: "note-1" },
+      sessionLength: 25 * 60,
+      isRunning: true,
+      startedAt: Date.now() - 2 * 60 * 1000,
+      timeLeft: 24 * 60 + 4,
+      hasCompletedSession: false,
+      sessionCount: 1,
+    });
+
+    const view = render(<FocusWorkspace userId={userId} />);
+    expect(view.getByText("24:04")).toBeInTheDocument();
+    expect(view.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(
+      view.queryByRole("button", { name: /^Pause$/i }),
+    ).not.toBeInTheDocument();
+
+    const storedBeforeWait = JSON.parse(
+      window.localStorage.getItem(FOCUS_SESSION_STORAGE_KEY)!,
+    );
+    expect(storedBeforeWait.isRunning).toBe(false);
+
+    await act(async () => {
+      vi.advanceTimersByTime(18 * 1000);
+    });
+    expect(view.getByText("24:04")).toBeInTheDocument();
+    expect(view.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(
+      view.queryByRole("button", { name: /^Pause$/i }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(view.getByRole("button", { name: /^Continue$/i }));
+    expect(view.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
+    await act(async () => {
+      vi.advanceTimersByTime(18 * 1000);
+    });
+    expect(view.getByText("23:46")).toBeInTheDocument();
   });
 
   it("bfcache pageshow of a running session lands paused with Continue", async () => {
@@ -361,10 +408,11 @@ describe("FocusWorkspace", () => {
       vi.advanceTimersByTime(5 * 60 * 1000);
     });
 
-    const { getByText, unmount: unmountAgain } = render(
+    const { getByText, getByRole, unmount: unmountAgain } = render(
       <FocusWorkspace userId={userId} />,
     );
-    expect(getByText("20:00")).toBeInTheDocument();
+    expect(getByText("25:00")).toBeInTheDocument();
+    expect(getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
     fireEvent.click(getByText("Reset"));
 
     unmountAgain();
