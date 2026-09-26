@@ -136,6 +136,20 @@ export function rewriteStoredFocusSessionPaused(): FocusSessionSnapshot | null {
   return paused;
 }
 
+/** Wine Ctrl+Shift+R / hard document reload. Not Playwright live-heap reload. */
+export const FOCUS_DOCUMENT_RELOAD_START_QUIET_MS = 1000;
+
+export function isFocusDocumentReload(): boolean {
+  if (typeof performance === "undefined") return false;
+  try {
+    const entries = performance.getEntriesByType("navigation");
+    const nav = entries[0] as PerformanceNavigationTiming | undefined;
+    return nav?.type === "reload";
+  } catch {
+    return false;
+  }
+}
+
 export function clearStoredFocusSession(): void {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(FOCUS_SESSION_STORAGE_KEY);

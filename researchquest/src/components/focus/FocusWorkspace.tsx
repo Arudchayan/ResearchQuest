@@ -54,6 +54,9 @@ import {
   persistPausedFocusSession,
   remainingSecondsOnRestore,
   restoredSessionNeedsContinue,
+  rewriteStoredFocusSessionPaused,
+  isFocusDocumentReload,
+  FOCUS_DOCUMENT_RELOAD_START_QUIET_MS,
 } from "./focusUtils";
 import {
   bumpFocusRunEpoch,
@@ -253,6 +256,12 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   // Hydrate and lifecycle freeze must not leave isRunning true able to
   // restart the timer when completeSession's identity changes.
   const runArmedRef = useRef(false);
+  // Wine Ctrl+Shift+R WHILE Pause live: hydrate lands Continue, then a
+  // reload-burst click / focus-restore keyup hits the same button and
+  // arms Pause. Ignore Start/Continue until this timestamp; Pause always
+  // works. Gated on navigation type=reload so in-session remount tests
+  // (no reload entry) keep immediate Continue.
+  const reloadStartQuietUntilRef = useRef(0);
 
   const stopTimerNow = () => {
     if (timerRef.current == null) return;
@@ -414,13 +423,20 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     runArmedRef.current = false;
     bumpFocusRunEpoch();
     stopTimerNow();
+    rewriteStoredFocusSessionPaused();
     if (!restoredSession) return;
     const remaining = remainingSecondsOnRestore(restoredSession);
     setIsRunning(false);
     setStartedAt(null);
     setTimeLeft(remaining);
-    if (remaining > 0 && restoredSessionNeedsContinue(restoredSession)) {
+    const needsContinue =
+      remaining > 0 && restoredSessionNeedsContinue(restoredSession);
+    if (needsContinue) {
       setResumeHold(true);
+      if (isFocusDocumentReload()) {
+        reloadStartQuietUntilRef.current =
+          Date.now() + FOCUS_DOCUMENT_RELOAD_START_QUIET_MS;
+      }
     }
     persistPausedFocusSession({
       selectedTarget: restoredSession.selectedTarget,
@@ -430,8 +446,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
       timeLeft: remaining,
       hasCompletedSession: restoredSession.hasCompletedSession,
       sessionCount: restoredSession.sessionCount ?? 0,
-      keepAlive:
-        remaining > 0 && restoredSessionNeedsContinue(restoredSession),
+      keepAlive: needsContinue,
     });
   }, [restoredSession]);
 
@@ -661,6 +676,9 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
         sessionCount,
         keepAlive: true,
       });
+      return;
+    }
+    if (Date.now() < reloadStartQuietUntilRef.current) {
       return;
     }
     if (hasCompletedSession || timeLeft <= 0) {

@@ -97,6 +97,7 @@ vi.mock("../../components/ui/Skeleton", () => ({
 
 describe("FocusWorkspace", () => {
   const userId = "user-123";
+  let navigationTypeSpy: ReturnType<typeof vi.spyOn> | undefined;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -117,6 +118,8 @@ describe("FocusWorkspace", () => {
   });
 
   afterEach(() => {
+    navigationTypeSpy?.mockRestore();
+    navigationTypeSpy = undefined;
     vi.useRealTimers();
     Object.defineProperty(document, "hidden", {
       configurable: true,
@@ -514,6 +517,89 @@ describe("FocusWorkspace", () => {
       vi.advanceTimersByTime(18 * 1000);
     });
     expect(view.getByText("24:30")).toBeInTheDocument();
+  });
+
+  function mockHardDocumentReload() {
+    navigationTypeSpy = vi
+      .spyOn(performance, "getEntriesByType")
+      .mockImplementation((type) => {
+        if (type === "navigation") {
+          return [{ type: "reload" } as PerformanceNavigationTiming];
+        }
+        return [];
+      });
+  }
+
+  it("Ctrl+Shift+R hard reload keeps Continue frozen through burst click, then Continue resumes", async () => {
+    // Wine Product×2: Ctrl+Shift+R WHILE Pause live still Pause and the
+    // clock ticked (24:52→24:37→24:21). New-document hydrate lands Continue,
+    // then the session button arms from reload-burst click/focus-restore.
+    // Playwright page.reload Soft PASS never replayed that click.
+    mockHardDocumentReload();
+    saveFocusSession({
+      version: 1,
+      selectedTarget: { type: "note", id: "note-1" },
+      sessionLength: 25 * 60,
+      isRunning: true,
+      startedAt: Date.now() - 8 * 1000,
+      timeLeft: 24 * 60 + 52,
+      hasCompletedSession: false,
+      sessionCount: 1,
+    });
+    rewriteStoredFocusSessionPaused();
+
+    const view = render(<FocusWorkspace userId={userId} />);
+    expect(view.getByText("24:52")).toBeInTheDocument();
+    expect(view.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+
+    fireEvent.click(view.getByRole("button", { name: /^Continue$/i }));
+    expect(view.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(
+      view.queryByRole("button", { name: /^Pause$/i }),
+    ).not.toBeInTheDocument();
+
+    await act(async () => {
+      vi.advanceTimersByTime(15 * 1000);
+    });
+    expect(view.getByText("24:52")).toBeInTheDocument();
+    expect(view.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+
+    fireEvent.click(view.getByRole("button", { name: /^Continue$/i }));
+    expect(view.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
+    await act(async () => {
+      vi.advanceTimersByTime(18 * 1000);
+    });
+    expect(view.getByText("24:34")).toBeInTheDocument();
+  });
+
+  it("Ctrl+Shift+R empty Focus stays Start-only; Start then Pause still work immediately", async () => {
+    mockHardDocumentReload();
+    expect(window.localStorage.getItem(FOCUS_SESSION_STORAGE_KEY)).toBeNull();
+    render(<FocusWorkspace userId={userId} />);
+    expect(screen.getByText("25:00")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Start focus/i }),
+    ).toBeDisabled();
+    expect(
+      screen.queryByRole("button", { name: /^Continue$/i }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("My Note"));
+    fireEvent.click(screen.getByText("Start focus"));
+    expect(screen.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
+    await act(async () => {
+      vi.advanceTimersByTime(5 * 1000);
+    });
+    expect(screen.getByText("24:55")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Pause$/i }));
+    expect(
+      screen.getByRole("button", { name: /^Continue$/i }),
+    ).toBeInTheDocument();
+    await act(async () => {
+      vi.advanceTimersByTime(5 * 1000);
+    });
+    expect(screen.getByText("24:55")).toBeInTheDocument();
   });
 
   it("hard refresh (new heap) boot-rewrites rq_focus_session then cold-hydrates Continue frozen", async () => {

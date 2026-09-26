@@ -7,7 +7,9 @@
  * pagehide, not that path.
  *
  * Preview Soft PASS ≠ wine: Playwright reload is navigationType=reload and
- * paints the live-heap remount. Wine Product hard refresh is often a
+ * paints the live-heap remount. Wine Product Ctrl+Shift+R is a new document
+ * (navigation type=reload) whose dying pagehide never paints; hydrate then
+ * a reload-burst click can re-arm Pause. Wine hard refresh is also often a
  * same-document `replace` of /focus (or pageshow while App is still the
  * loading skeleton, registration null). Those must freeze from storage too.
  *

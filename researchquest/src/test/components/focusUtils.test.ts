@@ -5,6 +5,7 @@ import {
   remainingSecondsOnRestore,
   restoredSessionNeedsContinue,
   rewriteStoredFocusSessionPaused,
+  isFocusDocumentReload,
   saveFocusSession,
   type FocusSessionSnapshot,
 } from "../../components/focus/focusUtils";
@@ -128,5 +129,28 @@ describe("focus session hydrate", () => {
         sessionCount: 0,
       }),
     ).toBe(false);
+  });
+
+  it("isFocusDocumentReload is true only for navigation type=reload", () => {
+    expect(isFocusDocumentReload()).toBe(false);
+
+    const spy = vi
+      .spyOn(performance, "getEntriesByType")
+      .mockImplementation((type) => {
+        if (type === "navigation") {
+          return [{ type: "navigate" } as PerformanceNavigationTiming];
+        }
+        return [];
+      });
+    expect(isFocusDocumentReload()).toBe(false);
+
+    spy.mockImplementation((type) => {
+      if (type === "navigation") {
+        return [{ type: "reload" } as PerformanceNavigationTiming];
+      }
+      return [];
+    });
+    expect(isFocusDocumentReload()).toBe(true);
+    spy.mockRestore();
   });
 });
