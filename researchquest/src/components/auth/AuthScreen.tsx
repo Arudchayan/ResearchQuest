@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { EyeOpenIcon, EyeClosedIcon } from "@radix-ui/react-icons";
 import { FlaskConical } from "lucide-react";
-import { demoEntryPath } from "../../lib/demoEntry";
+import { DEMO_DATA_BADGE_LABEL, demoEntryPath } from "../../lib/demoEntry";
 import { enableDemoModeAndReload, supabase } from "../../lib/supabase";
 
 type AuthMessage = {
@@ -178,6 +178,13 @@ export function AuthScreen() {
               <FlaskConical className="w-4 h-4" aria-hidden="true" />
               Use demo workspace
             </a>
+            <p className="mt-2 text-center text-caption text-text-tertiary">
+              {/* Intent: badges label the demo entry option and render pre-auth by design. */}
+              <span className="mr-1.5 rounded-full border border-border-moderate bg-bg-elevated px-2 py-0.5 font-medium text-text-secondary">
+                {DEMO_DATA_BADGE_LABEL}
+              </span>
+              Seeded samples on this device — no account needed.
+            </p>
 
             <div className="flex items-center gap-3 text-small text-text-tertiary font-serif italic py-2">
               <span

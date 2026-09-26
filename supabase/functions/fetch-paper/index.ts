@@ -57,6 +57,10 @@ const rateLimitBuckets = new Map<string, RateLimitBucket>();
 function parseAllowedOrigins(): string[] {
   const configured = Deno.env.get("ALLOWED_ORIGINS");
   if (!configured || !configured.trim()) {
+    console.warn(
+      `[RQ] ALLOWED_ORIGINS is unset in fetch-paper — CORS falls back to ${[...PRODUCTION_APP_ORIGINS, ...DEFAULT_DEV_ALLOWED_ORIGINS].join(", ")}. ` +
+        `Set ALLOWED_ORIGINS="https://app.example.com,https://other.example.com" (comma-separated scheme://host) on the deployed functions.`,
+    );
     return [...PRODUCTION_APP_ORIGINS, ...DEFAULT_DEV_ALLOWED_ORIGINS];
   }
   return configured

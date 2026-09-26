@@ -800,6 +800,11 @@ const demoFunctions = {
   },
 };
 
+// Local echo stub (NOT Supabase Realtime): subscriptions fire synchronously
+// from in-memory mutations in this document only. Handlers must stay
+// idempotent — the live path also guards against Realtime re-inserts, so demo
+// events are delivered as echo and may duplicate vs Supabase Realtime if both
+// ever fire for the same mutation.
 const demoRealtime = {
   channel(name: string): DemoChannel {
     return {
@@ -810,6 +815,9 @@ const demoRealtime = {
         return this;
       },
       subscribe(callback?: (status: string) => void) {
+        console.debug(
+          `[demo] realtime echo subscribed: ${name} (local echo, not Supabase Realtime)`,
+        );
         setTimeout(() => callback?.("SUBSCRIBED"), 0);
         return this;
       },

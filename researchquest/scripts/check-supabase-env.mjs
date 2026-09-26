@@ -48,8 +48,9 @@ function fail(msg) {
 
 if (!url) {
   if (NO_BACKEND) {
-    console.log(
-      "supabase-env guard OK: no URL, but an explicit no-backend mode is declared.",
+    console.warn(
+      "⚠️  supabase-env guard NO_BACKEND: no URL, but an explicit no-backend mode is declared. " +
+        "The app will boot into the seeded local demo workspace (no live backend, no sync).",
     );
     process.exit(0);
   }

@@ -201,8 +201,11 @@ promoting to a paper.
 ## Env
 
 - `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (standard)
-- `ALLOWED_ORIGINS` — comma-separated CORS allowlist (defaults to localhost Vite
-  ports)
+- `ALLOWED_ORIGINS` — comma-separated CORS allowlist of `scheme://host`
+  entries with no paths or wildcards (e.g.
+  `"https://app.example.com,https://preview.example.com"`). When unset (or
+  fully malformed) the functions fall back to the production app origins plus
+  localhost dev ports and log a warning.
 
 ## Tests
 

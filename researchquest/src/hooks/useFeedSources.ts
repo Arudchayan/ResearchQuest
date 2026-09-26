@@ -120,7 +120,7 @@ export function useFeedSources(userId: string | undefined) {
       const confirmed =
         typeof window === "undefined" ||
         window.confirm(
-          `Remove source "${source?.name ?? sourceId}"? Items already ingested are kept.`,
+          `Remove source "${source?.name ?? sourceId}"? Items already added are kept.`,
         );
       if (!confirmed) return false;
       const previous = sources;

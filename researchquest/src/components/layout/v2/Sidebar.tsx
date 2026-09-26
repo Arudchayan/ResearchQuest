@@ -209,7 +209,7 @@ export function Sidebar() {
               />
             </div>
             <div className="flex justify-between text-caption text-text-tertiary">
-              <span>{xpInLevel} XP</span>
+              <span>{xpInLevel} XP{isDemoMode ? " · demo only" : ""}</span>
               <span>500 XP</span>
             </div>
           </div>

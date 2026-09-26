@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
 import { useMemo } from "react";
-import { supabase } from "../../lib/supabase";
+import { isDemoMode, supabase } from "../../lib/supabase";
 import { useGamificationStore } from "../../store/gamificationStore";
 import { logger } from "../../utils/logger";
 import { formatTimeUntil, formatDateLabel } from "../../utils/time";
@@ -398,13 +398,14 @@ export function RightSidebar() {
             <div className="space-y-2 text-caption text-text-secondary">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-primary-500" />
-                <span>+{xpToday} XP collected today</span>
+                <span>+{xpToday} XP collected today{isDemoMode ? " (demo only)" : ""}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Flame className="w-4 h-4 text-success" />
                 <span>
                   {user?.current_streak || 0} day streak · longest{" "}
                   {user?.longest_streak || 0} days
+                  {isDemoMode ? " (demo only)" : ""}
                 </span>
               </div>
               <p className="text-text-tertiary">
