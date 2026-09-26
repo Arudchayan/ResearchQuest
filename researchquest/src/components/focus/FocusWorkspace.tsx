@@ -41,7 +41,7 @@ import { Card, CardContent, CardHeader } from "../ui/card";
 import { Input } from "../ui/input";
 import { PageHeader } from "../ui/PageHeader";
 import {
-  type FocusTargetType,
+  type FocusEntityType,
   type SelectedTarget,
   type CollapsedGroups,
   type CollapsiblePanel,
@@ -57,6 +57,9 @@ import {
   rewriteStoredFocusSessionPaused,
   isFocusDocumentReload,
   FOCUS_DOCUMENT_RELOAD_START_QUIET_MS,
+  saveFocusSession,
+  clearStoredFocusSession,
+  resolveFocusTitle,
 } from "./focusUtils";
 import {
   bumpFocusRunEpoch,
@@ -79,6 +82,10 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     owner: false,
   });
   const todayOrderedIds = useTodayPlanStore((state) => state.orderedIds);
+  const pendingFocusTaskId = useTodayPlanStore(
+    (state) => state.pendingFocusTaskId,
+  );
+  const selectedTaskId = useAppStore((state) => state.selectedTask?.id ?? null);
 
   const setSelectedNote = useAppStore((state) => state.setSelectedNote);
   const setSelectedPaper = useAppStore((state) => state.setSelectedPaper);
@@ -89,12 +96,30 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     restoredSession?.selectedTarget ?? null,
   );
 
+  // Consumed on every change (not just mount) so KeepAlive-hidden panes
+  // still pick up Today → Focus navigations, including soft-navigation
+  // no-ops where the component never remounts.
   useEffect(() => {
-    const pendingId = useTodayPlanStore.getState().consumePendingFocusTaskId();
-    if (pendingId) {
-      setSelectedTarget({ type: "task", id: pendingId });
-    }
-  }, []);
+    if (typeof pendingFocusTaskId !== "string" || !pendingFocusTaskId) return;
+    const pendingId =
+      useTodayPlanStore.getState().consumePendingFocusTaskId();
+    if (typeof pendingId !== "string" || !pendingId) return;
+    const tasks = useAppStore.getState().tasks;
+    if (!Array.isArray(tasks)) return;
+    const task = tasks.find((t) => t.id === pendingId);
+    if (!task) return;
+    setSelectedTarget({ type: "task", id: pendingId });
+  }, [pendingFocusTaskId]);
+
+  // Today sets selectedTask alongside pendingFocus; force the workspace onto
+  // that task even if the pending id was already consumed elsewhere.
+  useEffect(() => {
+    if (typeof selectedTaskId !== "string" || !selectedTaskId) return;
+    setSelectedTarget((prev) => {
+      if (prev?.type === "task" && prev.id === selectedTaskId) return prev;
+      return { type: "task", id: selectedTaskId };
+    });
+  }, [selectedTaskId]);
   const [sessionLength, setSessionLength] = useState(
     restoredSession?.sessionLength ?? DEFAULT_SESSION_LENGTH,
   );
@@ -133,6 +158,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     paper: false,
     task: false,
   });
+  const [freeformDraft, setFreeformDraft] = useState("");
   const [collapsedPanels, setCollapsedPanels] = useState<
     Record<CollapsiblePanel, boolean>
   >({
@@ -154,7 +180,11 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     if (selectedTarget.type === "task") {
       return tasks.find((task) => task.id === selectedTarget.id) || null;
     }
-    return null;
+    if (selectedTarget.type === "freeform") {
+      return null;
+    }
+    const _exhaustive: never = selectedTarget.type;
+    return _exhaustive;
   }, [notes, papers, tasks, selectedTarget]);
 
   useEffect(() => {
@@ -180,13 +210,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     }
 
     if (isNotificationEnabled) {
-      const targetName = selectedItem
-        ? selectedTarget?.type === "note"
-          ? extractNoteSummary(selectedItem as Note)
-          : selectedTarget?.type === "paper"
-            ? (selectedItem as Paper).title
-            : (selectedItem as Task).title
-        : "Focus Session";
+      const targetName = resolveFocusTitle(selectedTarget, selectedItem as Note | Paper | Task | null);
 
       showTimerCompleteNotification("Focus session complete!", {
         body: `You completed your session on ${targetName}.`,
@@ -503,8 +527,9 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     const todayQueue = resolveTodayTasks(tasks);
     const todayIds = new Set(todayQueue.map((task) => task.id));
     const taskItems = [];
+    const MAX_TASK_SUGGESTIONS = 20;
     for (let i = 0; i < todayQueue.length; i++) {
-      if (taskItems.length === 4) break;
+      if (taskItems.length === MAX_TASK_SUGGESTIONS) break;
       const task = todayQueue[i];
       taskItems.push({
         id: task.id,
@@ -518,7 +543,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
       });
     }
     for (let i = 0; i < tasks.length; i++) {
-      if (taskItems.length === 4) break;
+      if (taskItems.length === MAX_TASK_SUGGESTIONS) break;
       const task = tasks[i];
       if (task.completed || todayIds.has(task.id)) continue;
       taskItems.push({
@@ -535,21 +560,21 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
 
     return [
       {
-        type: "note" as FocusTargetType,
+        type: "note" as FocusEntityType,
         title: "Notes",
         description: "Recently edited notes ready for synthesis",
         icon: FileText,
         items: noteItems,
       },
       {
-        type: "paper" as FocusTargetType,
+        type: "paper" as FocusEntityType,
         title: "Papers",
         description: "Papers waiting for a close read or annotation",
         icon: BookOpen,
         items: paperItems,
       },
       {
-        type: "task" as FocusTargetType,
+        type: "task" as FocusEntityType,
         title: "Today",
         description: "Your Today list, then other open tasks",
         icon: CheckSquare,
@@ -625,7 +650,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     setCustomMinutes("");
   };
 
-  const toggleGroup = (type: FocusTargetType) => {
+  const toggleGroup = (type: FocusEntityType) => {
     setCollapsedGroups((prev) => ({
       ...prev,
       [type]: !prev[type],
@@ -714,7 +739,9 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   };
 
   const handleOpenInWorkspace = () => {
-    if (!selectedTarget || !selectedItem) return;
+    if (!selectedTarget || selectedTarget.type === "freeform" || !selectedItem) {
+      return;
+    }
 
     if (selectedTarget.type === "note") {
       setSelectedNote(selectedItem as Note);
@@ -724,8 +751,21 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
       navigateToView("papers", `/papers/${selectedTarget.id}`);
     } else if (selectedTarget.type === "task") {
       navigateToView("tasks", `/tasks/${selectedTarget.id}`);
+    } else {
+      const _exhaustive: never = selectedTarget.type;
+      return _exhaustive;
     }
   };
+
+  const handleFreeformSubmit = () => {
+    const title = freeformDraft.trim();
+    if (!title) return;
+    setSelectedTarget({ type: "freeform", id: "freeform", title });
+  };
+
+  const canStartFocus =
+    sessionLength !== 0 &&
+    (Boolean(selectedItem) || selectedTarget?.type === "freeform");
 
   const presets = [
     { label: "warm-up", minutes: 15, value: 15 * 60 },
@@ -799,17 +839,16 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                       Current session
                     </p>
                     <p className="break-words text-body-lg font-semibold leading-snug text-text-primary">
-                      {selectedItem ? (
+                      {selectedTarget ? (
                         <>
-                          {selectedTarget?.type === "note" && "Note review · "}
-                          {selectedTarget?.type === "paper" && "Paper focus · "}
-                          {selectedTarget?.type === "task" && "Task sprint · "}
-                          {selectedTarget?.type === "note" &&
-                            extractNoteSummary(selectedItem as Note)}
-                          {selectedTarget?.type === "paper" &&
-                            (selectedItem as Paper).title}
-                          {selectedTarget?.type === "task" &&
-                            (selectedItem as Task).title}
+                          {selectedTarget.type === "note" && "Note review · "}
+                          {selectedTarget.type === "paper" && "Paper focus · "}
+                          {selectedTarget.type === "task" && "Task sprint · "}
+                          {selectedTarget.type === "freeform" && "Free focus · "}
+                          {resolveFocusTitle(
+                            selectedTarget,
+                            selectedItem as Note | Paper | Task | null,
+                          )}
                         </>
                       ) : (
                         "Select a focus target"
@@ -937,14 +976,14 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                     type="button"
                     size="lg"
                     onClick={toggleTimer}
-                    disabled={!selectedItem || sessionLength === 0}
+                    disabled={!canStartFocus}
                     title={
-                      !selectedItem
+                      !selectedTarget
                         ? "Select a target from Today or the library to start"
                         : undefined
                     }
                     aria-describedby={
-                      !selectedItem ? "focus-start-hint" : undefined
+                      !selectedTarget ? "focus-start-hint" : undefined
                     }
                   >
                     {isRunning ? (
@@ -1064,13 +1103,10 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                     Focus target
                   </p>
                   <h2 className="mt-2 break-words font-serif text-subtitle font-semibold leading-tight text-text-primary">
-                    {selectedItem
-                      ? selectedTarget?.type === "note"
-                        ? extractNoteSummary(selectedItem as Note)
-                        : selectedTarget?.type === "paper"
-                          ? (selectedItem as Paper).title
-                          : (selectedItem as Task).title
-                      : "Nothing selected yet"}
+                    {resolveFocusTitle(
+                      selectedTarget,
+                      selectedItem as Note | Paper | Task | null,
+                    )}
                   </h2>
                 </div>
                 {selectedTarget && (
@@ -1078,13 +1114,14 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                     {selectedTarget.type === "note" && "Note"}
                     {selectedTarget.type === "paper" && "Paper"}
                     {selectedTarget.type === "task" && "Task"}
+                    {selectedTarget.type === "freeform" && "Free"}
                   </Badge>
                 )}
               </div>
             </CardHeader>
 
             <CardContent className="space-y-4 px-4 pb-4 pt-0 sm:px-6 sm:pb-6">
-              {selectedItem ? (
+              {selectedItem || selectedTarget?.type === "freeform" ? (
                 <>
                   <div className="max-h-56 overflow-y-auto break-words whitespace-pre-line rounded-control border border-border-moderate bg-bg-elevated p-4 text-body text-text-secondary">
                     {selectedTarget?.type === "note" &&
@@ -1093,6 +1130,8 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                       extractPaperPreview(selectedItem as Paper)}
                     {selectedTarget?.type === "task" &&
                       extractTaskPreview(selectedItem as Task)}
+                    {selectedTarget?.type === "freeform" &&
+                      "No linked note, paper, or task. Focus on this intention, then capture what you finish."}
                   </div>
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="text-caption text-text-tertiary">
@@ -1118,6 +1157,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                     <Button
                       type="button"
                       onClick={handleOpenInWorkspace}
+                      disabled={selectedTarget?.type === "freeform"}
                     >
                       Open in workspace
                     </Button>
@@ -1129,9 +1169,8 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                   role="status"
                   aria-live="polite"
                 >
-                  Select a target from Today or the library to preview its
-                  details. Start focus stays disabled until a target is
-                  selected.
+                  Select a Today item, a library entity, or type a freeform
+                  intention to start.
                 </div>
               )}
             </CardContent>
@@ -1148,6 +1187,9 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
           collapsedPanels={collapsedPanels}
           togglePanel={togglePanel}
           focusInsights={focusInsights}
+          freeformDraft={freeformDraft}
+          onFreeformDraftChange={setFreeformDraft}
+          onFreeformSubmit={handleFreeformSubmit}
         />
       </div>
     </div>

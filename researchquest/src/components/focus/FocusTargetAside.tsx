@@ -6,7 +6,7 @@ import { EmptyState } from "../ui/EmptyState";
 import { Skeleton, ListSkeleton } from "../ui/Skeleton";
 import { navigateToView } from "../../lib/softNavigation";
 import type {
-  FocusTargetType,
+  FocusEntityType,
   SelectedTarget,
   CollapsedGroups,
   CollapsiblePanel,
@@ -19,7 +19,7 @@ interface QuickTargetItem {
 }
 
 interface QuickTargetGroup {
-  type: FocusTargetType;
+  type: FocusEntityType;
   title: string;
   description: string;
   icon: LucideIcon;
@@ -37,10 +37,13 @@ interface FocusTargetAsideProps {
   selectedTarget: SelectedTarget | null;
   handleTargetSelection: (target: SelectedTarget) => void;
   collapsedGroups: CollapsedGroups;
-  toggleGroup: (type: FocusTargetType) => void;
+  toggleGroup: (type: FocusEntityType) => void;
   collapsedPanels: Record<CollapsiblePanel, boolean>;
   togglePanel: (panel: CollapsiblePanel) => void;
   focusInsights: FocusInsight[];
+  freeformDraft: string;
+  onFreeformDraftChange: (value: string) => void;
+  onFreeformSubmit: () => void;
 }
 
 export function FocusTargetAside({
@@ -53,12 +56,38 @@ export function FocusTargetAside({
   collapsedPanels,
   togglePanel,
   focusInsights,
+  freeformDraft,
+  onFreeformDraftChange,
+  onFreeformSubmit,
 }: FocusTargetAsideProps) {
   return (
     <aside
       className="min-w-0 space-y-6"
       aria-label="Focus targets and suggestions"
     >
+      <Card className="p-4 sm:p-5">
+        <form
+          className="flex gap-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onFreeformSubmit();
+          }}
+        >
+          <label htmlFor="focus-freeform" className="sr-only">
+            Focus without an entity
+          </label>
+          <input
+            id="focus-freeform"
+            value={freeformDraft}
+            onChange={(event) => onFreeformDraftChange(event.target.value)}
+            placeholder="Or type what you are working on…"
+            className="min-h-11 min-w-0 flex-1 rounded-sm border border-border-moderate bg-bg-base px-3 text-small text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+          />
+          <Button type="submit" size="sm" disabled={!freeformDraft.trim()}>
+            Use
+          </Button>
+        </form>
+      </Card>
       {isLoading ? (
         <div
           className="space-y-4"
@@ -136,7 +165,7 @@ export function FocusTargetAside({
                     className="border-t border-border-subtle"
                   >
                     {items.length > 0 ? (
-                      <ul className="divide-y divide-border-subtle">
+                      <ul className="max-h-80 divide-y divide-border-subtle overflow-y-auto">
                         {items.map((item) => {
                           const isActive =
                             selectedTarget?.type === group.type &&

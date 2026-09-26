@@ -6,6 +6,7 @@ import {
   Clock,
   AlertCircle,
   Trash2,
+  Target,
 } from "lucide-react";
 import { Badge, type BadgeVariant } from "../ui/Badge";
 import { Button } from "../ui/button";
@@ -41,6 +42,7 @@ export interface TaskCardProps {
   onToggleComplete: (task: Task) => Promise<void>;
   onEdit: (task: Task) => void;
   onDelete: (id: string) => void;
+  onFocus?: (task: Task) => void;
   compact?: boolean;
   highlightQuery?: string;
 }
@@ -50,6 +52,7 @@ export function TaskCard({
   onToggleComplete,
   onEdit,
   onDelete,
+  onFocus,
   compact = false,
   highlightQuery = "",
 }: TaskCardProps) {
@@ -129,6 +132,23 @@ export function TaskCard({
             </h2>
 
             <div className="flex shrink-0 items-center gap-1">
+              {onFocus && !task.completed && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onFocus(task);
+                  }}
+                  className="text-small"
+                  title={`Start focus on ${task.title}`}
+                  aria-label={`Start focus: ${task.title}`}
+                >
+                  <Target className="h-3.5 w-3.5" aria-hidden="true" />
+                  Focus
+                </Button>
+              )}
               <Button
                 type="button"
                 variant="outline"
