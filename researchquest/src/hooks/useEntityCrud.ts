@@ -29,6 +29,41 @@ export interface CrudResult<T> {
   error: CrudError | null;
 }
 
+/**
+ * Non-fatal warning attached to a prepared payload (e.g. a paper source URL
+ * dropped as unsafe). The CRUD op still succeeds; the warning is surfaced as
+ * a toast next to the success toast. Never aborts the op.
+ */
+export interface PreparedWithWarning<P> {
+  payload: P;
+  warning?: string;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+/**
+ * Central unwrap for prepared payloads. Pass-through for plain payloads;
+ * extracts `{ payload, warning }` wrappers produced by prepare factories.
+ * Other entities' factories keep returning plain payloads untouched.
+ */
+export function unwrapPrepared<P>(
+  value: P | PreparedWithWarning<P> | null,
+): { payload: P; warning?: string } | null {
+  if (value === null || value === undefined) return null;
+  if (
+    isRecord(value) &&
+    "payload" in value &&
+    isRecord((value as Record<string, unknown>).payload) &&
+    Object.keys(value).every((k) => k === "payload" || k === "warning")
+  ) {
+    const wrapped = value as unknown as PreparedWithWarning<P>;
+    return { payload: wrapped.payload, warning: wrapped.warning };
+  }
+  return { payload: value as P };
+}
+
 export type CrudOp = "create" | "update" | "delete" | "restore";
 
 /**
@@ -74,12 +109,15 @@ export interface EntityCrudConfig<
     input: Input,
     userId: string,
     fail: (message: string) => void,
-  ) => Record<string, unknown> | null;
+  ) =>
+    | Record<string, unknown>
+    | PreparedWithWarning<Record<string, unknown>>
+    | null;
   prepareUpdate: (
     current: T | null,
     updates: Partial<T>,
     fail: (message: string) => void,
-  ) => Partial<T> | null;
+  ) => Partial<T> | PreparedWithWarning<Partial<T>> | null;
 
   /** Optimistic entity placed in the store; default `{...current, ...payload, updated_at: now}`. */
   buildOptimisticEntity?: (
@@ -282,8 +320,11 @@ export function useEntityCrud<
         guardFail(cfg.createVerb);
         return null;
       }
-      const payload = cfg.prepareCreate(input, cfg.userId, fail);
-      if (payload === null) return null;
+      const prepared = cfg.prepareCreate(input, cfg.userId, fail);
+      if (prepared === null) return null;
+      const unwrapped = unwrapPrepared(prepared);
+      if (unwrapped === null) return null;
+      const { payload, warning } = unwrapped;
 
       const result = await (cfg.insert ?? insertPrimitive)(payload);
       if (result.error) {
@@ -298,6 +339,9 @@ export function useEntityCrud<
       toast.success(
         `${cfg.entityLabel} ${cfg.createVerb === "add" ? "added" : "created"} successfully`,
       );
+      // Pending prepare warning (e.g. dropped unsafe URL) fires next to the
+      // success toast, on success only — never on the error paths above.
+      if (warning) toast.warning(warning);
       // Realtime may have inserted this row before the create response resolves.
       setItemsStore(applySort(dedupeById([result.data, ...currentItems()])));
 
@@ -335,8 +379,11 @@ export function useEntityCrud<
         return false;
       }
 
-      const payload = cfg.prepareUpdate(current, updates, fail);
-      if (payload === null) return false;
+      const prepared = cfg.prepareUpdate(current, updates, fail);
+      if (prepared === null) return false;
+      const unwrapped = unwrapPrepared(prepared);
+      if (unwrapped === null) return false;
+      const { payload, warning: pendingWarning } = unwrapped;
 
       let merged: T | null = null;
       if (cfg.buildOptimisticEntity) {
@@ -393,6 +440,8 @@ export function useEntityCrud<
       }
 
       cfg.afterUpdateSuccess?.(cfg.userId, payload, current, extra);
+      // Pending prepare warning fires after the success path, on success only.
+      if (pendingWarning) toast.warning(pendingWarning);
       if (cfg.xpUpdate) {
         awardXPAndNotify(
           cfg.userId,

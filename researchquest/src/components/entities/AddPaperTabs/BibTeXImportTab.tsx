@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Upload, AlertCircle, Loader, Plus } from "lucide-react";
-import type { BibTeXEntry } from "../../../utils/bibtexParser";
+import type { BibTeXEntry, BibTeXWarnings } from "../../../utils/bibtexParser";
 
 interface BibTeXImportTabProps {
   onFileSelect: (file: File) => void;
@@ -11,6 +11,8 @@ interface BibTeXImportTabProps {
   selectedEntryIds: Set<string>;
   toggleEntrySelection: (id: string) => void;
   importProgress: { current: number; total: number } | null;
+  importStats?: { success: number; failed: number } | null;
+  parseWarnings?: BibTeXWarnings | null;
 }
 
 export function BibTeXImportTab({
@@ -21,6 +23,8 @@ export function BibTeXImportTab({
   parsedEntries,
   selectedEntryIds,
   toggleEntrySelection,
+  importStats,
+  parseWarnings,
 }: BibTeXImportTabProps) {
   const [isDragging, setIsDragging] = useState(false);
 
@@ -92,27 +96,73 @@ export function BibTeXImportTab({
         </div>
       )}
 
+      {parseWarnings &&
+        (parseWarnings.duplicateKeys.length > 0 || parseWarnings.stringYears.length > 0) && (
+          <div
+            role="status"
+            className="p-4 bg-bg-elevated border border-border-subtle rounded-lg text-sm"
+          >
+            {parseWarnings.duplicateKeys.length > 0 && (
+              <p>
+                {parseWarnings.duplicateKeys.length} duplicate entry key(s) renamed (
+                {parseWarnings.duplicateKeys.slice(0, 3).join(", ")}
+                {parseWarnings.duplicateKeys.length > 3 ? ", …" : ""}) — review before
+                importing.
+              </p>
+            )}
+            {parseWarnings.stringYears.length > 0 && (
+              <p>
+                {parseWarnings.stringYears.length} @string-defined year(s) could not be
+                resolved and were left out.
+              </p>
+            )}
+          </div>
+        )}
+
+      {importStats && (
+        <div
+          role="status"
+          className="p-4 bg-bg-elevated border border-border-subtle rounded-lg text-sm"
+        >
+          Imported {importStats.success} of {importStats.success + importStats.failed} entries
+          {importStats.failed > 0
+            ? ` — ${importStats.failed} failed.`
+            : " successfully."}
+        </div>
+      )}
+
       {parsedEntries.length > 0 && (
         <div className="space-y-4">
           <p className="text-sm text-text-secondary">
             {selectedEntryIds.size} papers selected
           </p>
           <div className="max-h-[400px] overflow-y-auto border rounded-lg divide-y">
-            {parsedEntries.map((entry) => (
-              <div key={entry.id} className="p-3 flex items-start gap-3 hover:bg-bg-base">
-                <input
-                  id={`bibtex-entry-${entry.id}`}
-                  type="checkbox"
-                  checked={selectedEntryIds.has(entry.id)}
-                  onChange={() => toggleEntrySelection(entry.id)}
-                  className="mt-1 cursor-pointer"
-                />
-                <label htmlFor={`bibtex-entry-${entry.id}`} className="flex-1 min-w-0 cursor-pointer">
-                  <p className="font-medium truncate">{entry.title || "Untitled"}</p>
-                  <p className="text-sm text-text-secondary truncate">{entry.authors?.join(", ")}</p>
-                </label>
-              </div>
-            ))}
+            {parsedEntries.map((entry, index) => {
+              const hasTitle = Boolean(entry.title?.trim());
+              return (
+                <div key={`${entry.id}-${index}`} className="p-3 flex items-start gap-3 hover:bg-bg-base">
+                  <input
+                    id={`bibtex-entry-${entry.id}`}
+                    type="checkbox"
+                    checked={selectedEntryIds.has(entry.id)}
+                    onChange={() => toggleEntrySelection(entry.id)}
+                    disabled={!hasTitle}
+                    className="mt-1 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                  <label htmlFor={`bibtex-entry-${entry.id}`} className="flex-1 min-w-0 cursor-pointer">
+                    <p className="font-medium truncate">
+                      {hasTitle ? entry.title : "Untitled"}
+                      {!hasTitle && (
+                        <span className="ml-2 inline-block align-middle text-xs font-medium px-2 py-0.5 rounded-full bg-destructive-bg border border-destructive/20 text-destructive">
+                          Missing title
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-sm text-text-secondary truncate">{entry.authors?.join(", ")}</p>
+                  </label>
+                </div>
+              );
+            })}
           </div>
           <button
             type="button"

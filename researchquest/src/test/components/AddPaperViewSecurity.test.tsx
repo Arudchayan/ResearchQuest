@@ -74,7 +74,7 @@ describe("AddPaperView Security", () => {
     const titleInput = screen.getByPlaceholderText(/enter paper title/i);
     await userEvent.type(titleInput, "Malicious Paper");
 
-    const urlInput = screen.getByPlaceholderText("https://...");
+    const urlInput = screen.getByPlaceholderText(/https:\/\/example\.com\/paper/i);
     await userEvent.type(urlInput, "javascript:alert(1)");
 
     const addButton = screen.getByRole("button", { name: /add paper/i });

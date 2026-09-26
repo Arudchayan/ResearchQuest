@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseBibTeX, BibTeXEntry } from "../../utils/bibtexParser";
+import { parseBibTeX, parseBibTeXWithWarnings, BibTeXEntry } from "../../utils/bibtexParser";
 
 describe("parseBibTeX", () => {
   it("should parse a simple article entry", () => {
@@ -176,6 +176,154 @@ describe("parseBibTeX", () => {
       const result = parseBibTeX(input);
       const entry = result[0];
       expect((entry as any).prototype).toBeUndefined();
+    });
+  });
+
+  describe("Year anchoring (/^\\d{4}$/ on trimmed value)", () => {
+    it("keeps a plain 4-digit year", () => {
+      const result = parseBibTeX(`@article{k, year = {2023}}`);
+      expect(result[0].year).toBe("2023");
+    });
+
+    it("keeps an unbraced numeric year", () => {
+      const result = parseBibTeX(`@article{k, year = 2021}`);
+      expect(result[0].year).toBe("2021");
+    });
+
+    it("omits year with extra text (no silent partial extract)", () => {
+      const result = parseBibTeX(`@article{k, year = {2023a}}`);
+      expect(result[0].year).toBeUndefined();
+    });
+
+    it("omits date-range years", () => {
+      const result = parseBibTeX(`@article{k, year = {2021-2022}}`);
+      expect(result[0].year).toBeUndefined();
+    });
+
+    it("omits year with surrounding whitespace noise that is not exactly 4 digits", () => {
+      const result = parseBibTeX(`@article{k, year = {  May 2023  }}`);
+      expect(result[0].year).toBeUndefined();
+    });
+
+    it("trims whitespace around a valid year", () => {
+      const result = parseBibTeX(`@article{k, year = {  2020  }}`);
+      expect(result[0].year).toBe("2020");
+    });
+  });
+
+  describe("Brace-depth-aware author splitting", () => {
+    it("splits simple authors", () => {
+      const result = parseBibTeX(`@article{k, author = {Smith, J. and Doe, J.}}`);
+      expect(result[0].authors).toEqual(["Smith, J.", "Doe, J."]);
+    });
+
+    it("protects braced corporate author containing 'and'", () => {
+      const result = parseBibTeX(`@article{k, author = {{Corporate and Partners} and Smith, J.}}`);
+      expect(result[0].authors).toEqual(["Corporate and Partners", "Smith, J."]);
+    });
+
+    it("leaves Fish-and-Chips untouched", () => {
+      const result = parseBibTeX(`@article{k, author = {Fish-and-Chips}}`);
+      expect(result[0].authors).toEqual(["Fish-and-Chips"]);
+    });
+
+    it("strips only ONE outer pair for doubly-braced author", () => {
+      const result = parseBibTeX(`@article{k, author = {{{a and b}} and C}}`);
+      expect(result[0].authors).toEqual(["{a and b}", "C"]);
+    });
+  });
+
+  describe("Backslash escapes", () => {
+    it("unescapes \\{ \\} \\\\ one level in braced values", () => {
+      const result = parseBibTeX(`@article{k, title = {a \\{b\\} c \\\\ d}}`);
+      expect(result[0].title).toBe("a {b} c \\ d");
+    });
+
+    it("does not let an escaped brace close the entry block early", () => {
+      const input = `@article{k, title = {a \\} still title}, year = {2022}}`;
+      const result = parseBibTeX(input);
+      expect(result).toHaveLength(1);
+      expect(result[0].title).toContain("still title");
+      expect(result[0].year).toBe("2022");
+    });
+
+    it("does not let an escaped brace close a braced value early", () => {
+      const result = parseBibTeX(`@article{k, title = {left \\} right}, year = {2020}}`);
+      expect(result[0].title).toBe("left } right");
+    });
+  });
+
+  describe("Duplicate keys (case-sensitive)", () => {
+    it("renames repeats with -2/-3 and preserves originalId", () => {
+      const input = `
+@article{dup, title = {One}, year = {2020}}
+@article{dup, title = {Two}, year = {2021}}
+@article{dup, title = {Three}, year = {2022}}
+      `;
+      const result = parseBibTeX(input);
+      expect(result.map((e) => e.id)).toEqual(["dup", "dup-2", "dup-3"]);
+      expect(result[0].originalId).toBeUndefined();
+      expect(result[1].originalId).toBe("dup");
+      expect(result[2].originalId).toBe("dup");
+    });
+
+    it("does NOT merge keys differing only by case", () => {
+      const input = `
+@article{Key, title = {One}}
+@article{KEY, title = {Two}}
+@article{key, title = {Three}}
+      `;
+      const result = parseBibTeX(input);
+      expect(result.map((e) => e.id)).toEqual(["Key", "KEY", "key"]);
+      const { warnings } = parseBibTeXWithWarnings(input);
+      expect(warnings.duplicateKeys).toEqual([]);
+    });
+
+    it("reports duplicateKeys warnings shape", () => {
+      const input = `
+@article{same, title = {A}}
+@article{same, title = {B}}
+@article{other, title = {C}}
+@article{other, title = {D}}
+      `;
+      const { entries, warnings } = parseBibTeXWithWarnings(input);
+      expect(entries).toHaveLength(4);
+      expect([...warnings.duplicateKeys].sort()).toEqual(["other", "same"]);
+      expect(Array.isArray(warnings.stringYears)).toBe(true);
+    });
+  });
+
+  describe("parseBibTeXWithWarnings shape + @string years", () => {
+    it("returns {entries, warnings:{duplicateKeys, stringYears}}", () => {
+      const res = parseBibTeXWithWarnings(`@article{k, title = {T}}`);
+      expect(res.entries).toHaveLength(1);
+      expect(res.warnings).toEqual({ duplicateKeys: [], stringYears: [] });
+    });
+
+    it("resolves @string-defined valid years", () => {
+      const input = `
+@string{myyear = {2022}}
+@article{k, title = {T}, year = myyear}
+      `;
+      const { entries, warnings } = parseBibTeXWithWarnings(input);
+      expect(entries[0].year).toBe("2022");
+      expect(warnings.stringYears).toEqual([]);
+    });
+
+    it("warns (not silently drops) when a @string-defined year vanishes", () => {
+      const input = `
+@string{badyear = {forthcoming}}
+@article{k, title = {T}, year = badyear}
+      `;
+      const { entries, warnings } = parseBibTeXWithWarnings(input);
+      expect(entries[0].year).toBeUndefined();
+      expect(warnings.stringYears).toContain("k");
+    });
+
+    it("keeps parseBibTeX() returning a bare entries array", () => {
+      const out = parseBibTeX(`@article{k, title = {T}}`);
+      expect(Array.isArray(out)).toBe(true);
+      expect(out[0].id).toBe("k");
     });
   });
 });

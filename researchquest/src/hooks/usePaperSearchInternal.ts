@@ -1,7 +1,13 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import type { CrossrefPaper } from "../types/database";
 import type { PaperSearchOptions } from "./usePapers";
 import { logger } from "../utils/logger";
+
+/** Pass a thrown search error through verbatim when it carries a message. */
+function toSearchErrorMessage(err: unknown): string {
+  if (err instanceof Error && err.message) return err.message;
+  return "Search failed. Please try again.";
+}
 
 interface UsePaperSearchProps {
   searchByDOI: (doi: string) => Promise<CrossrefPaper | null>;
@@ -14,22 +20,27 @@ export function usePaperSearch({ searchByDOI, searchByQuery }: UsePaperSearchPro
   const [searchResults, setSearchResults] = useState<CrossrefPaper[]>([]);
   const [doiResult, setDoiResult] = useState<CrossrefPaper | null>(null);
   const [selectedResult, setSelectedResult] = useState<CrossrefPaper | null>(null);
+  // Mirror of the hook error for async completion checks: the "not found"
+  // fallback below only applies when no hook error is already set.
+  const errorRef = useRef(error);
+  errorRef.current = error;
 
   const performDOISearch = useCallback(async (doi: string) => {
     if (!doi.trim()) return;
     setLoading(true);
     setError("");
+    errorRef.current = "";
     setDoiResult(null);
     try {
       const result = await searchByDOI(doi.trim());
       if (result) {
         setDoiResult(result);
-      } else {
+      } else if (!errorRef.current) {
         setError("Paper not found. Try manual entry or search by keywords.");
       }
     } catch (err) {
       logger.error("DOI search failed", err);
-      setError("Search failed. Please try again.");
+      setError(toSearchErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -48,7 +59,7 @@ export function usePaperSearch({ searchByDOI, searchByQuery }: UsePaperSearchPro
       }
     } catch (err) {
       logger.error("Query search failed", err);
-      setError("Search failed. Please try again.");
+      setError(toSearchErrorMessage(err));
     } finally {
       setLoading(false);
     }

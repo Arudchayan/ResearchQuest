@@ -135,7 +135,8 @@ export function convertPapersToMarkdown(papers: Paper[]): string {
 }
 
 export function convertPapersToBibTeX(papers: Paper[]): string {
-  return papers.map(generateBibTeX).join("\n\n");
+  const used = new Set<string>();
+  return papers.map((p) => generateBibTeX(p, used)).join("\n\n");
 }
 
 function toJSON(value: unknown): string {

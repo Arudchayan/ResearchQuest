@@ -1,16 +1,17 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { BookOpen, CheckCircle2, Info, LoaderCircle } from "lucide-react";
+import { toast } from "sonner";
 import { useAppStore } from "../../store/appStore";
 import { navigateToView } from "../../lib/softNavigation";
 import type { CrossrefPaper, Paper, PaperDraft } from "../../types/database";
-import type { PaperSearchOptions } from "../../hooks/usePapers";
+import { DOI_PATTERN, sanitizeDoiInput, type PaperSearchOptions } from "../../hooks/usePapers";
 import { isValidUrl } from "../../utils/security";
 import { usePaperSearch } from "../../hooks/usePaperSearchInternal";
 import { useBibTeXImport } from "../../hooks/useBibTeXImport";
 import { buildPaperPayload } from "../../utils/paperUtils";
 import { DOISearchTab } from "./AddPaperTabs/DOISearchTab";
 import { KeywordSearchTab } from "./AddPaperTabs/KeywordSearchTab";
-import { ManualEntryTab } from "./AddPaperTabs/ManualEntryTab";
+import { ManualEntryTab, type ManualEntryErrors } from "./AddPaperTabs/ManualEntryTab";
 import { BibTeXImportTab } from "./AddPaperTabs/BibTeXImportTab";
 
 interface AddPaperViewProps {
@@ -33,6 +34,48 @@ const TAB_DESCRIPTIONS: Record<keyof typeof TAB_LABELS, string> = {
   import: "Preview BibTeX entries before importing the selected records into your library.",
   manual: "Create a record yourself when a DOI or Crossref result is unavailable.",
 };
+
+export const MAX_MANUAL_AUTHORS = 50;
+
+/**
+ * Split manual author input on semicolons ONLY (a comma may be part of a
+ * name: "Doe, John" must survive as one author). Trims, collapses internal
+ * whitespace, drops empties, and dedupes preserving first-seen order.
+ */
+export function parseManualAuthors(input: string): string[] {
+  const seen = new Set<string>();
+  const authors: string[] = [];
+  for (const part of input.split(";")) {
+    const name = part.trim().replace(/\s+/g, " ");
+    if (!name || seen.has(name)) continue;
+    seen.add(name);
+    authors.push(name);
+  }
+  return authors;
+}
+
+/**
+ * Accept either a plain draft (current builder shape) or a
+ * `{ draft, urlWarning }` wrapper (warn-on-drop builder shape).
+ * Forward-compat shim: builders still return plain drafts today, so the
+ * warning currently fires one layer down in useEntityCrud; if a builder
+ * adopts the wrapper shape this unwraps it without other changes.
+ */
+function toDraftAndWarning(
+  built: unknown,
+): { draft: PaperDraft; urlWarning?: string } {
+  if (
+    typeof built === "object" &&
+    built !== null &&
+    "draft" in built &&
+    typeof (built as { draft?: unknown }).draft === "object" &&
+    (built as { draft?: unknown }).draft !== null
+  ) {
+    const wrapped = built as { draft: PaperDraft; urlWarning?: string };
+    return { draft: wrapped.draft, urlWarning: wrapped.urlWarning };
+  }
+  return { draft: built as PaperDraft };
+}
 
 export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: AddPaperViewProps) {
   const [activeTab, setActiveTab] = useState<"doi" | "search" | "manual" | "import">("doi");
@@ -62,6 +105,8 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
     selectedEntryIds,
     setSelectedEntryIds,
     importProgress,
+    importStats,
+    parseWarnings,
     handleFileChange,
     handleImport,
   } = useBibTeXImport(onAdd, onAddBatch);
@@ -81,15 +126,41 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
   const [manualDoi, setManualDoi] = useState("");
   const [manualUrl, setManualUrl] = useState("");
   const [manualLoading, setManualLoading] = useState(false);
-  const [manualError, setManualError] = useState("");
+  const [manualErrors, setManualErrors] = useState<ManualEntryErrors>({});
   const [hasSearchedDOI, setHasSearchedDOI] = useState(false);
   const [hasSearchedQuery, setHasSearchedQuery] = useState(false);
+  // importStats has no setter in the BibTeX hook, so tab switches hide its
+  // banner via this flag instead; a fresh import re-arms it.
+  const [importBannerVisible, setImportBannerVisible] = useState(false);
 
-  useEffect(() => {
-    if (manualTitle.trim() && manualError === "Title is required") {
-      setManualError("");
-    }
-  }, [manualTitle, manualError]);
+  const clearManualFieldError = useCallback(
+    (field: keyof ManualEntryErrors) => {
+      setManualErrors((prev) =>
+        prev[field] ? { ...prev, [field]: undefined } : prev,
+      );
+    },
+    [],
+  );
+
+  // Clear results + errors + stats on tab switch; parsed entries/selection
+  // stay owned by the BibTeX hook and text inputs are kept.
+  const resetTabState = useCallback(() => {
+    setSearchError("");
+    setImportError("");
+    setManualErrors({});
+    setDoiResult(null);
+    setSearchResults([]);
+    setSelectedResult(null);
+    setHasSearchedDOI(false);
+    setHasSearchedQuery(false);
+    setImportBannerVisible(false);
+  }, [
+    setSearchError,
+    setImportError,
+    setDoiResult,
+    setSearchResults,
+    setSelectedResult,
+  ]);
 
   const showSuccess = useCallback((msg: string, paper?: Paper | null) => {
     setSuccessMessage(msg);
@@ -109,9 +180,13 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
     if (!doiResult) return;
     setIsAdding(true);
     try {
-      const created = await onAdd(buildPaperPayload(doiResult));
+      const { draft, urlWarning } = toDraftAndWarning(
+        buildPaperPayload(doiResult),
+      );
+      const created = await onAdd(draft);
       if (created) {
         showSuccess("Paper added successfully", created);
+        if (urlWarning) toast.warning(urlWarning);
         setDoiInput("");
         setDoiResult(null);
       }
@@ -135,9 +210,13 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
     if (!selectedResult) return;
     setIsAdding(true);
     try {
-      const created = await onAdd(buildPaperPayload(selectedResult));
+      const { draft, urlWarning } = toDraftAndWarning(
+        buildPaperPayload(selectedResult),
+      );
+      const created = await onAdd(draft);
       if (created) {
         showSuccess("Paper added successfully", created);
+        if (urlWarning) toast.warning(urlWarning);
         setSearchQuery("");
         setSearchResults([]);
         setSelectedResult(null);
@@ -151,23 +230,40 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
 
   const handleManualAdd = async () => {
     if (!manualTitle.trim()) {
-      setManualError("Title is required");
+      setManualErrors({ title: "Title is required" });
       return;
+    }
+    const authors = parseManualAuthors(manualAuthors);
+    if (authors.length > MAX_MANUAL_AUTHORS) {
+      setManualErrors({
+        submit: `Too many authors (max ${MAX_MANUAL_AUTHORS}).`,
+      });
+      return;
+    }
+    const trimmedDoi = manualDoi.trim();
+    if (trimmedDoi) {
+      const normalized = sanitizeDoiInput(trimmedDoi);
+      if (!DOI_PATTERN.test(normalized)) {
+        setManualErrors({
+          doi: "Invalid DOI format. Expected e.g. 10.1038/nature12373.",
+        });
+        return;
+      }
     }
     const trimmedUrl = manualUrl.trim();
     if (trimmedUrl && !isValidUrl(trimmedUrl)) {
-      setManualError(
-        "Invalid URL protocol. Only http:, https:, and mailto: URLs are allowed.",
-      );
+      setManualErrors({
+        url: "Invalid URL protocol. Only http:, https:, and mailto: URLs are allowed.",
+      });
       return;
     }
-    setManualError("");
+    setManualErrors({});
     setManualLoading(true);
     try {
       const paperData: PaperDraft = {
         title: manualTitle.trim(),
-        authors: manualAuthors.split(",").map(a => a.trim()).filter(Boolean),
-        ...(manualDoi.trim() ? { doi: manualDoi.trim() } : {}),
+        authors,
+        ...(trimmedDoi ? { doi: sanitizeDoiInput(trimmedDoi) } : {}),
         ...(trimmedUrl ? { source_url: trimmedUrl } : {}),
       };
       const created = await onAdd(paperData);
@@ -176,15 +272,17 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
         setManualTitle(""); setManualAuthors(""); setManualDoi(""); setManualUrl("");
       }
     } catch (err) {
-      setManualError("Failed to add paper.");
+      setManualErrors({ submit: "Failed to add paper." });
     } finally {
       setManualLoading(false);
     }
   };
 
   const handleImportAction = async () => {
-    const count = await handleImport();
-    if (count > 0) showSuccess(`Successfully imported ${count} papers`);
+    await handleImport();
+    // The importStats banner (role=status) announces the outcome; no success
+    // toast here avoids a double announcement.
+    setImportBannerVisible(true);
   };
 
   const isSearchTab = activeTab === "doi" || activeTab === "search";
@@ -212,7 +310,7 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
           ? "Upload a .bib file to preview its entries before importing."
           : activeTab === "manual" &&
               !manualLoading &&
-              !manualError &&
+              Object.values(manualErrors).every((value) => !value) &&
               !manualTitle.trim()
             ? "Add a title first; authors, DOI, and source URL are optional but help keep the record traceable."
             : null;
@@ -267,8 +365,7 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
 
           event.preventDefault();
           const nextTab = tabs[nextIndex]!;
-          setSearchError("");
-          setImportError("");
+          resetTabState();
           setActiveTab(nextTab);
           document.getElementById(`tab-${nextTab}`)?.focus();
         }}
@@ -283,9 +380,7 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
             aria-controls={`tabpanel-${tab}`}
             id={`tab-${tab}`}
             onClick={() => {
-              setSearchError("");
-              setImportError("");
-              setManualError("");
+              resetTabState();
               setActiveTab(tab);
             }}
             className={`relative px-6 py-3 text-small font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2 ${activeTab === tab ? "text-primary-500" : "text-text-secondary hover:text-text-primary"}`}
@@ -377,6 +472,8 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
                 setSelectedEntryIds(next);
               }}
               importProgress={importProgress}
+              importStats={importBannerVisible ? importStats : null}
+              parseWarnings={parseWarnings}
             />
           </div>
         )}
@@ -389,7 +486,8 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
               manualUrl={manualUrl} setManualUrl={setManualUrl}
               onAdd={handleManualAdd}
               loading={manualLoading}
-              error={manualError}
+              errors={manualErrors}
+              clearFieldError={clearManualFieldError}
             />
           </div>
         )}

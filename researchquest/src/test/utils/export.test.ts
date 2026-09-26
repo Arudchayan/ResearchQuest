@@ -8,6 +8,7 @@ import {
   convertNotesToJSON,
   convertNotesToMarkdown,
 } from "../../utils/export";
+import { generateBibTeX } from "../../utils/citation";
 import type { Paper, Note } from "../../types/database";
 
 const mockPapers: Paper[] = [
@@ -132,7 +133,48 @@ describe("Export Utils", () => {
       expect(bibtex).toContain("year = {2023}");
 
       // Check second paper
-      expect(bibtex).toContain("@article{AnonymousndAnother");
+      expect(bibtex).toContain("@article{anonndAnother");
+    });
+
+    it("dedups bulk BibTeX keys with a shared set (base, base-a, base-b)", () => {
+      const mk = (id: string, title: string): Paper => ({
+        id,
+        user_id: "user1",
+        title,
+        authors: ["John Doe"],
+        publication_date: "2023-01-01",
+        status: "To Read",
+        created_at: "2023-01-01T00:00:00Z",
+        updated_at: "2023-01-01T00:00:00Z",
+      });
+      const bulk = convertPapersToBibTeX([
+        mk("a", "Same Title"),
+        mk("b", "Same Topic"),
+        mk("c", "Same Theory"),
+      ]);
+      expect(bulk).toContain("@article{Doe2023Same,");
+      expect(bulk).toContain("@article{Doe2023Same-a,");
+      expect(bulk).toContain("@article{Doe2023Same-b,");
+      // Hyphenated letters, deliberately distinct from the import -2 scheme.
+      expect(bulk).not.toContain("Doe2023Same-2");
+    });
+
+    it("does not leak the shared key set into single-paper calls", () => {
+      const mk = (id: string): Paper => ({
+        id,
+        user_id: "user1",
+        title: "Same Title",
+        authors: ["John Doe"],
+        publication_date: "2023-01-01",
+        status: "To Read",
+        created_at: "2023-01-01T00:00:00Z",
+        updated_at: "2023-01-01T00:00:00Z",
+      });
+      // Bulk call dedups...
+      const bulk = convertPapersToBibTeX([mk("a"), mk("b")]);
+      expect(bulk).toContain("@article{Doe2023Same-a,");
+      // ...but a fresh single-paper call still gets the base key.
+      expect(generateBibTeX(mk("c"))).toContain("@article{Doe2023Same,");
     });
 
     it("escapes CSV injection characters correctly", () => {
