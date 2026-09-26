@@ -92,6 +92,11 @@ const CARD_SKELETON_CONFIG = {
     iconSize: "w-5 h-5 rounded flex-shrink-0 mt-0.5",
     padding: "p-4",
   },
+  topic: {
+    titleWidth: "w-2/3",
+    lineWidths: ["w-full", "w-1/2"],
+    chipWidths: ["w-12", "w-16"],
+  },
 } as const;
 
 export type CardSkeletonType = keyof typeof CARD_SKELETON_CONFIG;
@@ -110,6 +115,10 @@ export const IdeaCardSkeleton = () => (
 
 export const TaskCardSkeleton = () => (
   <EntityCardSkeleton {...CARD_SKELETON_CONFIG.task} />
+);
+
+export const TopicCardSkeleton = () => (
+  <EntityCardSkeleton {...CARD_SKELETON_CONFIG.topic} />
 );
 
 /**

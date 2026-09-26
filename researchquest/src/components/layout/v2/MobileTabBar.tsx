@@ -12,6 +12,9 @@ import {
   X,
 } from "lucide-react";
 import { useAppStore } from "../../../store/appStore";
+import { useNotes } from "../../../hooks/useNotes";
+import { useIdeas } from "../../../hooks/useIdeas";
+import { useTasks } from "../../../hooks/useTasks";
 import { useShallow } from "zustand/react/shallow";
 import { cn } from "../../../lib/utils";
 import { navigateToView } from "../../../lib/softNavigation";
@@ -29,6 +32,9 @@ const sheetItems = [
   { id: "tasks", label: "New Task" },
 ] as const;
 
+// Library sheet mirrors the desktop Sidebar "Library" group 1:1 (Notes,
+// Papers, Ideas, Topics, Feeds) — Feeds is single-homed here on mobile, so
+// it must stay even though the bottom tabs only cover the "Plan" views.
 const libraryItems: { id: AppView; label: string; icon: typeof FileText }[] = [
   { id: "notes", label: "Notes", icon: FileText },
   { id: "papers", label: "Papers", icon: BookOpen },
@@ -48,13 +54,27 @@ export function MobileTabBar() {
     currentView,
     isMobileSidebarOpen,
     setIsMobileSidebarOpen,
+    user,
+    setSelectedNote,
+    setSelectedIdea,
+    setSelectedTask,
   } = useAppStore(
     useShallow((state) => ({
       currentView: state.currentView,
       isMobileSidebarOpen: state.isMobileSidebarOpen,
       setIsMobileSidebarOpen: state.setIsMobileSidebarOpen,
+      user: state.user,
+      setSelectedNote: state.setSelectedNote,
+      setSelectedIdea: state.setSelectedIdea,
+      setSelectedTask: state.setSelectedTask,
     })),
   );
+
+  // Same create-then-deep-link mechanism as the command palette's honest
+  // "New X" actions (useNotes/useIdeas/useTasks own their toasts).
+  const { createNote } = useNotes(user?.id);
+  const { createIdea } = useIdeas(user?.id);
+  const { createTask } = useTasks(user?.id, { owner: false });
 
   const navigate = (view: AppView) => {
     setIsMobileSidebarOpen(false);
@@ -121,6 +141,29 @@ export function MobileTabBar() {
 
   const handleSheetNavigate = (view: AppView) => {
     navigate(view);
+    setSheet(null);
+  };
+
+  const handleSheetCreate = async (kind: "notes" | "ideas" | "tasks") => {
+    if (kind === "notes") {
+      const created = await createNote({ markdown_body: "" });
+      if (created) {
+        setSelectedNote(created);
+        navigateToView("notes", `/notes/${created.id}`);
+      }
+    } else if (kind === "ideas") {
+      const created = await createIdea({ title: "Untitled Idea" });
+      if (created) {
+        setSelectedIdea(created);
+        navigateToView("ideas", `/ideas/${created.id}`);
+      }
+    } else {
+      const created = await createTask({ title: "Untitled Task" });
+      if (created) {
+        setSelectedTask(created);
+        navigateToView("tasks", `/tasks/${created.id}`);
+      }
+    }
     setSheet(null);
   };
 
@@ -214,7 +257,7 @@ export function MobileTabBar() {
               {sheetItems.map((item) => (
                 <button
                   key={item.id}
-                  onClick={() => handleSheetNavigate(item.id)}
+                  onClick={() => void handleSheetCreate(item.id)}
                   className="flex min-h-11 w-full items-center gap-3 rounded-sm px-3 py-2.5 text-small font-medium text-text-secondary transition-colors hover:bg-bg-surface hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
                 >
                   <Plus className="h-4 w-4 text-primary-500" aria-hidden="true" />

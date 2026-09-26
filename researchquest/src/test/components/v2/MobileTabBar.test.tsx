@@ -3,13 +3,53 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MobileTabBar } from "../../../components/layout/v2/MobileTabBar";
 import { useAppStore } from "../../../store/appStore";
 
+const mocks = {
+  createNote: vi.fn(),
+  createIdea: vi.fn(),
+  createTask: vi.fn(),
+};
+
+const hookArgs: {
+  useNotes?: unknown[];
+  useIdeas?: unknown[];
+  useTasks?: unknown[];
+} = {};
+
+vi.mock("../../../hooks/useNotes", () => ({
+  useNotes: (...args: unknown[]) => {
+    hookArgs.useNotes = args;
+    return { createNote: mocks.createNote };
+  },
+}));
+
+vi.mock("../../../hooks/useIdeas", () => ({
+  useIdeas: (...args: unknown[]) => {
+    hookArgs.useIdeas = args;
+    return { createIdea: mocks.createIdea };
+  },
+}));
+
+vi.mock("../../../hooks/useTasks", () => ({
+  useTasks: (...args: unknown[]) => {
+    hookArgs.useTasks = args;
+    return { createTask: mocks.createTask };
+  },
+}));
+
 describe("MobileTabBar (v2)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.createNote.mockResolvedValue({ id: "note-new", title: "Untitled" });
+    mocks.createIdea.mockResolvedValue({ id: "idea-new", title: "Untitled Idea" });
+    mocks.createTask.mockResolvedValue({ id: "task-new", title: "Untitled Task" });
     useAppStore.setState({
       currentView: "notes",
       isMobileSidebarOpen: false,
       setIsMobileSidebarOpen: vi.fn(),
+      setSelectedNote: vi.fn(),
+      setSelectedIdea: vi.fn(),
+      setSelectedTask: vi.fn(),
+      user: { id: "test-user" } as never,
     });
     vi.spyOn(window.history, "pushState");
   });
@@ -113,7 +153,7 @@ describe("MobileTabBar (v2)", () => {
     );
   });
 
-  it("navigates from the sheet to the target view and restores FAB focus", async () => {
+  it("creates a real task from the sheet and deep-links to it, restoring FAB focus", async () => {
     renderTabBar();
 
     fireEvent.click(screen.getByRole("button", { name: "Quick add" }));
@@ -121,14 +161,99 @@ describe("MobileTabBar (v2)", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "New Task" }));
 
+    await waitFor(() => {
+      expect(mocks.createTask).toHaveBeenCalledWith({ title: "Untitled Task" });
+    });
+    expect(useAppStore.getState().setSelectedTask).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "task-new" }),
+    );
     expect(useAppStore.getState().currentView).toBe("tasks");
-    expect(window.history.pushState).toHaveBeenCalledWith(null, "", "/tasks");
+    expect(window.history.pushState).toHaveBeenCalledWith(
+      null,
+      "",
+      "/tasks/task-new",
+    );
     expect(
       screen.queryByRole("dialog", { name: "Quick add" }),
     ).not.toBeInTheDocument();
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Quick add" })).toHaveFocus(),
     );
+  });
+
+  it("creates a real note from the sheet and deep-links to it", async () => {
+    renderTabBar();
+
+    fireEvent.click(screen.getByRole("button", { name: "Quick add" }));
+    await screen.findByRole("dialog", { name: "Quick add" });
+
+    fireEvent.click(screen.getByRole("button", { name: "New Note" }));
+
+    await waitFor(() => {
+      expect(mocks.createNote).toHaveBeenCalledWith({ markdown_body: "" });
+    });
+    expect(useAppStore.getState().setSelectedNote).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "note-new" }),
+    );
+    expect(useAppStore.getState().currentView).toBe("notes");
+    expect(window.history.pushState).toHaveBeenCalledWith(
+      null,
+      "",
+      "/notes/note-new",
+    );
+  });
+
+  it("creates a real idea from the sheet and deep-links to it", async () => {
+    renderTabBar();
+
+    fireEvent.click(screen.getByRole("button", { name: "Quick add" }));
+    await screen.findByRole("dialog", { name: "Quick add" });
+
+    fireEvent.click(screen.getByRole("button", { name: "New Idea" }));
+
+    await waitFor(() => {
+      expect(mocks.createIdea).toHaveBeenCalledWith({ title: "Untitled Idea" });
+    });
+    expect(useAppStore.getState().setSelectedIdea).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "idea-new" }),
+    );
+    expect(useAppStore.getState().currentView).toBe("ideas");
+    expect(window.history.pushState).toHaveBeenCalledWith(
+      null,
+      "",
+      "/ideas/idea-new",
+    );
+  });
+
+  it("wires entity hooks with the current user (tasks as non-owner)", () => {
+    renderTabBar();
+
+    expect(hookArgs.useNotes?.[0]).toBe("test-user");
+    expect(hookArgs.useIdeas?.[0]).toBe("test-user");
+    expect(hookArgs.useTasks?.[0]).toBe("test-user");
+    expect(hookArgs.useTasks?.[1]).toEqual({ owner: false });
+  });
+
+  it("closes the sheet without selecting or navigating when creation fails", async () => {
+    mocks.createTask.mockResolvedValueOnce(null);
+    renderTabBar();
+
+    fireEvent.click(screen.getByRole("button", { name: "Quick add" }));
+    await screen.findByRole("dialog", { name: "Quick add" });
+
+    fireEvent.click(screen.getByRole("button", { name: "New Task" }));
+
+    await waitFor(() => {
+      expect(mocks.createTask).toHaveBeenCalledWith({ title: "Untitled Task" });
+    });
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("dialog", { name: "Quick add" }),
+      ).not.toBeInTheDocument();
+    });
+    expect(useAppStore.getState().setSelectedTask).not.toHaveBeenCalled();
+    expect(useAppStore.getState().currentView).toBe("notes");
+    expect(window.history.pushState).not.toHaveBeenCalled();
   });
 
   it("closes the sheet with Escape and restores FAB focus", async () => {

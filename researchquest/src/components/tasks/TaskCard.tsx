@@ -24,7 +24,9 @@ const priorityBadgeVariants: Record<TaskPriority, BadgeVariant> = {
 };
 
 export function getPriorityColor(priority: TaskPriority): BadgeVariant {
-  return priorityBadgeVariants[priority];
+  // Rows arriving outside the TaskPriority union (stale demo data, realtime
+  // payloads) fall back to the neutral variant instead of an undefined Badge.
+  return priorityBadgeVariants[priority] ?? "priority-medium";
 }
 
 export function isOverdue(dueDate: string | undefined | null): boolean {

@@ -1,12 +1,12 @@
 # ResearchQuest — Luxe Scholar Design System
 
-> **Contract status:** prescriptive for the seven primary views. This document is the implementation contract for the redesign; later view work must use these tokens, patterns, states, and responsive rules rather than inventing local styling.
+> **Contract status:** prescriptive for the eight primary views. This document is the implementation contract for the redesign; later view work must use these tokens, patterns, states, and responsive rules rather than inventing local styling.
 
 ## 1. Atmosphere & Identity
 
 ResearchQuest is a warm editorial research workspace: ivory and charcoal surfaces, crisp hairline divisions, and deliberately sharp 2–8px geometry make dense scholarly work feel composed rather than decorative. Playfair Display gives headings the authority of a printed title page; Inter keeps controls quiet and legible; JetBrains Mono makes timers and measured progress feel precise. The signature is **paper hierarchy without paper clutter**: `bg-base` is the canvas, `bg-surface` is the working sheet, `bg-elevated` is the supporting layer, and borders are used as restrained editorial rules.
 
-Navigation is grouped as **Plan** (Today, Tasks, Focus Studio, Feeds) and **Library** (Notes, Papers, Ideas, Topics). The day loop is Today → Focus → mark done. Today items can be dragged to reorder. Notes and Focus stay mounted after first visit. Topics can be typed as Research, Area, or Subject (no extra table). Topic Quests stay topic-scoped. Daily missions and the sprint board exist in code but are unshipped.
+Navigation is grouped as **Plan** (Today, Tasks, Focus Studio) and **Library** (Notes, Papers, Ideas, Topics, Feeds) — matching `Sidebar.tsx` `navGroups` and the mobile tab bar (Plan views as tabs, Library views in the Library sheet). The day loop is Today → Focus → mark done. Today items can be dragged to reorder. Notes and Focus stay mounted after first visit. Topics can be typed as Research, Area, or Subject (no extra table). Topic Quests stay topic-scoped. Daily missions and the sprint board exist in code but are unshipped.
 
 The visual contract covers the primary views: **Today/Dashboard, Notes, Papers, Ideas, Tasks, Topics, Focus Studio, and Feeds**. Preserve current routes, selection behavior, data loading, dialogs, editor flows, and shell/sidebar behavior unless an IA change is explicitly in scope.
 
@@ -133,7 +133,7 @@ Do not add arbitrary spacing. Every margin, padding, and gap must use this scale
 
 **Sources:** `tailwind.config.js` container, screens, spacing, radius, and viewport extensions; `src/components/layout/v2/AppShell.tsx` shell composition; `src/App.tsx` route wrappers.
 
-## 5. Seven-view Contracts
+## 5. Eight-view Contracts
 
 ### Shared view frame
 
@@ -210,6 +210,14 @@ Every view starts with a clear `PageHeader` or a view-specific list header, then
 - On mobile, stack the timer, selected-target preview, and target list. Loading uses skeleton groups; no targets and suggestions use concise empty/information states. Respect sound/notification control states without relying on color alone.
 
 **Sources:** [`src/components/focus/FocusWorkspace.tsx`](src/components/focus/FocusWorkspace.tsx), [`src/components/focus/FocusTargetAside.tsx`](src/components/focus/FocusTargetAside.tsx), route wrapper in [`src/App.tsx`](src/App.tsx).
+
+### Feeds — triage inbox, promote into the library
+
+- Preserve the triage journey: scan ingested `feed_items` in the rail, open a lead, then promote it into a paper, task, or note. Feed source/RSS management UI and scheduled ingest remain alpha and out of scope for visual changes.
+- Keep the rail/detail split: the rail lists leads with source and recency; detail shows the summary with explicit Promote actions. On mobile, list and detail are mutually exclusive with Back returning to the inbox.
+- Loading uses `ListSkeleton`; an empty inbox uses `EmptyState`; sync failures use `InlineError`. Do not change ingest or promotion semantics.
+
+**Sources:** [`src/components/feeds/FeedsView.tsx`](src/components/feeds/FeedsView.tsx), [`src/components/feeds/FeedsRail.tsx`](src/components/feeds/FeedsRail.tsx), [`src/components/feeds/FeedItemCard.tsx`](src/components/feeds/FeedItemCard.tsx), route wrapper in [`src/App.tsx`](src/App.tsx).
 
 ## 6. Reusable Patterns & States
 
@@ -324,7 +332,7 @@ The previous extraction-only draft claimed that Notes, Papers, Ideas, and Topics
 | Focus Studio still uses rounded-2xl/full/xl surfaces, gradient progress, and direct dark/white fallbacks | [`src/components/focus/FocusWorkspace.tsx`](src/components/focus/FocusWorkspace.tsx), [`src/components/focus/FocusTargetAside.tsx`](src/components/focus/FocusTargetAside.tsx) | Normalize later to 2–8px geometry, solid tokenized progress, shared buttons/chips, and the documented mono metric treatment; preserve timer behavior and target selection. |
 | Notes/Papers/Ideas/Topics are tokenized but retain a few local radius/width exceptions | [`NotesSidebar.tsx`](src/components/notes/NotesSidebar.tsx), [`PapersView.tsx`](src/components/papers/PapersView.tsx), [`IdeasBoard.tsx`](src/components/ideas/IdeasBoard.tsx), [`TopicsView.tsx`](src/components/topics/TopicsView.tsx) | Treat the current token usage as the baseline. Consolidate only documented exceptions (drawer widths, board scroller, circular clear buttons) during the view redesign. |
 | Shared shadcn metadata does not describe the active CSS-variable palette | [`components.json`](components.json) | Retain as source context; do not broaden this scoped task into shadcn configuration or component migration. |
-| Route fallback and Not Found surfaces have older red/yellow/white utilities | [`src/App.tsx`](src/App.tsx), [`src/components/ui/NotFound.tsx`](src/components/ui/NotFound.tsx) | Out of the seven-view scope. Do not change here; schedule with global error-surface normalization. |
+| Route fallback and Not Found surfaces have older red/yellow/white utilities | [`src/App.tsx`](src/App.tsx), [`src/components/ui/NotFound.tsx`](src/components/ui/NotFound.tsx) | Out of the eight-view scope. Do not change here; schedule with global error-surface normalization. |
 
 No new debt is accepted silently. If a later view agent needs a new semantic role, add its variable, light/dark value, Tailwind mapping, and this document entry before using it.
 
@@ -334,4 +342,4 @@ No new debt is accepted silently. If a later view agent needs a new semantic rol
 - Tailwind colors, font stacks, type scale, spacing, container, breakpoints, radii, z-index, shadows, animation, transition, and viewport utility mappings: [`tailwind.config.js`](tailwind.config.js).
 - Active primitives: [`button.tsx`](src/components/ui/button.tsx), [`card.tsx`](src/components/ui/card.tsx), [`input.tsx`](src/components/ui/input.tsx), [`Skeleton.tsx`](src/components/ui/Skeleton.tsx), [`ErrorFallback.tsx`](src/components/ui/ErrorFallback.tsx), [`tooltip.tsx`](src/components/ui/tooltip.tsx), [`ConfirmDialog.tsx`](src/components/ui/ConfirmDialog.tsx), [`FormDialog.tsx`](src/components/ui/FormDialog.tsx).
 - Active shell: [`AppShell.tsx`](src/components/layout/v2/AppShell.tsx) and [`Sidebar.tsx`](src/components/layout/v2/Sidebar.tsx).
-- Seven-view route composition: [`src/App.tsx`](src/App.tsx) and navigation definitions in [`Sidebar.tsx`](src/components/layout/v2/Sidebar.tsx).
+- Eight-view route composition: [`src/App.tsx`](src/App.tsx) and navigation definitions in [`Sidebar.tsx`](src/components/layout/v2/Sidebar.tsx).
