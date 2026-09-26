@@ -4,6 +4,8 @@ import { StrictMode } from "react";
 import { FocusWorkspace } from "../../components/focus/FocusWorkspace";
 import { useAppStore } from "../../store/appStore";
 import {
+  ensureFocusSessionGuardAttached,
+  publishLiveFocusSnapshot,
   useFocusHydrateEpoch,
 } from "../../components/focus/focusSessionGuard";
 
@@ -332,6 +334,28 @@ describe("FocusWorkspace", () => {
     window.dispatchEvent(event);
   }
 
+  function dispatchReplaceNavigate() {
+    if (!(window as Window & { navigation?: EventTarget }).navigation) {
+      Object.defineProperty(window, "navigation", {
+        configurable: true,
+        value: new EventTarget(),
+      });
+    }
+    ensureFocusSessionGuardAttached();
+    const event = new Event("navigate");
+    Object.defineProperty(event, "navigationType", {
+      configurable: true,
+      value: "replace",
+    });
+    Object.defineProperty(event, "destination", {
+      configurable: true,
+      value: { url: window.location.href },
+    });
+    (
+      window as Window & { navigation: EventTarget }
+    ).navigation.dispatchEvent(event);
+  }
+
   function dispatchVisibility(hidden: boolean) {
     Object.defineProperty(document, "hidden", {
       configurable: true,
@@ -436,6 +460,62 @@ describe("FocusWorkspace", () => {
     expect(view.getByText("23:46")).toBeInTheDocument();
   });
 
+  it("wine new-document delayed mount (App skeleton, no pagehide) Continue frozen at last painted remaining", async () => {
+    // Binding: Preview Soft PASS on c1aa8be dispatched pagehide on a live heap
+    // (Playwright page.reload). Wine hard refresh is a new document: the dying
+    // page's epoch remount never paints, and App shows a loading skeleton
+    // before lazy Focus mounts. Do not dispatch pagehide/pageshow here.
+    saveFocusSession({
+      version: 1,
+      selectedTarget: { type: "note", id: "note-1" },
+      sessionLength: 25 * 60,
+      isRunning: true,
+      startedAt: Date.now() - 12 * 1000,
+      timeLeft: 24 * 60 + 48,
+      hasCompletedSession: false,
+      sessionCount: 1,
+    });
+    rewriteStoredFocusSessionPaused();
+    publishLiveFocusSnapshot(null);
+
+    function DelayedFocus({
+      userId,
+      ready,
+    }: {
+      userId: string;
+      ready: boolean;
+    }) {
+      if (!ready) return <div>Loading view…</div>;
+      return <FocusWorkspace userId={userId} />;
+    }
+
+    const view = render(<DelayedFocus userId={userId} ready={false} />);
+    expect(view.getByText("Loading view…")).toBeInTheDocument();
+    expect(
+      view.queryByRole("button", { name: /^Pause$/i }),
+    ).not.toBeInTheDocument();
+    view.rerender(<DelayedFocus userId={userId} ready={true} />);
+
+    expect(view.getByText("24:48")).toBeInTheDocument();
+    expect(view.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(
+      view.queryByRole("button", { name: /^Pause$/i }),
+    ).not.toBeInTheDocument();
+
+    await act(async () => {
+      vi.advanceTimersByTime(18 * 1000);
+    });
+    expect(view.getByText("24:48")).toBeInTheDocument();
+    expect(view.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+
+    fireEvent.click(view.getByRole("button", { name: /^Continue$/i }));
+    expect(view.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
+    await act(async () => {
+      vi.advanceTimersByTime(18 * 1000);
+    });
+    expect(view.getByText("24:30")).toBeInTheDocument();
+  });
+
   it("hard refresh (new heap) boot-rewrites rq_focus_session then cold-hydrates Continue frozen", async () => {
     // Wine Soft FAIL @ 7a9fdd27: Start → hard refresh still Pause + tick.
     // Playwright page.reload Soft PASS was live-heap pagehide, not a new
@@ -527,6 +607,37 @@ describe("FocusWorkspace", () => {
     });
     expect(screen.getByText("24:43")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+  });
+
+  it("wine same-document replace of a live Pause run lands Continue, frozen", async () => {
+    // Preview Soft PASS: Playwright page.reload() → navigationType=reload.
+    // Wine Product hard refresh: location.replace(href) → type=replace, heap
+    // survives, pagehide remount never paints.
+    render(<FocusWorkspace userId={userId} />);
+    fireEvent.click(screen.getByText("My Note"));
+    fireEvent.click(screen.getByText("Start focus"));
+    await act(async () => {
+      vi.advanceTimersByTime(12 * 1000);
+    });
+    expect(screen.getByText("24:48")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
+
+    await act(async () => {
+      dispatchReplaceNavigate();
+    });
+
+    expect(screen.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Pause$/i }),
+    ).not.toBeInTheDocument();
+    await act(async () => {
+      vi.advanceTimersByTime(18 * 1000);
+    });
+    expect(screen.getByText("24:48")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Continue$/i }));
+    expect(screen.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
   });
 
   it("pagehide of a running session (no visibility hide) lands Continue, frozen, then remount stays Continue", async () => {
