@@ -88,6 +88,7 @@ export function TaskManager() {
   const [formPriority, setFormPriority] = useState<TaskPriority>("medium");
   const [formCategory, setFormCategory] = useState<TaskCategory>("Research");
   const [formDueDate, setFormDueDate] = useState("");
+  const [formProjectId, setFormProjectId] = useState("");
 
   useEffect(() => {
     const applyHandoff = () => {
@@ -100,6 +101,7 @@ export function TaskManager() {
       setFormPriority("medium");
       setFormCategory("Study");
       setFormDueDate("");
+      setFormProjectId("");
       setIsLearningHandoff(true);
       setLearningReturnUrl(draft.lessonUrl || "https://learning-platform-chi-ten.vercel.app/");
       setTaskSaveError(null);
@@ -214,18 +216,29 @@ export function TaskManager() {
   // (e.g. double requestSubmit) would both pass the isSubmitting check.
   const savePendingRef = useRef(false);
 
+  const isValidProjectId = (value: string): boolean =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+
   const handleAddTask = async () => {
     if (!formTitle.trim() || isSubmitting || savePendingRef.current) return;
     savePendingRef.current = true;
     setIsSubmitting(true);
     setTaskSaveError(null);
     try {
+      // project_id is UUID-typed in the DB: reject non-UUID input with a
+      // field error instead of surfacing a 22P02 write failure.
+      const projectId = formProjectId.trim();
+      if (projectId && !isValidProjectId(projectId)) {
+        setTaskSaveError("Project ID must be a valid UUID.");
+        return;
+      }
       const saved = await createTask({
-        title: formTitle,
-        ...(formDescription ? { description: formDescription } : {}),
+        title: formTitle.trim(),
+        ...(formDescription.trim() ? { description: formDescription.trim() } : {}),
         priority: formPriority,
         category: formCategory,
         ...(formDueDate ? { due_date: formDueDate } : {}),
+        ...(projectId ? { project_id: projectId } : {}),
       });
       if (!saved) {
         setTaskSaveError("Task was not saved. Check the fields and try again.");
@@ -237,6 +250,7 @@ export function TaskManager() {
       setFormPriority("medium");
       setFormCategory("Research");
       setFormDueDate("");
+      setFormProjectId("");
       setShowAddModal(false);
       setIsLearningHandoff(false);
       setLearningReturnUrl("https://learning-platform-chi-ten.vercel.app/");
@@ -252,12 +266,21 @@ export function TaskManager() {
   const handleUpdateTask = async () => {
     if (!editingTask || !formTitle.trim()) return;
 
+    // Cleared fields persist as null (columns are nullable) — omitting them
+    // would leave the stale stored value in place. Whitespace-only input
+    // trims to empty and is stored as null, not whitespace.
+    const projectId = formProjectId.trim();
+    if (projectId && !isValidProjectId(projectId)) {
+      setTaskSaveError("Project ID must be a valid UUID.");
+      return;
+    }
     await updateTask(editingTask.id, {
-      title: formTitle,
-      ...(formDescription ? { description: formDescription } : {}),
+      title: formTitle.trim(),
+      description: formDescription.trim() || null,
       priority: formPriority,
       category: formCategory,
-      ...(formDueDate ? { due_date: formDueDate } : {}),
+      due_date: formDueDate || null,
+      project_id: projectId || null,
     });
 
     // Reset form
@@ -267,6 +290,7 @@ export function TaskManager() {
     setFormPriority("medium");
     setFormCategory("Research");
     setFormDueDate("");
+    setFormProjectId("");
   };
 
   const handleEditClick = (task: Task) => {
@@ -276,6 +300,7 @@ export function TaskManager() {
     setFormPriority(task.priority);
     setFormCategory((task.category as TaskCategory) || "Research");
     setFormDueDate(task.due_date || "");
+    setFormProjectId(task.project_id || "");
   };
 
   const handleToggleComplete = async (task: Task) => {
@@ -302,6 +327,7 @@ export function TaskManager() {
     setFormPriority("medium");
     setFormCategory("Research");
     setFormDueDate("");
+    setFormProjectId("");
   };
 
   const handleExport = (format: "markdown" | "csv" | "json") => {
@@ -472,22 +498,28 @@ export function TaskManager() {
                   </option>
                 ))}
               </select>
-              <label htmlFor="task-filter-project" className="sr-only">
-                Filter by project
-              </label>
-              <select
-                id="task-filter-project"
-                value={projectFilter}
-                onChange={(e) => setProjectFilter(e.target.value)}
-                className="min-h-11 max-w-full rounded-control border border-border-moderate bg-bg-base px-3 py-2 text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-focus sm:max-w-56 md:min-h-0"
-              >
-                <option value="all">All projects</option>
-                {projectIdsInUse.map((id) => (
-                  <option key={id} value={id}>
-                    {id}
-                  </option>
-                ))}
-              </select>
+              {/* Project ids are raw ids with no name resolver — hide the
+                  filter instead of showing a dead-end dropdown. */}
+              {projectIdsInUse.length > 0 && (
+                <>
+                  <label htmlFor="task-filter-project" className="sr-only">
+                    Filter by project
+                  </label>
+                  <select
+                    id="task-filter-project"
+                    value={projectFilter}
+                    onChange={(e) => setProjectFilter(e.target.value)}
+                    className="min-h-11 max-w-full rounded-control border border-border-moderate bg-bg-base px-3 py-2 text-small text-text-primary focus:outline-none focus:ring-2 focus:ring-focus sm:max-w-56 md:min-h-0"
+                  >
+                    <option value="all">All projects</option>
+                    {projectIdsInUse.map((id) => (
+                      <option key={id} value={id}>
+                        {id}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
             </div>
 
             <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center">
@@ -645,7 +677,7 @@ export function TaskManager() {
         isSubmitDisabled={!formTitle.trim() || isSubmitting}
       >
         <div className="space-y-4">
-          {taskSaveError && !editingTask && (
+          {taskSaveError && (
             <p role="alert" className="text-small text-destructive">{taskSaveError}</p>
           )}
           {isLearningHandoff && !editingTask && (
@@ -761,6 +793,24 @@ export function TaskManager() {
               value={formDueDate}
               onChange={(e) => setFormDueDate(e.target.value)}
               className="bg-bg-base text-small"
+            />
+          </div>
+
+          {/* Project */}
+          <div>
+            <Label
+              htmlFor="task-project"
+              className="mb-2 block text-small font-medium text-text-primary"
+            >
+              Project ID (Optional)
+            </Label>
+            <Input
+              id="task-project"
+              type="text"
+              value={formProjectId}
+              onChange={(e) => setFormProjectId(e.target.value)}
+              className="bg-bg-base text-small"
+              placeholder="Assign to a project id"
             />
           </div>
         </div>

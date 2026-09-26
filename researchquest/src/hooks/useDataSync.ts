@@ -46,7 +46,7 @@ export function useDataSync(userId: string | undefined) {
     setSelectedPaper,
     setSelectedIdea,
     setFocusSessionSecondsToday,
-    setTodayXP,
+    setXpToday,
   } = useAppStore(
     useShallow((state) => ({
       setNotes: state.setNotes,
@@ -61,7 +61,7 @@ export function useDataSync(userId: string | undefined) {
       setSelectedPaper: state.setSelectedPaper,
       setSelectedIdea: state.setSelectedIdea,
       setFocusSessionSecondsToday: state.setFocusSessionSecondsToday,
-      setTodayXP: state.setTodayXP,
+      setXpToday: state.setXpToday,
     })),
   );
 
@@ -242,7 +242,7 @@ export function useDataSync(userId: string | undefined) {
         .maybeSingle();
 
       if (!error) {
-        setTodayXP(data?.xp_earned ?? 0);
+        setXpToday(data?.xp_earned ?? 0);
       }
     };
 
@@ -466,6 +466,6 @@ export function useDataSync(userId: string | undefined) {
     setSelectedPaper,
     setSelectedIdea,
     setFocusSessionSecondsToday,
-    setTodayXP,
+    setXpToday,
   ]);
 }

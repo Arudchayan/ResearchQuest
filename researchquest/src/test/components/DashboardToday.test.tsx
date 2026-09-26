@@ -162,7 +162,7 @@ describe("Dashboard Today plan", () => {
     ).toBeNull();
   });
 
-  it("quick-adds a task onto Today and can reorder it", async () => {
+  it("quick-adds a task onto Today without implicitly pinning due-today rows", async () => {
     resetStore({
       tasks: [
         fakeTask({ id: "t-today", title: "Submit abstract", due_date: dateOffset(0) }),
@@ -180,12 +180,48 @@ describe("Dashboard Today plan", () => {
       await screen.findByRole("button", { name: "Open task: Gym" }),
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Move Gym down" }));
+    // Pinned quick-add sorts before pure due-today rows.
     const openButtons = screen.getAllByRole("button", { name: /^Open task:/ });
     expect(openButtons.map((button) => button.getAttribute("aria-label"))).toEqual([
-      "Open task: Submit abstract",
       "Open task: Gym",
+      "Open task: Submit abstract",
     ]);
+
+    // Reordering across the pinned/due-today boundary must not pin the
+    // due-today row into the persisted order.
+    fireEvent.click(screen.getByRole("button", { name: "Move Gym down" }));
+    expect(useTodayPlanStore.getState().orderedIds).toEqual(["created-Gym"]);
+  });
+
+  it("offers an explicit unpin control per pinned row", () => {
+    resetStore({
+      tasks: [
+        fakeTask({ id: "t-today", title: "Submit abstract", due_date: dateOffset(0) }),
+        fakeTask({ id: "t-pinned", title: "Read inbox" }),
+      ],
+    });
+    useTodayPlanStore.setState({ dayKey: todayKey(), orderedIds: ["t-pinned"], pendingFocusTaskId: null });
+
+    render(<Dashboard />);
+
+    // Only the pinned row gets a remove control; pure due-today rows don't.
+    expect(
+      screen.getByRole("button", { name: "Remove Read inbox from Today" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Remove Submit abstract from Today" }),
+    ).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove Read inbox from Today" }));
+
+    expect(useTodayPlanStore.getState().orderedIds).toEqual([]);
+    expect(
+      screen.queryByRole("button", { name: "Open task: Read inbox" }),
+    ).toBeNull();
+    // The due-today row stays.
+    expect(
+      screen.getByRole("button", { name: "Open task: Submit abstract" }),
+    ).toBeInTheDocument();
   });
 
   it("shows the empty prompt when nothing is planned", () => {

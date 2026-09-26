@@ -13,6 +13,14 @@ const DATE_ONLY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
  * This deliberately differs from `new Date().toISOString().split("T")[0]`
  * (UTC day), which would roll missions/XP over at the wrong local hour for
  * users away from UTC around midnight.
+ *
+ * STREAK AUTHORITY (server parity): this local day is the single authority
+ * for streak math on BOTH sides. The client passes it as `p_local_day` to
+ * the `award_xp` RPC, which validates it (+-1 day around the server UTC date
+ * to cover all timezones + clock skew, UTC fallback otherwise) and uses it
+ * for streak transitions, `daily_logs` upserts, and daily-cap windows. The
+ * legacy client fallback path in `awardXP` uses the same key. Never let the
+ * server default to UTC-day streaks while the UI shows local days.
  */
 export function todayKey(now: Date = new Date()): string {
   const year = now.getFullYear();

@@ -52,7 +52,7 @@ export function RightSidebar() {
     (state) => state.streakFreezeTokens,
   );
   const restDays = useGamificationStore((state) => state.restDays);
-  const todayXP = useAppStore((state) => state.todayXP);
+  const xpToday = useAppStore((state) => state.xpToday);
   const storePapers = useAppStore((state) => state.papers);
   const storeIdeas = useAppStore((state) => state.ideas);
   const storeTasks = useAppStore((state) => state.tasks);
@@ -398,7 +398,7 @@ export function RightSidebar() {
             <div className="space-y-2 text-caption text-text-secondary">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-primary-500" />
-                <span>+{todayXP} XP collected today</span>
+                <span>+{xpToday} XP collected today</span>
               </div>
               <div className="flex items-center gap-2">
                 <Flame className="w-4 h-4 text-success" />

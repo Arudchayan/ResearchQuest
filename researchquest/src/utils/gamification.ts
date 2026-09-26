@@ -9,7 +9,10 @@ import type { UserProfile } from "../types/database";
 // XP rewards for different actions
 export const XP_REWARDS = {
   CREATE_NOTE: 10,
-  UPDATE_NOTE: 5,
+  // UPDATE_NOTE is 0 by design: note saves are high-frequency, so crediting
+  // them farms XP. The award_xp RPC hard-codes 0 for update_note; this
+  // constant only mirrors the server policy so toasts stay honest.
+  UPDATE_NOTE: 0,
   CREATE_PAPER: 15,
   UPDATE_PAPER_STATUS: 10,
   ADD_PAPER_INSIGHTS: 15,
@@ -24,6 +27,42 @@ export const XP_REWARDS = {
   COMPLETE_TOPIC_QUEST: 30,
   FOCUS_SESSION_MINUTE: 2,
 };
+
+// Server-side anti-farming policy mirrors (authoritative enforcement lives in
+// the award_xp RPC; these constants only keep the client honest about what
+// the server will credit — never the other way around).
+// Focus sessions shorter than this earn 0 XP, server-side.
+export const FOCUS_MIN_SESSION_MINUTES = 25;
+// Max focus XP the server credits per local day.
+export const FOCUS_XP_DAILY_CAP = 240;
+// Max credited XP per action per local day (update_note is 0 = no XP).
+export const XP_DAILY_CAPS: Record<string, number> = {
+  create_note: 100,
+  update_note: 0,
+  create_paper: 150,
+  update_paper_status: 100,
+  add_paper_insights: 150,
+  create_idea: 200,
+  advance_idea_stage: 250,
+  create_task: 100,
+  complete_task: 200,
+  daily_task_completion: 100,
+  create_topic: 150,
+  update_topic: 80,
+  tag_entity_with_topic: 60,
+  complete_topic_quest: 300,
+  complete_focus_session: 240,
+  generic: 500,
+};
+
+// XP for a completed focus session of the given length. Sessions below
+// FOCUS_MIN_SESSION_MINUTES credit 0 (mirrors the server gate).
+export function xpForFocusSession(durationMinutes: number): number {
+  if (!Number.isFinite(durationMinutes) || durationMinutes < FOCUS_MIN_SESSION_MINUTES) {
+    return 0;
+  }
+  return Math.floor(durationMinutes) * XP_REWARDS.FOCUS_SESSION_MINUTE;
+}
 
 // Achievement types and rewards
 export const ACHIEVEMENTS = {
@@ -117,18 +156,34 @@ interface AwardXpRpcRow {
   is_duplicate: boolean;
 }
 
+interface AwardAchievementRpcRow {
+  total_xp: number;
+  current_level: number;
+  xp_credited: number;
+  is_duplicate: boolean;
+}
+
 /**
- * Atomic XP award via the `award_xp` RPC (single UPDATE, UTC-day streaks,
- * idempotency guard). Returns null when the RPC is unavailable or fails so
- * the caller falls back to the legacy path. An idempotency key is only sent
- * when the caller supplies one (or an entity id) — repeat awards of the same
- * action without an entity must NOT dedupe each other.
+ * Atomic XP award via the `award_xp` RPC (single UPDATE, LOCAL-day streaks,
+ * idempotency guard, server-side anti-farming caps). Returns null when the
+ * RPC is unavailable or fails so the caller falls back to the legacy path.
+ * An idempotency key is only sent when the caller supplies one (or an entity
+ * id) — repeat awards of the same action without an entity must NOT dedupe
+ * each other.
+ *
+ * STREAK AUTHORITY: the local calendar day from todayKey() is passed as
+ * p_local_day; the server validates and uses it for streak math. The client
+ * never computes streak transitions itself on this path.
  */
 async function tryAwardXpRpc(
   userId: string,
   xpEarned: number,
   action: string,
-  options?: { entityId?: string; idempotencyKey?: string },
+  options?: {
+    entityId?: string;
+    idempotencyKey?: string;
+    durationMinutes?: number;
+  },
 ): Promise<AwardXpRpcRow | null> {
   try {
     const { data, error } = await supabase.rpc("award_xp", {
@@ -139,10 +194,39 @@ async function tryAwardXpRpc(
         (options?.entityId ? `${userId}:${action}:${options.entityId}` : null),
       p_action: action,
       p_entity_id: options?.entityId ?? "",
+      p_local_day: todayKey(),
+      p_duration_minutes: options?.durationMinutes ?? null,
     });
     if (error || !data) return null;
     const row = (Array.isArray(data) ? data[0] : data) as
       | AwardXpRpcRow
+      | undefined;
+    if (!row || typeof row.total_xp !== "number") return null;
+    return row;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Atomic achievement credit via the `award_achievement_xp` RPC (deduped
+ * insert + total_xp increment in one transaction). Returns null when the RPC
+ * is unavailable or fails so the caller falls back to the legacy path. A
+ * duplicate (already awarded) resolves to a row with is_duplicate = true.
+ */
+async function tryAwardAchievementRpc(
+  achievement: Achievement,
+): Promise<AwardAchievementRpcRow | null> {
+  try {
+    const { data, error } = await supabase.rpc("award_achievement_xp", {
+      p_achievement_type: achievement.type,
+      p_xp: achievement.xp,
+      p_title: achievement.title,
+      p_description: achievement.description,
+    });
+    if (error || !data) return null;
+    const row = (Array.isArray(data) ? data[0] : data) as
+      | AwardAchievementRpcRow
       | undefined;
     if (!row || typeof row.total_xp !== "number") return null;
     return row;
@@ -187,7 +271,11 @@ export async function awardXP(
   userId: string,
   xpAmount: number,
   action: string,
-  options?: { entityId?: string; idempotencyKey?: string },
+  options?: {
+    entityId?: string;
+    idempotencyKey?: string;
+    durationMinutes?: number;
+  },
 ): Promise<GamificationResult | null> {
   // Get current profile
   const { data: profile, error: fetchError } = await supabase
@@ -491,11 +579,26 @@ async function checkAchievements(
   return earnedAchievements;
 }
 
-// Award an achievement
+// Award an achievement. Primary path is the atomic `award_achievement_xp`
+// RPC (deduped insert + total_xp increment in one transaction), so the client
+// never writes total_xp directly on this path. The legacy direct-write path
+// below is kept only for when the RPC is unavailable; it credits the same
+// achievement XP so both paths stay consistent.
 async function awardAchievement(
   userId: string,
   achievement: Achievement,
 ): Promise<Achievement | null> {
+  const rpcRow = await tryAwardAchievementRpc(achievement);
+  if (rpcRow) {
+    // Update cache (also on duplicates: the achievement IS earned, just not
+    // by this call — recording it avoids repeat attempts).
+    const cacheEarned = achievementsCache.get(userId);
+    if (cacheEarned) {
+      cacheEarned.add(achievement.type);
+    }
+    return rpcRow.is_duplicate ? null : achievement;
+  }
+
   const { error: insertError } = await supabase
     .from("research_achievements")
     .insert({

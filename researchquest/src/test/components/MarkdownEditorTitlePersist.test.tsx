@@ -8,7 +8,7 @@ import type { Note } from "../../types/database";
 vi.mock("../../utils/gamification", () => ({
   awardXP: vi.fn().mockResolvedValue(undefined),
   notifyGamificationResult: vi.fn(),
-  XP_REWARDS: { UPDATE_NOTE: 5 },
+  XP_REWARDS: { UPDATE_NOTE: 0 },
 }));
 
 vi.mock("../../components/topics/TopicSelector", () => ({

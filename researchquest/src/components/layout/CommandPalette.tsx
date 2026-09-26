@@ -447,9 +447,10 @@ function CommandPaletteIndex({
     });
   }, [serverRows, notes, papers, ideas, tasks, topicsArray]);
 
-  // Server rows cover note/paper/idea only (global_search RPC); union them
-  // with client-side task/topic matches so those types never disappear when
-  // the server returns rows.
+  // Server rows cover note/paper/idea/task/topic (global_search RPC); union
+  // them with client-side task/topic matches (demo mode has no server rows,
+  // and the client index may know fresher entities) so those types never
+  // disappear when the server returns rows. Deduped by type:id, server first.
   const searchEntries = useMemo<SearchEntry[]>(() => {
     if (!serverEntries) return clientEntries;
     const seen = new Set(

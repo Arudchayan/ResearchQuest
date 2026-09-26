@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState, type FormEvent } from "react";
-import { CheckSquare, ChevronDown, ChevronUp, Plus, Target } from "lucide-react";
+import { CheckSquare, ChevronDown, ChevronUp, Plus, Target, X } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { useTasks } from "../../hooks/useTasks";
 import { navigateToView } from "../../lib/softNavigation";
@@ -49,6 +49,7 @@ export function TodayPlan({
     () => resolveTodayTasks(tasks),
     [tasks, orderedIds],
   );
+  const pinnedIds = useMemo(() => new Set(orderedIds), [orderedIds]);
 
   const overdueTasks = useMemo(
     () =>
@@ -83,7 +84,10 @@ export function TodayPlan({
 
   const persistVisibleOrder = useCallback(
     (visible: { id: string }[]) => {
-      setOrder(visible.map((task) => task.id));
+      // Reorder must not implicitly pin pure due-today rows: only ids that
+      // are already pinned join the persisted order.
+      const pinned = new Set(useTodayPlanStore.getState().orderedIds);
+      setOrder(visible.map((task) => task.id).filter((id) => pinned.has(id)));
     },
     [setOrder],
   );
@@ -109,9 +113,7 @@ export function TodayPlan({
       if (from < 0) return;
       const bounded = Math.max(0, Math.min(toIndex, todayTasks.length - 1));
       if (from === bounded) {
-        // Still persist so newly due-today rows join the stored order and
-        // completed/deleted ghosts drop out.
-        persistVisibleOrder(todayTasks);
+        // No-op: persisting here would implicitly pin pure due-today rows.
         return;
       }
       const reordered = [...todayTasks];
@@ -260,6 +262,20 @@ export function TodayPlan({
                   <Target className="h-4 w-4" aria-hidden="true" />
                   Focus
                 </Button>
+                {pinnedIds.has(task.id) && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => unpin(task.id)}
+                    aria-label={`Remove ${task.title} from Today`}
+                    title="Remove from Today"
+                    className="shrink-0"
+                  >
+                    <X className="h-4 w-4" aria-hidden="true" />
+                    Unpin
+                  </Button>
+                )}
                 <div className="flex shrink-0 flex-col">
                   <button
                     type="button"

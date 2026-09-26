@@ -50,8 +50,8 @@ export interface ShellSlice {
   focusSessionSecondsToday: number;
   setFocusSessionSecondsToday: (seconds: number) => void;
   /** XP earned today from daily_logs (updated by useDataSync). */
-  todayXP: number;
-  setTodayXP: (xp: number) => void;
+  xpToday: number;
+  setXpToday: (xp: number) => void;
 
   // UI state
   isMobileSidebarOpen: boolean;
@@ -150,8 +150,8 @@ export const useShellStore = create<ShellSlice>()(
       focusSessionSecondsToday: 0,
       setFocusSessionSecondsToday: (focusSessionSecondsToday) =>
         set({ focusSessionSecondsToday }),
-      todayXP: 0,
-      setTodayXP: (todayXP) => set({ todayXP }),
+      xpToday: 0,
+      setXpToday: (xpToday) => set({ xpToday }),
 
       // UI state
       isMobileSidebarOpen: false,

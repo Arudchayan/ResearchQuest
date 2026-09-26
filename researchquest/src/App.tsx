@@ -127,11 +127,12 @@ function App() {
   const [pendingPath, setPendingPath] = useState<string | null>(null);
   // Shell-only subscription: entity arrays live in AppDataOwners so list
   // mutations do not re-render AppShell + the lazy view tree.
-  const { setUser: setUserProfile, currentView, setCurrentView } = useAppStore(
+  const { setUser: setUserProfile, currentView, setCurrentView, effectiveTheme } = useAppStore(
     useShallow((state) => ({
       setUser: state.setUser,
       currentView: state.currentView,
       setCurrentView: state.setCurrentView,
+      effectiveTheme: state.effectiveTheme,
     })),
   );
   const hydrateGamification = useGamificationStore(
@@ -393,7 +394,7 @@ function App() {
           duration={2500}
           offset={16}
           visibleToasts={3}
-          theme={useAppStore.getState().effectiveTheme}
+          theme={effectiveTheme}
           closeButton
           toastOptions={{ duration: 2500 }}
         />

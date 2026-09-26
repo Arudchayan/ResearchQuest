@@ -182,7 +182,8 @@ describe("NotesView Re-renders", () => {
     fireEvent.click(screen.getByRole("button", { name: "Back to list" }));
     expect(window.location.pathname).toBe("/notes");
     expect(editorPane).toHaveClass("hidden");
-    expect(useAppStore.getState().selectedNote?.id).toBe("note-1");
+    // Back-to-list clears the selection, same as browser-back to /notes.
+    expect(useAppStore.getState().selectedNote).toBeNull();
 
     act(() => {
       useAppStore.setState({

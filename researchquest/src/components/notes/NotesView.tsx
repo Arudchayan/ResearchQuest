@@ -8,7 +8,7 @@ import { EditorPlaceholder } from "../editor/EditorPlaceholder";
 import { ConfirmDialog, useConfirmDialog } from "../ui/ConfirmDialog";
 import type { Note } from "../../types/database";
 import { parseRoute } from "../../lib/router";
-import { navigateToView } from "../../lib/softNavigation";
+import { navigateToView, subscribeSoftNavigation } from "../../lib/softNavigation";
 import { NotesSidebar } from "./NotesSidebar";
 
 export function NotesView() {
@@ -31,6 +31,8 @@ export function NotesView() {
     { entityLabel: "Note" },
   );
 
+  const pendingRouteNoteId = useRef<string | null>(null);
+
   useEffect(() => {
     const syncNotesRoute = () => {
       const route = parseRoute(window.location.pathname);
@@ -39,18 +41,41 @@ export function NotesView() {
       const isEditorRoute = route.itemId !== null;
       setIsMobileEditorOpen(isEditorRoute);
       if (!isEditorRoute) {
+        pendingRouteNoteId.current = null;
         setSelectedNote(null);
         return;
       }
 
       const routedNote = useAppStore.getState().notes.find((note) => note.id === route.itemId);
-      if (routedNote) setSelectedNote(routedNote);
+      if (routedNote) {
+        pendingRouteNoteId.current = null;
+        setSelectedNote(routedNote);
+      } else {
+        // Notes may not have loaded yet — retry when the list arrives.
+        pendingRouteNoteId.current = route.itemId;
+      }
     };
 
     syncNotesRoute();
     window.addEventListener("popstate", syncNotesRoute);
-    return () => window.removeEventListener("popstate", syncNotesRoute);
+    // Soft navigations don't fire popstate — subscribe so deep-links like
+    // /notes/:id select the note the same way back/forward does.
+    const unsubscribeSoft = subscribeSoftNavigation(syncNotesRoute);
+    return () => {
+      window.removeEventListener("popstate", syncNotesRoute);
+      unsubscribeSoft();
+    };
   }, [setSelectedNote]);
+
+  // Consume a pending deep-link id once the notes list has loaded.
+  useEffect(() => {
+    if (!pendingRouteNoteId.current) return;
+    const routedNote = notes.find((note) => note.id === pendingRouteNoteId.current);
+    if (routedNote) {
+      pendingRouteNoteId.current = null;
+      setSelectedNote(routedNote);
+    }
+  }, [notes, setSelectedNote]);
 
   const navigateToNote = useCallback((noteId?: string) => {
     navigateToView("notes", noteId ? `/notes/${noteId}` : "/notes");
@@ -97,8 +122,9 @@ export function NotesView() {
 
   const handleBackToList = useCallback(() => {
     setIsMobileEditorOpen(false);
-    // Keep the selected note mounted for desktop/autosave; mobile state is local.
-    window.history.replaceState(null, "", "/notes");
+    // Route back to /notes clears the selection via the route sync above,
+    // matching browser-back behavior; mobile state is local.
+    navigateToView("notes", "/notes");
 
     requestAnimationFrame(() => {
       const noteId = selectedNote?.id;
@@ -134,7 +160,7 @@ export function NotesView() {
         {selectedNote ? (
           <MarkdownEditor key={selectedNote.id} onBackToList={handleBackToList} />
         ) : (
-          <EditorPlaceholder />
+          <EditorPlaceholder onBackToList={handleBackToList} />
         )}
       </section>
 

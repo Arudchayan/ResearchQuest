@@ -1,3 +1,6 @@
+// Today = checklist view only. This store owns the user's manual Today
+// ordering/pinning for the current calendar day. It is not a data authority:
+// due dates live on tasks, XP aggregates live in the shell store.
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { parseDateInput, todayKey } from "../utils/time";
@@ -105,7 +108,7 @@ export const useTodayPlanStore = create<TodayPlanState>()(
   ),
 );
 
-export function isLocalDueToday(dueDate: string | undefined): boolean {
+export function isLocalDueToday(dueDate: string | undefined | null): boolean {
   const parsed = parseDateInput(dueDate);
   if (!parsed) return false;
   return todayKey(parsed) === todayKey();

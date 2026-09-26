@@ -19,7 +19,7 @@ vi.mock("../../lib/supabase", () => ({
 // Mock awardXP
 vi.mock("../../utils/gamification", () => ({
   awardXP: vi.fn().mockResolvedValue(undefined),
-  XP_REWARDS: { UPDATE_NOTE: 5 },
+  XP_REWARDS: { UPDATE_NOTE: 0 },
 }));
 
 // Mock CodeMirror to allow us to simulate changes
