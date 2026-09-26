@@ -138,17 +138,8 @@ export function persistPausedFocusSession(input: {
   hasCompletedSession: boolean;
   sessionCount: number;
   keepAlive: boolean;
-  now?: number;
 }): number {
-  const now = input.now ?? Date.now();
-  const remaining =
-    input.liveIsRunning && input.liveStartedAt !== null
-      ? Math.max(
-          0,
-          input.sessionLength -
-            Math.floor((now - input.liveStartedAt) / 1000),
-        )
-      : input.timeLeft;
+  const remaining = input.timeLeft;
   const hasActiveSession =
     input.liveIsRunning ||
     input.hasCompletedSession ||

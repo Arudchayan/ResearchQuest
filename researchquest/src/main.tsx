@@ -5,6 +5,9 @@ import { restoreRedirectPath } from "./lib/router";
 import { installSoftLinkInterception } from "./lib/softNavigation";
 import "./index.css";
 import App from "./App.tsx";
+import { ensureFocusSessionGuardAttached } from "./components/focus/focusSessionGuard.ts";
+
+ensureFocusSessionGuardAttached();
 
 // Recover deep links after public/404.html's full reload fallback (hosts
 // without SPA rewrites). Must run before the first React render so App's

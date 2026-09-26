@@ -38,6 +38,10 @@ import {
   navigateToView,
   subscribeSoftNavigation,
 } from "./lib/softNavigation";
+import {
+  currentFocusHydrateEpoch,
+  subscribeFocusHydrateEpoch,
+} from "./components/focus/focusSessionGuard";
 
 function ensureDemoFirstRunPath(): boolean {
   if (!isDemoMode || typeof window === "undefined") return false;
@@ -133,6 +137,15 @@ function App() {
   const hydrateGamification = useGamificationStore(
     (state) => state.hydrateFromProfile,
   );
+  const [focusHydrateEpoch, setFocusHydrateEpoch] = useState(
+    currentFocusHydrateEpoch(),
+  );
+
+  useEffect(() => {
+    return subscribeFocusHydrateEpoch(() => {
+      setFocusHydrateEpoch(currentFocusHydrateEpoch());
+    });
+  }, []);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && (window as any).__TEST_USER__) {
@@ -366,7 +379,7 @@ function App() {
     ) : currentView === "tasks" ? (
       <TaskManager />
     ) : currentView === "focus" ? (
-      <FocusWorkspace userId={userId} />
+      <FocusWorkspace key={focusHydrateEpoch} userId={userId} />
     ) : currentView === "feeds" ? (
       <FeedsView />
     ) : null;

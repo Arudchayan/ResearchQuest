@@ -1,8 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, act, fireEvent } from "@testing-library/react";
-import { StrictMode } from "react";
+import { StrictMode, useEffect, useState } from "react";
 import { FocusWorkspace } from "../../components/focus/FocusWorkspace";
 import { useAppStore } from "../../store/appStore";
+import {
+  currentFocusHydrateEpoch,
+  subscribeFocusHydrateEpoch,
+} from "../../components/focus/focusSessionGuard";
 
 const { supabaseInsert, completeTaskMock } = vi.hoisted(() => ({
   supabaseInsert: vi.fn().mockResolvedValue({ error: null }),
@@ -26,6 +30,7 @@ import {
 } from "../../utils/alerts";
 import {
   saveFocusSession,
+  persistPausedFocusSession,
   FOCUS_SESSION_STORAGE_KEY,
 } from "../../components/focus/focusUtils";
 
@@ -111,6 +116,14 @@ describe("FocusWorkspace", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    Object.defineProperty(document, "hidden", {
+      configurable: true,
+      get: () => false,
+    });
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => "visible",
+    });
   });
 
   it("fresh Focus is empty until a target is picked", () => {
@@ -132,6 +145,65 @@ describe("FocusWorkspace", () => {
 
     fireEvent.click(screen.getByText("My Note"));
     expect(screen.getByRole("button", { name: /Start focus/i })).not.toBeDisabled();
+  });
+
+  it("visibility hide without a stored session stays Start-only, not Continue", async () => {
+    render(<FocusWorkspace userId={userId} />);
+    fireEvent.click(screen.getByText("My Note"));
+    expect(screen.getByRole("button", { name: /Start focus/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Continue$/i }),
+    ).not.toBeInTheDocument();
+
+    await act(async () => {
+      dispatchVisibility(true);
+    });
+
+    expect(screen.getByRole("button", { name: /Start focus/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Continue$/i }),
+    ).not.toBeInTheDocument();
+    expect(window.localStorage.getItem(FOCUS_SESSION_STORAGE_KEY)).toBeNull();
+  });
+
+  it("cold remount with no stored rq_focus_session lands Start-only", () => {
+    expect(window.localStorage.getItem(FOCUS_SESSION_STORAGE_KEY)).toBeNull();
+    const { unmount } = render(<FocusWorkspace userId={userId} />);
+    fireEvent.click(screen.getByText("My Note"));
+    expect(screen.getByRole("button", { name: /Start focus/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Continue$/i }),
+    ).not.toBeInTheDocument();
+
+    unmount();
+    const view = render(<FocusWorkspace userId={userId} />);
+    expect(view.getByRole("button", { name: /Start focus/i })).toBeInTheDocument();
+    expect(
+      view.queryByRole("button", { name: /^Continue$/i }),
+    ).not.toBeInTheDocument();
+    expect(window.localStorage.getItem(FOCUS_SESSION_STORAGE_KEY)).toBeNull();
+  });
+
+  it("Reset then visibility hide stays Start-only, not Continue", async () => {
+    render(<FocusWorkspace userId={userId} />);
+    fireEvent.click(screen.getByText("My Note"));
+    fireEvent.click(screen.getByText("Start focus"));
+    expect(screen.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Reset"));
+    expect(screen.getByRole("button", { name: /Start focus/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Continue$/i }),
+    ).not.toBeInTheDocument();
+
+    await act(async () => {
+      dispatchVisibility(true);
+    });
+
+    expect(screen.getByRole("button", { name: /Start focus/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Continue$/i }),
+    ).not.toBeInTheDocument();
+    expect(window.localStorage.getItem(FOCUS_SESSION_STORAGE_KEY)).toBeNull();
   });
 
   it("awards XP upon session completion", async () => {
@@ -247,6 +319,10 @@ describe("FocusWorkspace", () => {
     expect(view.getByText("19:00")).toBeInTheDocument();
   });
 
+  function dispatchPageHide() {
+    window.dispatchEvent(new Event("pagehide"));
+  }
+
   function dispatchPageShow(persisted: boolean) {
     const event = new Event("pageshow");
     Object.defineProperty(event, "persisted", {
@@ -254,6 +330,18 @@ describe("FocusWorkspace", () => {
       value: persisted,
     });
     window.dispatchEvent(event);
+  }
+
+  function dispatchVisibility(hidden: boolean) {
+    Object.defineProperty(document, "hidden", {
+      configurable: true,
+      get: () => hidden,
+    });
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => (hidden ? "hidden" : "visible"),
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
   }
 
   it("does not persist isRunning true after Start", async () => {
@@ -371,6 +459,202 @@ describe("FocusWorkspace", () => {
       vi.advanceTimersByTime(60 * 1000);
     });
     expect(screen.getByText("24:00")).toBeInTheDocument();
+  });
+
+  it("wine hard-refresh pageshow(false) of a live running heap lands Continue, frozen", async () => {
+    // Wine Soft FAIL after #801: Start → hard refresh still Pause and the
+    // clock kept ticking. Preview Soft PASS remounted React (cold hydrate).
+    // Wine reload can keep the heap and fire pageshow(persisted=false)
+    // without unmounting FocusWorkspace.
+    render(<FocusWorkspace userId={userId} />);
+    fireEvent.click(screen.getByText("My Note"));
+    fireEvent.click(screen.getByText("Start focus"));
+    await act(async () => {
+      vi.advanceTimersByTime(17 * 1000);
+    });
+    expect(screen.getByText("24:43")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
+
+    await act(async () => {
+      dispatchPageShow(false);
+    });
+
+    expect(screen.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Pause$/i }),
+    ).not.toBeInTheDocument();
+
+    await act(async () => {
+      vi.advanceTimersByTime(18 * 1000);
+    });
+    expect(screen.getByText("24:43")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+  });
+
+  it("pagehide of a running session (no visibility hide) lands Continue, frozen, then remount stays Continue", async () => {
+    const { unmount } = render(<FocusWorkspace userId={userId} />);
+    fireEvent.click(screen.getByText("My Note"));
+    fireEvent.click(screen.getByText("Start focus"));
+    await act(async () => {
+      vi.advanceTimersByTime(21 * 1000);
+    });
+    expect(screen.getByText("24:39")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
+
+    await act(async () => {
+      dispatchPageHide();
+    });
+
+    expect(screen.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Pause$/i }),
+    ).not.toBeInTheDocument();
+    await act(async () => {
+      vi.advanceTimersByTime(18 * 1000);
+    });
+    expect(screen.getByText("24:39")).toBeInTheDocument();
+
+    unmount();
+    const view = render(<FocusWorkspace userId={userId} />);
+    expect(view.getByText("24:39")).toBeInTheDocument();
+    expect(view.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(
+      view.queryByRole("button", { name: /^Pause$/i }),
+    ).not.toBeInTheDocument();
+    await act(async () => {
+      vi.advanceTimersByTime(18 * 1000);
+    });
+    expect(view.getByText("24:39")).toBeInTheDocument();
+    expect(view.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+  });
+
+  function KeyedFocusWorkspace({ userId }: { userId: string }) {
+    const [epoch, setEpoch] = useState(() => currentFocusHydrateEpoch());
+    useEffect(() => {
+      return subscribeFocusHydrateEpoch(() => {
+        setEpoch(currentFocusHydrateEpoch());
+      });
+    }, []);
+    return <FocusWorkspace key={epoch} userId={userId} />;
+  }
+
+  it("pagehide remounts keyed Focus from rq_focus_session Continue, frozen", async () => {
+    render(<KeyedFocusWorkspace userId={userId} />);
+    fireEvent.click(screen.getByText("My Note"));
+    fireEvent.click(screen.getByText("Start focus"));
+    await act(async () => {
+      vi.advanceTimersByTime(21 * 1000);
+    });
+    expect(screen.getByText("24:39")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
+
+    await act(async () => {
+      dispatchPageHide();
+    });
+
+    expect(screen.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Pause$/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("24:39")).toBeInTheDocument();
+
+    await act(async () => {
+      vi.advanceTimersByTime(18 * 1000);
+    });
+    expect(screen.getByText("24:39")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+  });
+
+  it("wine visibility hide of a running session lands Continue and does not auto-tick", async () => {
+    render(<FocusWorkspace userId={userId} />);
+    fireEvent.click(screen.getByText("My Note"));
+    fireEvent.click(screen.getByText("Start focus"));
+    await act(async () => {
+      vi.advanceTimersByTime(17 * 1000);
+    });
+    expect(screen.getByText("24:43")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
+
+    await act(async () => {
+      dispatchVisibility(true);
+    });
+
+    expect(screen.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Pause$/i }),
+    ).not.toBeInTheDocument();
+
+    await act(async () => {
+      vi.advanceTimersByTime(18 * 1000);
+    });
+    expect(screen.getByText("24:43")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Continue$/i }));
+    expect(screen.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
+    await act(async () => {
+      vi.advanceTimersByTime(18 * 1000);
+    });
+    expect(screen.getByText("24:25")).toBeInTheDocument();
+
+    await act(async () => {
+      dispatchVisibility(false);
+    });
+  });
+
+  it("visibility hide after Continue freezes last painted remaining, not wall-clock since Continue", async () => {
+    render(<FocusWorkspace userId={userId} />);
+    fireEvent.click(screen.getByText("My Note"));
+    fireEvent.click(screen.getByText("Start focus"));
+    await act(async () => {
+      vi.advanceTimersByTime(17 * 1000);
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^Pause$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^Continue$/i }));
+    await act(async () => {
+      vi.advanceTimersByTime(2 * 1000);
+    });
+    expect(screen.getByText("24:41")).toBeInTheDocument();
+
+    await act(async () => {
+      dispatchVisibility(true);
+    });
+
+    expect(screen.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(screen.getByText("24:41")).toBeInTheDocument();
+    await act(async () => {
+      vi.advanceTimersByTime(18 * 1000);
+    });
+    expect(screen.getByText("24:41")).toBeInTheDocument();
+  });
+
+  it("wine persistPaused snapshot (isRunning false, startedAt set) hydrates Continue, frozen", async () => {
+    // After Start, persistPausedFocusSession writes isRunning:false but keeps
+    // startedAt. Wine cold mount must not treat that as permission to run.
+    persistPausedFocusSession({
+      selectedTarget: { type: "note", id: "note-1" },
+      sessionLength: 25 * 60,
+      liveIsRunning: true,
+      liveStartedAt: Date.now() - 17 * 1000,
+      timeLeft: 24 * 60 + 43,
+      hasCompletedSession: false,
+      sessionCount: 1,
+      keepAlive: false,
+    });
+
+    const view = render(<FocusWorkspace userId={userId} />);
+    expect(view.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(
+      view.queryByRole("button", { name: /^Pause$/i }),
+    ).not.toBeInTheDocument();
+
+    await act(async () => {
+      vi.advanceTimersByTime(18 * 1000);
+    });
+    expect(view.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(
+      view.queryByRole("button", { name: /^Pause$/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("completes a session that ended while away, awarding XP only once", async () => {

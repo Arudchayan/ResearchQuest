@@ -55,6 +55,11 @@ import {
   remainingSecondsOnRestore,
   restoredSessionNeedsContinue,
 } from "./focusUtils";
+import {
+  bumpFocusRunEpoch,
+  currentFocusRunEpoch,
+  registerFocusFreeze,
+} from "./focusSessionGuard";
 import { FocusTargetAside } from "./FocusTargetAside";
 
 const DEFAULT_SESSION_LENGTH = 25 * 60;
@@ -260,7 +265,13 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
       return;
     }
 
+    const epoch = currentFocusRunEpoch();
     const timer = window.setInterval(() => {
+      if (epoch !== currentFocusRunEpoch()) {
+        window.clearInterval(timer);
+        if (timerRef.current === timer) timerRef.current = null;
+        return;
+      }
       setTimeLeft((prev) => {
         if (prev <= 1) {
           window.clearInterval(timer);
@@ -346,20 +357,13 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   const freezeLiveToContinue = () => {
     stopTimerNow();
     runArmedRef.current = false;
+    bumpFocusRunEpoch();
     const snap = persistRef.current;
-    const remaining =
-      snap.isRunning && snap.startedAt !== null
-        ? Math.max(
-            0,
-            snap.sessionLength -
-              Math.floor((Date.now() - snap.startedAt) / 1000),
-          )
-        : snap.timeLeft;
+    const remaining = snap.timeLeft;
     const inProgress =
       snap.isRunning ||
       snap.resumeHold ||
-      (snap.selectedTarget !== null &&
-        (remaining < snap.sessionLength || snap.sessionCount > 0));
+      (snap.selectedTarget !== null && remaining < snap.sessionLength);
     persistRef.current = {
       ...snap,
       isRunning: false,
@@ -382,11 +386,14 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     setStartedAt(null);
     if (inProgress) setResumeHold(true);
   };
+  const freezeRef = useRef(freezeLiveToContinue);
+  freezeRef.current = freezeLiveToContinue;
 
   // Cold mount / remount: hydrate from storage is already paused in useState,
   // but disarm before paint so an interval cannot start this mount.
   useLayoutEffect(() => {
     runArmedRef.current = false;
+    bumpFocusRunEpoch();
     stopTimerNow();
     if (!restoredSession) return;
     const remaining = remainingSecondsOnRestore(restoredSession);
@@ -409,29 +416,15 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     });
   }, [restoredSession]);
 
-  useEffect(() => {
-    const onPageHide = () => {
-      freezeLiveToContinue();
-    };
-    const onPageShow = (event: Event) => {
-      const persisted = Boolean(
-        "persisted" in event && (event as PageTransitionEvent).persisted,
-      );
-      // New-document pageshow is handled by cold hydrate (useLayoutEffect).
-      // Only freeze a live instance: bfcache restore, or a heap that is
-      // still running when pageshow fires (wine hard-refresh).
-      if (!persisted && !persistRef.current.isRunning) return;
-      freezeLiveToContinue();
-    };
-
-    window.addEventListener("pagehide", onPageHide);
-    window.addEventListener("pageshow", onPageShow);
-    window.addEventListener("beforeunload", onPageHide);
-    return () => {
-      window.removeEventListener("pagehide", onPageHide);
-      window.removeEventListener("pageshow", onPageShow);
-      window.removeEventListener("beforeunload", onPageHide);
-    };
+  // Capture-phase page lifecycle lives in focusSessionGuard (eager from main).
+  // Register the live freeze so wine/QA hard refresh can disarm without
+  // relying on bubble listeners on the lazy Focus chunk.
+  useLayoutEffect(() => {
+    return registerFocusFreeze({
+      freeze: () => freezeRef.current(),
+      isLive: () =>
+        persistRef.current.isRunning || runArmedRef.current,
+    });
   }, []);
 
   const quickTargets = useMemo(() => {
@@ -648,6 +641,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     if (isNotificationEnabled) {
       requestNotificationPermission();
     }
+    bumpFocusRunEpoch();
     runArmedRef.current = true;
     setStartedAt(Date.now());
     setIsRunning(true);
