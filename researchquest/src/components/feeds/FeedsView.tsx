@@ -225,7 +225,7 @@ export function FeedsView() {
           {loading ? (
             <div className="space-y-3" role="status" aria-live="polite">
               {[0, 1, 2].map((index) => (
-                <div key={index} className="surface-card h-44 animate-pulse" />
+                <div key={index} className="surface-card feed-card-fallback h-44 animate-pulse" />
               ))}
               <span className="sr-only">Loading feeds</span>
             </div>

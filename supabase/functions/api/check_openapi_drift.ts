@@ -13,6 +13,11 @@
  * Exit 0 when the fixture matches the generator (or SKIP when the generator
  * or YAML parser is unavailable, e.g. no network for the std import).
  * Exit 1 listing drifted operations otherwise.
+ *
+ * P1 Batch 3 scope note: extending the comparison beyond operationId +
+ * status codes (e.g. schemas, required scopes) is deliberately NOT done here —
+ * descriptions/examples are volatile by design and schema comparison would
+ * turn every additive field into CI noise. Left as-is.
  */
 
 const HTTP_METHODS = new Set(["delete", "get", "patch", "post", "put"]);

@@ -2,7 +2,6 @@ import { expect, test } from "@playwright/test";
 import {
   assertFocusContained,
   enableDemoMode,
-  expectNoAxeViolations,
   gotoDemoView,
 } from "./a11y";
 
@@ -14,6 +13,11 @@ test.describe("a11y interactions", () => {
   test.beforeEach(async ({ context }) => {
     await enableDemoMode(context);
   });
+
+  // NOTE (P1 Batch 3): the tasks/notes color-contrast re-scans that lived
+  // here were removed — axe-views.spec.ts already runs the full WCAG 2.1 AA
+  // suite (contrast included) over every MAIN_VIEW_ROUTE, so they scanned the
+  // same pages twice.
 
   test("new-idea dialog traps focus and closes on Escape", async ({
     page,
@@ -68,16 +72,6 @@ test.describe("a11y interactions", () => {
     await expect(
       page.getByRole("link", { name: "Skip to content" }),
     ).toBeFocused();
-  });
-
-  test("no color-contrast violations on tasks view", async ({ page }) => {
-    await gotoDemoView(page, "/tasks");
-    await expectNoAxeViolations(page, { onlyRules: ["color-contrast"] });
-  });
-
-  test("no color-contrast violations on notes view", async ({ page }) => {
-    await gotoDemoView(page, "/notes");
-    await expectNoAxeViolations(page, { onlyRules: ["color-contrast"] });
   });
 });
 

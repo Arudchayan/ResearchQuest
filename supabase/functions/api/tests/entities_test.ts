@@ -7,6 +7,7 @@ import {
   requiredScopeForRoute,
   validateBatchItems,
   validateEntityPayload,
+  verifyIdeaLinkOwnership,
 } from "../routes/entities.ts";
 
 const USER_ID = "00000000-0000-4000-8000-000000000001";
@@ -139,4 +140,69 @@ Deno.test("entity patch validation does not inject create defaults", () => {
 
   const emptyPatch = validateEntityPayload("topics", {}, "update", USER_ID);
   assertEquals(emptyPatch.ok, false);
+});
+
+const OWNED_NOTE = "00000000-0000-4000-8000-000000000011";
+const FOREIGN_NOTE = "00000000-0000-4000-8000-000000000012";
+const OWNED_PAPER = "00000000-0000-4000-8000-000000000021";
+
+// Stub service-role client: only rows owned by USER_ID are "visible".
+function stubAdminContext() {
+  const ownedByTable: Record<string, string[]> = {
+    notes: [OWNED_NOTE],
+    papers: [OWNED_PAPER],
+  };
+  const supabaseAdmin = {
+    from: (table: string) => ({
+      select: () => ({
+        in: (_column: string, ids: string[]) => ({
+          eq: async (_column: string, _userId: string) => ({
+            data: ids
+              .filter((id) => ownedByTable[table]?.includes(id))
+              .map((id) => ({ id })),
+            error: null,
+          }),
+        }),
+      }),
+    }),
+  };
+  return {
+    userId: USER_ID,
+    apiKeyId: "key-id",
+    scopes: ["ideas:write"],
+    authMode: "api_key",
+    supabaseAdmin,
+    supabaseUser: supabaseAdmin,
+    // deno-lint-ignore no-explicit-any
+  } as any;
+}
+
+Deno.test("idea link ownership accepts owned links, rejects foreign ones", async () => {
+  const ctx = stubAdminContext();
+  // Legit links (rows owned by the caller) pass unchanged — no regression.
+  assertEquals(
+    await verifyIdeaLinkOwnership(ctx, {
+      linked_note_ids: [OWNED_NOTE],
+      linked_paper_ids: [OWNED_PAPER],
+    }),
+    null,
+  );
+  // Empty/absent link arrays are trivially fine.
+  assertEquals(await verifyIdeaLinkOwnership(ctx, {}), null);
+  assertEquals(
+    await verifyIdeaLinkOwnership(ctx, {
+      linked_note_ids: [],
+      linked_paper_ids: [],
+    }),
+    null,
+  );
+  // Another user's note id is rejected.
+  const foreign = await verifyIdeaLinkOwnership(ctx, {
+    linked_note_ids: [OWNED_NOTE, FOREIGN_NOTE],
+  });
+  assert(foreign !== null && foreign.includes("linked_note_ids"));
+  const foreignPaper = await verifyIdeaLinkOwnership(ctx, {
+    linked_paper_ids: [FOREIGN_NOTE],
+  });
+  assert(foreignPaper !== null && foreignPaper.includes("linked_paper_ids"));
 });

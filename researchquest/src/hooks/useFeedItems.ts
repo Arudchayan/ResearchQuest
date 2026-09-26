@@ -180,6 +180,70 @@ export function useFeedItems(
     }
   }, [enabled, setError, setItems, setLoading, userId]);
 
+  const persistFeedCache = useCallback(
+    async (nextItems: FeedItem[]) => {
+      if (!userId) return;
+      try {
+        await writeListCache(
+          cacheKeyForList("feed_items", userId),
+          nextItems.slice(0, FEED_ITEMS_PAGE_SIZE),
+        );
+      } catch (cacheError) {
+        logger.error("Failed to persist feed items cache", cacheError);
+      }
+    },
+    [userId],
+  );
+
+  /**
+   * Incremental realtime merge: INSERT/UPDATE upsert by id, DELETE removes by
+   * id. Falls back to a full fetch on unknown payload shapes so the list can
+   * never silently diverge. Manual refresh stays available via
+   * refreshFeedItems (fetchFeedItems).
+   */
+  const applyFeedItemEvent = useCallback(
+    (payload: {
+      eventType: string;
+      new: Record<string, unknown> | null;
+      old: Record<string, unknown> | null;
+    }) => {
+      if (payload.eventType === "DELETE") {
+        const oldId = payload.old?.["id"];
+        if (typeof oldId !== "string") {
+          void fetchFeedItems();
+          return;
+        }
+        setItems((current) => {
+          const next = current.filter((item) => item.id !== oldId);
+          void persistFeedCache(next);
+          return next;
+        });
+        return;
+      }
+      const row = payload.new as unknown as FeedItem | null;
+      if (!row || typeof row.id !== "string") {
+        void fetchFeedItems();
+        return;
+      }
+      if (row.user_id !== userId) {
+        // Defense-in-depth: the channel is already server-filtered by user_id,
+        // so a foreign row means a misrouted event — refetch instead of
+        // injecting it into the store and IDB cache.
+        void fetchFeedItems();
+        return;
+      }
+      setItems((current) => {
+        const merged = current.some((item) => item.id === row.id)
+          ? current.map((item) => (item.id === row.id ? row : item))
+          : [row, ...current];
+        const sorted = sortFeedItems(merged).slice(0, FEED_ITEMS_PAGE_SIZE);
+        void persistFeedCache(sorted);
+        return sorted;
+      });
+    },
+    [fetchFeedItems, persistFeedCache, setItems, userId],
+  );
+
   useEffect(() => {
     if (!owner) return;
 
@@ -199,8 +263,12 @@ export function useFeedItems(
           table: "feed_items",
           filter: `user_id=eq.${userId}`,
         },
-        () => {
-          void fetchFeedItems();
+        (payload) => {
+          applyFeedItemEvent({
+            eventType: payload.eventType,
+            new: (payload.new ?? null) as Record<string, unknown> | null,
+            old: (payload.old ?? null) as Record<string, unknown> | null,
+          });
         },
       )
       .subscribe((subscriptionStatus) => {
@@ -210,22 +278,7 @@ export function useFeedItems(
     return () => {
       subscription.unsubscribe();
     };
-  }, [enabled, fetchFeedItems, owner, userId]);
-
-  const persistFeedCache = useCallback(
-    async (nextItems: FeedItem[]) => {
-      if (!userId) return;
-      try {
-        await writeListCache(
-          cacheKeyForList("feed_items", userId),
-          nextItems.slice(0, FEED_ITEMS_PAGE_SIZE),
-        );
-      } catch (cacheError) {
-        logger.error("Failed to persist feed items cache", cacheError);
-      }
-    },
-    [userId],
-  );
+  }, [applyFeedItemEvent, enabled, fetchFeedItems, owner, userId]);
 
   const updateFeedItemStatus = useCallback(
     async (itemId: string, nextStatus: Extract<FeedItemStatus, "new" | "triaged" | "archived">) => {

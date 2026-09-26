@@ -130,7 +130,7 @@ export function FocusTargetAside({
                   type="button"
                   variant="ghost"
                   onClick={() => toggleGroup(group.type)}
-                  className="h-auto min-h-11 w-full justify-between whitespace-normal rounded-none p-4 text-left sm:p-5"
+                  className="h-auto min-h-11 w-full justify-between whitespace-normal rounded-sm p-4 text-left sm:p-5"
                   aria-expanded={!isCollapsed}
                   aria-controls={`focus-group-${group.type}`}
                 >
@@ -181,7 +181,7 @@ export function FocusTargetAside({
                                     id: item.id,
                                   })
                                 }
-                                className={`h-auto min-h-11 w-full justify-start whitespace-normal rounded-none px-4 py-3 text-left sm:px-5 ${
+                                className={`h-auto min-h-11 w-full justify-start whitespace-normal rounded-sm px-4 py-3 text-left sm:px-5 ${
                                   isActive
                                     ? "border-l-2 border-primary-500 bg-primary-50 text-primary-600"
                                     : "hover:bg-bg-elevated"
@@ -259,7 +259,7 @@ export function FocusTargetAside({
           type="button"
           variant="ghost"
           onClick={() => togglePanel("suggestions")}
-          className="h-auto min-h-11 w-full justify-between rounded-none p-4 text-small font-semibold text-text-secondary sm:p-5"
+          className="h-auto min-h-11 w-full justify-between rounded-sm p-4 text-small font-semibold text-text-secondary sm:p-5"
           aria-expanded={!collapsedPanels.suggestions}
           aria-controls="focus-suggestions"
         >

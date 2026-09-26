@@ -118,7 +118,7 @@ export function Sidebar() {
   const xpInLevel = user ? user.total_xp % 500 : 0;
 
   return (
-    <aside className="w-64 bg-bg-surface border-r border-border-subtle flex flex-col h-full transition-colors duration-300 relative z-10">
+    <aside aria-label="Sidebar" className="w-64 bg-bg-surface border-r border-border-subtle flex flex-col h-full transition-colors duration-300 relative z-10">
       <div className="p-6 pb-4">
         <div className="flex items-center gap-3 text-text-primary mb-6">
           <div className="w-8 h-8 bg-text-primary rounded-sm flex items-center justify-center text-bg-base font-serif font-bold text-lg">
@@ -144,7 +144,7 @@ export function Sidebar() {
             <span>Search...</span>
           </div>
           <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-caption font-medium text-text-tertiary bg-bg-elevated rounded-sm border border-border-subtle">
-            <span className="mr-0.5">{navigator.platform.includes("Mac") ? "⌘" : "Ctrl+"}</span>K
+            <span className="mr-0.5">{typeof navigator !== "undefined" && navigator.platform.includes("Mac") ? "⌘" : "Ctrl+"}</span>K
           </kbd>
         </button>
       </div>
@@ -202,7 +202,14 @@ export function Sidebar() {
                 <ActivityLogIcon className="w-3.5 h-3.5" aria-hidden="true" />
               </button>
             </div>
-            <div className="h-1.5 w-full bg-border-subtle rounded-none overflow-hidden mb-1">
+            <div
+              className="h-1.5 w-full bg-border-subtle rounded-sm overflow-hidden mb-1"
+              role="progressbar"
+              aria-label={`Level ${currentLevel} progress`}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(xpProgress)}
+            >
               <div
                 className="h-full bg-primary-500 transition-all duration-1000 ease-out"
                 style={{ width: `${xpProgress}%` }}
@@ -241,7 +248,7 @@ export function Sidebar() {
               <TooltipTrigger asChild>
                 <button
                   onClick={handleOpenShortcuts}
-                  className="p-1.5 text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+                  className="inline-flex min-h-11 min-w-11 items-center justify-center p-1.5 text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
                   aria-label="Keyboard Shortcuts"
                 >
                   <Keyboard className="w-4 h-4" aria-hidden="true" />
@@ -256,7 +263,7 @@ export function Sidebar() {
               <TooltipTrigger asChild>
                 <button
                   onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
-                  className="p-1.5 text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+                  className="inline-flex min-h-11 min-w-11 items-center justify-center p-1.5 text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
                   aria-label={
                     isRightSidebarOpen
                       ? "Close context panel"
@@ -275,20 +282,20 @@ export function Sidebar() {
               <TooltipTrigger asChild>
                 <button
                   onClick={() => setZenMode(true)}
-                  className="p-1.5 text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+                  className="inline-flex min-h-11 min-w-11 items-center justify-center p-1.5 text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
                   aria-label="Enter Zen Mode"
                 >
                   <Maximize2 className="w-4 h-4" aria-hidden="true" />
                 </button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Enter Zen Mode (Ctrl+Shift+F)</p>
+                <p>Enter Zen Mode ({typeof navigator !== "undefined" && navigator.platform.includes("Mac") ? "⌘+Shift+F" : "Ctrl+Shift+F"})</p>
               </TooltipContent>
             </Tooltip>
 
             <button
               onClick={toggleTheme}
-              className="p-1.5 text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center p-1.5 text-text-secondary hover:bg-bg-elevated hover:text-text-primary rounded-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
               aria-label={
                 effectiveTheme === "light"
                   ? "Switch to dark mode"

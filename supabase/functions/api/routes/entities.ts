@@ -708,9 +708,11 @@ async function saveIdeaWithLinks(
 
 /**
  * PR20-84: re-validate idea link ids before the direct-insert/update fallback.
- * The JWT-bound `save_idea_with_links` RPC is authoritative (it enforces link
- * ownership); the service-role fallback below only sees string arrays, so at
- * minimum the ids must be UUID-shaped. Returns an error message, if invalid.
+ * The JWT-bound `save_idea_with_links` RPC runs as the caller (auth.uid()
+ * enforced) and owns the idea row; the service-role fallback below only sees
+ * string arrays, so at minimum the ids must be UUID-shaped, and P1 Batch 3
+ * adds the per-row ownership proof in verifyIdeaLinkOwnership. Returns an
+ * error message, if invalid.
  */
 function validateIdeaLinkFallback(
   payload: Record<string, unknown>,
@@ -723,6 +725,47 @@ function validateIdeaLinkFallback(
     }
     if (!value.every((id) => UUID_RE.test(id))) {
       return `${field} must be an array of UUIDs`;
+    }
+  }
+  return null;
+}
+
+/**
+ * P1 Batch 3: verify idea link ownership for the API-key (service-role)
+ * fallback path. The JWT-bound `save_idea_with_links` RPC runs as the caller
+ * (auth.uid() enforced) and the attach/detach handler checks ownership via
+ * selectOwnedRow for both auth modes — but the fallback direct insert/update
+ * below only shape-validated the ids, so an API-key caller could link (and
+ * thereby leak the existence of) another user's notes/papers. Every linked id
+ * must exist in a row owned by ctx.userId; legit owned links pass unchanged.
+ */
+export async function verifyIdeaLinkOwnership(
+  ctx: AuthContext,
+  payload: Record<string, unknown>,
+): Promise<string | null> {
+  const checks = [
+    { field: "linked_note_ids", table: "notes" },
+    { field: "linked_paper_ids", table: "papers" },
+  ] as const;
+  for (const { field, table } of checks) {
+    const value = payload[field];
+    if (value === undefined) continue;
+    // Shape errors are reported by validateIdeaLinkFallback; skip here so the
+    // caller keeps the precise message.
+    if (!isStringArray(value)) continue;
+    if (value.length === 0) continue;
+    const { data, error } = await ctx.supabaseAdmin
+      .from(table)
+      .select("id")
+      .in("id", value)
+      .eq("user_id", ctx.userId);
+    if (error) return `could not verify ${field} ownership`;
+    const owned = new Set(
+      ((data ?? []) as { id: string }[]).map((row) => row.id),
+    );
+    const foreign = value.filter((id) => !owned.has(id));
+    if (foreign.length > 0) {
+      return `${field} contains ${foreign.length} id(s) not owned by this user`;
     }
   }
   return null;
@@ -798,6 +841,13 @@ async function createEntity(
     const fallbackError = validateIdeaLinkFallback(payload);
     if (fallbackError) {
       return { data: null, error: new Error(fallbackError) };
+    }
+    // P1 Batch 3: shape is valid — now prove the caller owns every linked
+    // row before the service-role insert (api-key path only; JWT fails closed
+    // above).
+    const linkOwnershipError = await verifyIdeaLinkOwnership(ctx, payload);
+    if (linkOwnershipError) {
+      return { data: null, error: new Error(linkOwnershipError) };
     }
   }
 
@@ -902,6 +952,16 @@ async function updateIdea(
   const fallbackError = validateIdeaLinkFallback(patch);
   if (fallbackError) {
     return { data: null, error: new Error(fallbackError), notFound: false };
+  }
+  // P1 Batch 3: ownership check for the api-key fallback update (see
+  // createEntity); legit owned links pass unchanged.
+  const linkOwnershipError = await verifyIdeaLinkOwnership(ctx, patch);
+  if (linkOwnershipError) {
+    return {
+      data: null,
+      error: new Error(linkOwnershipError),
+      notFound: false,
+    };
   }
 
   const { data, error } = await ctx.supabaseAdmin

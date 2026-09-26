@@ -195,3 +195,49 @@ test.describe("ideas CRUD", () => {
     await expect(page.getByText(title)).toHaveCount(0);
   });
 });
+
+test.describe("papers CRUD", () => {
+  test.beforeEach(async ({ context }) => {
+    await enableDemoMode(context);
+  });
+
+  test("create and read back a paper", async ({ page }) => {
+    const title = `E2E Paper ${Date.now()}`;
+
+    await gotoDemoView(page, "/papers");
+    await page.getByRole("button", { name: "Add Paper" }).first().click();
+    const dialog = page.getByRole("dialog", { name: "Add New Paper" });
+    await expect(dialog).toBeVisible({ timeout: 15_000 });
+
+    // Manual entry needs no network (DOI/search tabs hit Crossref).
+    await dialog.getByRole("tab", { name: "Manual Entry" }).click();
+    await dialog.locator("#manual-title").fill(title);
+    await dialog.locator("#manual-authors").fill("E2E Author");
+    await dialog.getByRole("button", { name: "Add Paper" }).click();
+
+    // Successful create closes the dialog; the library lists the new paper.
+    await expect(dialog).toBeHidden({ timeout: 15_000 });
+    await expect(page.getByText(title).first()).toBeVisible({
+      timeout: 15_000,
+    });
+  });
+});
+
+test.describe("topics CRUD", () => {
+  test.beforeEach(async ({ context }) => {
+    await enableDemoMode(context);
+  });
+
+  test("create and read back a topic", async ({ page }) => {
+    const name = `E2E Topic ${Date.now()}`;
+
+    await gotoDemoView(page, "/topics");
+    await page.getByRole("button", { name: "New Topic" }).click();
+    await page.getByLabel("Topic name").fill(name);
+    await page.getByRole("button", { name: "Add", exact: true }).click();
+
+    await expect(page.getByText(name).first()).toBeVisible({
+      timeout: 15_000,
+    });
+  });
+});

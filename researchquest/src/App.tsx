@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import {
   hasSupabaseConfig,
   isDemoMode,
@@ -13,7 +13,6 @@ import { useTasksStore } from "./store/tasksStore";
 import { useGamificationStore } from "./store/gamificationStore";
 import { AppShell } from "./components/layout/v2/AppShell";
 import { AppLoadingSkeleton } from "./components/ui/Skeleton";
-import { Toaster } from "sonner";
 import { StaleBanner } from "./components/layout/StaleBanner";
 import { AlertCircle, Home } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
@@ -109,6 +108,10 @@ const ShortcutsDialog = lazy(() =>
   import("./components/layout/ShortcutsDialog").then((module) => ({
     default: module.ShortcutsDialog,
   })),
+);
+
+const ToasterLazy = lazy(() =>
+  import("sonner").then((module) => ({ default: module.Toaster })),
 );
 
 function RouteLoadingFallback() {
@@ -300,12 +303,30 @@ function App() {
     };
   }, [setCurrentView]);
 
-  // Focus main content on navigation change for keyboard users
+  // Focus main content on navigation change, but only for keyboard users:
+  // an unconditional focus() on every view change yanks focus away from
+  // pointer/touch users mid-task.
+  const lastInputWasKeyboardRef = useRef(false);
   useEffect(() => {
-    const el = document.getElementById("main-content");
-    if (el) {
-      el.focus();
-    }
+    const markKeyboard = () => {
+      lastInputWasKeyboardRef.current = true;
+    };
+    const markPointer = () => {
+      lastInputWasKeyboardRef.current = false;
+    };
+    window.addEventListener("keydown", markKeyboard, true);
+    window.addEventListener("mousedown", markPointer, true);
+    window.addEventListener("touchstart", markPointer, true);
+    return () => {
+      window.removeEventListener("keydown", markKeyboard, true);
+      window.removeEventListener("mousedown", markPointer, true);
+      window.removeEventListener("touchstart", markPointer, true);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!lastInputWasKeyboardRef.current) return;
+    document.getElementById("main-content")?.focus({ preventScroll: true });
   }, [currentView]);
 
   if (!hasSupabaseConfig) {
@@ -385,19 +406,21 @@ function App() {
           <ShortcutsDialog />
         </Suspense>
 
-        <Toaster
-          // "KeyNone" is not a valid key; disables sonner's hotkey (empty array would match every keydown)
-          hotkey={["KeyNone"]}
-          position="top-right"
-          richColors
-          expand={false}
-          duration={2500}
-          offset={16}
-          visibleToasts={3}
-          theme={effectiveTheme}
-          closeButton
-          toastOptions={{ duration: 2500 }}
-        />
+        <Suspense fallback={null}>
+          <ToasterLazy
+            // "KeyNone" is not a valid key; disables sonner's hotkey (empty array would match every keydown)
+            hotkey={["KeyNone"]}
+            position="top-right"
+            richColors
+            expand={false}
+            duration={2500}
+            offset={16}
+            visibleToasts={3}
+            theme={effectiveTheme}
+            closeButton
+            toastOptions={{ duration: 2500 }}
+          />
+        </Suspense>
 
         <AppDataOwners userId={userId} currentView={currentView} />
         <AppShell>

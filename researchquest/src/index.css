@@ -311,6 +311,14 @@
     contain: layout style paint;
   }
 
+  /* Measure-safe content-visibility for long feed-card loading fallbacks
+     only. The intrinsic size matches the skeleton height so enabling it
+     cannot shift layout. */
+  .feed-card-fallback {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 152px;
+  }
+
   /* Smooth scrolling with performance */
   .smooth-scroll {
     scroll-behavior: smooth;

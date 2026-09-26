@@ -16,8 +16,11 @@ export interface TopicKindState {
   kinds: Record<string, TopicKind>;
   setKind: (id: string, kind: TopicKind) => void;
   kindOf: (id: string) => TopicKind;
-  /** Drop all assignments — wire to sign-out if a logout flow is added
-   * (device-scoped like todayPlanStore; no logout exists yet). */
+  /** Drop all assignments. P1 Batch 3 note: a sign-out flow DOES exist
+   * (Sidebar handleLogout → supabase.auth.signOut()), but Sidebar lives in
+   * components/layout (owned by another crew) — call
+   * useTopicKindStore.getState().clearKinds() alongside the signOut there, or
+   * subscribe to the SIGNED_OUT auth event, when that file is next touched. */
   clearKinds: () => void;
 }
 
