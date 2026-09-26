@@ -17,6 +17,12 @@ describe("focusSessionGuard", () => {
   beforeEach(() => {
     window.localStorage.clear();
     publishLiveFocusSnapshot(null);
+    if (!(window as Window & { navigation?: EventTarget }).navigation) {
+      Object.defineProperty(window, "navigation", {
+        configurable: true,
+        value: new EventTarget(),
+      });
+    }
     ensureFocusSessionGuardAttached();
   });
 
@@ -172,6 +178,86 @@ describe("focusSessionGuard", () => {
 
     window.dispatchEvent(new Event("pageswap"));
     expect(freeze).toHaveBeenCalledTimes(1);
+
+    unregister();
+  });
+
+  it("pageshow(false) of a stored running snapshot remounts even when Focus has not registered yet", () => {
+    // Wine new-document: pageshow fires while App is still the loading
+    // skeleton (lazy Focus not mounted, registration null). #804 returned
+    // early unless isLive() — Playwright reload Soft PASS had a live heap.
+    const listener = vi.fn();
+    const unsubscribe = subscribeFocusHydrateEpoch(listener);
+    const before = currentFocusHydrateEpoch();
+    saveFocusSession({
+      version: 1,
+      selectedTarget: { type: "note", id: "note-1" },
+      sessionLength: 25 * 60,
+      isRunning: true,
+      startedAt: Date.now() - 12 * 1000,
+      timeLeft: 24 * 60 + 48,
+      hasCompletedSession: false,
+      sessionCount: 1,
+    });
+
+    const show = new Event("pageshow");
+    Object.defineProperty(show, "persisted", {
+      configurable: true,
+      value: false,
+    });
+    window.dispatchEvent(show);
+
+    expect(currentFocusHydrateEpoch()).toBeGreaterThan(before);
+    expect(listener).toHaveBeenCalled();
+    const stored = JSON.parse(
+      window.localStorage.getItem(FOCUS_SESSION_STORAGE_KEY)!,
+    );
+    expect(stored.isRunning).toBe(false);
+    expect(stored.timeLeft).toBe(24 * 60 + 48);
+
+    unsubscribe();
+  });
+
+  it("same-document replace of the current URL freezes a live run (wine Product refresh)", () => {
+    // Playwright page.reload() is navigationType=reload (preview Soft PASS).
+    // Wine Product hard refresh is often location.replace(href) — type=replace —
+    // no new document, no pagehide remount paint. #804 ignored replace.
+    const freeze = vi.fn();
+    const unregister = registerFocusFreeze({
+      freeze,
+      isLive: () => true,
+    });
+    publishLiveFocusSnapshot({
+      selectedTarget: { type: "note", id: "note-1" },
+      sessionLength: 25 * 60,
+      timeLeft: 24 * 60 + 48,
+      hasCompletedSession: false,
+      sessionCount: 1,
+      isLive: true,
+      resumeHold: false,
+    });
+
+    const event = new Event("navigate");
+    Object.defineProperty(event, "navigationType", {
+      configurable: true,
+      value: "replace",
+    });
+    Object.defineProperty(event, "destination", {
+      configurable: true,
+      value: { url: window.location.href },
+    });
+    const navigation = (
+      window as Window & { navigation?: EventTarget }
+    ).navigation;
+    expect(navigation).toBeDefined();
+    navigation!.dispatchEvent(event);
+
+    expect(freeze).toHaveBeenCalledTimes(1);
+    const stored = JSON.parse(
+      window.localStorage.getItem(FOCUS_SESSION_STORAGE_KEY)!,
+    );
+    expect(stored.isRunning).toBe(false);
+    expect(stored.timeLeft).toBe(24 * 60 + 48);
 
     unregister();
   });

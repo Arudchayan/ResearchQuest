@@ -6,8 +6,13 @@
  * `rq_focus_session`. Playwright `page.reload()` Soft PASS was live-heap
  * pagehide, not that path.
  *
- * Capture-phase pagehide/pageshow/pageswap still freeze a surviving heap and
- * bump a hydrate epoch so App remounts FocusWorkspace via useSyncExternalStore.
+ * Preview Soft PASS ≠ wine: Playwright reload is navigationType=reload and
+ * paints the live-heap remount. Wine Product Ctrl+Shift+R is a new document
+ * (navigation type=reload) whose dying pagehide never paints; hydrate then
+ * a reload-burst click can re-arm Pause. Wine hard refresh is also often a
+ * same-document `replace` of /focus (or pageshow while App is still the
+ * loading skeleton, registration null). Those must freeze from storage too.
+ *
  * Visibility hide only freezes the live interval (does not remount).
  */
 
@@ -15,6 +20,8 @@ import { useSyncExternalStore } from "react";
 import {
   persistPausedFocusSession,
   rewriteStoredFocusSessionPaused,
+  loadStoredFocusSession,
+  restoredSessionNeedsContinue,
   type SelectedTarget,
 } from "./focusUtils";
 
@@ -34,6 +41,7 @@ export type LiveFocusPublish = {
 };
 
 let attached = false;
+let navigationBound: EventTarget | null = null;
 let registration: FocusFreezeRegistration | null = null;
 let published: LiveFocusPublish | null = null;
 let runEpoch = 0;
@@ -82,8 +90,15 @@ function onPageShow(event: Event): void {
   const persisted = Boolean(
     "persisted" in event && (event as PageTransitionEvent).persisted,
   );
-  if (!persisted && !registration?.isLive()) return;
-  fireHardRefreshRemount();
+  if (persisted || registration?.isLive()) {
+    fireHardRefreshRemount();
+    return;
+  }
+  // New-document wine: pageshow often fires while App is still the auth
+  // skeleton, before lazy Focus registers. Storage is the Continue signal.
+  if (restoredSessionNeedsContinue(loadStoredFocusSession())) {
+    fireHardRefreshRemount();
+  }
 }
 
 function onVisibilityChange(): void {
@@ -91,12 +106,31 @@ function onVisibilityChange(): void {
   fireFreeze();
 }
 
-function onNavigate(event: Event): void {
+function navigateDestinationUrl(event: Event): string {
+  if (!("destination" in event)) return "";
+  const dest = (event as { destination?: { url?: string } }).destination;
+  return typeof dest?.url === "string" ? dest.url : "";
+}
+
+function isHardRefreshNavigate(event: Event): boolean {
   const navType =
     "navigationType" in event
       ? String((event as { navigationType?: string }).navigationType)
       : "";
-  if (navType !== "reload") return;
+  if (navType === "reload") return true;
+  if (navType !== "replace") return false;
+  const raw = navigateDestinationUrl(event);
+  if (!raw) return true;
+  try {
+    const dest = new URL(raw, window.location.href);
+    return dest.pathname === window.location.pathname;
+  } catch {
+    return false;
+  }
+}
+
+function onNavigate(event: Event): void {
+  if (!isHardRefreshNavigate(event)) return;
   fireHardRefreshRemount();
 }
 
@@ -133,26 +167,33 @@ export function publishLiveFocusSnapshot(next: LiveFocusPublish | null): void {
 }
 
 export function ensureFocusSessionGuardAttached(): void {
-  if (attached || typeof window === "undefined") return;
-  attached = true;
-  window.addEventListener("pagehide", fireHardRefreshRemount, listenerOpts);
-  window.addEventListener("beforeunload", fireHardRefreshRemount, listenerOpts);
-  window.addEventListener("unload", fireHardRefreshRemount, listenerOpts);
-  window.addEventListener("freeze", fireHardRefreshRemount, listenerOpts);
-  window.addEventListener("pageswap", fireHardRefreshRemount, listenerOpts);
-  window.addEventListener("pageshow", onPageShow, listenerOpts);
-  document.addEventListener("freeze", fireHardRefreshRemount, listenerOpts);
-  document.addEventListener(
-    "visibilitychange",
-    onVisibilityChange,
-    listenerOpts,
-  );
+  if (typeof window === "undefined") return;
+  if (!attached) {
+    attached = true;
+    window.addEventListener("pagehide", fireHardRefreshRemount, listenerOpts);
+    window.addEventListener("beforeunload", fireHardRefreshRemount, listenerOpts);
+    window.addEventListener("unload", fireHardRefreshRemount, listenerOpts);
+    window.addEventListener("freeze", fireHardRefreshRemount, listenerOpts);
+    window.addEventListener("pageswap", fireHardRefreshRemount, listenerOpts);
+    window.addEventListener("pageshow", onPageShow, listenerOpts);
+    document.addEventListener("freeze", fireHardRefreshRemount, listenerOpts);
+    document.addEventListener(
+      "visibilitychange",
+      onVisibilityChange,
+      listenerOpts,
+    );
+  }
   const navigation = (
     window as Window & {
       navigation?: EventTarget;
     }
   ).navigation;
-  if (navigation && typeof navigation.addEventListener === "function") {
+  if (
+    navigation &&
+    typeof navigation.addEventListener === "function" &&
+    navigationBound !== navigation
+  ) {
+    navigationBound = navigation;
     navigation.addEventListener("navigate", onNavigate);
   }
 }

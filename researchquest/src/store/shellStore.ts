@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { ThemePreference, UserProfile } from "../types/database";
-import type { AppView } from "../lib/router";
+import { parseRoute, type AppView } from "../lib/router";
 
 export type { AppView };
 
@@ -105,7 +105,10 @@ export const useShellStore = create<ShellSlice>()(
       setUser: (user) => set({ user }),
 
       // Current view
-      currentView: "dashboard",
+      currentView:
+        typeof window !== "undefined"
+          ? (parseRoute(window.location.pathname).view ?? "dashboard")
+          : "dashboard",
       setCurrentView: (currentView) => {
         if (get().currentView === currentView) return;
         set({ currentView });
