@@ -448,6 +448,9 @@ describe("Focus target navigation", () => {
         collapsedPanels={{ suggestions: true }}
         togglePanel={() => undefined}
         focusInsights={[]}
+        freeformDraft=""
+        onFreeformDraftChange={() => undefined}
+        onFreeformSubmit={() => undefined}
       />,
     );
 

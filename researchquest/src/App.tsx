@@ -22,6 +22,7 @@ import { useIdeas } from "./hooks/useIdeas";
 import { useTopics } from "./hooks/useTopics";
 import { useNotes } from "./hooks/useNotes";
 import { useTasks } from "./hooks/useTasks";
+import { useFeedItems } from "./hooks/useFeedItems";
 import { useDataSync } from "./hooks/useDataSync";
 import { AuthScreen } from "./components/auth/AuthScreen";
 import { SupabaseConfigErrorScreen } from "./components/auth/SupabaseConfigErrorScreen";
@@ -39,6 +40,8 @@ import {
   subscribeSoftNavigation,
 } from "./lib/softNavigation";
 import { useFocusHydrateEpoch } from "./components/focus/focusSessionGuard";
+import { prefetchPlanChunks } from "./lib/prefetchChunks";
+import { KeepAlivePanes } from "./components/layout/KeepAlivePanes";
 
 function ensureDemoFirstRunPath(): boolean {
   if (!isDemoMode || typeof window === "undefined") return false;
@@ -135,6 +138,10 @@ function App() {
     (state) => state.hydrateFromProfile,
   );
   const focusHydrateEpoch = useFocusHydrateEpoch();
+
+  useEffect(() => {
+    prefetchPlanChunks();
+  }, []);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && (window as any).__TEST_USER__) {
@@ -357,9 +364,7 @@ function App() {
   const routeContent =
     currentView === "dashboard" ? (
       <DashboardLazy />
-    ) : currentView === "notes" ? (
-      <NotesView />
-    ) : currentView === "papers" ? (
+    ) : currentView === "notes" || currentView === "focus" ? null : currentView === "papers" ? (
       <PapersView />
     ) : currentView === "ideas" ? (
       <IdeasBoard />
@@ -367,8 +372,6 @@ function App() {
       <TopicsView />
     ) : currentView === "tasks" ? (
       <TaskManager />
-    ) : currentView === "focus" ? (
-      <FocusWorkspace key={focusHydrateEpoch} userId={userId} />
     ) : currentView === "feeds" ? (
       <FeedsView />
     ) : null;
@@ -398,7 +401,14 @@ function App() {
         <AppDataOwners userId={userId} currentView={currentView} />
         <AppShell>
           <StaleBanner />
-          <Suspense fallback={<RouteLoadingFallback />}>{routeContent}</Suspense>
+          <KeepAlivePanes
+            currentView={currentView}
+            notes={<NotesView />}
+            focus={<FocusWorkspace key={focusHydrateEpoch} userId={userId} />}
+          />
+          <Suspense fallback={<RouteLoadingFallback />}>
+            {routeContent}
+          </Suspense>
         </AppShell>
       </TooltipProvider>
     </div>
@@ -419,6 +429,7 @@ function AppDataOwners({
   useTopics(userId, { owner: true });
   useNotes(userId);
   useTasks(userId, { owner: true });
+  useFeedItems(userId, { owner: true });
 
   const notesLoading = useLibraryStore((state) => state.notesLoading);
   const papersLoading = useLibraryStore((state) => state.papersLoading);

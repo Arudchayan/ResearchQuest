@@ -11,17 +11,13 @@ interface PaperCardProps {
   onSelect: (paper: Paper) => void;
 }
 
+// Single source of truth for reading-status badge styling: each status maps
+// to exactly one Badge variant (no separate className overrides).
 const readingStatusVariants = {
   "To Read": "neutral",
-  Reading: "neutral",
+  Reading: "purple",
   Read: "success",
 } satisfies Record<ReadingStatus, BadgeVariant>;
-
-const readingStatusClassNames = {
-  "To Read": "",
-  Reading: "bg-primary-50 text-primary-500",
-  Read: "",
-} satisfies Record<ReadingStatus, string>;
 
 const firstAuthorSlug = (authors: string[] | undefined): string => {
   const first = authors?.[0];
@@ -89,10 +85,7 @@ export const PaperCard = React.memo(function PaperCard({
               : "N/A"}
           </span>
         </div>
-        <Badge
-          variant={readingStatusVariants[paper.status]}
-          className={readingStatusClassNames[paper.status]}
-        >
+        <Badge variant={readingStatusVariants[paper.status]}>
           {paper.status}
         </Badge>
       </div>

@@ -61,14 +61,20 @@ vi.mock("./PaperCard", () => ({
   PaperCard: ({ paper }: any) => <div>{paper.title}</div>,
 }));
 
-// Mock Radix Dialog
+// Mock Radix Dialog (forwards className so drawer layout classes survive)
 vi.mock("@radix-ui/react-dialog", () => ({
   Root: ({ children }: any) => <div>{children}</div>,
   Portal: ({ children }: any) => <div>{children}</div>,
   Overlay: ({ children }: any) => <div>{children}</div>,
-  Content: ({ children }: any) => <div>{children}</div>,
+  Content: ({ children, className }: any) => (
+    <div role="dialog" aria-modal="true" className={className}>
+      {children}
+    </div>
+  ),
   Close: ({ children }: any) => <div>{children}</div>,
-  Title: ({ children }: any) => <div>{children}</div>,
+  Title: ({ children, className }: any) => (
+    <h2 className={className}>{children}</h2>
+  ),
 }));
 
 describe("PapersView Search", () => {

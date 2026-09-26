@@ -22,7 +22,9 @@ import { toast } from "sonner";
 import { TopicSelector } from "../topics/TopicSelector";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
+import { Badge } from "../ui/Badge";
 import { Button } from "../ui/button";
+import { cn } from "../../lib/utils";
 import { useNotes } from "../../hooks/useNotes";
 import { useTasks } from "../../hooks/useTasks";
 import { useIdeas } from "../../hooks/useIdeas";
@@ -339,18 +341,10 @@ export function IdeaDetailView({
     }
   };
 
-  const getStageColor = (stage: IdeaStage) => {
-    switch (stage) {
-      case "Seed":
-        return "bg-warning-bg text-warning border-warning";
-      case "Developing":
-        return "bg-info-bg text-info border-info";
-      case "Supported":
-        return "bg-purple-bg text-purple border-purple";
-      case "Mature":
-        return "bg-success-bg text-success border-success";
-    }
-  };
+  const editedStageDef =
+    IDEA_STAGES.find(({ id }) => id === editedStage) ?? IDEA_STAGES[0];
+  const currentStageDef =
+    IDEA_STAGES.find(({ id }) => id === idea.stage) ?? IDEA_STAGES[0];
 
   const getStageDescription = (stage: IdeaStage) => {
     switch (stage) {
@@ -492,7 +486,7 @@ export function IdeaDetailView({
                         <button
                           onClick={handleDeepResearch}
                           disabled={isDeepResearching}
-                          className="p-2 bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 rounded-md hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors disabled:opacity-50"
+                          className="p-2 bg-info-bg text-info rounded-md hover:bg-info/20 transition-colors disabled:opacity-50"
                           aria-label="Deep Research AI Reasoning"
                         >
                           {isDeepResearching ? <Loader className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" aria-hidden="true" />}
@@ -529,7 +523,7 @@ export function IdeaDetailView({
                         <TooltipTrigger asChild>
                           <button
                             onClick={handleDeleteClick}
-                            className="p-2 bg-bg-elevated text-red-600 dark:text-red-400 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                            className="p-2 bg-bg-elevated text-destructive rounded-md hover:bg-destructive-bg transition-colors"
                             aria-label="Delete idea"
                           >
                             <Trash className="w-5 h-5" aria-hidden="true" />
@@ -552,7 +546,10 @@ export function IdeaDetailView({
                 <select
                   value={editedStage}
                   onChange={(e) => setEditedStage(e.target.value as IdeaStage)}
-                  className={`px-4 py-2 rounded-md border text-sm font-medium ${getStageColor(editedStage)} focus:outline-none focus:ring-2 focus:ring-focus`}
+                  className={cn(
+                    "px-4 py-2 rounded-md border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-focus",
+                    editedStageDef.selectClassName,
+                  )}
                 >
                   <option value="Seed">🌱 Seed</option>
                   <option value="Developing">🌿 Developing</option>
@@ -561,15 +558,13 @@ export function IdeaDetailView({
                 </select>
               ) : (
                 <div>
-                  <div
-                    className={`inline-flex items-center px-4 py-2 rounded-md border text-sm font-medium ${getStageColor(idea.stage)}`}
-                  >
+                  <Badge variant={currentStageDef.badgeVariant}>
                     {idea.stage === "Seed" && "🌱"}
                     {idea.stage === "Developing" && "🌿"}
                     {idea.stage === "Supported" && "🌳"}
                     {idea.stage === "Mature" && "🏆"}
                     <span className="ml-2">{idea.stage}</span>
-                  </div>
+                  </Badge>
                   <p className="text-sm text-text-tertiary mt-2">
                     {getStageDescription(idea.stage)}
                   </p>
@@ -661,11 +656,11 @@ export function IdeaDetailView({
         </div>
 
         {/* Tips Card */}
-        <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-lg">
-          <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-2">
+        <div className="mt-6 p-4 bg-info-bg border border-info/20 rounded-lg">
+          <h3 className="text-sm font-semibold text-info mb-2">
             💡 Tip: Develop Your Idea
           </h3>
-          <p className="text-sm text-blue-800 dark:text-blue-400">
+          <p className="text-sm text-text-secondary">
             Progress your idea through stages as you gather evidence and develop
             it further. Link related papers and notes to build a strong
             foundation for your research.

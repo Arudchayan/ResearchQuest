@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { toast } from "sonner";
 import { useAppStore } from "../store/appStore";
 import { useGamificationStore } from "../store/gamificationStore";
+import { todayKey } from "./time";
 import type { UserProfile } from "../types/database";
 
 // XP rewards for different actions
@@ -38,23 +39,11 @@ export const ACHIEVEMENTS = {
     description: "7 days consecutive research activity",
     xp: 100,
   },
-  GOAL_CRUSHER: {
-    type: "goal_crusher",
-    title: "Goal Crusher",
-    description: "Completed your first research goal",
-    xp: 75,
-  },
   NOTE_MASTER: {
     type: "note_master",
     title: "Note Master",
     description: "Written 50 notes",
     xp: 200,
-  },
-  RESEARCH_HERO: {
-    type: "research_hero",
-    title: "Research Hero",
-    description: "Completed a major research milestone",
-    xp: 300,
   },
   TASK_WARRIOR: {
     type: "task_warrior",
@@ -113,6 +102,55 @@ export interface GamificationResult {
   achievementsEarned: Achievement[];
 }
 
+interface AwardXpRpcRow {
+  total_xp: number;
+  current_level: number;
+  current_streak: number;
+  longest_streak: number;
+  last_activity_date: string;
+  notes_count: number;
+  papers_count: number;
+  tasks_completed_count: number;
+  papers_with_insights_count: number;
+  streak_freeze_tokens: number;
+  xp_credited: number;
+  is_duplicate: boolean;
+}
+
+/**
+ * Atomic XP award via the `award_xp` RPC (single UPDATE, UTC-day streaks,
+ * idempotency guard). Returns null when the RPC is unavailable or fails so
+ * the caller falls back to the legacy path. An idempotency key is only sent
+ * when the caller supplies one (or an entity id) — repeat awards of the same
+ * action without an entity must NOT dedupe each other.
+ */
+async function tryAwardXpRpc(
+  userId: string,
+  xpEarned: number,
+  action: string,
+  options?: { entityId?: string; idempotencyKey?: string },
+): Promise<AwardXpRpcRow | null> {
+  try {
+    const { data, error } = await supabase.rpc("award_xp", {
+      p_uid: userId,
+      p_delta: xpEarned,
+      p_idempotency_key:
+        options?.idempotencyKey ??
+        (options?.entityId ? `${userId}:${action}:${options.entityId}` : null),
+      p_action: action,
+      p_entity_id: options?.entityId ?? "",
+    });
+    if (error || !data) return null;
+    const row = (Array.isArray(data) ? data[0] : data) as
+      | AwardXpRpcRow
+      | undefined;
+    if (!row || typeof row.total_xp !== "number") return null;
+    return row;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Fire sonner celebrations for a completed awardXP.
  * `skipXpToast` opts out of the "+N XP" toast when the caller already
@@ -142,11 +180,14 @@ export function notifyGamificationResult(
   }
 }
 
-// Award XP and update user profile
+// Award XP and update user profile.
+// Prefers the atomic award_xp RPC; falls back to the legacy SELECT-then-UPDATE
+// path when the RPC is unavailable so existing behavior is preserved.
 export async function awardXP(
   userId: string,
   xpAmount: number,
   action: string,
+  options?: { entityId?: string; idempotencyKey?: string },
 ): Promise<GamificationResult | null> {
   // Get current profile
   const { data: profile, error: fetchError } = await supabase
@@ -165,7 +206,7 @@ export async function awardXP(
     return null;
   }
 
-  const today = new Date().toISOString().split("T")[0]!;
+  const today = todayKey();
 
   // Apply active boost multiplier (rounded to the nearest integer so
   // fractional multipliers still credit whole XP amounts)
@@ -180,6 +221,60 @@ export async function awardXP(
   const xpEarned = Math.round(
     xpAmount * (boostActive && boost.multiplier ? boost.multiplier : 1),
   );
+
+  // Atomic path: the award_xp RPC performs the increment, streak update, and
+  // daily-log upsert in one transaction. The legacy path below is the
+  // fallback when the RPC is unavailable.
+  const rpcRow = await tryAwardXpRpc(userId, xpEarned, action, options);
+  if (rpcRow?.is_duplicate) {
+    // Duplicate delivery: report current server totals without re-crediting.
+    return {
+      xpEarned: 0,
+      level: rpcRow.current_level,
+      leveledUp: false,
+      streak: rpcRow.current_streak,
+      achievementsEarned: [],
+    };
+  }
+  if (rpcRow) {
+    const rpcCounts = {
+      notes_count: rpcRow.notes_count || 0,
+      papers_count: rpcRow.papers_count || 0,
+      tasks_completed_count: rpcRow.tasks_completed_count || 0,
+      papers_with_insights_count: rpcRow.papers_with_insights_count || 0,
+    };
+    const achievementsEarned = await checkAchievements(
+      userId,
+      action,
+      rpcRow.current_streak,
+      rpcCounts,
+    );
+    const achievementXp = achievementsEarned.reduce(
+      (sum, achievement) => sum + achievement.xp,
+      0,
+    );
+    const finalTotal = rpcRow.total_xp + achievementXp;
+    const finalLevel = getLevelFromXP(finalTotal);
+    const updatedProfile: UserProfile = {
+      ...(profile as UserProfile),
+      total_xp: finalTotal,
+      current_level: finalLevel,
+      current_streak: rpcRow.current_streak,
+      longest_streak: rpcRow.longest_streak,
+      last_activity_date: rpcRow.last_activity_date,
+      streak_freeze_tokens: rpcRow.streak_freeze_tokens,
+      ...rpcCounts,
+    };
+    useAppStore.getState().setUser(updatedProfile);
+    useGamificationStore.getState().hydrateFromProfile(updatedProfile);
+    return {
+      xpEarned: rpcRow.xp_credited,
+      level: finalLevel,
+      leveledUp: finalLevel > (profile.current_level || 1),
+      streak: rpcRow.current_streak,
+      achievementsEarned,
+    };
+  }
 
   // Calculate new XP and Level
   const newTotalXP = (profile.total_xp || 0) + xpEarned;
@@ -379,15 +474,6 @@ async function checkAchievements(
     }
   }
 
-  // Check for first goal completion
-  if (
-    action === "complete_goal" &&
-    !earned.has(ACHIEVEMENTS.GOAL_CRUSHER.type)
-  ) {
-    const awarded = await awardAchievement(userId, ACHIEVEMENTS.GOAL_CRUSHER);
-    if (awarded) earnedAchievements.push(awarded);
-  }
-
   // Check for 10 papers with insights
   if (
     action === "add_paper_insights" &&
@@ -464,7 +550,7 @@ async function updateDailyLog(
   xpEarned: number,
   currentStreak: number,
 ): Promise<void> {
-  const today = new Date().toISOString().split("T")[0]!;
+  const today = todayKey();
 
   // Optimization: Removed redundant profile fetching and updating.
   // Streak is now calculated in awardXP and passed down.

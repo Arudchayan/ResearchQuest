@@ -44,7 +44,7 @@ export function KeywordSearchTab({
   const idPrefix = useId();
 
   return (
-    <div className="space-y-6" role="tabpanel" id="view-panel-search">
+    <div className="space-y-6">
       <form
         className="space-y-4"
         onSubmit={(e) => {

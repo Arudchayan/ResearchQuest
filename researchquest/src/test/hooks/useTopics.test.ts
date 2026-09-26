@@ -354,6 +354,46 @@ describe("useTopics", () => {
     expect(topicsCalls).toBe(2);
   });
 
+  it("does not auto-insert a topic quest on a non-owner mount", async () => {
+    const userId = "user-quest-owner";
+    const questInsert = vi.fn().mockReturnValue(
+      createBuilder({ data: null, error: null }),
+    );
+    useAppStore.setState({
+      topics: [
+        {
+          id: "topic-1",
+          user_id: userId,
+          name: "ML",
+          created_at: "2026-01-01T00:00:00Z",
+          updated_at: "2026-01-01T00:00:00Z",
+          note_count: 0,
+          paper_count: 0,
+          idea_count: 0,
+        },
+      ],
+    });
+    mockSupabaseClient.from.mockImplementation((table: string) => {
+      if (table === "topics") {
+        return createBuilder({ data: [], error: null });
+      }
+      if (table === "topic_quests") {
+        return {
+          ...createBuilder({ data: [], error: null }),
+          insert: questInsert,
+        };
+      }
+      return createBuilder({ data: null, error: null });
+    });
+
+    renderHook(() => useTopics(userId, { owner: false }));
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(questInsert).not.toHaveBeenCalled();
+  });
+
   it("ignores a stale list response that resolves after a newer fetch", async () => {
     const userId = "user-stale-order";
     let resolveFirst!: (value: TopicsListResponse) => void;

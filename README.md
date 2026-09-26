@@ -10,13 +10,14 @@ A research workspace for a scholar's day: a **Today** plan you work through with
 
 ## Features
 
-- **Today** — Ordered checklist for the day (due-today tasks plus items you add). Start Focus or mark done from the row.
+- **Today** — Ordered checklist for the day (due-today tasks plus items you add). Start Focus, mark done, or drag to reorder.
+- **Topics** — Organize entities into topics (Research, Area, or Subject). Automatic count tracking.
 - **Papers** — Add papers via DOI lookup, Crossref search, or manual entry. Track reading status (To Read → Reading → Read). Import from BibTeX.
 - **Notes** — Write rich markdown notes with tags, links to papers/ideas, and CodeMirror editor with syntax highlighting.
 - **Ideas** — Track research ideas through stages (Seed → Developing → Supported → Mature). Link to supporting papers and notes.
-- **Topics** — Organize entities into topics with automatic count tracking.
+- **Topics** — Organize entities into topics (Research, Area, or Subject) with automatic count tracking.
 - **Tasks** — Free-form actions with due dates, priorities, and kinds (research, study, exercise, offline, …). Reading tasks can still be created when you add papers.
-- **Focus Studio** — Timer-based sessions. Defaults to your Today queue; after a task session you can mark it done.
+- **Focus Studio** — Timer-based sessions. Defaults to your Today queue; you can also type a freeform intention. After a task session you can mark it done. Notes and Focus stay mounted after the first visit so switching away does not reset the editor or timer.
 - **Feeds (alpha)** — Triage ingested `feed_items` and promote leads into papers, tasks, or notes. Feed source/RSS management UI and scheduled ingest are still incomplete.
 - **Gamification** — XP, levels, streaks, and achievements for research activity.
 - **Zen Mode** — Distraction-free workspace (Ctrl+Shift+F).

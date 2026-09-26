@@ -38,3 +38,4 @@ NUL
 
 # Dev server logs (accidental commit hygiene)
 server.log
+.vercel

@@ -1,6 +1,9 @@
-import { Inbox, RefreshCw } from "lucide-react";
-import { useState } from "react";
+import { Archive, Inbox, RefreshCw } from "lucide-react";
+import { useMemo, useState } from "react";
 import {
+  FEED_ITEMS_INITIAL_WINDOW,
+  FEED_ITEMS_PAGE_SIZE,
+  FEED_ITEMS_WINDOW_STEP,
   FEED_ITEM_STATUSES,
   FEED_ITEM_TYPES,
   type FeedStatusFilter,
@@ -12,6 +15,7 @@ import type { FeedPromoteTarget } from "../../types/database";
 import { cn } from "../../lib/utils";
 import { PageHeader } from "../ui/PageHeader";
 import { FeedItemCard } from "./FeedItemCard";
+import { FeedSourcesPanel } from "./FeedSourcesPanel";
 
 const TYPE_LABELS: Record<FeedTypeFilter, string> = {
   all: "All types",
@@ -29,9 +33,76 @@ const STATUS_LABELS: Record<FeedStatusFilter, string> = {
   promoted: "Promoted",
 };
 
+function FeedFilterBar({
+  type,
+  status,
+  onTypeChange,
+  onStatusChange,
+}: {
+  type: FeedTypeFilter;
+  status: FeedStatusFilter;
+  onTypeChange: (next: FeedTypeFilter) => void;
+  onStatusChange: (next: FeedStatusFilter) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="section-kicker">
+          Type
+        </h2>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {(["all", ...FEED_ITEM_TYPES] as FeedTypeFilter[]).map((filter) => (
+            <button
+              key={filter}
+              type="button"
+              onClick={() => onTypeChange(filter)}
+              className={cn(
+                "rounded-full border px-3 py-1.5 text-small font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent",
+                type === filter
+                  ? "border-accent bg-accent-soft text-accent-strong"
+                  : "border-border-subtle bg-bg-surface text-text-secondary hover:border-border-moderate hover:text-text-primary",
+              )}
+              aria-pressed={type === filter}
+            >
+              {TYPE_LABELS[filter]}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <h2 className="section-kicker">
+          Status
+        </h2>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {(["all", ...FEED_ITEM_STATUSES] as FeedStatusFilter[]).map(
+            (filter) => (
+              <button
+                key={filter}
+                type="button"
+                onClick={() => onStatusChange(filter)}
+                className={cn(
+                  "rounded-full border px-3 py-1.5 text-small font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent",
+                  status === filter
+                    ? "border-accent bg-accent-soft text-accent-strong"
+                    : "border-border-subtle bg-bg-surface text-text-secondary hover:border-border-moderate hover:text-text-primary",
+                )}
+                aria-pressed={status === filter}
+              >
+                {STATUS_LABELS[filter]}
+              </button>
+            ),
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function FeedsView() {
   const [type, setType] = useState<FeedTypeFilter>("all");
   const [status, setStatus] = useState<FeedStatusFilter>("new");
+  const [visibleCount, setVisibleCount] = useState(FEED_ITEMS_INITIAL_WINDOW);
   const userId = useAppStore((state) => state.user?.id);
   const {
     items,
@@ -42,10 +113,43 @@ export function FeedsView() {
     archiveFeedItem,
     markFeedItemTriaged,
     promoteFeedItem,
-  } = useFeedItems(userId, { type, status });
+    updateFeedItemsStatusBatch,
+  } = useFeedItems(userId, { type, status, owner: false });
+
+  // Windowed render: the store holds at most FEED_ITEMS_PAGE_SIZE rows and
+  // the view renders a slice, so the list stays bounded (no unbounded DOM).
+  const visibleItems = useMemo(
+    () => items.slice(0, visibleCount),
+    [items, visibleCount],
+  );
+  const hasMore = visibleCount < items.length;
 
   const handlePromote = (itemId: string, target: FeedPromoteTarget) => {
     void promoteFeedItem(itemId, target);
+  };
+
+  const handleArchiveAllVisible = () => {
+    const ids = visibleItems
+      .filter((item) => item.status !== "archived" && item.status !== "promoted")
+      .map((item) => item.id);
+    if (ids.length === 0) return;
+    const confirmed =
+      typeof window === "undefined" ||
+      window.confirm(
+        `Archive ${ids.length} visible feed item${ids.length === 1 ? "" : "s"}?`,
+      );
+    if (!confirmed) return;
+    void updateFeedItemsStatusBatch(ids, "archived");
+  };
+
+  const handleTypeChange = (next: FeedTypeFilter) => {
+    setType(next);
+    setVisibleCount(FEED_ITEMS_INITIAL_WINDOW);
+  };
+
+  const handleStatusChange = (next: FeedStatusFilter) => {
+    setStatus(next);
+    setVisibleCount(FEED_ITEMS_INITIAL_WINDOW);
   };
 
   return (
@@ -71,65 +175,51 @@ export function FeedsView() {
           }
         />
 
-        <section className="surface-card p-4 sm:p-5" aria-label="Feed filters">
-          <div className="space-y-4">
-            <div>
-              <h2 className="section-kicker">Type</h2>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {(["all", ...FEED_ITEM_TYPES] as FeedTypeFilter[]).map(
-                  (filter) => (
-                    <button
-                      key={filter}
-                      type="button"
-                      onClick={() => setType(filter)}
-                      className={cn(
-                        "rounded-full border px-3 py-1.5 text-small font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent",
-                        type === filter
-                          ? "border-accent bg-accent-soft text-accent-strong"
-                          : "border-border-subtle bg-bg-surface text-text-secondary hover:border-border-moderate hover:text-text-primary",
-                      )}
-                      aria-pressed={type === filter}
-                    >
-                      {TYPE_LABELS[filter]}
-                    </button>
-                  ),
-                )}
-              </div>
-            </div>
+        <div
+          role="note"
+          aria-label="Feeds alpha notice"
+          className="rounded-xl border border-gold-strong/30 bg-gold-soft px-4 py-3 text-small text-text-secondary"
+        >
+          <strong className="font-semibold text-text-primary">Alpha:</strong>{" "}
+          feeds are manual triage only. Sources are tracked metadata — no
+          automatic ingest runs — and promoting is the only way items become
+          papers, tasks, or notes.
+        </div>
 
-            <div>
-              <h2 className="section-kicker">Status</h2>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {(["all", ...FEED_ITEM_STATUSES] as FeedStatusFilter[]).map(
-                  (filter) => (
-                    <button
-                      key={filter}
-                      type="button"
-                      onClick={() => setStatus(filter)}
-                      className={cn(
-                        "rounded-full border px-3 py-1.5 text-small font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent",
-                        status === filter
-                          ? "border-accent bg-accent-soft text-accent-strong"
-                          : "border-border-subtle bg-bg-surface text-text-secondary hover:border-border-moderate hover:text-text-primary",
-                      )}
-                      aria-pressed={status === filter}
-                    >
-                      {STATUS_LABELS[filter]}
-                    </button>
-                  ),
-                )}
-              </div>
-            </div>
-          </div>
+        <FeedSourcesPanel userId={userId} />
+
+        <section
+          className="surface-card p-4 sm:p-5"
+          aria-label="Feed filters"
+        >
+          <FeedFilterBar
+            type={type}
+            status={status}
+            onTypeChange={handleTypeChange}
+            onStatusChange={handleStatusChange}
+          />
         </section>
 
         <section aria-label="Feed items">
-          <div className="mb-3 flex items-center justify-between">
+          <div className="mb-3 flex items-center justify-between gap-3">
             <p className="text-small text-text-secondary">
               {loading
                 ? "Loading feed items..."
-                : `${items.length} item${items.length === 1 ? "" : "s"}`}
+                : `${visibleItems.length} of ${items.length} item${items.length === 1 ? "" : "s"} (latest ${FEED_ITEMS_PAGE_SIZE})`}
             </p>
+            {visibleItems.some(
+              (item) =>
+                item.status !== "archived" && item.status !== "promoted",
+            ) && (
+              <button
+                type="button"
+                onClick={handleArchiveAllVisible}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border-moderate bg-bg-surface px-2.5 py-1.5 text-caption font-medium text-text-secondary shadow-sm transition-colors hover:border-border-strong hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+              >
+                <Archive className="h-3.5 w-3.5" aria-hidden="true" />
+                Archive visible
+              </button>
+            )}
           </div>
 
           {loading ? (
@@ -140,7 +230,19 @@ export function FeedsView() {
               <span className="sr-only">Loading feeds</span>
             </div>
           ) : error ? (
-            <div className="surface-card p-6 text-text-secondary">{error}</div>
+            <div className="surface-card flex items-center justify-between gap-3 p-6">
+              <p className="text-small text-text-secondary" role="alert">
+                {error}
+              </p>
+              <button
+                type="button"
+                onClick={() => void refreshFeedItems()}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border-moderate bg-bg-surface px-3 py-2 text-small font-medium text-text-secondary shadow-sm transition-colors hover:border-border-strong hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+              >
+                <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                Retry
+              </button>
+            </div>
           ) : items.length === 0 ? (
             <div
               role="status"
@@ -154,13 +256,13 @@ export function FeedsView() {
                 Nothing to triage
               </h2>
               <p className="mx-auto mt-2 max-w-md text-small text-text-secondary">
-                Try a different filter, or check back when agents ingest more
-                feed items.
+                Try a different filter, or add a source above and check back
+                when new items arrive.
               </p>
             </div>
           ) : (
             <div className="space-y-3">
-              {items.map((item) => (
+              {visibleItems.map((item) => (
                 <FeedItemCard
                   key={item.id}
                   item={item}
@@ -170,6 +272,17 @@ export function FeedsView() {
                   onPromote={handlePromote}
                 />
               ))}
+              {hasMore && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setVisibleCount((count) => count + FEED_ITEMS_WINDOW_STEP)
+                  }
+                  className="w-full rounded-xl border border-border-moderate bg-bg-surface px-3 py-2.5 text-small font-medium text-text-secondary shadow-sm transition-colors hover:border-border-strong hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+                >
+                  Show more ({items.length - visibleCount} remaining)
+                </button>
+              )}
             </div>
           )}
         </section>

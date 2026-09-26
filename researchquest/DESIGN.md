@@ -6,7 +6,7 @@
 
 ResearchQuest is a warm editorial research workspace: ivory and charcoal surfaces, crisp hairline divisions, and deliberately sharp 2–8px geometry make dense scholarly work feel composed rather than decorative. Playfair Display gives headings the authority of a printed title page; Inter keeps controls quiet and legible; JetBrains Mono makes timers and measured progress feel precise. The signature is **paper hierarchy without paper clutter**: `bg-base` is the canvas, `bg-surface` is the working sheet, `bg-elevated` is the supporting layer, and borders are used as restrained editorial rules.
 
-Navigation is grouped as **Plan** (Today, Tasks, Focus Studio, Feeds) and **Library** (Notes, Papers, Ideas, Topics). The day loop is Today → Focus → mark done. Topic Quests stay topic-scoped. Daily missions and the sprint board exist in code but are unshipped.
+Navigation is grouped as **Plan** (Today, Tasks, Focus Studio, Feeds) and **Library** (Notes, Papers, Ideas, Topics). The day loop is Today → Focus → mark done. Today items can be dragged to reorder. Notes and Focus stay mounted after first visit. Topics can be typed as Research, Area, or Subject (no extra table). Topic Quests stay topic-scoped. Daily missions and the sprint board exist in code but are unshipped.
 
 The visual contract covers the primary views: **Today/Dashboard, Notes, Papers, Ideas, Tasks, Topics, Focus Studio, and Feeds**. Preserve current routes, selection behavior, data loading, dialogs, editor flows, and shell/sidebar behavior unless an IA change is explicitly in scope.
 
@@ -202,7 +202,7 @@ Every view starts with a clear `PageHeader` or a view-specific list header, then
 
 ### Focus Studio — one deliberate session
 
-- Preserve the single focus journey: choose a target, set a duration, start/pause/reset the timer, review the target, and optionally open it in its workspace. No new IA or timer behavior.
+- Preserve the single focus journey: choose a Today or library target, or type a freeform intention, set a duration, start/pause/reset the timer, review the target, and optionally open an entity in its workspace. After first visit, Focus stays mounted while you navigate away so the timer does not reset.
 - Use a `PageHeader` with the Target mark, serif title, and short supporting copy. The workspace becomes a two-column layout at `xl`: the timer/target surface is wider, and the target/insight aside is narrower.
 - Timers, durations, percentages, and XP values use `font-mono`. The timer is the focal metric; surrounding controls remain quiet and use the existing Button variants.
 - Session state uses success for completion, primary for active selection/action, and warning only for attention. Do not use gradients for progress; use a semantic solid fill over a neutral track.

@@ -135,6 +135,33 @@ module.exports = {
 					hover: 'var(--info-hover)',
 					foreground: 'var(--info-foreground)',
 				},
+				accent: {
+					DEFAULT: 'var(--accent)',
+					soft: 'var(--accent-soft)',
+					strong: 'var(--accent-strong)',
+					contrast: 'var(--accent-contrast)',
+				},
+				violet: {
+					DEFAULT: 'var(--violet)',
+					soft: 'var(--violet-soft)',
+					strong: 'var(--violet-strong)',
+				},
+				gold: {
+					DEFAULT: 'var(--gold)',
+					soft: 'var(--gold-soft)',
+					strong: 'var(--gold-strong)',
+				},
+				coral: {
+					DEFAULT: 'var(--coral)',
+					soft: 'var(--coral-soft)',
+					strong: 'var(--coral-strong)',
+				},
+				blue: {
+					DEFAULT: 'var(--blue)',
+					soft: 'var(--blue-soft)',
+					strong: 'var(--blue-strong)',
+					500: 'var(--blue)',
+				},
 				focus: 'var(--focus)',
 				overlay: 'var(--overlay)',
 			},

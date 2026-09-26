@@ -120,7 +120,7 @@ describe("PR12 layout wrappers + containment (static guards)", () => {
     expect(shell.match(/<OnboardingGuide/g)?.length ?? 0).toBe(1);
     expect(shell).toContain('variant="contextual"');
     expect(shell).toContain("isDemoFirstRunPath");
-    expect(shell).not.toContain("data-first-run");
+    expect(shell).toContain("data-first-run");
   });
 
   it("Feeds lists inbox items even with 0 sources and keeps an honesty note", () => {
@@ -128,7 +128,7 @@ describe("PR12 layout wrappers + containment (static guards)", () => {
     expect(feeds).not.toContain("const ingestReady = (sourceCount ?? 0) > 0");
     expect(feeds).not.toContain("const visibleItems = ingestReady ? items : []");
     expect(feeds).toContain("Source and RSS management is not fully shipped");
-    expect(feeds).toContain("items.map");
+    expect(feeds).toContain("visibleItems.map");
   });
 
   it("dashboard counts grid steps through an intermediate breakpoint (no orphan)", () => {

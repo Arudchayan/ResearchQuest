@@ -7,6 +7,8 @@ export interface IdeaStageDefinition {
   readonly description: string;
   readonly badgeVariant: Extract<BadgeVariant, `stage-${string}`>;
   readonly selectClassName: string;
+  readonly edgeClassName: string;
+  readonly fillClassName: string;
 }
 
 export const IDEA_STAGES = [
@@ -16,6 +18,8 @@ export const IDEA_STAGES = [
     description: "Fresh hypotheses waiting for exploration",
     badgeVariant: "stage-seed",
     selectClassName: "border-stage-seed bg-stage-seed-bg text-stage-seed",
+    edgeClassName: "border-t-2 border-t-stage-seed",
+    fillClassName: "bg-stage-seed",
   },
   {
     id: "Developing",
@@ -24,6 +28,8 @@ export const IDEA_STAGES = [
     badgeVariant: "stage-developing",
     selectClassName:
       "border-stage-developing bg-stage-developing-bg text-stage-developing",
+    edgeClassName: "border-t-2 border-t-stage-developing",
+    fillClassName: "bg-stage-developing",
   },
   {
     id: "Supported",
@@ -32,6 +38,8 @@ export const IDEA_STAGES = [
     badgeVariant: "stage-supported",
     selectClassName:
       "border-stage-supported bg-stage-supported-bg text-stage-supported",
+    edgeClassName: "border-t-2 border-t-stage-supported",
+    fillClassName: "bg-stage-supported",
   },
   {
     id: "Mature",
@@ -39,5 +47,7 @@ export const IDEA_STAGES = [
     description: "Ready to share, publish, or archive",
     badgeVariant: "stage-mature",
     selectClassName: "border-stage-mature bg-stage-mature-bg text-stage-mature",
+    edgeClassName: "border-t-2 border-t-stage-mature",
+    fillClassName: "bg-stage-mature",
   },
 ] as const satisfies readonly IdeaStageDefinition[];

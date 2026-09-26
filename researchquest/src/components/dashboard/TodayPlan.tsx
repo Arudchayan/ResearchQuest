@@ -32,16 +32,18 @@ export function TodayPlan({
   const tasks = useTasksStore((state) => state.tasks);
   const setSelectedTask = useTasksStore((state) => state.setSelectedTask);
   const { createTask, completeTask } = useTasks(userId, { owner: false });
-  const { orderedIds, pin, move, setPendingFocusTaskId } = useTodayPlanStore(
+  const { orderedIds, pin, unpin, setOrder, setPendingFocusTaskId } = useTodayPlanStore(
     useShallow((state) => ({
       orderedIds: state.orderedIds,
       pin: state.pin,
-      move: state.move,
+      unpin: state.unpin,
+      setOrder: state.setOrder,
       setPendingFocusTaskId: state.setPendingFocusTaskId,
     })),
   );
   const [draft, setDraft] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
 
   const todayTasks = useMemo(
     () => resolveTodayTasks(tasks),
@@ -79,16 +81,64 @@ export function TodayPlan({
     [createTask, draft, pin, submitting],
   );
 
-  const seedOrder = useCallback(() => {
-    for (const task of todayTasks) {
-      pin(task.id);
-    }
-  }, [pin, todayTasks]);
+  const persistVisibleOrder = useCallback(
+    (visible: { id: string }[]) => {
+      setOrder(visible.map((task) => task.id));
+    },
+    [setOrder],
+  );
+
+  const moveVisible = useCallback(
+    (taskId: string, direction: -1 | 1) => {
+      const index = todayTasks.findIndex((task) => task.id === taskId);
+      if (index < 0) return;
+      const next = index + direction;
+      if (next < 0 || next >= todayTasks.length) return;
+      const reordered = [...todayTasks];
+      const [removed] = reordered.splice(index, 1);
+      if (!removed) return;
+      reordered.splice(next, 0, removed);
+      persistVisibleOrder(reordered);
+    },
+    [persistVisibleOrder, todayTasks],
+  );
+
+  const moveVisibleToIndex = useCallback(
+    (taskId: string, toIndex: number) => {
+      const from = todayTasks.findIndex((task) => task.id === taskId);
+      if (from < 0) return;
+      const bounded = Math.max(0, Math.min(toIndex, todayTasks.length - 1));
+      if (from === bounded) {
+        // Still persist so newly due-today rows join the stored order and
+        // completed/deleted ghosts drop out.
+        persistVisibleOrder(todayTasks);
+        return;
+      }
+      const reordered = [...todayTasks];
+      const [removed] = reordered.splice(from, 1);
+      if (!removed) return;
+      reordered.splice(bounded, 0, removed);
+      persistVisibleOrder(reordered);
+    },
+    [persistVisibleOrder, todayTasks],
+  );
+
+  const handleToggleComplete = useCallback(
+    (taskId: string, completed: boolean) => {
+      // Completing removes the row from Today; drop the ghost id only once
+      // completion commits — a failed write must keep its stored order.
+      void completeTask(taskId).then((ok) => {
+        if (ok && !completed) unpin(taskId);
+      });
+    },
+    [completeTask, unpin],
+  );
 
   const handleStartFocus = useCallback(
     (taskId: string) => {
       const task = tasks.find((item) => item.id === taskId);
-      if (task) setSelectedTask(task);
+      if (!task) return;
+      setSelectedTask(task);
       setPendingFocusTaskId(taskId);
       navigateToView("focus");
     },
@@ -161,6 +211,25 @@ export function TodayPlan({
             {todayTasks.map((task, index) => (
               <li
                 key={task.id}
+                draggable
+                onDragStart={(event) => {
+                  setDraggingId(task.id);
+                  event.dataTransfer.setData("text/plain", task.id);
+                  event.dataTransfer.effectAllowed = "move";
+                }}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "move";
+                }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  const sourceId =
+                    event.dataTransfer.getData("text/plain") || draggingId;
+                  setDraggingId(null);
+                  if (!sourceId || sourceId === task.id) return;
+                  moveVisibleToIndex(sourceId, index);
+                }}
+                onDragEnd={() => setDraggingId(null)}
                 className="flex items-center gap-2 p-2 hover:bg-bg-elevated"
               >
                 <input
@@ -168,7 +237,7 @@ export function TodayPlan({
                   checked={task.completed}
                   aria-label={`Mark complete: ${task.title}`}
                   onChange={() => {
-                    void completeTask(task.id);
+                    handleToggleComplete(task.id, task.completed);
                   }}
                   className="h-4 w-4 shrink-0 accent-[var(--primary-500)]"
                 />
@@ -197,8 +266,7 @@ export function TodayPlan({
                     aria-label={`Move ${task.title} up`}
                     disabled={index === 0}
                     onClick={() => {
-                      seedOrder();
-                      move(task.id, -1);
+                      moveVisible(task.id, -1);
                     }}
                     className="inline-flex min-h-6 min-w-8 items-center justify-center text-text-tertiary hover:text-text-primary disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus"
                   >
@@ -209,8 +277,7 @@ export function TodayPlan({
                     aria-label={`Move ${task.title} down`}
                     disabled={index === todayTasks.length - 1}
                     onClick={() => {
-                      seedOrder();
-                      move(task.id, 1);
+                      moveVisible(task.id, 1);
                     }}
                     className="inline-flex min-h-6 min-w-8 items-center justify-center text-text-tertiary hover:text-text-primary disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus"
                   >

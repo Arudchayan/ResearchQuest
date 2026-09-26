@@ -61,6 +61,9 @@ describe("todayPlanStore", () => {
     store.move("b", -1);
     expect(useTodayPlanStore.getState().orderedIds).toEqual(["b", "a"]);
 
+    store.moveToIndex("a", 0);
+    expect(useTodayPlanStore.getState().orderedIds).toEqual(["a", "b"]);
+
     store.setPendingFocusTaskId("b");
     expect(useTodayPlanStore.getState().consumePendingFocusTaskId()).toBe("b");
     expect(useTodayPlanStore.getState().pendingFocusTaskId).toBeNull();

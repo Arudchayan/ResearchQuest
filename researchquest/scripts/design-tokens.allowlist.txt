@@ -84,3 +84,32 @@ src/components/papers/CitationDialog.tsx :: className="fixed left-[50%] top-[50%
 src/components/papers/CitationDialog.tsx :: className="border-b-2 border-transparent px-1 pb-3 text-sm font-medium text-text-secondary capitalize whitespace-nowrap outline-none transition-all hover:text-text-primary data-[state=active]:border-accent data-[state=active]:text-accent-strong"
 src/components/papers/CitationDialog.tsx :: <Dialog.Close className="inline-flex h-10 items-center justify-center rounded-lg border border-border-moderate bg-bg-surface px-4 text-sm font-semibold text-text-secondary shadow-sm transition-all hover:-translate-y-0.5 hover:border-border-strong hover:bg-bg-elevated hover:text-text-primary hover:shadow-lift">
 src/components/papers/CitationDialog.tsx :: className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-text-primary px-4 text-sm font-semibold text-bg-base shadow-lift transition-transform hover:-translate-y-0.5 hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
+
+# LEGIT: accent/violet/gold/coral/blue tokens now defined in tailwind.config.js + src/index.css
+src/components/dashboard/TodayPlan.tsx :: className="h-4 w-4 shrink-0 accent-primary-500"
+src/components/feeds/FeedSourcesPanel.tsx :: <PlugZap className="h-4 w-4 text-accent-strong" aria-hidden="true" />
+src/components/feeds/FeedSourcesPanel.tsx :: className="inline-flex items-center gap-1.5 rounded-lg border border-border-moderate bg-bg-surface px-2.5 py-1.5 text-caption font-medium text-text-secondary shadow-sm transition-colors hover:border-border-strong hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+src/components/feeds/FeedSourcesPanel.tsx :: className="rounded-lg border border-border-moderate bg-bg-surface px-3 py-2 text-small text-text-primary placeholder:text-text-tertiary focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+src/components/feeds/FeedSourcesPanel.tsx :: className="rounded-lg border border-border-moderate bg-bg-surface px-3 py-2 text-small text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+src/components/feeds/FeedSourcesPanel.tsx :: className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-text-primary px-3 py-2 text-small font-medium text-bg-base shadow-sm transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
+src/components/feeds/FeedSourcesPanel.tsx :: className="rounded-lg border border-border-moderate bg-bg-surface px-2.5 py-1 text-caption font-medium text-text-secondary hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+src/components/feeds/FeedSourcesPanel.tsx :: "relative h-6 w-11 rounded-full transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent",
+src/components/feeds/FeedSourcesPanel.tsx :: source.enabled ? "bg-accent" : "bg-border-strong",
+src/components/feeds/FeedSourcesPanel.tsx :: className="rounded-lg border border-border-moderate bg-bg-surface p-1.5 text-text-secondary shadow-sm transition-colors hover:border-border-strong hover:text-text-primary disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+src/components/feeds/FeedsRail.tsx :: className="shrink-0 rounded-lg border border-border-moderate bg-bg-surface px-2.5 py-1 text-caption font-medium text-text-secondary hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+src/components/feeds/FeedsView.tsx :: className="rounded-xl border border-gold-strong/30 bg-gold-soft px-4 py-3 text-small text-text-secondary"
+src/components/feeds/FeedsView.tsx :: className="inline-flex items-center gap-1.5 rounded-lg border border-border-moderate bg-bg-surface px-2.5 py-1.5 text-caption font-medium text-text-secondary shadow-sm transition-colors hover:border-border-strong hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+src/components/feeds/FeedsView.tsx :: className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border-moderate bg-bg-surface px-3 py-2 text-small font-medium text-text-secondary shadow-sm transition-colors hover:border-border-strong hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+src/components/feeds/FeedsView.tsx :: className="w-full rounded-xl border border-border-moderate bg-bg-surface px-3 py-2.5 text-small font-medium text-text-secondary shadow-sm transition-colors hover:border-border-strong hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+src/index.css :: --accent: #1C1C1A;
+src/index.css :: --accent-soft: #F4F4F0;
+src/index.css :: --accent-strong: #1C1C1A;
+src/index.css :: --accent-contrast: #FDFDFB;
+src/index.css :: --gold-soft: #FDF8ED;
+src/index.css :: --coral-soft: #FDF1EF;
+src/index.css :: --accent: #EDEDE4;
+src/index.css :: --accent-soft: #2C2C2A;
+src/index.css :: --accent-strong: #EDEDE4;
+src/index.css :: --accent-contrast: #121211;
+src/index.css :: --gold-soft: rgba(209, 156, 76, 0.12);
+src/index.css :: --coral-soft: rgba(217, 135, 126, 0.12);
