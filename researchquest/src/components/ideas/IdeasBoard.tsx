@@ -96,11 +96,10 @@ export function IdeasBoard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOption, setSortOption] = useState<SortOption>("updated_desc");
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const drawerRef = useRef<HTMLElement | null>(null);
-  const previouslyFocusedRef = useRef<Element | null>(null);
 
   const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastDeletedRef = useRef<Idea | null>(null);
+  const lastFocusedBeforeDetailRef = useRef<Element | null>(null);
 
   // ⚡ PERFORMANCE OPTIMIZATION: Pre-compute derived text fields for faster searching
   const searchableIdeas = useMemo(() => {
@@ -177,47 +176,6 @@ export function IdeasBoard() {
     };
   }, []);
 
-  // Dialog semantics for the detail drawer: Escape to close, focus trap
-  // while open, and focus restoration on close.
-  useEffect(() => {
-    if (!selectedIdea) return;
-    previouslyFocusedRef.current = document.activeElement;
-    const node = drawerRef.current;
-    // Move focus into the dialog so keyboard users land inside it.
-    node?.focus();
-
-    const onKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.stopPropagation();
-        setSelectedIdea(null);
-        return;
-      }
-      if (event.key !== "Tab" || !node) return;
-      const focusables = node.querySelectorAll<HTMLElement>(
-        'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])',
-      );
-      if (focusables.length === 0) {
-        event.preventDefault();
-        return;
-      }
-      const first = focusables[0];
-      const last = focusables[focusables.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last?.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first?.focus();
-      }
-    };
-
-    document.addEventListener("keydown", onKeyDown, true);
-    return () => {
-      document.removeEventListener("keydown", onKeyDown, true);
-      const prev = previouslyFocusedRef.current as HTMLElement | null;
-      prev?.focus?.();
-    };
-  }, [selectedIdea, setSelectedIdea]);
 
   const handleDeleteWithUndo = useCallback(
     async (ideaId: string) => {
@@ -419,21 +377,21 @@ export function IdeasBoard() {
                 >
                   <DropdownMenu.Item
                     onSelect={() => handleExport("markdown")}
-                    className="flex cursor-pointer items-center gap-2 rounded-control px-3 py-2 text-small text-text-secondary outline-none transition-colors hover:bg-bg-elevated hover:text-text-primary focus:bg-bg-elevated"
+                    className="flex cursor-pointer items-center gap-2 rounded-control px-3 py-2 text-small text-text-secondary outline-none transition-colors hover:bg-bg-elevated hover:text-text-primary focus:bg-bg-elevated focus-visible:ring-2 focus-visible:ring-focus"
                   >
                     <FileText aria-hidden="true" className="h-4 w-4" />
                     Markdown (.md)
                   </DropdownMenu.Item>
                   <DropdownMenu.Item
                     onSelect={() => handleExport("csv")}
-                    className="flex cursor-pointer items-center gap-2 rounded-control px-3 py-2 text-small text-text-secondary outline-none transition-colors hover:bg-bg-elevated hover:text-text-primary focus:bg-bg-elevated"
+                    className="flex cursor-pointer items-center gap-2 rounded-control px-3 py-2 text-small text-text-secondary outline-none transition-colors hover:bg-bg-elevated hover:text-text-primary focus:bg-bg-elevated focus-visible:ring-2 focus-visible:ring-focus"
                   >
                     <Table aria-hidden="true" className="h-4 w-4" />
                     CSV (.csv)
                   </DropdownMenu.Item>
                   <DropdownMenu.Item
                     onSelect={() => handleExport("json")}
-                    className="flex cursor-pointer items-center gap-2 rounded-control px-3 py-2 text-small text-text-secondary outline-none transition-colors hover:bg-bg-elevated hover:text-text-primary focus:bg-bg-elevated"
+                    className="flex cursor-pointer items-center gap-2 rounded-control px-3 py-2 text-small text-text-secondary outline-none transition-colors hover:bg-bg-elevated hover:text-text-primary focus:bg-bg-elevated focus-visible:ring-2 focus-visible:ring-focus"
                   >
                     <FileJson aria-hidden="true" className="h-4 w-4" />
                     JSON (.json)
@@ -485,7 +443,7 @@ export function IdeasBoard() {
           </div>
 
           <div className="flex items-center gap-2">
-            <ArrowUpDown className="h-4 w-4 flex-shrink-0 text-text-tertiary" />
+            <ArrowUpDown className="h-4 w-4 flex-shrink-0 text-text-tertiary" aria-hidden="true" />
             <select
               value={sortOption}
               onChange={(e) => setSortOption(e.target.value as SortOption)}
@@ -652,52 +610,84 @@ export function IdeasBoard() {
         </div>
       </div>
 
-      {/* Idea Detail Drawer */}
-      {selectedIdea && (
-          <aside
-            ref={drawerRef}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Idea details"
-            tabIndex={-1}
-            className="absolute inset-0 z-20 flex h-full w-full flex-col border-l-0 border-border-subtle bg-bg-surface shadow-lg lg:relative lg:inset-auto lg:w-[450px] lg:border-l"
+      {/* Idea Detail Drawer — Radix Dialog in non-modal mode: provides
+          role="dialog", Escape-to-close, and focus return, while the desktop
+          side-by-side board stays interactive (lg:relative, lg:w-[450px]).
+          Outside-close applies on mobile overlay only; on lg the board must
+          stay clickable so selecting another idea swaps details instead of
+          closing the drawer. */}
+      <Dialog.Root
+        open={!!selectedIdea}
+        modal={false}
+        onOpenChange={(open) => {
+          if (!open) setSelectedIdea(null);
+        }}
+      >
+        {selectedIdea && (
+          <Dialog.Content
+            aria-describedby={undefined}
+            onEscapeKeyDown={() => setSelectedIdea(null)}
+            onOpenAutoFocus={() => {
+              // Non-modal Radix dialogs don't guarantee focus placement;
+              // remember the opener so close can restore it.
+              lastFocusedBeforeDetailRef.current = document.activeElement;
+            }}
+            onCloseAutoFocus={(event) => {
+              event.preventDefault();
+              const opener = lastFocusedBeforeDetailRef.current;
+              if (opener instanceof HTMLElement) opener.focus();
+              lastFocusedBeforeDetailRef.current = null;
+            }}
+            onInteractOutside={(event) => {
+              if (
+                typeof window !== "undefined" &&
+                window.matchMedia("(min-width: 1024px)").matches
+              ) {
+                event.preventDefault();
+                return;
+              }
+              setSelectedIdea(null);
+            }}
+            className="absolute inset-0 z-20 flex h-full min-h-0 w-full flex-col border-l-0 border-border-subtle bg-bg-surface shadow-lg lg:relative lg:inset-auto lg:w-[450px] lg:border-l"
           >
-           <div className="flex items-center justify-between border-b border-border-subtle p-4">
-            <div className="flex items-center gap-3">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => setSelectedIdea(null)}
-                className="-ml-2 lg:hidden"
-                aria-label="Back to board"
-              >
-                <ArrowLeft aria-hidden="true" />
-              </Button>
-               <h2 className="font-semibold text-text-primary">
-                Idea Details
-               </h2>
+            <div className="flex items-center justify-between border-b border-border-subtle p-4">
+              <div className="flex items-center gap-3">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setSelectedIdea(null)}
+                  className="-ml-2 rounded-full lg:hidden"
+                  aria-label="Back to board"
+                >
+                  <ArrowLeft aria-hidden="true" />
+                </Button>
+                <Dialog.Title className="font-semibold text-text-primary">
+                  Idea Details
+                </Dialog.Title>
+              </div>
+              <Dialog.Close asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Close details"
+                  className="hidden rounded-full lg:inline-flex"
+                >
+                  <X aria-hidden="true" />
+                </Button>
+              </Dialog.Close>
             </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => setSelectedIdea(null)}
-              aria-label="Close details"
-              className="hidden lg:inline-flex"
-            >
-              <X aria-hidden="true" />
-            </Button>
-          </div>
-          <div className="flex-1 overflow-y-auto overflow-x-hidden p-4">
-            <IdeaDetailView
-              idea={selectedIdea}
-              onUpdate={updateIdea}
-              onDelete={handleDeleteWithUndo}
-            />
-          </div>
-          </aside>
-      )}
+            <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-4">
+              <IdeaDetailView
+                idea={selectedIdea}
+                onUpdate={updateIdea}
+                onDelete={handleDeleteWithUndo}
+              />
+            </div>
+          </Dialog.Content>
+        )}
+      </Dialog.Root>
 
       {/* Create Dialog */}
       <Dialog.Root

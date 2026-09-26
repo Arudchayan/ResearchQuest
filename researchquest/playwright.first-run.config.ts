@@ -33,7 +33,9 @@ export default defineConfig({
   webServer: {
     command: `pnpm exec vite --host 127.0.0.1 --port ${e2ePort}`,
     url: baseURL,
-    reuseExistingServer: !process.env.CI,
+    // P1 Batch 3: receipt configs never reuse a stray server — a hung dev
+    // server must not mask a broken bundle in a click receipt.
+    reuseExistingServer: false,
     timeout: 120_000,
     env: {
       ...process.env,

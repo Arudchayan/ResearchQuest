@@ -268,7 +268,7 @@ export function RightSidebar() {
                 <Link2 className="w-4 h-4" />
                 Backlinks
                 {backlinks.length > 0 && (
-                  <span className="ml-auto text-xs bg-primary-500/20 text-primary-600 dark:text-primary-400 px-2 py-0.5 rounded-full">
+                  <span className="ml-auto text-xs bg-primary-50 text-primary-600 dark:text-primary-400 px-2 py-0.5 rounded-full">
                     {backlinks.length}
                   </span>
                 )}
@@ -327,7 +327,7 @@ export function RightSidebar() {
                 <Hash className="w-4 h-4" />
                 Related
                 {relatedItems.length > 0 && (
-                  <span className="ml-auto text-xs bg-primary-500/20 text-primary-600 dark:text-primary-400 px-2 py-0.5 rounded-full">
+                  <span className="ml-auto text-xs bg-primary-50 text-primary-600 dark:text-primary-400 px-2 py-0.5 rounded-full">
                     {relatedItems.length}
                   </span>
                 )}
@@ -472,9 +472,15 @@ export function RightSidebar() {
               <div className="flex items-start gap-2">
                 <Coffee className="w-4 h-4 text-success mt-0.5" />
                 <span>
-                  {streakFreezeTokens} freeze token
-                  {streakFreezeTokens === 1 ? "" : "s"} · {restDays} rest day
-                  {restDays === 1 ? "" : "s"} ready to deploy.
+                  {streakFreezeTokens > 0 || restDays > 0 ? (
+                    <>
+                      {streakFreezeTokens} freeze token
+                      {streakFreezeTokens === 1 ? "" : "s"} · {restDays} rest day
+                      {restDays === 1 ? "" : "s"} ready to deploy.
+                    </>
+                  ) : (
+                    "No freeze tokens or rest days banked right now."
+                  )}
                 </span>
               </div>
             </div>

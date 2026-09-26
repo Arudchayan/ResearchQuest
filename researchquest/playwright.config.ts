@@ -30,7 +30,9 @@ export default defineConfig({
   ],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+  // P1 Batch 3: single retry in CI — enough to absorb flakes, cheap enough to
+  // keep the default run fast. Trace stays on-first-retry for diagnosis.
+  retries: process.env.CI ? 1 : 0,
   workers: process.env.CI ? 2 : undefined,
   reporter: [["list"]],
   use: {

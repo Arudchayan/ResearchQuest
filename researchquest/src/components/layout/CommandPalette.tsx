@@ -16,6 +16,7 @@ import {
   LayoutDashboard,
   Hash,
   Inbox,
+  Maximize2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAppStore } from "../../store/appStore";
@@ -313,6 +314,11 @@ function CommandPaletteIndex({
     onOpenChange(false);
   };
 
+  const handleToggleZenMode = () => {
+    useAppStore.getState().toggleZenMode();
+    onOpenChange(false);
+  };
+
   const handleExport = async () => {
     const { user, notes, papers, ideas, topics, tasks } =
       useAppStore.getState();
@@ -575,6 +581,11 @@ function CommandPaletteIndex({
             <Command.Item onSelect={toggleTheme}>
               {effectiveTheme === "light" ? <Moon /> : <Sun />}
               <span>Toggle Theme</span>
+            </Command.Item>
+
+            <Command.Item onSelect={handleToggleZenMode}>
+              <Maximize2 />
+              <span>Toggle Zen Mode</span>
             </Command.Item>
 
             <Command.Item

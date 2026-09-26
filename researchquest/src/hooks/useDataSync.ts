@@ -246,6 +246,32 @@ export function useDataSync(userId: string | undefined) {
       }
     };
 
+    // Trailing debounce for fire-and-forget realtime refetches: burst
+    // INSERT/* events collapse into one fetch per 500ms window.
+    // Pending timers are tracked so unmount clears them.
+    const pendingDebounceTimers = new Set<ReturnType<typeof setTimeout>>();
+    const debounceRealtimeRefetch = (fn: () => void) => {
+      let timer: ReturnType<typeof setTimeout> | null = null;
+      return () => {
+        if (timer !== null) {
+          clearTimeout(timer);
+          pendingDebounceTimers.delete(timer);
+        }
+        timer = setTimeout(() => {
+          if (timer !== null) pendingDebounceTimers.delete(timer);
+          timer = null;
+          fn();
+        }, 500);
+        pendingDebounceTimers.add(timer);
+      };
+    };
+    const debouncedFetchFocusToday = debounceRealtimeRefetch(() => {
+      void fetchFocusSessionsToday();
+    });
+    const debouncedFetchTodayXP = debounceRealtimeRefetch(() => {
+      void fetchTodayXP();
+    });
+
     // Initial fetch (only what is needed for current view)
     void fetchNotes();
     void fetchPapers();
@@ -400,7 +426,7 @@ export function useDataSync(userId: string | undefined) {
           filter: `user_id=eq.${userId}`,
         },
         () => {
-          void fetchFocusSessionsToday();
+          debouncedFetchFocusToday();
         },
       )
       .subscribe();
@@ -418,7 +444,7 @@ export function useDataSync(userId: string | undefined) {
           filter: `user_id=eq.${userId}`,
         },
         () => {
-          void fetchTodayXP();
+          debouncedFetchTodayXP();
         },
       )
       .subscribe();
@@ -450,6 +476,8 @@ export function useDataSync(userId: string | undefined) {
 
     return () => {
       retryUnsub();
+      pendingDebounceTimers.forEach((timer) => clearTimeout(timer));
+      pendingDebounceTimers.clear();
       channels.forEach((sub) => sub.unsubscribe());
     };
   }, [

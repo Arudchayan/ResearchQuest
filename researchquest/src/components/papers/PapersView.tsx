@@ -81,6 +81,7 @@ export function PapersView() {
     searchPapersByQuery,
   } = usePapers(userId);
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchInput, setSearchInput] = useState("");
   const [sortOption, setSortOption] = useState<SortOption>("updated_desc");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
@@ -100,6 +101,13 @@ export function PapersView() {
     window.addEventListener("resize", updateColumns);
     return () => window.removeEventListener("resize", updateColumns);
   }, []);
+
+  // Debounce the search input so filtering/re-virtualization only re-runs
+  // once the user pauses typing.
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSearchQuery(searchInput), 150);
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
 
   const { handleDeleteWithUndo } = useUndoDelete(
     (paper: Paper) => deletePaper(paper.id),
@@ -185,6 +193,12 @@ export function PapersView() {
     overscan: 2,
   });
 
+  // Re-measure rows when the column layout changes so cached row heights
+  // never leak across breakpoints.
+  useEffect(() => {
+    rowVirtualizer.measure();
+  }, [columnCount, rowVirtualizer]);
+
   const handleExport = (format: "markdown" | "bibtex" | "csv" | "json") => {
     if (filteredPapers.length === 0) {
       toast.error("No papers to export");
@@ -261,28 +275,28 @@ export function PapersView() {
                   >
                     <DropdownMenu.Item
                       onSelect={() => handleExport("markdown")}
-                      className="flex cursor-pointer items-center gap-2 rounded-control px-3 py-2 text-small text-text-primary outline-none hover:bg-bg-elevated focus:bg-bg-elevated"
+                      className="flex cursor-pointer items-center gap-2 rounded-control px-3 py-2 text-small text-text-primary outline-none hover:bg-bg-elevated focus:bg-bg-elevated focus-visible:ring-2 focus-visible:ring-focus"
                     >
                       <FileText className="w-4 h-4" />
                       Markdown (.md) — {searchQuery.trim() ? "filtered" : "all"} papers
                     </DropdownMenu.Item>
                     <DropdownMenu.Item
                       onSelect={() => handleExport("bibtex")}
-                      className="flex cursor-pointer items-center gap-2 rounded-control px-3 py-2 text-small text-text-primary outline-none hover:bg-bg-elevated focus:bg-bg-elevated"
+                      className="flex cursor-pointer items-center gap-2 rounded-control px-3 py-2 text-small text-text-primary outline-none hover:bg-bg-elevated focus:bg-bg-elevated focus-visible:ring-2 focus-visible:ring-focus"
                     >
                       <FileText className="w-4 h-4" />
                       BibTeX (.bib) — {searchQuery.trim() ? "filtered" : "all"} papers
                     </DropdownMenu.Item>
                     <DropdownMenu.Item
                       onSelect={() => handleExport("csv")}
-                      className="flex cursor-pointer items-center gap-2 rounded-control px-3 py-2 text-small text-text-primary outline-none hover:bg-bg-elevated focus:bg-bg-elevated"
+                      className="flex cursor-pointer items-center gap-2 rounded-control px-3 py-2 text-small text-text-primary outline-none hover:bg-bg-elevated focus:bg-bg-elevated focus-visible:ring-2 focus-visible:ring-focus"
                     >
                       <Table className="w-4 h-4" />
                       CSV (.csv) — {searchQuery.trim() ? "filtered" : "all"} papers
                     </DropdownMenu.Item>
                     <DropdownMenu.Item
                       onSelect={() => handleExport("json")}
-                      className="flex cursor-pointer items-center gap-2 rounded-control px-3 py-2 text-small text-text-primary outline-none hover:bg-bg-elevated focus:bg-bg-elevated"
+                      className="flex cursor-pointer items-center gap-2 rounded-control px-3 py-2 text-small text-text-primary outline-none hover:bg-bg-elevated focus:bg-bg-elevated focus-visible:ring-2 focus-visible:ring-focus"
                     >
                       <FileJson className="w-4 h-4" />
                       JSON (.json) — {searchQuery.trim() ? "filtered" : "all"} papers
@@ -312,18 +326,18 @@ export function PapersView() {
               ref={searchInputRef}
               type="text"
               placeholder="Search library..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               className="bg-bg-base pl-10 pr-12 text-small"
               aria-label="Search papers"
             />
-            {searchQuery && (
+            {searchInput && (
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
                 onClick={() => {
-                  setSearchQuery("");
+                  setSearchInput("");
                   searchInputRef.current?.focus();
                 }}
                 className="absolute right-0 top-1/2 -translate-y-1/2 rounded-full text-text-tertiary hover:text-text-primary"
@@ -335,7 +349,7 @@ export function PapersView() {
           </div>
 
           <div className="flex items-center gap-2">
-            <ArrowUpDown className="h-4 w-4 text-text-tertiary" />
+            <ArrowUpDown className="h-4 w-4 text-text-tertiary" aria-hidden="true" />
             <select
               value={sortOption}
               onChange={(e) => setSortOption(e.target.value as SortOption)}
@@ -386,7 +400,7 @@ export function PapersView() {
                     type="button"
                     variant="outline"
                     onClick={() => {
-                      setSearchQuery("");
+                      setSearchInput("");
                       searchInputRef.current?.focus();
                     }}
                   >

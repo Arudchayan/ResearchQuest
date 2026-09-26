@@ -25,6 +25,10 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
+      // P1 Batch 3: include untested files so coverage reflects the whole
+      // tree, not just imported modules. If this tanks the run below the
+      // floors, report it — do NOT lower the thresholds to compensate.
+      all: true,
       thresholds: {
         // PR9 item 98: global floors measured from real local runs
         // (statements ~64.1 / branches ~54.8 / functions ~61.9 / lines ~66.0).

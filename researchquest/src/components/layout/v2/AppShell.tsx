@@ -132,7 +132,7 @@ export function AppShell({ children }: AppShellProps) {
       {showChrome ? (
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-bg-surface focus:text-primary-500 focus:font-medium focus:outline-none focus:ring-1 focus:ring-primary-500 focus:rounded-sm focus:shadow-md"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-bg-surface focus:text-primary-500 focus:font-medium focus:outline-none focus:ring-2 focus:ring-focus focus:ring-offset-2 focus:ring-offset-bg-base focus:rounded-sm focus:shadow-md"
       >
         Skip to content
       </a>
@@ -244,6 +244,11 @@ export function AppShell({ children }: AppShellProps) {
         </aside>
       )}
 
+      {/* Screen-reader announcement for Zen Mode changes */}
+      <div className="sr-only" role="status" aria-live="polite">
+        {isZenMode ? "Zen Mode enabled" : "Zen Mode disabled"}
+      </div>
+
       {/* Zen Mode Exit Button */}
       {isZenMode && !isDemoFirstRunSurface && (
         <Tooltip>
@@ -257,7 +262,14 @@ export function AppShell({ children }: AppShellProps) {
             </button>
           </TooltipTrigger>
           <TooltipContent>
-            <p>Exit Zen Mode (Ctrl+Shift+F)</p>
+            <p>
+              Exit Zen Mode (
+              {typeof navigator !== "undefined" &&
+              navigator.platform.includes("Mac")
+                ? "⌘+Shift+F"
+                : "Ctrl+Shift+F"}
+              )
+            </p>
           </TooltipContent>
         </Tooltip>
       )}
