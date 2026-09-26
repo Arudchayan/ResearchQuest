@@ -4,12 +4,19 @@ import {
   currentFocusHydrateEpoch,
   currentFocusRunEpoch,
   ensureFocusSessionGuardAttached,
+  publishLiveFocusSnapshot,
   registerFocusFreeze,
   subscribeFocusHydrateEpoch,
 } from "../../components/focus/focusSessionGuard";
+import {
+  FOCUS_SESSION_STORAGE_KEY,
+  saveFocusSession,
+} from "../../components/focus/focusUtils";
 
 describe("focusSessionGuard", () => {
   beforeEach(() => {
+    window.localStorage.clear();
+    publishLiveFocusSnapshot(null);
     ensureFocusSessionGuardAttached();
   });
 
@@ -118,5 +125,54 @@ describe("focusSessionGuard", () => {
 
     unregister();
     unsubscribe();
+  });
+
+  it("pagehide without freeze registration persists published live snapshot paused", () => {
+    publishLiveFocusSnapshot({
+      selectedTarget: { type: "note", id: "note-1" },
+      sessionLength: 25 * 60,
+      timeLeft: 24 * 60 + 55,
+      hasCompletedSession: false,
+      sessionCount: 1,
+      isLive: true,
+      resumeHold: false,
+    });
+    saveFocusSession({
+      version: 1,
+      selectedTarget: { type: "note", id: "note-1" },
+      sessionLength: 25 * 60,
+      isRunning: true,
+      startedAt: Date.now(),
+      timeLeft: 24 * 60 + 58,
+      hasCompletedSession: false,
+      sessionCount: 1,
+    });
+
+    window.dispatchEvent(new Event("pagehide"));
+
+    const stored = JSON.parse(
+      window.localStorage.getItem(FOCUS_SESSION_STORAGE_KEY)!,
+    );
+    expect(stored.isRunning).toBe(false);
+    expect(stored.timeLeft).toBe(24 * 60 + 55);
+    expect(stored.startedAt).toBeNull();
+  });
+
+  it("pagehide with no live snapshot and empty storage stays Start-only empty", () => {
+    window.dispatchEvent(new Event("pagehide"));
+    expect(window.localStorage.getItem(FOCUS_SESSION_STORAGE_KEY)).toBeNull();
+  });
+
+  it("pageswap of a live run freezes even without visibility hidden", () => {
+    const freeze = vi.fn();
+    const unregister = registerFocusFreeze({
+      freeze,
+      isLive: () => true,
+    });
+
+    window.dispatchEvent(new Event("pageswap"));
+    expect(freeze).toHaveBeenCalledTimes(1);
+
+    unregister();
   });
 });

@@ -38,10 +38,7 @@ import {
   navigateToView,
   subscribeSoftNavigation,
 } from "./lib/softNavigation";
-import {
-  currentFocusHydrateEpoch,
-  subscribeFocusHydrateEpoch,
-} from "./components/focus/focusSessionGuard";
+import { useFocusHydrateEpoch } from "./components/focus/focusSessionGuard";
 
 function ensureDemoFirstRunPath(): boolean {
   if (!isDemoMode || typeof window === "undefined") return false;
@@ -137,15 +134,7 @@ function App() {
   const hydrateGamification = useGamificationStore(
     (state) => state.hydrateFromProfile,
   );
-  const [focusHydrateEpoch, setFocusHydrateEpoch] = useState(
-    currentFocusHydrateEpoch(),
-  );
-
-  useEffect(() => {
-    return subscribeFocusHydrateEpoch(() => {
-      setFocusHydrateEpoch(currentFocusHydrateEpoch());
-    });
-  }, []);
+  const focusHydrateEpoch = useFocusHydrateEpoch();
 
   useEffect(() => {
     if (typeof window !== 'undefined' && (window as any).__TEST_USER__) {

@@ -4,6 +4,7 @@ import {
   persistPausedFocusSession,
   remainingSecondsOnRestore,
   restoredSessionNeedsContinue,
+  rewriteStoredFocusSessionPaused,
   saveFocusSession,
   type FocusSessionSnapshot,
 } from "../../components/focus/focusUtils";
@@ -87,6 +88,19 @@ describe("focus session hydrate", () => {
     saveFocusSession(snapshot);
     expect(restoredSessionNeedsContinue(snapshot)).toBe(true);
     expect(remainingSecondsOnRestore(snapshot)).toBe(snapshot.timeLeft);
+  });
+
+  it("boot rewrite of a live Pause snapshot is paused Continue-hold, empty stays empty", () => {
+    expect(rewriteStoredFocusSessionPaused()).toBeNull();
+    expect(window.localStorage.getItem(FOCUS_SESSION_STORAGE_KEY)).toBeNull();
+
+    saveFocusSession(runningSnapshot({ timeLeft: 24 * 60 + 55 }));
+    const rewritten = rewriteStoredFocusSessionPaused();
+    expect(rewritten).not.toBeNull();
+    expect(rewritten?.isRunning).toBe(false);
+    expect(rewritten?.timeLeft).toBe(24 * 60 + 55);
+    expect(restoredSessionNeedsContinue(rewritten)).toBe(true);
+    expect(remainingSecondsOnRestore(rewritten!)).toBe(24 * 60 + 55);
   });
 
   it("empty / never-started snapshot stays Start-only and does not persist", () => {

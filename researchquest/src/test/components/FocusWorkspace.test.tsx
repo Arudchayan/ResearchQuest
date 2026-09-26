@@ -1,11 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, act, fireEvent } from "@testing-library/react";
-import { StrictMode, useEffect, useState } from "react";
+import { StrictMode } from "react";
 import { FocusWorkspace } from "../../components/focus/FocusWorkspace";
 import { useAppStore } from "../../store/appStore";
 import {
-  currentFocusHydrateEpoch,
-  subscribeFocusHydrateEpoch,
+  useFocusHydrateEpoch,
 } from "../../components/focus/focusSessionGuard";
 
 const { supabaseInsert, completeTaskMock } = vi.hoisted(() => ({
@@ -31,6 +30,7 @@ import {
 import {
   saveFocusSession,
   persistPausedFocusSession,
+  rewriteStoredFocusSessionPaused,
   FOCUS_SESSION_STORAGE_KEY,
 } from "../../components/focus/focusUtils";
 
@@ -436,6 +436,44 @@ describe("FocusWorkspace", () => {
     expect(view.getByText("23:46")).toBeInTheDocument();
   });
 
+  it("hard refresh (new heap) boot-rewrites rq_focus_session then cold-hydrates Continue frozen", async () => {
+    // Wine Soft FAIL @ 7a9fdd27: Start → hard refresh still Pause + tick.
+    // Playwright page.reload Soft PASS was live-heap pagehide, not a new
+    // document. Real hard refresh never paints that remount — Continue must
+    // come from paused storage + a fresh FocusWorkspace mount.
+    persistPausedFocusSession({
+      selectedTarget: { type: "note", id: "note-1" },
+      sessionLength: 25 * 60,
+      liveIsRunning: true,
+      liveStartedAt: Date.now() - 5 * 1000,
+      timeLeft: 24 * 60 + 55,
+      hasCompletedSession: false,
+      sessionCount: 1,
+      keepAlive: false,
+    });
+    rewriteStoredFocusSessionPaused();
+
+    const view = render(<FocusWorkspace userId={userId} />);
+    expect(view.getByText("24:55")).toBeInTheDocument();
+    expect(view.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(
+      view.queryByRole("button", { name: /^Pause$/i }),
+    ).not.toBeInTheDocument();
+
+    await act(async () => {
+      vi.advanceTimersByTime(18 * 1000);
+    });
+    expect(view.getByText("24:55")).toBeInTheDocument();
+    expect(view.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+
+    fireEvent.click(view.getByRole("button", { name: /^Continue$/i }));
+    expect(view.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
+    await act(async () => {
+      vi.advanceTimersByTime(18 * 1000);
+    });
+    expect(view.getByText("24:37")).toBeInTheDocument();
+  });
+
   it("bfcache pageshow of a running session lands paused with Continue", async () => {
     render(<FocusWorkspace userId={userId} />);
     fireEvent.click(screen.getByText("My Note"));
@@ -529,12 +567,7 @@ describe("FocusWorkspace", () => {
   });
 
   function KeyedFocusWorkspace({ userId }: { userId: string }) {
-    const [epoch, setEpoch] = useState(() => currentFocusHydrateEpoch());
-    useEffect(() => {
-      return subscribeFocusHydrateEpoch(() => {
-        setEpoch(currentFocusHydrateEpoch());
-      });
-    }, []);
+    const epoch = useFocusHydrateEpoch();
     return <FocusWorkspace key={epoch} userId={userId} />;
   }
 
