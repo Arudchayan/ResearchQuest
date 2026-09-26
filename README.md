@@ -194,6 +194,23 @@ Without this, the functions fall back to the production app origins
 localhost. This is a server-side secret — it is not a `VITE_*` variable and
 must not be added to Vercel.
 
+Exact format: `ALLOWED_ORIGINS="https://app.example.com,https://preview.example.com"`
+
+- Comma-separated; surrounding whitespace is trimmed and trailing slashes are
+  stripped.
+- Every entry must be `scheme://host` with no path and no wildcard (deployed
+  apps use `https://`). In the `api` gateway shared helper, anything else is
+  malformed: it is ignored and logged loudly in the function logs, and fails
+  `check:cors` (a fully-malformed value is treated the same as unset).
+  `fetch-paper` and `deep-research` still use their legacy per-function parsing
+  with the same unset fallback plus a loud unset warning.
+- When the secret is unset, the functions keep serving the fallback origins
+  above and log a warning on cold start. To block that fallback entirely, call
+  the fail-closed `requireAllowedOrigins()` from
+  `supabase/functions/api/_shared/cors.ts` instead of `getAllowedOrigins()`.
+- Validate before deploying (from `researchquest/`, with the secret exported):
+  `ALLOWED_ORIGINS="..." pnpm run check:cors -- --strict`.
+
 ## Security
 
 See [SECURITY.md](SECURITY.md) for private vulnerability reporting. Do not commit

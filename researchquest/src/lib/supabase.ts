@@ -86,6 +86,18 @@ export const supabaseConfigErrorMessage = isDemoMode
   ? "Running in demo mode with a local seeded workspace"
   : "Missing Supabase environment variables";
 
+if (typeof console !== "undefined") {
+  if (isDemoMode) {
+    console.warn(
+      "[RQ] Demo mode: seeded local workspace, no live Supabase backend — data stays on this device.",
+    );
+  } else if (!hasSupabaseConfig) {
+    console.error(
+      `[RQ] NO_BACKEND: ${supabaseConfigErrorMessage}. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY, or enter demo mode for the seeded workspace.`,
+    );
+  }
+}
+
 const liveClient = createClient(
   hasSupabaseConfig && !isDemoMode
     ? supabaseUrl

@@ -34,6 +34,7 @@ import { PageHeader } from "../ui/PageHeader";
 import { TodayPlan } from "./TodayPlan";
 import type { Idea, Note, Paper, Task, TopicWithCounts } from "../../types/database";
 import { navigateToView } from "../../lib/softNavigation";
+import { isDemoMode } from "../../lib/supabase";
 
 type DashboardView = "notes" | "papers" | "focus" | "tasks" | "ideas" | "topics";
 
@@ -714,7 +715,7 @@ export function Dashboard() {
                   <span className="text-caption uppercase tracking-widest">Level {stats.level}</span>
                 </div>
                 <p className="mb-1 font-serif text-subtitle font-bold text-text-primary">{stats.title}</p>
-                <p className="mb-3 font-mono text-code text-text-secondary">{stats.xp.toLocaleString()} XP total</p>
+                <p className="mb-3 font-mono text-code text-text-secondary">{stats.xp.toLocaleString()} XP total{isDemoMode ? " (demo only)" : ""}</p>
                 <div
                   className="h-1.5 w-full overflow-hidden rounded-full bg-bg-elevated"
                   aria-label={`${stats.progress}% of this level complete`}
@@ -735,6 +736,7 @@ export function Dashboard() {
                 </div>
                 <p className="mb-1 font-mono text-subtitle font-bold text-text-primary">
                   {formatCount(stats.streak, "day")}
+                  {isDemoMode ? " (demo only)" : ""}
                 </p>
                 <p className="text-small text-text-secondary">Keep it up to earn bonus XP.</p>
               </div>

@@ -2,7 +2,7 @@ import {
   enableDemoModeAndReload,
   supabaseConfigErrorMessage,
 } from "../../lib/supabase";
-import { demoEntryPath } from "../../lib/demoEntry";
+import { DEMO_DATA_BADGE_LABEL, demoEntryPath } from "../../lib/demoEntry";
 
 export function SupabaseConfigErrorScreen() {
   const demoPath = demoEntryPath(new URL(window.location.href));
@@ -35,6 +35,13 @@ export function SupabaseConfigErrorScreen() {
         >
           Use demo workspace
         </a>
+        <p className="mt-2 text-center text-caption text-text-tertiary">
+          {/* Intent: badges label the demo entry option and render pre-auth by design. */}
+          <span className="mr-1.5 rounded-full border border-border-moderate bg-bg-elevated px-2 py-0.5 font-medium text-text-secondary">
+            {DEMO_DATA_BADGE_LABEL}
+          </span>
+          Seeded samples on this device.
+        </p>
 
         <div className="mt-5 rounded-sm border border-border-moderate bg-bg-elevated p-4">
           <p className="text-small font-medium text-text-primary">

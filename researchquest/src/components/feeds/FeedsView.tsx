@@ -256,8 +256,8 @@ export function FeedsView() {
                 Nothing to triage
               </h2>
               <p className="mx-auto mt-2 max-w-md text-small text-text-secondary">
-                Try a different filter, or add a source above and check back
-                when new items arrive.
+                Try a different filter, or add a source above. New items only
+                appear through manual triage — nothing arrives on its own.
               </p>
             </div>
           ) : (
