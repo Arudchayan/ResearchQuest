@@ -133,7 +133,9 @@ describe("focusSessionGuard", () => {
     unsubscribe();
   });
 
-  it("pagehide without freeze registration persists published live snapshot paused", () => {
+  it("pagehide without freeze registration persists published live snapshot live", () => {
+    const startedAt = Date.now();
+    const deadline = startedAt + 25 * 60 * 1000;
     publishLiveFocusSnapshot({
       selectedTarget: { type: "note", id: "note-1" },
       sessionLength: 25 * 60,
@@ -142,6 +144,8 @@ describe("focusSessionGuard", () => {
       sessionCount: 1,
       isLive: true,
       resumeHold: false,
+      deadlineMs: deadline,
+      startedAtMs: startedAt,
     });
     saveFocusSession({
       version: 1,
@@ -156,12 +160,15 @@ describe("focusSessionGuard", () => {
 
     window.dispatchEvent(new Event("pagehide"));
 
+    // Deadline-derived countdown: the flushed snapshot keeps the live run
+    // (deadline intact) so a remount resumes instead of freezing.
     const stored = JSON.parse(
       window.localStorage.getItem(FOCUS_SESSION_STORAGE_KEY)!,
     );
-    expect(stored.isRunning).toBe(false);
+    expect(stored.isRunning).toBe(true);
     expect(stored.timeLeft).toBe(24 * 60 + 55);
-    expect(stored.startedAt).toBeNull();
+    expect(stored.startedAt).toBe(startedAt);
+    expect(stored.deadline).toBe(deadline);
   });
 
   it("pagehide with no live snapshot and empty storage stays Start-only empty", () => {
@@ -218,15 +225,18 @@ describe("focusSessionGuard", () => {
     unsubscribe();
   });
 
-  it("same-document replace of the current URL freezes a live run (wine Product refresh)", () => {
+  it("same-document replace of the current URL persists the live run (wine Product refresh)", () => {
     // Playwright page.reload() is navigationType=reload (preview Soft PASS).
     // Wine Product hard refresh is often location.replace(href) — type=replace —
-    // no new document, no pagehide remount paint. #804 ignored replace.
+    // no new document, no pagehide remount paint. The flushed snapshot keeps
+    // the live run (deadline intact) so the timer survives the navigation.
     const freeze = vi.fn();
     const unregister = registerFocusFreeze({
       freeze,
       isLive: () => true,
     });
+    const startedAt = Date.now();
+    const deadline = startedAt + 25 * 60 * 1000;
     publishLiveFocusSnapshot({
       selectedTarget: { type: "note", id: "note-1" },
       sessionLength: 25 * 60,
@@ -235,6 +245,8 @@ describe("focusSessionGuard", () => {
       sessionCount: 1,
       isLive: true,
       resumeHold: false,
+      deadlineMs: deadline,
+      startedAtMs: startedAt,
     });
 
     const event = new Event("navigate");
@@ -256,8 +268,10 @@ describe("focusSessionGuard", () => {
     const stored = JSON.parse(
       window.localStorage.getItem(FOCUS_SESSION_STORAGE_KEY)!,
     );
-    expect(stored.isRunning).toBe(false);
+    expect(stored.isRunning).toBe(true);
     expect(stored.timeLeft).toBe(24 * 60 + 48);
+    expect(stored.deadline).toBe(deadline);
+    expect(stored.startedAt).toBe(startedAt);
 
     unregister();
   });
