@@ -57,8 +57,6 @@ import {
   rewriteStoredFocusSessionPaused,
   isFocusDocumentReload,
   FOCUS_DOCUMENT_RELOAD_START_QUIET_MS,
-  saveFocusSession,
-  clearStoredFocusSession,
   resolveFocusTitle,
 } from "./focusUtils";
 import {
