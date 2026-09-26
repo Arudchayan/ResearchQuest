@@ -1,6 +1,7 @@
 import { AlertTriangle, RefreshCw, Home } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { isChunkLoadFailure } from "@/lib/lazyWithReload";
 
 interface ErrorFallbackProps {
   error: Error;
@@ -19,7 +20,15 @@ export function ErrorFallback({
     window.location.href = "/";
   };
 
+  const isStaleChunk = isChunkLoadFailure(error);
+
   const handleRetry = () => {
+    if (isStaleChunk) {
+      // Retrying the same split-chunk import can never succeed: the tab
+      // holds a manifest from before the latest deploy. Hard-reload instead.
+      window.location.reload();
+      return;
+    }
     if (resetError) {
       resetError();
     } else {
@@ -29,6 +38,10 @@ export function ErrorFallback({
 
   // Get user-friendly error message
   const getUserFriendlyMessage = (err: Error) => {
+    if (isChunkLoadFailure(err)) {
+      return "ResearchQuest was updated while this tab was open. Reload to load the latest version.";
+    }
+
     const message = err.message.toLowerCase();
 
     if (message.includes("network") || message.includes("fetch")) {

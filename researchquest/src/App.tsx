@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import {
   hasSupabaseConfig,
   isDemoMode,
@@ -41,6 +41,7 @@ import {
 import { useFocusHydrateEpoch } from "./components/focus/focusSessionGuard";
 import { prefetchPlanChunks } from "./lib/prefetchChunks";
 import { KeepAlivePanes } from "./components/layout/KeepAlivePanes";
+import { lazyWithReload } from "./lib/lazyWithReload";
 
 function ensureDemoFirstRunPath(): boolean {
   if (!isDemoMode || typeof window === "undefined") return false;
@@ -50,67 +51,67 @@ function ensureDemoFirstRunPath(): boolean {
   return true;
 }
 
-const DashboardLazy = lazy(() =>
+const DashboardLazy = lazyWithReload(() =>
   import("./components/dashboard/Dashboard").then((module) => ({
     default: module.Dashboard,
   })),
 );
 
-const NotesView = lazy(() =>
+const NotesView = lazyWithReload(() =>
   import("./components/notes/NotesView").then((module) => ({
     default: module.NotesView,
   })),
 );
 
-const PapersView = lazy(() =>
+const PapersView = lazyWithReload(() =>
   import("./components/papers/PapersView").then((module) => ({
     default: module.PapersView,
   })),
 );
 
-const IdeasBoard = lazy(() =>
+const IdeasBoard = lazyWithReload(() =>
   import("./components/ideas/IdeasBoard").then((module) => ({
     default: module.IdeasBoard,
   })),
 );
 
-const TopicsView = lazy(() =>
+const TopicsView = lazyWithReload(() =>
   import("./components/topics/TopicsView").then((module) => ({
     default: module.TopicsView,
   })),
 );
 
-const TaskManager = lazy(() =>
+const TaskManager = lazyWithReload(() =>
   import("./components/tasks/TaskManager").then((module) => ({
     default: module.TaskManager,
   })),
 );
 
-const FocusWorkspace = lazy(() =>
+const FocusWorkspace = lazyWithReload(() =>
   import("./components/focus/FocusWorkspace").then((module) => ({
     default: module.FocusWorkspace,
   })),
 );
 
-const FeedsView = lazy(() =>
+const FeedsView = lazyWithReload(() =>
   import("./components/feeds/FeedsView").then((module) => ({
     default: module.FeedsView,
   })),
 );
 
-const CommandPalette = lazy(() =>
+const CommandPalette = lazyWithReload(() =>
   import("./components/layout/CommandPalette").then((module) => ({
     default: module.CommandPalette,
   })),
 );
 
-const ShortcutsDialog = lazy(() =>
+const ShortcutsDialog = lazyWithReload(() =>
   import("./components/layout/ShortcutsDialog").then((module) => ({
     default: module.ShortcutsDialog,
   })),
 );
 
-const ToasterLazy = lazy(() =>
+const ToasterLazy = lazyWithReload(() =>
   import("sonner").then((module) => ({ default: module.Toaster })),
 );
 
