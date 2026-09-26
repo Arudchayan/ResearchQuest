@@ -135,7 +135,16 @@ export function PapersView() {
   const filteredPapers = useFilteredList(
     papers,
     searchQuery,
-    useCallback((paper: Paper) => [paper.title || "", ...(paper.authors || [])].join(" "), []),
+    useCallback(
+      (paper: Paper) =>
+        [
+          paper.title || "",
+          ...(paper.authors || []),
+          paper.doi || "",
+          paper.abstract || "",
+        ].join(" "),
+      [],
+    ),
     useCallback((a: Paper, b: Paper) => {
       switch (sortOption) {
         case "updated_desc":
@@ -162,19 +171,19 @@ export function PapersView() {
               : 0;
         case "year_desc": {
           const yearA = a.publication_date
-            ? parseInt(a.publication_date.substring(0, 4)) || 0
+            ? parseInt(a.publication_date.substring(0, 4), 10) || 0
             : 0;
           const yearB = b.publication_date
-            ? parseInt(b.publication_date.substring(0, 4)) || 0
+            ? parseInt(b.publication_date.substring(0, 4), 10) || 0
             : 0;
           return yearB - yearA;
         }
         case "year_asc": {
           const yearA = a.publication_date
-            ? parseInt(a.publication_date.substring(0, 4)) || 0
+            ? parseInt(a.publication_date.substring(0, 4), 10) || 0
             : 0;
           const yearB = b.publication_date
-            ? parseInt(b.publication_date.substring(0, 4)) || 0
+            ? parseInt(b.publication_date.substring(0, 4), 10) || 0
             : 0;
           return yearA - yearB;
         }

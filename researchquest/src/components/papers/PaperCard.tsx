@@ -81,7 +81,7 @@ export const PaperCard = React.memo(function PaperCard({
           <span className="font-mono text-caption text-text-tertiary">
             {firstAuthorSlug(paper.authors)}{" "}
             {paper.publication_date
-              ? parseInt(paper.publication_date.substring(0, 4)) || "N/A"
+              ? parseInt(paper.publication_date.substring(0, 4), 10) || "N/A"
               : "N/A"}
           </span>
         </div>

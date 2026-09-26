@@ -176,28 +176,35 @@ export function PaperDetailView({
     try {
       let content = "";
       let filename = "";
+      // MIME type for the download Blob (same mapping as the PapersView bulk
+      // export): never pass the format key itself as the content type.
+      let type = "";
       const timestamp = new Date().toISOString().split("T")[0];
 
       switch (format) {
         case "markdown":
           content = convertPapersToMarkdown([paper]);
           filename = `paper-${paper.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${timestamp}.md`;
+          type = "text/markdown";
           break;
         case "bibtex":
           content = convertPapersToBibTeX([paper]);
           filename = `paper-${paper.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${timestamp}.bib`;
+          type = "text/plain";
           break;
         case "csv":
           content = convertPapersToCSV([paper]);
           filename = `paper-${paper.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${timestamp}.csv`;
+          type = "text/csv";
           break;
         case "json":
           content = convertPapersToJSON([paper]);
           filename = `paper-${paper.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${timestamp}.json`;
+          type = "application/json";
           break;
       }
 
-      downloadFile(content, filename, format);
+      downloadFile(content, filename, type);
       toast.success(`Exported paper as ${format.toUpperCase()}`);
     } catch (err) {
       logger.error("Export failed", err);

@@ -328,7 +328,7 @@ export function Dashboard() {
           {/* Recent Notes */}
           <section>
             <SectionIndex number="02" label="Recent Notes" />
-            <div className="mb-4 flex items-center justify-between gap-4 border-b border-border-subtle pb-2">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-4 border-b border-border-subtle pb-2">
               <h2 className="flex min-w-0 items-center gap-2 font-serif text-body-lg font-bold text-text-primary">
                 <FileText className="h-5 w-5 shrink-0 text-text-tertiary" aria-hidden="true" />
                 Recent Notes
@@ -398,7 +398,7 @@ export function Dashboard() {
           {/* Active Ideas */}
           <section>
             <SectionIndex number="03" label="Active Ideas" />
-            <div className="mb-4 flex items-center justify-between gap-4 border-b border-border-subtle pb-2">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-4 border-b border-border-subtle pb-2">
               <h2 className="flex min-w-0 items-center gap-2 font-serif text-body-lg font-bold text-text-primary">
                 <Lightbulb className="h-5 w-5 shrink-0 text-text-tertiary" aria-hidden="true" />
                 Active Ideas
@@ -460,7 +460,10 @@ export function Dashboard() {
                             </p>
                           )}
                         </div>
-                        <Badge variant={ideaStageBadgeVariants[idea.stage]}>
+                        <Badge
+                          variant={ideaStageBadgeVariants[idea.stage]}
+                          className="shrink-0"
+                        >
                           {idea.stage}
                         </Badge>
                       </div>
@@ -474,7 +477,7 @@ export function Dashboard() {
           {/* Active Topics */}
           <section>
             <SectionIndex number="04" label="Active Topics" />
-            <div className="mb-4 flex items-center justify-between gap-4 border-b border-border-subtle pb-2">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-4 border-b border-border-subtle pb-2">
               <h2 className="flex min-w-0 items-center gap-2 font-serif text-body-lg font-bold text-text-primary">
                 <Hash className="h-5 w-5 shrink-0 text-text-tertiary" aria-hidden="true" />
                 Active Topics
@@ -500,7 +503,7 @@ export function Dashboard() {
 
             <div className="space-y-3">
               {topicsLoading ? (
-                <ListSkeleton count={3} itemType="note" />
+                <ListSkeleton count={3} itemType="topic" />
               ) : activeTopics.length === 0 ? (
                 <EmptyState
                   icon={<Hash className="h-5 w-5" />}
@@ -549,7 +552,7 @@ export function Dashboard() {
           {/* Reading List */}
           <section>
             <SectionIndex number="05" label="Up Next to Read" />
-            <div className="mb-4 flex items-center justify-between gap-4 border-b border-border-subtle pb-2">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-4 border-b border-border-subtle pb-2">
               <h2 className="flex min-w-0 items-center gap-2 font-serif text-body-lg font-bold text-text-primary">
                 <BookOpen className="h-5 w-5 shrink-0 text-text-tertiary" aria-hidden="true" />
                 Up Next to Read
@@ -619,7 +622,7 @@ export function Dashboard() {
           {/* Due Soon */}
           <section>
             <SectionIndex number="06" label="Tasks Due Soon" />
-            <div className="mb-4 flex items-center justify-between gap-4 border-b border-border-subtle pb-2">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-4 border-b border-border-subtle pb-2">
               <h2 className="flex min-w-0 items-center gap-2 font-serif text-body-lg font-bold text-text-primary">
                 <CheckSquare className="h-5 w-5 shrink-0 text-text-tertiary" aria-hidden="true" />
                 Tasks Due Soon

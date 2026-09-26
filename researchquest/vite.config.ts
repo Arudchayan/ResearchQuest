@@ -11,9 +11,23 @@ const fontsourceAllowlist = ["inter", "playfair-display", "jetbrains-mono"].map(
 )
 
 export default defineConfig(({ mode, command }) => {
-  // Root `.env` (monorepo) + local `researchquest/.env*` — local wins.
+  // ENV PLUMBING — intentionally non-standard; keep all three pieces together.
+  // Native Vite semantics (default envDir + VITE_* only + no define override)
+  // would change behavior, so this stays until every consumer below migrates:
+  // 1. Root + local merge (local wins): contributors keep backend credentials
+  //    in the repo-root `.env` (see `/.env.example`), while `researchquest/`
+  //    holds the documented template. Native `envDir` loads exactly one dir.
+  // 2. NEXT_PUBLIC_* alias: CI's env-guard passes Supabase credentials via
+  //    `NEXT_PUBLIC_SUPABASE_URL` secrets
+  //    (`.github/workflows/ci.yml` + `scripts/check-supabase-env.mjs`).
+  //    Dropping the alias breaks that gate.
+  // 3. `define:` override + PLAYWRIGHT_TEST_NO_SUPABASE: Playwright smoke
+  //    runs Vite with empty VITE_* vars, but loadEnv would still read `.env`
+  //    from disk; the define hack is what forces the empty no-backend build.
+  // Vercel is unaffected (native VITE_* project vars flow through the same
+  // merge). Safe future simplification requires: single-.env convention,
+  // CI guard on VITE_* only, and a non-define Playwright override.
   const merged = { ...loadEnv(mode, repoRoot, ""), ...loadEnv(mode, __dirname, "") }
-  // Playwright smoke runs Vite with empty VITE_* vars but loadEnv would still read `.env` from disk.
   const forceNoSupabase = process.env.PLAYWRIGHT_TEST_NO_SUPABASE === "1"
   const supabaseUrl = forceNoSupabase
     ? ""
