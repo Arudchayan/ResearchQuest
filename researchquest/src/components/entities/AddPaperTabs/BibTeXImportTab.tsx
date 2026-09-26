@@ -50,7 +50,7 @@ export function BibTeXImportTab({
   };
 
   return (
-    <div className="space-y-6" role="tabpanel" id="view-panel-import">
+    <div className="space-y-6">
       <div>
         <label htmlFor="bibtex-file-upload" className="block text-sm font-medium mb-3">Upload BibTeX File (.bib)</label>
         <div
@@ -85,7 +85,7 @@ export function BibTeXImportTab({
         <div
           id="bibtex-error"
           role="alert"
-          className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg flex items-center gap-2"
+          className="p-4 bg-destructive-bg border border-destructive/20 text-destructive rounded-lg flex items-center gap-2"
         >
           <AlertCircle className="w-5 h-5" />
           {error}

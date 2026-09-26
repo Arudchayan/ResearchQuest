@@ -362,8 +362,9 @@ export function useTopics(
   }, [fetchQuests]);
 
   useEffect(() => {
+    if (!owner) return;
     void ensureActiveQuest();
-  }, [ensureActiveQuest]);
+  }, [ensureActiveQuest, owner]);
 
   const createTopic = useCallback(
     async (topicData: { name: string; description?: string }) => {

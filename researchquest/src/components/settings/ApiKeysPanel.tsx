@@ -149,7 +149,7 @@ function SecretDialog({
         <Dialog.Content className="fixed left-[50%] top-[50%] z-[70] w-full max-w-lg translate-x-[-50%] translate-y-[-50%] rounded-xl bg-bg-surface shadow-2xl border border-border-subtle overflow-hidden outline-none animate-in zoom-in-95 duration-200">
           <div className="flex items-start justify-between gap-4 px-6 py-5 border-b border-border-subtle bg-bg-elevated">
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400">
+              <div className="w-10 h-10 rounded-full bg-success-bg flex items-center justify-center text-success">
                 <CheckCircle2 className="w-5 h-5" />
               </div>
               <div>
@@ -179,7 +179,7 @@ function SecretDialog({
               className="font-mono text-xs"
               aria-label="New API key secret"
             />
-            <div className="p-3 rounded-lg bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-100 dark:border-yellow-800 text-sm text-yellow-800 dark:text-yellow-200 flex gap-2">
+            <div className="p-3 rounded-lg bg-warning-bg border border-warning/20 text-sm text-warning flex gap-2">
               <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
               <p>
                 ResearchQuest stores only a hash of this key. You cannot reveal
@@ -305,7 +305,7 @@ export function ApiKeysPanel({ active }: ApiKeysPanelProps) {
 
   return (
     <section className="space-y-6">
-      <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800 text-sm text-blue-800 dark:text-blue-200 flex items-start gap-3">
+      <div className="p-4 rounded-lg bg-info-bg border border-info/20 text-sm text-info flex items-start gap-3">
         <KeyRound className="w-5 h-5 shrink-0" />
         <p>
           Mint scoped API keys for local scripts and agents. Key secrets are
@@ -337,7 +337,7 @@ export function ApiKeysPanel({ active }: ApiKeysPanelProps) {
             <Button
               type="submit"
               disabled={creating}
-              className="w-full sm:w-auto bg-blue-600 text-white hover:bg-blue-700"
+              className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary-hover"
             >
               {creating ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -366,7 +366,7 @@ export function ApiKeysPanel({ active }: ApiKeysPanelProps) {
                   key={scope.value}
                   className={`flex items-start gap-2 p-2 rounded-lg border cursor-pointer transition-colors ${
                     checked
-                      ? "bg-blue-50/50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800"
+                      ? "bg-info-bg border-info/30"
                       : "bg-bg-surface border-border-subtle hover:border-border-moderate"
                   }`}
                 >
@@ -374,7 +374,7 @@ export function ApiKeysPanel({ active }: ApiKeysPanelProps) {
                     type="checkbox"
                     checked={checked}
                     onChange={() => toggleScope(scope.value)}
-                    className="mt-0.5 w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    className="mt-0.5 w-4 h-4 rounded border-border-moderate text-primary focus:ring-primary"
                   />
                   <span>
                     <span className="block text-sm font-medium text-text-primary">
@@ -444,8 +444,8 @@ export function ApiKeysPanel({ active }: ApiKeysPanelProps) {
                           <span
                             className={`text-xs px-2 py-0.5 rounded-full border ${
                               revoked
-                                ? "bg-red-50 text-red-700 border-red-100 dark:bg-red-900/10 dark:text-red-300 dark:border-red-800"
-                                : "bg-green-50 text-green-700 border-green-100 dark:bg-green-900/10 dark:text-green-300 dark:border-green-800"
+                                ? "bg-destructive-bg text-destructive border-destructive/20"
+                                : "bg-success-bg text-success border-success/20"
                             }`}
                           >
                             {revoked ? "Revoked" : "Active"}
@@ -461,7 +461,7 @@ export function ApiKeysPanel({ active }: ApiKeysPanelProps) {
                         size="sm"
                         disabled={revoked || revokingId === key.id}
                         onClick={() => void revokeKey(key)}
-                        className="text-red-600 hover:text-red-700"
+                        className="text-destructive hover:text-destructive-hover"
                       >
                         {revokingId === key.id ? (
                           <Loader2 className="w-4 h-4 animate-spin" />

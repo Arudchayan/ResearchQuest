@@ -61,6 +61,23 @@
     --info-bg: #F4F4F0;
     --info-hover: #141413;
     --info-foreground: #FDFDFB;
+    /* Categorical hues for feeds, radar, sprint, and analysis chips */
+    --accent: #1C1C1A;
+    --accent-soft: #F4F4F0;
+    --accent-strong: #1C1C1A;
+    --accent-contrast: #FDFDFB;
+    --violet: #623D70;
+    --violet-soft: #F8F5FA;
+    --violet-strong: #623D70;
+    --gold: #945A17;
+    --gold-soft: #FDF8ED;
+    --gold-strong: #945A17;
+    --coral: #A13F34;
+    --coral-soft: #FDF1EF;
+    --coral-strong: #A13F34;
+    --blue: #2E5A78;
+    --blue-soft: #EEF3F7;
+    --blue-strong: #2E5A78;
     --focus: #1C1C1A;
     --overlay: rgba(17, 17, 17, 0.5);
 
@@ -153,6 +170,22 @@
     --info-bg: #2C2C2A;
     --info-hover: #F4F4F0;
     --info-foreground: #121211;
+    --accent: #EDEDE4;
+    --accent-soft: #2C2C2A;
+    --accent-strong: #EDEDE4;
+    --accent-contrast: #121211;
+    --violet: #A276B3;
+    --violet-soft: rgba(162, 118, 179, 0.12);
+    --violet-strong: #A276B3;
+    --gold: #D19C4C;
+    --gold-soft: rgba(209, 156, 76, 0.12);
+    --gold-strong: #D19C4C;
+    --coral: #D9877E;
+    --coral-soft: rgba(217, 135, 126, 0.12);
+    --coral-strong: #D9877E;
+    --blue: #7FA8C9;
+    --blue-soft: rgba(127, 168, 201, 0.12);
+    --blue-strong: #7FA8C9;
     --focus: #EDEDE4;
     --overlay: rgba(0, 0, 0, 0.6);
 

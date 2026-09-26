@@ -453,45 +453,73 @@ export function PapersView() {
         </div>
       </div>
 
-      {/* Detail Drawer (Sheet) */}
-      {selectedPaper && (
-        <div className="absolute inset-0 z-20 flex h-full min-h-0 w-full flex-col border-l-0 bg-bg-surface shadow-lg lg:relative lg:inset-auto lg:w-[500px] lg:border-l lg:border-border-subtle">
-          <div className="flex items-center justify-between border-b border-border-subtle bg-bg-elevated/70 p-4">
-            <div className="flex items-center gap-3">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => setSelectedPaper(null)}
-                className="-ml-2 rounded-full lg:hidden"
-                aria-label="Back to papers"
-              >
-                <ArrowLeft aria-hidden="true" />
-              </Button>
-              <h2 className="font-semibold text-text-primary">
-                Paper Details
-              </h2>
+      {/* Detail Drawer (Sheet) — Radix Dialog in non-modal mode: provides
+          role="dialog", Escape-to-close, and focus return, while the desktop
+          side-by-side list stays interactive (lg:relative, lg:w-[500px]).
+          Outside-close applies on mobile overlay only; on lg the list must
+          stay clickable so selecting another paper swaps details instead of
+          closing the drawer. */}
+      <Dialog.Root
+        open={!!selectedPaper}
+        modal={false}
+        onOpenChange={(open) => {
+          if (!open) setSelectedPaper(null);
+        }}
+      >
+        {selectedPaper && (
+          <Dialog.Content
+            aria-describedby={undefined}
+            onEscapeKeyDown={() => setSelectedPaper(null)}
+            onInteractOutside={(event) => {
+              if (
+                typeof window !== "undefined" &&
+                window.matchMedia("(min-width: 1024px)").matches
+              ) {
+                event.preventDefault();
+                return;
+              }
+              setSelectedPaper(null);
+            }}
+            className="absolute inset-0 z-20 flex h-full min-h-0 w-full flex-col border-l-0 bg-bg-surface shadow-lg lg:relative lg:inset-auto lg:w-[500px] lg:border-l lg:border-border-subtle"
+          >
+            <div className="flex items-center justify-between border-b border-border-subtle bg-bg-elevated/70 p-4">
+              <div className="flex items-center gap-3">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setSelectedPaper(null)}
+                  className="-ml-2 rounded-full lg:hidden"
+                  aria-label="Back to papers"
+                >
+                  <ArrowLeft aria-hidden="true" />
+                </Button>
+                <Dialog.Title className="font-semibold text-text-primary">
+                  Paper Details
+                </Dialog.Title>
+              </div>
+              <Dialog.Close asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Close details"
+                  className="hidden rounded-full lg:inline-flex"
+                >
+                  <X aria-hidden="true" />
+                </Button>
+              </Dialog.Close>
             </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => setSelectedPaper(null)}
-              aria-label="Close details"
-              className="hidden rounded-full lg:inline-flex"
-            >
-              <X aria-hidden="true" />
-            </Button>
-          </div>
-          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
-            <PaperDetailView
-              paper={selectedPaper}
-              onUpdate={updatePaper}
-              onDelete={handlePaperDelete}
-            />
-          </div>
-        </div>
-      )}
+            <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+              <PaperDetailView
+                paper={selectedPaper}
+                onUpdate={updatePaper}
+                onDelete={handlePaperDelete}
+              />
+            </div>
+          </Dialog.Content>
+        )}
+      </Dialog.Root>
 
       {/* Add Paper Dialog */}
       <Dialog.Root open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>

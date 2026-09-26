@@ -2,8 +2,6 @@ import { defineConfig, devices } from "@playwright/test";
 
 const e2ePort = 4175;
 const baseURL = `http://127.0.0.1:${e2ePort}`;
-const chromePath =
-  process.env.PLAYWRIGHT_CHROME ?? "/usr/bin/google-chrome-stable";
 
 /**
  * First-run click receipt. Serves the app with stub Supabase env so the
@@ -25,9 +23,10 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
+      // Default Playwright chromium (installed via
+      // `pnpm exec playwright install chromium`). No executablePath override.
       use: {
         ...devices["Desktop Chrome"],
-        launchOptions: { executablePath: chromePath },
       },
     },
   ],

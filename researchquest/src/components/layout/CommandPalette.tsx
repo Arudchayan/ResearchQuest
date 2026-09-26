@@ -76,9 +76,77 @@ function rankLabel(label: string, query: string): number {
 
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
+  const [showDataDialog, setShowDataDialog] = useState(false);
+
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isEditable =
+        !!target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable);
+
+      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        setOpen((isOpen) => !isOpen);
+      } else if (e.key === "/") {
+        if (!isEditable) {
+          e.preventDefault();
+          setOpen((isOpen) => !isOpen);
+        }
+      }
+    };
+
+    const handleOpenCommandPalette = () => {
+      setOpen(true);
+    };
+
+    document.addEventListener("keydown", down);
+    document.addEventListener("open-command-palette", handleOpenCommandPalette);
+
+    return () => {
+      document.removeEventListener("keydown", down);
+      document.removeEventListener(
+        "open-command-palette",
+        handleOpenCommandPalette,
+      );
+    };
+  }, []);
+
+  if (!open && !showDataDialog) return null;
+  return (
+    <>
+      {open ? (
+        <CommandPaletteIndex
+          open={open}
+          onOpenChange={setOpen}
+          onOpenDataManagement={() => {
+            setShowDataDialog(true);
+            setOpen(false);
+          }}
+        />
+      ) : null}
+      <DataManagementDialog
+        open={showDataDialog}
+        onClose={() => setShowDataDialog(false)}
+      />
+    </>
+  );
+}
+
+/** Store-backed search index — mounted only while the palette is open. */
+function CommandPaletteIndex({
+  open,
+  onOpenChange,
+  onOpenDataManagement,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onOpenDataManagement: () => void;
+}) {
   const [query, setQuery] = useState("");
   const [serverRows, setServerRows] = useState<GlobalSearchRow[] | null>(null);
-  const [showDataDialog, setShowDataDialog] = useState(false);
 
   // ⚡ PERFORMANCE OPTIMIZATION:
   // Using useShallow with an object selector to prevent CommandPalette from
@@ -114,44 +182,6 @@ export function CommandPalette() {
   const { papers } = usePapers(user?.id);
   const { ideas, createIdea } = useIdeas(user?.id);
   const { tasks, createTask } = useTasks(user?.id, { owner: false });
-
-  useEffect(() => {
-    const down = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
-      const isEditable =
-        !!target &&
-        (target.tagName === "INPUT" ||
-          target.tagName === "TEXTAREA" ||
-          target.isContentEditable);
-
-      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
-        // Ctrl/⌘+K is reserved for the palette everywhere, including inside
-        // editors. Insert Link moved to Ctrl/⌘+Shift+K (see ShortcutsDialog).
-        e.preventDefault();
-        setOpen((open) => !open);
-      } else if (e.key === "/") {
-        if (!isEditable) {
-          e.preventDefault();
-          setOpen((open) => !open);
-        }
-      }
-    };
-
-    const handleOpenCommandPalette = () => {
-      setOpen(true);
-    };
-
-    document.addEventListener("keydown", down);
-    document.addEventListener("open-command-palette", handleOpenCommandPalette);
-
-    return () => {
-      document.removeEventListener("keydown", down);
-      document.removeEventListener(
-        "open-command-palette",
-        handleOpenCommandPalette,
-      );
-    };
-  }, []);
 
   // Server-ranked search via the global_search RPC (rank + snippet + group),
   // gated with a client-filter fallback for demo mode (where the RPC stub
@@ -195,37 +225,37 @@ export function CommandPalette() {
   // Navigation handlers using App's custom routing
   const handleNavigate = (view: AppView) => {
     navigateToView(view);
-    setOpen(false);
+    onOpenChange(false);
   };
 
   const handleSelectNote = (note: any) => {
     setSelectedNote(note);
     navigateToView("notes", `/notes/${note.id}`);
-    setOpen(false);
+    onOpenChange(false);
   };
 
   const handleSelectPaper = (paper: any) => {
     setSelectedPaper(paper);
     navigateToView("papers", `/papers/${paper.id}`);
-    setOpen(false);
+    onOpenChange(false);
   };
 
   const handleSelectIdea = (idea: any) => {
     setSelectedIdea(idea);
     navigateToView("ideas", `/ideas/${idea.id}`);
-    setOpen(false);
+    onOpenChange(false);
   };
 
   const handleSelectTask = (task: any) => {
     setSelectedTask(task);
     navigateToView("tasks", `/tasks/${task.id}`);
-    setOpen(false);
+    onOpenChange(false);
   };
 
   const handleSelectTopic = (topic: any) => {
     setSelectedTopic(topic);
     navigateToView("topics", `/topics/${topic.id}`);
-    setOpen(false);
+    onOpenChange(false);
   };
 
   // Honest "New X" actions: create the entity for real, then deep-link to it.
@@ -240,7 +270,7 @@ export function CommandPalette() {
       setSelectedNote(created);
       navigateToView("notes", `/notes/${created.id}`);
     }
-    setOpen(false);
+    onOpenChange(false);
   };
 
   const handleCreateIdea = async (title?: string) => {
@@ -251,7 +281,7 @@ export function CommandPalette() {
       setSelectedIdea(created);
       navigateToView("ideas", `/ideas/${created.id}`);
     }
-    setOpen(false);
+    onOpenChange(false);
   };
 
   const handleCreateTask = async (title?: string) => {
@@ -262,7 +292,7 @@ export function CommandPalette() {
       setSelectedTask(created);
       navigateToView("tasks", `/tasks/${created.id}`);
     }
-    setOpen(false);
+    onOpenChange(false);
   };
 
   const selectEntry = (entry: SearchEntry) => {
@@ -280,7 +310,7 @@ export function CommandPalette() {
     setTimeout(() => {
       document.body.classList.remove("theme-transitioning");
     }, 300);
-    setOpen(false);
+    onOpenChange(false);
   };
 
   const handleExport = async () => {
@@ -288,7 +318,7 @@ export function CommandPalette() {
       useAppStore.getState();
     if (!user?.id) {
       toast.error("Sign in to export your data.");
-      setOpen(false);
+      onOpenChange(false);
       return;
     }
 
@@ -317,19 +347,15 @@ export function CommandPalette() {
         error instanceof Error ? error.message : "Backup export failed",
       );
     }
-    setOpen(false);
+    onOpenChange(false);
   };
 
   const handleOpenDataManagement = () => {
-    // Open the dialog owned by the palette instead of relying on the Sidebar
-    // listener: the Sidebar is unmounted in Zen mode,
-    // which made the old `open-data-management` event a silent no-op.
-    setShowDataDialog(true);
-    setOpen(false);
+    onOpenDataManagement();
   };
 
   const handleOpenChange = (next: boolean) => {
-    setOpen(next);
+    onOpenChange(next);
     if (!next) {
       setQuery("");
       setServerRows(null);
@@ -378,24 +404,40 @@ export function CommandPalette() {
 
   // Server-ranked rows (already ordered by rank server-side); resolve each
   // row to its store entity for selection, falling back to the row payload.
+  // Tasks/topics resolve from their own collections (never mislabeled as notes).
   const serverEntries = useMemo<SearchEntry[] | null>(() => {
     if (!serverRows) return null;
     const notesById = new Map(notes.map((n) => [n.id, n]));
     const papersById = new Map(papers.map((p) => [p.id, p]));
     const ideasById = new Map(ideas.map((i) => [i.id, i]));
+    const tasksById = new Map(tasks.map((t) => [t.id, t]));
+    const topicsById = new Map(topicsArray.map((t) => [t.id, t]));
+    const resolveServerType = (entityType: string): SearchEntryType => {
+      switch (entityType) {
+        case "paper":
+          return "paper";
+        case "idea":
+          return "idea";
+        case "task":
+          return "task";
+        case "topic":
+          return "topic";
+        default:
+          return "note";
+      }
+    };
     return serverRows.slice(0, SEARCH_PAGE_SIZE).map((row) => {
-      const type: SearchEntryType =
-        row.entity_type === "paper"
-          ? "paper"
-          : row.entity_type === "idea"
-            ? "idea"
-            : "note";
+      const type = resolveServerType(row.entity_type);
       const full =
         type === "paper"
           ? papersById.get(row.entity_id)
           : type === "idea"
             ? ideasById.get(row.entity_id)
-            : notesById.get(row.entity_id);
+            : type === "task"
+              ? tasksById.get(row.entity_id)
+              : type === "topic"
+                ? topicsById.get(row.entity_id)
+                : notesById.get(row.entity_id);
       return {
         type,
         item: full ?? { id: row.entity_id },
@@ -403,9 +445,23 @@ export function CommandPalette() {
         snippet: row.snippet,
       };
     });
-  }, [serverRows, notes, papers, ideas]);
+  }, [serverRows, notes, papers, ideas, tasks, topicsArray]);
 
-  const searchEntries = serverEntries ?? clientEntries;
+  // Server rows cover note/paper/idea only (global_search RPC); union them
+  // with client-side task/topic matches so those types never disappear when
+  // the server returns rows.
+  const searchEntries = useMemo<SearchEntry[]>(() => {
+    if (!serverEntries) return clientEntries;
+    const seen = new Set(
+      serverEntries.map((entry) => `${entry.type}:${entry.item.id}`),
+    );
+    const extras = clientEntries.filter(
+      (entry) =>
+        (entry.type === "task" || entry.type === "topic") &&
+        !seen.has(`${entry.type}:${entry.item.id}`),
+    );
+    return [...serverEntries, ...extras].slice(0, SEARCH_PAGE_SIZE);
+  }, [serverEntries, clientEntries]);
   const trimmedQuery = query.trim();
 
   return (
@@ -525,7 +581,7 @@ export function CommandPalette() {
                 document.dispatchEvent(
                   new CustomEvent("open-shortcuts-help"),
                 );
-                setOpen(false);
+                onOpenChange(false);
               }}
             >
               <Keyboard />
@@ -544,14 +600,14 @@ export function CommandPalette() {
                 {entry.type === "note" && (
                   <FileText className="text-primary-500" />
                 )}
-                {entry.type === "paper" && <BookOpen className="text-blue-500" />}
+                {entry.type === "paper" && <BookOpen className="text-info" />}
                 {entry.type === "idea" && (
-                  <Lightbulb className="text-yellow-500" />
+                  <Lightbulb className="text-warning" />
                 )}
                 {entry.type === "task" && (
-                  <CheckSquare className="text-green-500" />
+                  <CheckSquare className="text-success" />
                 )}
-                {entry.type === "topic" && <Hash className="text-purple-500" />}
+                {entry.type === "topic" && <Hash className="text-purple" />}
                 <div className="flex min-w-0 flex-col">
                   <span>{entry.label}</span>
                   {entry.snippet ? (
@@ -568,10 +624,6 @@ export function CommandPalette() {
           </Command.Group>
         </Command.List>
       </Command.Dialog>
-      <DataManagementDialog
-        open={showDataDialog}
-        onClose={() => setShowDataDialog(false)}
-      />
     </>
   );
 }

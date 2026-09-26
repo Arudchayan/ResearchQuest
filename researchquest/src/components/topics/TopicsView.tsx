@@ -14,6 +14,12 @@ import { InlineError } from "../ui/ErrorFallback";
 import { PageHeader } from "../ui/PageHeader";
 import { parseRoute } from "../../lib/router";
 import { navigateToView } from "../../lib/softNavigation";
+import {
+  TOPIC_KIND_LABELS,
+  TOPIC_KINDS,
+  useTopicKindStore,
+  type TopicKind,
+} from "../../store/topicKindStore";
 
 const UNDO_WINDOW_MS = 6000;
 
@@ -41,6 +47,8 @@ export function TopicsView() {
   const [isCreating, setIsCreating] = useState(false);
   const [isSubmittingTopic, setIsSubmittingTopic] = useState(false);
   const [newTopicName, setNewTopicName] = useState("");
+  const [newTopicKind, setNewTopicKind] = useState<TopicKind>("research");
+  const setTopicKind = useTopicKindStore((state) => state.setKind);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOption, setSortOption] = useState<SortOption>("updated_desc");
   const [hiddenTopicIds, setHiddenTopicIds] = useState<Set<string>>(new Set());
@@ -131,7 +139,9 @@ export function TopicsView() {
     try {
       const topic = await createTopic({ name: newTopicName.trim() });
       if (topic) {
+        setTopicKind(topic.id, newTopicKind);
         setNewTopicName("");
+        setNewTopicKind("research");
         setIsCreating(false);
       }
     } finally {
@@ -358,7 +368,7 @@ export function TopicsView() {
 
         <div className="space-y-4 border-b border-border-subtle p-4">
           {isCreating && (
-            <form onSubmit={handleCreateTopic} className="flex min-w-0 gap-2" aria-busy={isSubmittingTopic}>
+            <form onSubmit={handleCreateTopic} className="flex min-w-0 flex-wrap gap-2" aria-busy={isSubmittingTopic}>
               <input
                 type="text"
                 value={newTopicName}
@@ -369,6 +379,23 @@ export function TopicsView() {
                 autoFocus
                 disabled={isSubmittingTopic}
               />
+              <label htmlFor="topic-kind" className="sr-only">
+                Topic kind
+              </label>
+              <select
+                id="topic-kind"
+                value={newTopicKind}
+                onChange={(event) =>
+                  setNewTopicKind(event.target.value as TopicKind)
+                }
+                className="min-h-11 rounded-control border border-border-moderate bg-bg-surface px-3 text-small text-text-primary"
+              >
+                {TOPIC_KINDS.map((kind) => (
+                  <option key={kind} value={kind}>
+                    {TOPIC_KIND_LABELS[kind]}
+                  </option>
+                ))}
+              </select>
               <Button
                 type="submit"
                 variant="default"

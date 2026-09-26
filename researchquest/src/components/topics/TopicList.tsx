@@ -6,6 +6,8 @@ import { Trash2, Notebook, BookOpen, Lightbulb, Hash } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
 import type { TopicWithCounts } from "../../types/database";
 import { highlightMatch } from "../../utils/highlight";
+import { TOPIC_KIND_LABELS, useTopicKindStore } from "../../store/topicKindStore";
+import { Badge } from "../ui/Badge";
 
 interface TopicListProps {
   topics: TopicWithCounts[];
@@ -23,6 +25,7 @@ export function TopicList({
   onDeleteTopic,
 }: TopicListProps) {
   const selectedTopic = useAppStore((state) => state.selectedTopic);
+  const kinds = useTopicKindStore((state) => state.kinds);
   const { confirm: confirmDialog, isOpen, config } = useConfirmDialog();
 
   if (loading) {
@@ -106,6 +109,11 @@ export function TopicList({
                   <h2 className="truncate text-body font-semibold text-text-primary">
                     {topic.name ? highlightMatch(topic.name, highlightQuery) : "Untitled"}
                   </h2>
+                  {(kinds[topic.id] ?? "research") !== "research" && (
+                    <Badge variant="neutral" className="mt-1">
+                      {TOPIC_KIND_LABELS[kinds[topic.id] ?? "research"]}
+                    </Badge>
+                  )}
                 </button>
                 {topic.description && (
                   <p className="mt-1 line-clamp-2 break-words text-caption text-text-secondary">

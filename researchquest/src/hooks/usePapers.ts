@@ -141,8 +141,10 @@ function cleanPaperDraft(
     status: paperData.status || "To Read",
   };
 
-  if (paperData.doi && paperData.doi.trim())
-    cleanData.doi = paperData.doi.trim();
+  if (paperData.doi && paperData.doi.trim()) {
+    const normalizedDoi = normalizeDoi(paperData.doi);
+    if (normalizedDoi) cleanData.doi = normalizedDoi;
+  }
   if (paperData.source_url && paperData.source_url.trim()) {
     const url = paperData.source_url.trim();
     if (isValidUrl(url)) {
@@ -186,14 +188,17 @@ async function fetchExistingDois(
   userId: string,
 ): Promise<Set<string>> {
   const existing = new Set<string>();
-  if (dois.length === 0) return existing;
+  // Normalize (trim/lowercase/strip doi: prefix + resolver) and dedupe the
+  // candidates so spelling variants of the same DOI query correctly.
+  const normalized = [...new Set(dois.map((d) => normalizeDoi(d)).filter(Boolean))];
+  if (normalized.length === 0) return existing;
 
   try {
     const { data, error } = await supabase
       .from("papers")
       .select("doi")
       .eq("user_id", userId)
-      .in("doi", dois);
+      .in("doi", normalized);
 
     if (error) {
       logger.error("DOI duplicate check failed", error);
@@ -266,11 +271,11 @@ export function usePapers(userId: string | undefined) {
     insert: async (payload) => {
       const doi =
         typeof payload.doi === "string" && payload.doi.trim()
-          ? payload.doi.trim()
+          ? normalizeDoi(payload.doi)
           : undefined;
       if (doi && userId) {
         const existingDois = await fetchExistingDois([doi], userId);
-        if (existingDois.has(normalizeDoi(doi))) {
+        if (existingDois.has(doi)) {
           return {
             data: null,
             error: { message: "This paper (DOI) is already in your library" },

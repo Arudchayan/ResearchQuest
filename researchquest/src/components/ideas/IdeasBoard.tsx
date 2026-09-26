@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import type { KeyboardEvent } from "react";
 import {
   Plus,
   Trash2,
@@ -53,19 +52,14 @@ type SortOption =
   | "title_asc"
   | "title_desc";
 
-const STAGE_EDGE_CLASS: Record<IdeaStage, string> = {
-  Seed: "border-t-2 border-t-stage-seed",
-  Developing: "border-t-2 border-t-stage-developing",
-  Supported: "border-t-2 border-t-stage-supported",
-  Mature: "border-t-2 border-t-stage-mature",
-};
+// Derived from the single IDEA_STAGES source so a token rename touches one file.
+const STAGE_EDGE_CLASS: Record<IdeaStage, string> = Object.fromEntries(
+  IDEA_STAGES.map((stage) => [stage.id, stage.edgeClassName]),
+) as Record<IdeaStage, string>;
 
-const STAGE_FILL_CLASS: Record<IdeaStage, string> = {
-  Seed: "bg-stage-seed",
-  Developing: "bg-stage-developing",
-  Supported: "bg-stage-supported",
-  Mature: "bg-stage-mature",
-};
+const STAGE_FILL_CLASS: Record<IdeaStage, string> = Object.fromEntries(
+  IDEA_STAGES.map((stage) => [stage.id, stage.fillClassName]),
+) as Record<IdeaStage, string>;
 
 export function IdeasBoard() {
   // ⚡ PERFORMANCE OPTIMIZATION:
@@ -102,6 +96,8 @@ export function IdeasBoard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOption, setSortOption] = useState<SortOption>("updated_desc");
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const drawerRef = useRef<HTMLElement | null>(null);
+  const previouslyFocusedRef = useRef<Element | null>(null);
 
   const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastDeletedRef = useRef<Idea | null>(null);
@@ -180,6 +176,48 @@ export function IdeasBoard() {
       }
     };
   }, []);
+
+  // Dialog semantics for the detail drawer: Escape to close, focus trap
+  // while open, and focus restoration on close.
+  useEffect(() => {
+    if (!selectedIdea) return;
+    previouslyFocusedRef.current = document.activeElement;
+    const node = drawerRef.current;
+    // Move focus into the dialog so keyboard users land inside it.
+    node?.focus();
+
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        setSelectedIdea(null);
+        return;
+      }
+      if (event.key !== "Tab" || !node) return;
+      const focusables = node.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])',
+      );
+      if (focusables.length === 0) {
+        event.preventDefault();
+        return;
+      }
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    };
+
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown, true);
+      const prev = previouslyFocusedRef.current as HTMLElement | null;
+      prev?.focus?.();
+    };
+  }, [selectedIdea, setSelectedIdea]);
 
   const handleDeleteWithUndo = useCallback(
     async (ideaId: string) => {
@@ -513,20 +551,18 @@ export function IdeasBoard() {
                           {stageIdeas.map((idea) => (
                             <Card
                               key={idea.id}
-                              onClick={() => setSelectedIdea(idea)}
-                              onKeyDown={(event: KeyboardEvent<HTMLDivElement>) => {
-                                if (event.target !== event.currentTarget) return;
-                                if (event.key === "Enter" || event.key === " ") {
-                                  event.preventDefault();
-                                  setSelectedIdea(idea);
-                                }
-                              }}
-                              tabIndex={0}
-                              className="group cursor-pointer p-4 transition duration-fast hover:border-border-strong hover:shadow-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+                              className="group p-4 transition duration-fast hover:border-border-strong hover:shadow-hover"
                             >
                               <div className="mb-2 flex items-start justify-between gap-2">
                                 <h3 className="min-w-0 line-clamp-2 font-medium leading-snug text-text-primary">
-                                  {idea.title ? highlightMatch(idea.title, searchQuery) : "Untitled"}
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedIdea(idea)}
+                                    className="rounded text-left underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+                                    aria-label={`Open idea: ${idea.title || "Untitled"}`}
+                                  >
+                                    {idea.title ? highlightMatch(idea.title, searchQuery) : "Untitled"}
+                                  </button>
                                 </h3>
                                 <Button
                                   type="button"
@@ -619,7 +655,11 @@ export function IdeasBoard() {
       {/* Idea Detail Drawer */}
       {selectedIdea && (
           <aside
+            ref={drawerRef}
+            role="dialog"
+            aria-modal="true"
             aria-label="Idea details"
+            tabIndex={-1}
             className="absolute inset-0 z-20 flex h-full w-full flex-col border-l-0 border-border-subtle bg-bg-surface shadow-lg lg:relative lg:inset-auto lg:w-[450px] lg:border-l"
           >
            <div className="flex items-center justify-between border-b border-border-subtle p-4">

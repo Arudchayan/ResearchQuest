@@ -1,5 +1,5 @@
 import { AlertTriangle, X } from "lucide-react";
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useId, useRef, useState, useCallback } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 
 import { Button } from "@/components/ui/button";
@@ -49,6 +49,8 @@ export function ConfirmDialog({
   const confirmButtonRef = useRef<HTMLButtonElement>(null);
   const cancelButtonRef = useRef<HTMLButtonElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+  const titleId = useId();
+  const descriptionId = useId();
   const styles = VARIANT_STYLES[variant];
 
   useEffect(() => {
@@ -75,8 +77,8 @@ export function ConfirmDialog({
         <Dialog.Content
           role="alertdialog"
           aria-modal="true"
-          aria-labelledby="dialog-title"
-          aria-describedby="dialog-description"
+          aria-labelledby={titleId}
+          aria-describedby={descriptionId}
           onOpenAutoFocus={(event) => {
             event.preventDefault();
             const target =
@@ -101,13 +103,13 @@ export function ConfirmDialog({
 
             <div className="flex-1 min-w-0">
               <Dialog.Title
-                id="dialog-title"
+                id={titleId}
                 className="text-lg font-serif font-semibold text-text-primary mb-2"
               >
                 {title}
               </Dialog.Title>
               <Dialog.Description
-                id="dialog-description"
+                id={descriptionId}
                 className="text-body text-text-secondary"
               >
                 {message}

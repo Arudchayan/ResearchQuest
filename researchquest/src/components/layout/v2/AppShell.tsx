@@ -120,21 +120,26 @@ export function AppShell({ children }: AppShellProps) {
     };
   }, [isMobileSidebarOpen, setIsMobileSidebarOpen]);
 
+  const showChrome = !isDemoFirstRunSurface && !isZenMode;
+
   return (
     <div
       data-testid="app-shell"
+      {...(isDemoFirstRunSurface ? { "data-first-run": "true" } : {})}
       className={`relative flex min-h-[100dvh] w-full min-w-0 overflow-x-hidden bg-bg-base font-sans text-text-primary selection:bg-primary-500 selection:text-bg-base ${effectiveTheme}`}
     >
       {/* Skip to content link for accessibility */}
+      {showChrome ? (
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-bg-surface focus:text-primary-500 focus:font-medium focus:outline-none focus:ring-1 focus:ring-primary-500 focus:rounded-sm focus:shadow-md"
       >
         Skip to content
       </a>
+      ) : null}
 
       {/* Desktop Sidebar */}
-      {!isZenMode && (
+      {showChrome && (
         <div
           className="hidden min-h-[100dvh] shrink-0 bg-bg-surface text-text-primary lg:block"
           {...(isMobileSidebarOpen ? { inert: true } : {})}
@@ -144,7 +149,7 @@ export function AppShell({ children }: AppShellProps) {
       )}
 
       {/* Mobile Sidebar Overlay */}
-      {isMobileSidebarOpen && !isZenMode && (
+      {isMobileSidebarOpen && showChrome && (
         <div
           aria-hidden="true"
           className="fixed inset-0 z-40 bg-overlay lg:hidden"
@@ -153,7 +158,7 @@ export function AppShell({ children }: AppShellProps) {
       )}
 
       {/* Mobile Sidebar */}
-      {isMobileSidebarOpen && !isZenMode && (
+      {isMobileSidebarOpen && showChrome && (
         <div
           ref={mobileDrawerRef}
           role="dialog"
@@ -181,7 +186,7 @@ export function AppShell({ children }: AppShellProps) {
         {...(isMobileSidebarOpen ? { inert: true } : {})}
       >
         {/* Mobile Header */}
-        {!isZenMode && (
+        {showChrome && (
           <header className="flex h-16 shrink-0 items-center justify-between border-b border-border-subtle bg-bg-surface px-4 lg:hidden">
             <div className="flex items-center">
               <button
@@ -222,11 +227,11 @@ export function AppShell({ children }: AppShellProps) {
         )}
 
         {/* Mobile Bottom Tab Bar */}
-        {!isZenMode && <MobileTabBar />}
+        {showChrome && <MobileTabBar />}
       </div>
 
       {/* Right Sidebar (Context Panel) */}
-      {!isZenMode && isRightSidebarOpen && (
+      {showChrome && isRightSidebarOpen && (
         <aside
           data-testid="right-panel"
           aria-label="Context panel"
@@ -240,7 +245,7 @@ export function AppShell({ children }: AppShellProps) {
       )}
 
       {/* Zen Mode Exit Button */}
-      {isZenMode && (
+      {isZenMode && !isDemoFirstRunSurface && (
         <Tooltip>
           <TooltipTrigger asChild>
             <button

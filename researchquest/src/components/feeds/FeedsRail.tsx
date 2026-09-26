@@ -23,6 +23,7 @@ export function FeedsRail() {
     loading,
     error,
     actionItemId,
+    refreshFeedItems,
     archiveFeedItem,
     markFeedItemTriaged,
     promoteFeedItem,
@@ -30,6 +31,8 @@ export function FeedsRail() {
     type,
     status: "new",
     limit: 5,
+    // Single-owner rule: AppDataOwners fetches; the rail only reads.
+    owner: false,
   });
 
   const navigateToFeeds = () => {
@@ -103,8 +106,17 @@ export function FeedsRail() {
           <span className="sr-only">Loading feeds</span>
         </div>
       ) : error ? (
-        <div className="surface-card p-4 text-caption text-text-secondary">
-          {error}
+        <div className="surface-card flex items-center justify-between gap-3 p-4">
+          <p className="text-caption text-text-secondary" role="alert">
+            {error}
+          </p>
+          <button
+            type="button"
+            onClick={() => void refreshFeedItems()}
+            className="shrink-0 rounded-lg border border-border-moderate bg-bg-surface px-2.5 py-1 text-caption font-medium text-text-secondary hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+          >
+            Retry
+          </button>
         </div>
       ) : items.length === 0 ? (
         <div className="surface-card border-dashed p-4 text-center">

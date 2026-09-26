@@ -32,7 +32,7 @@ export function DOISearchTab({
   const doiInputRef = useRef<HTMLInputElement>(null);
 
   return (
-    <div className="space-y-6" role="tabpanel" id="view-panel-doi">
+    <div className="space-y-6">
       <form
         onSubmit={(e) => {
           e.preventDefault();

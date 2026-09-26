@@ -1100,4 +1100,14 @@ describe("FocusWorkspace", () => {
     fireEvent.click(screen.getByRole("button", { name: "Mark task done?" }));
     expect(completeTaskMock).toHaveBeenCalledWith("task-1");
   });
+
+  it("lets you start a freeform session without an entity", () => {
+    render(<FocusWorkspace userId={userId} />);
+    fireEvent.change(screen.getByLabelText("Focus without an entity"), {
+      target: { value: "Write the outline" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Use" }));
+    expect(screen.getByRole("heading", { name: "Write the outline" })).toBeInTheDocument();
+    expect(screen.getByText("Start focus")).not.toBeDisabled();
+  });
 });

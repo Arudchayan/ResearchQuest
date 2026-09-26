@@ -857,7 +857,7 @@ export const demoSupabase = {
       }
       const terms = query.split(/\s+/).filter(Boolean);
       const scored: Array<{
-        entity_type: "note" | "paper" | "idea";
+        entity_type: "note" | "paper" | "idea" | "task" | "topic";
         entity_id: string;
         title: string;
         snippet: string;
@@ -919,6 +919,38 @@ export const demoSupabase = {
             entity_type: "idea",
             entity_id: String(row.id),
             title: String(row.title ?? ""),
+            snippet: String(row.description ?? "").slice(0, 200),
+            rank,
+            updated_at: String(row.updated_at ?? ""),
+          });
+        }
+      }
+      for (const row of tables.tasks ?? []) {
+        if (row.user_id !== userId) continue;
+        const haystack =
+          `${String(row.title ?? "")} ${String(row.description ?? "")}`.toLowerCase();
+        const rank = rankOf(haystack);
+        if (rank > 0) {
+          scored.push({
+            entity_type: "task",
+            entity_id: String(row.id),
+            title: String(row.title ?? ""),
+            snippet: String(row.description ?? "").slice(0, 200),
+            rank,
+            updated_at: String(row.updated_at ?? ""),
+          });
+        }
+      }
+      for (const row of tables.topics ?? []) {
+        if (row.user_id !== userId) continue;
+        const haystack =
+          `${String(row.name ?? "")} ${String(row.description ?? "")}`.toLowerCase();
+        const rank = rankOf(haystack);
+        if (rank > 0) {
+          scored.push({
+            entity_type: "topic",
+            entity_id: String(row.id),
+            title: String(row.name ?? ""),
             snippet: String(row.description ?? "").slice(0, 200),
             rank,
             updated_at: String(row.updated_at ?? ""),

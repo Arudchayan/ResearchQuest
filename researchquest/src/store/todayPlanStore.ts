@@ -12,6 +12,8 @@ export interface TodayPlanState {
   pin: (id: string) => void;
   unpin: (id: string) => void;
   move: (id: string, direction: -1 | 1) => void;
+  moveToIndex: (id: string, toIndex: number) => void;
+  setOrder: (ids: string[]) => void;
   setPendingFocusTaskId: (id: string | null) => void;
   consumePendingFocusTaskId: () => string | null;
 }
@@ -59,12 +61,31 @@ export const useTodayPlanStore = create<TodayPlanState>()(
         const rolled = rollDay(get());
         const index = rolled.orderedIds.indexOf(id);
         if (index < 0) return;
-        const nextIndex = index + direction;
-        if (nextIndex < 0 || nextIndex >= rolled.orderedIds.length) return;
+        get().moveToIndex(id, index + direction);
+      },
+      moveToIndex: (id, toIndex) => {
+        const rolled = rollDay(get());
+        const from = rolled.orderedIds.indexOf(id);
+        if (from < 0) return;
+        const bounded = Math.max(0, Math.min(toIndex, rolled.orderedIds.length - 1));
+        if (from === bounded) {
+          if (rolled.dayKey !== get().dayKey) set(rolled);
+          return;
+        }
         const orderedIds = [...rolled.orderedIds];
-        const [removed] = orderedIds.splice(index, 1);
+        const [removed] = orderedIds.splice(from, 1);
         if (!removed) return;
-        orderedIds.splice(nextIndex, 0, removed);
+        orderedIds.splice(bounded, 0, removed);
+        set({ ...rolled, orderedIds });
+      },
+      setOrder: (ids) => {
+        const rolled = rollDay(get());
+        const seen = new Set<string>();
+        const orderedIds = ids.filter((id) => {
+          if (seen.has(id)) return false;
+          seen.add(id);
+          return true;
+        });
         set({ ...rolled, orderedIds });
       },
       setPendingFocusTaskId: (pendingFocusTaskId) => set({ pendingFocusTaskId }),

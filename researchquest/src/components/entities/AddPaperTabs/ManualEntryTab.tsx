@@ -42,7 +42,7 @@ export function ManualEntryTab({
   };
 
   return (
-    <div className="space-y-6" role="tabpanel" id="view-panel-manual">
+    <div className="space-y-6">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label htmlFor="manual-title" className="block text-sm font-medium mb-1">
@@ -95,7 +95,7 @@ export function ManualEntryTab({
           />
         </div>
         {error && (
-          <div id="manual-error" role="alert" className="text-red-500 text-sm">
+          <div id="manual-error" role="alert" className="text-destructive text-sm">
             {error}
           </div>
         )}

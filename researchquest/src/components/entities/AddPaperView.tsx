@@ -285,6 +285,7 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
             onClick={() => {
               setSearchError("");
               setImportError("");
+              setManualError("");
               setActiveTab(tab);
             }}
             className={`relative px-6 py-3 text-small font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2 ${activeTab === tab ? "text-primary-500" : "text-text-secondary hover:text-text-primary"}`}
