@@ -58,6 +58,7 @@ import {
 import {
   bumpFocusRunEpoch,
   currentFocusRunEpoch,
+  publishLiveFocusSnapshot,
   registerFocusFreeze,
 } from "./focusSessionGuard";
 import { FocusTargetAside } from "./FocusTargetAside";
@@ -353,6 +354,15 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     sessionCount,
     resumeHold,
   };
+  publishLiveFocusSnapshot({
+    selectedTarget,
+    sessionLength,
+    timeLeft: effectiveTimeLeft,
+    hasCompletedSession,
+    sessionCount,
+    isLive: isRunning || runArmedRef.current,
+    resumeHold,
+  });
 
   const freezeLiveToContinue = () => {
     stopTimerNow();
@@ -385,6 +395,15 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     setIsRunning(false);
     setStartedAt(null);
     if (inProgress) setResumeHold(true);
+    publishLiveFocusSnapshot({
+      selectedTarget: persistRef.current.selectedTarget,
+      sessionLength: persistRef.current.sessionLength,
+      timeLeft: remaining,
+      hasCompletedSession: persistRef.current.hasCompletedSession,
+      sessionCount: persistRef.current.sessionCount,
+      isLive: false,
+      resumeHold: inProgress,
+    });
   };
   const freezeRef = useRef(freezeLiveToContinue);
   freezeRef.current = freezeLiveToContinue;
@@ -425,6 +444,12 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
       isLive: () =>
         persistRef.current.isRunning || runArmedRef.current,
     });
+  }, []);
+
+  useLayoutEffect(() => {
+    return () => {
+      publishLiveFocusSnapshot(null);
+    };
   }, []);
 
   const quickTargets = useMemo(() => {
@@ -626,14 +651,25 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
       setIsRunning(false);
       setStartedAt(null);
       setResumeHold(true);
+      persistPausedFocusSession({
+        selectedTarget,
+        sessionLength,
+        liveIsRunning: false,
+        liveStartedAt: null,
+        timeLeft: effectiveTimeLeft,
+        hasCompletedSession,
+        sessionCount,
+        keepAlive: true,
+      });
       return;
     }
     if (hasCompletedSession || timeLeft <= 0) {
       setTimeLeft(sessionLength);
       setHasCompletedSession(false);
     }
+    const nextCount = isPaused ? sessionCount : sessionCount + 1;
     if (!isPaused) {
-      setSessionCount((count) => count + 1);
+      setSessionCount(nextCount);
     }
     sessionAwardedRef.current = false;
     setAwardedXp(null);
@@ -643,8 +679,19 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     }
     bumpFocusRunEpoch();
     runArmedRef.current = true;
-    setStartedAt(Date.now());
+    const started = Date.now();
+    setStartedAt(started);
     setIsRunning(true);
+    persistPausedFocusSession({
+      selectedTarget,
+      sessionLength,
+      liveIsRunning: true,
+      liveStartedAt: started,
+      timeLeft: effectiveTimeLeft,
+      hasCompletedSession: false,
+      sessionCount: nextCount,
+      keepAlive: true,
+    });
     dismissOnboarding();
   };
 

@@ -123,6 +123,19 @@ export function saveFocusSession(snapshot: FocusSessionSnapshot): void {
   );
 }
 
+/**
+ * New-document hard refresh reads this before React paints. Storage may still
+ * say `isRunning: true` from a crash or a persist race; that is never
+ * permission to auto-run. Empty storage stays empty (fresh Start-only).
+ */
+export function rewriteStoredFocusSessionPaused(): FocusSessionSnapshot | null {
+  const snapshot = loadStoredFocusSession();
+  if (!snapshot) return null;
+  const paused: FocusSessionSnapshot = { ...snapshot, isRunning: false };
+  saveFocusSession(paused);
+  return paused;
+}
+
 export function clearStoredFocusSession(): void {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(FOCUS_SESSION_STORAGE_KEY);
