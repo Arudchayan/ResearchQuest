@@ -23,7 +23,9 @@ export function prefetchPlanChunks(): void {
       return;
     }
     for (const load of chunkImporters) {
-      void load();
+      // Prefetch is best-effort: a stale chunk here rejects harmlessly and
+      // the real navigation goes through lazyWithReload's auto-reload guard.
+      void load().catch(() => {});
     }
   };
   if (typeof requestIdleCallback === "function") {
