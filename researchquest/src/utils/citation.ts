@@ -16,6 +16,20 @@ export function extractYear(dateString?: string): string {
 }
 
 /**
+ * Escapes a string for use inside a BibTeX braced field value.
+ * Order matters: backslash first, then braces, then BibTeX specials.
+ * Each of `& % $ # _ ~ ^` is prefixed with a backslash.
+ * The citation key and numeric year must NOT be passed through this.
+ */
+export function escapeBibTeX(s: string): string {
+  return s
+    .replace(/\\/g, "\\\\")
+    .replace(/\{/g, "\\{")
+    .replace(/\}/g, "\\}")
+    .replace(/([&%$#_~^])/g, "\\$1");
+}
+
+/**
  * Parses an author name string into parts.
  * Very basic implementation: assumes "First Middle Last" format.
  */
@@ -140,49 +154,107 @@ function formatAuthorsHarvard(authors: string[]): string {
 }
 
 /**
+ * Generates a unique BibTeX citation key for a paper.
+ * base = `${last}${year}${word}` where last is the first author's last name
+ * stripped of `[^a-zA-Z]` (or "anon"), year is the 4-digit year (or "nd"),
+ * and word is the first title word stripped of `[^a-zA-Z]` (or "untitled").
+ * First use keeps base; collisions get `base-a`, `base-b`, … (hyphenated,
+ * deliberately distinct from the import `-2` numeric scheme).
+ * The caller-supplied `used` set is updated in place.
+ */
+export function makeKey(paper: Paper, used: Set<string>): string {
+  let last = "anon";
+  if (paper.authors && paper.authors.length > 0) {
+    const parsed = parseAuthor(paper.authors[0]!);
+    const stripped = (parsed.last || "").replace(/[^a-zA-Z]/g, "");
+    if (stripped) last = stripped;
+  }
+
+  let year = "nd";
+  const y = extractYear(paper.publication_date);
+  if (y !== "n.d.") year = y;
+
+  let word = "untitled";
+  if (paper.title) {
+    const words = paper.title.trim().split(/\s+/).filter(Boolean);
+    if (words.length > 0) {
+      const stripped = words[0]!.replace(/[^a-zA-Z]/g, "");
+      if (stripped) word = stripped;
+    }
+  }
+
+  const base = `${last}${year}${word}`;
+  if (!used.has(base)) {
+    used.add(base);
+    return base;
+  }
+  let i = 0;
+  while (true) {
+    const candidate = `${base}-${indexToLetters(i)}`;
+    if (!used.has(candidate)) {
+      used.add(candidate);
+      return candidate;
+    }
+    i++;
+  }
+}
+
+/** 0 -> "a", 25 -> "z", 26 -> "aa", 27 -> "ab", … */
+function indexToLetters(i: number): string {
+  let n = i;
+  let out = "";
+  do {
+    out = String.fromCharCode(97 + (n % 26)) + out;
+    n = Math.floor(n / 26) - 1;
+  } while (n >= 0);
+  return out;
+}
+
+/**
  * Generates a BibTeX citation string for a given paper.
  * @param paper The paper object
+ * @param used Optional shared set for bulk-key dedup. When omitted a local
+ * set is created, so the single-paper path is unchanged — but collisions
+ * across separate single-paper calls are then possible; bulk exports must
+ * share one set.
  * @returns The BibTeX string
  */
-export function generateBibTeX(paper: Paper): string {
+export function generateBibTeX(paper: Paper, used?: Set<string>): string {
   const { title, authors, publication_date, doi, source_url, abstract } = paper;
 
-  let firstAuthorLastName = "Anonymous";
-  if (authors && authors.length > 0) {
-    const { last } = parseAuthor(authors[0]!);
-    firstAuthorLastName = last.replace(/[^a-zA-Z]/g, "");
-  }
+  const seen = used ?? new Set<string>();
+  const citationKey = makeKey(paper, seen);
 
   let year = "nd";
   const y = extractYear(publication_date);
   if (y !== "n.d.") year = y;
 
-  let titleWord = "Untitled";
-  if (title) {
-    const words = title.trim().split(/\s+/);
-    if (words.length > 0) {
-      titleWord = words[0]!.replace(/[^a-zA-Z]/g, "");
-    }
-  }
-
-  const citationKey = `${firstAuthorLastName}${year}${titleWord}`;
-
   const fields: string[] = [];
 
-  if (title) fields.push(`  title = {${title}}`);
+  if (title) fields.push(`  title = {${escapeBibTeX(title)}}`);
   if (authors && authors.length > 0) {
-    const bibAuthors = authors.join(" and ");
+    // Authors containing the word "and" (tested with /\s+and\s+/i so that
+    // "Anderson" is NOT braced) are wrapped in {...} after escaping so the
+    // " and " joiner stays unambiguous. NOTE: the downstream parseAuthors
+    // splitter is naive and still splits inside braces, so corporate names
+    // like "Rock and Roll Band" mangle on re-parse; accepted limitation.
+    const bibAuthors = authors
+      .map((a) => {
+        const escaped = escapeBibTeX(a);
+        return /\s+and\s+/i.test(a) ? `{${escaped}}` : escaped;
+      })
+      .join(" and ");
     fields.push(`  author = {${bibAuthors}}`);
   }
   if (year !== "nd") fields.push(`  year = {${year}}`);
-  if (doi) fields.push(`  doi = {${doi}}`);
-  if (source_url) fields.push(`  url = {${source_url}}`);
+  if (doi) fields.push(`  doi = {${escapeBibTeX(doi)}}`);
+  if (source_url) fields.push(`  url = {${escapeBibTeX(source_url)}}`);
   if (abstract) {
     const cleanAbstract = abstract
       .replace(/\r?\n/g, " ")
       .replace(/\s+/g, " ")
       .trim();
-    fields.push(`  abstract = {${cleanAbstract}}`);
+    fields.push(`  abstract = {${escapeBibTeX(cleanAbstract)}}`);
   }
 
   return `@article{${citationKey},

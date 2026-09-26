@@ -223,7 +223,9 @@ describe("usePapers server-side DOI dedupe (ARU-657)", () => {
       expect(payload).toHaveLength(1);
       expect(payload[0].doi).toBe("10.3333/batch");
       expect(created).toEqual([insertedPaper]);
-      expect(toast.warning).toHaveBeenCalledWith("2 duplicate papers skipped");
+      expect(toast.warning).toHaveBeenCalledWith(
+        "Saved 1 paper; 2 duplicates skipped.",
+      );
     });
 
     it("returns early with a warning when every entry is already in the library", async () => {

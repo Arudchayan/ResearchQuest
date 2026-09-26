@@ -54,7 +54,7 @@ export interface Paper {
   title: string;
   authors: string[];
   doi?: string;
-  source_url?: string;
+  source_url?: string | null;
   status: ReadingStatus;
   topic_ids?: string[];
   abstract?: string;

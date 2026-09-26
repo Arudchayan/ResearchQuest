@@ -1,6 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { usePapers } from "../../hooks/usePapers";
+import {
+  usePapers,
+  PAPER_SOURCE_URL_WARNING_SINGLE,
+  PAPER_SOURCE_URL_WARNING_EDIT,
+} from "../../hooks/usePapers";
 import { mockSupabaseClient, mockPaper } from "../mocks/supabase";
 import { useAppStore } from "../../store/appStore";
 import { toast } from "sonner";
@@ -96,6 +100,10 @@ describe("usePapers Security", () => {
       expect(capturedPayloads[0].title).toBe("Malicious Paper");
       // source_url should be undefined or not present because it was stripped
       expect(capturedPayloads[0].source_url).toBeUndefined();
+      // ...and the drop must warn (preserve + warn, never silent)
+      expect(toast.warning).toHaveBeenCalledWith(
+        PAPER_SOURCE_URL_WARNING_SINGLE,
+      );
     });
 
     it("should allow valid source_url (https:) in createPaper", async () => {
@@ -183,6 +191,10 @@ describe("usePapers Security", () => {
 
       expect(capturedUpdates.length).toBe(1);
       expect(capturedUpdates[0].source_url).toBeUndefined();
+      // Previous link kept + warning fired (never a silent drop)
+      expect(toast.warning).toHaveBeenCalledWith(
+        PAPER_SOURCE_URL_WARNING_EDIT,
+      );
     });
   });
 

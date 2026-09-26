@@ -451,8 +451,8 @@ describe("AddPaperView Component", () => {
       const titleInput = screen.getByPlaceholderText(/enter paper title/i);
       await userEvent.type(titleInput, "Manual Test Paper");
 
-      const authorsInput = screen.getByPlaceholderText(/John Doe, Jane Smith/i);
-      await userEvent.type(authorsInput, "Author One, Author Two");
+      const authorsInput = screen.getByPlaceholderText(/Doe, John; Smith, Jane/i);
+      await userEvent.type(authorsInput, "Author One; Author Two");
 
       const addButton = screen.getByRole("button", { name: /add paper/i });
       await userEvent.click(addButton);
@@ -520,10 +520,10 @@ describe("AddPaperView Component", () => {
       const titleInput = screen.getByPlaceholderText(/enter paper title/i);
       await userEvent.type(titleInput, "Manual Test Paper");
 
-      const doiInput = screen.getByPlaceholderText("10.1038/nature12373");
+      const doiInput = screen.getByPlaceholderText(/10\.1038\/nature12373/i);
       await userEvent.type(doiInput, "10.1234/manual.doi");
 
-      const urlInput = screen.getByPlaceholderText("https://...");
+      const urlInput = screen.getByPlaceholderText(/https:\/\/example\.com\/paper/i);
       await userEvent.type(urlInput, "https://example.com/manual");
 
       const addButton = screen.getByRole("button", { name: /add paper/i });
@@ -802,7 +802,7 @@ describe("AddPaperView Component", () => {
             authors: ["Test Author"],
           }),
         );
-        expect(screen.getAllByText(/successfully imported 1 papers/i)[0]).toBeInTheDocument();
+        expect(screen.getAllByText(/Imported 1 of 1 entries successfully/i)[0]).toBeInTheDocument();
       });
     });
   });

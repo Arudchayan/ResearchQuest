@@ -25,6 +25,22 @@ import {
 const PAPER_TITLE_MAX_LENGTH = 255;
 const PAPER_ABSTRACT_MAX_LENGTH = 5000;
 
+/** Shared DOI shape: `10.<registrant>/<suffix>`, tested after normalization. */
+export const DOI_PATTERN = /^10\.\d{4,}\/\S+$/;
+const DOI_TRAILING_JUNK_PATTERN = /[.,;)\]}>]+$/;
+
+/** Normalize a raw DOI input and strip trailing pasted punctuation. */
+export function sanitizeDoiInput(raw: string): string {
+  return normalizeDoi(raw).replace(DOI_TRAILING_JUNK_PATTERN, "");
+}
+
+/** Warn-and-keep copy for single creates that drop an unsafe source URL. */
+export const PAPER_SOURCE_URL_WARNING_SINGLE =
+  "Paper saved without its source link — the URL looked unsafe. You can paste an http(s) link via Edit.";
+/** Warn-and-keep copy for edits that drop an unsafe replacement link. */
+export const PAPER_SOURCE_URL_WARNING_EDIT =
+  "Changes saved, but the new source link looked unsafe so the previous link was kept.";
+
 type PaperInsertPayload = Pick<Paper, "user_id" | "title" | "authors" | "status"> &
   Partial<Pick<Paper, "doi" | "source_url" | "abstract" | "publication_date" | "topic_ids">>;
 
@@ -119,8 +135,15 @@ function cleanPaperDraft(
   paperData: PaperDraft,
   userId: string,
 ):
-  | { ok: true; payload: PaperInsertPayload }
-  | { ok: false; reason: "title-required" | "title-too-long" | "abstract-too-long" } {
+  | { ok: true; payload: PaperInsertPayload; urlDropped: boolean }
+  | {
+      ok: false;
+      reason:
+        | "title-required"
+        | "title-too-long"
+        | "abstract-too-long"
+        | "doi-invalid";
+    } {
   if (!paperData.title || !paperData.title.trim()) {
     return { ok: false, reason: "title-required" };
   }
@@ -142,13 +165,20 @@ function cleanPaperDraft(
   };
 
   if (paperData.doi && paperData.doi.trim()) {
-    const normalizedDoi = normalizeDoi(paperData.doi);
-    if (normalizedDoi) cleanData.doi = normalizedDoi;
+    const normalizedDoi = sanitizeDoiInput(paperData.doi);
+    if (!normalizedDoi || !DOI_PATTERN.test(normalizedDoi)) {
+      return { ok: false, reason: "doi-invalid" };
+    }
+    cleanData.doi = normalizedDoi;
   }
+  let urlDropped = false;
   if (paperData.source_url && paperData.source_url.trim()) {
     const url = paperData.source_url.trim();
     if (isValidUrl(url)) {
       cleanData.source_url = url;
+    } else {
+      // Never fail/abort on a bad URL: drop the link, report the drop.
+      urlDropped = true;
     }
   }
   if (paperData.abstract && paperData.abstract.trim())
@@ -175,7 +205,7 @@ function cleanPaperDraft(
     cleanData.topic_ids = paperData.topic_ids;
   }
 
-  return { ok: true, payload: cleanData };
+  return { ok: true, payload: cleanData, urlDropped };
 }
 
 export { normalizeDoi } from "../utils/paperUtils";
@@ -215,12 +245,13 @@ async function fetchExistingDois(
 }
 
 const CREATE_FAIL_REASON_MESSAGE: Record<
-  "title-required" | "title-too-long" | "abstract-too-long",
+  "title-required" | "title-too-long" | "abstract-too-long" | "doi-invalid",
   string
 > = {
   "title-required": "Paper title is required",
   "title-too-long": `Paper title exceeds ${PAPER_TITLE_MAX_LENGTH} characters`,
   "abstract-too-long": `Paper abstract exceeds ${PAPER_ABSTRACT_MAX_LENGTH} characters`,
+  "doi-invalid": "Invalid DOI format. Expected e.g. 10.1038/nature12373.",
 };
 
 export function usePapers(userId: string | undefined) {
@@ -266,6 +297,12 @@ export function usePapers(userId: string | undefined) {
         fail(CREATE_FAIL_REASON_MESSAGE[cleaned.reason]);
         return null;
       }
+      if (cleaned.urlDropped) {
+        return {
+          payload: cleaned.payload,
+          warning: PAPER_SOURCE_URL_WARNING_SINGLE,
+        };
+      }
       return cleaned.payload;
     },
     insert: async (payload) => {
@@ -304,12 +341,17 @@ export function usePapers(userId: string | undefined) {
       }
 
       const sanitized: Partial<Paper> = { ...updates };
-      if (sanitized.source_url) {
-        const url = sanitized.source_url.trim();
-        if (isValidUrl(url)) {
-          sanitized.source_url = url;
+      if (sanitized.source_url !== undefined) {
+        const raw = (sanitized.source_url ?? "").trim();
+        if (!raw) {
+          // Clear intent: whitespace-only/empty clears the stored link, no warning.
+          sanitized.source_url = null;
+        } else if (isValidUrl(raw)) {
+          sanitized.source_url = raw;
         } else {
+          // Invalid replacement: keep the previous link, warn on success.
           delete sanitized.source_url;
+          return { payload: sanitized, warning: PAPER_SOURCE_URL_WARNING_EDIT };
         }
       }
 
@@ -476,6 +518,7 @@ export function usePapers(userId: string | undefined) {
 
       const validPapers: PaperInsertPayload[] = [];
       let skippedCount = 0;
+      let urlDroppedCount = 0;
 
       for (const paperData of papersData) {
         const cleaned = cleanPaperDraft(paperData, userId);
@@ -483,6 +526,7 @@ export function usePapers(userId: string | undefined) {
           skippedCount++;
           continue;
         }
+        if (cleaned.urlDropped) urlDroppedCount++;
         validPapers.push(cleaned.payload);
       }
 
@@ -508,9 +552,11 @@ export function usePapers(userId: string | undefined) {
           ? await fetchExistingDois([...doiCandidates], userId)
           : new Set<string>();
 
+      // Skip reporting merges into the single post-insert toast below so a
+      // later DB error never pairs with an earlier warning.
+      let duplicateCount = 0;
       if (existingDois.size > 0 || seenInBatch.size > 0) {
         const deduped: PaperInsertPayload[] = [];
-        let duplicateCount = 0;
         const seenFinal = new Set<string>();
         for (const paper of validPapers) {
           const normalized = paper.doi ? normalizeDoi(paper.doi) : null;
@@ -528,11 +574,6 @@ export function usePapers(userId: string | undefined) {
         if (deduped.length === 0) {
           toast.warning("All papers are already in your library");
           return [];
-        }
-        if (duplicateCount > 0) {
-          toast.warning(
-            `${duplicateCount} duplicate paper${duplicateCount === 1 ? "" : "s"} skipped`,
-          );
         }
         validPapers.length = 0;
         validPapers.push(...deduped);
@@ -556,8 +597,24 @@ export function usePapers(userId: string | undefined) {
         return [];
       }
 
-      if (skippedCount > 0) {
-        toast.warning(`Added ${data.length} papers, skipped ${skippedCount} invalid entries`);
+      // Single merged toast: saved count plus every skip kind (invalid
+      // entries, dropped unsafe source links, duplicates). No warning fires
+      // on the DB-error path above.
+      if (skippedCount > 0 || urlDroppedCount > 0 || duplicateCount > 0) {
+        const parts: string[] = [];
+        if (skippedCount > 0) parts.push(`${skippedCount} invalid skipped`);
+        if (urlDroppedCount > 0) {
+          parts.push(
+            `${urlDroppedCount} source link(s) skipped (unsafe URL)`,
+          );
+        }
+        if (duplicateCount > 0) {
+          parts.push(
+            `${duplicateCount} duplicate${duplicateCount === 1 ? "" : "s"} skipped`,
+          );
+        }
+        const noun = data.length === 1 ? "paper" : "papers";
+        toast.warning(`Saved ${data.length} ${noun}; ${parts.join("; ")}.`);
       } else {
         toast.success(`Successfully added ${data.length} papers`);
       }

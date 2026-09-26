@@ -29,9 +29,8 @@ export const buildPaperPayload = (paper: CrossrefPaper) => {
     paperData.abstract = paper.abstract.trim();
   if (paper.publicationDate) {
     const year = paper.publicationDate.toString();
-    paperData.publication_date = /^\d{4}$/.test(year)
-      ? `${year}-01-01`
-      : year;
+    // Only mirror clean 4-digit years; omit anything else.
+    if (/^\d{4}$/.test(year)) paperData.publication_date = `${year}-01-01`;
   }
 
   return paperData;
@@ -54,9 +53,8 @@ export const buildPaperPayloadFromBibTeX = (entry: BibTeXEntry) => {
     paperData.abstract = entry.abstract.trim();
   if (entry.year) {
     const year = entry.year.toString();
-    paperData.publication_date = /^\d{4}$/.test(year)
-      ? `${year}-01-01`
-      : year;
+    // Only mirror clean 4-digit years; omit anything else.
+    if (/^\d{4}$/.test(year)) paperData.publication_date = `${year}-01-01`;
   }
 
   return paperData;
