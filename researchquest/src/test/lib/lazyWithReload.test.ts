@@ -24,6 +24,13 @@ describe("isChunkLoadFailure", () => {
     expect(
       isChunkLoadFailure(new Error("Importing a module script failed.")),
     ).toBe(true);
+    expect(
+      isChunkLoadFailure(
+        new Error(
+          "Failed to load module script: Expected a JavaScript module script but the server responded with a MIME type of text/html.",
+        ),
+      ),
+    ).toBe(true);
   });
 
   it("does not match app-logic or API errors", () => {
@@ -94,8 +101,7 @@ describe("guardImport", () => {
     expect(sessionStorage.getItem(FLAG)).toBeNull();
   });
 
-  it("rethrows chunk failures while offline instead of reloading", async () => {
-    const descriptor = Object.getOwnPropertyDescriptor(
+  it("rethrows chunk failures while offline instead of reloading", async () => {    const descriptor = Object.getOwnPropertyDescriptor(
       window.navigator,
       "onLine",
     );
@@ -112,6 +118,22 @@ describe("guardImport", () => {
       if (descriptor) {
         Object.defineProperty(window.navigator, "onLine", descriptor);
       }
+    }
+  });
+
+  it("rethrows when storage is unavailable instead of risking a loop", async () => {
+    const getItem = vi
+      .spyOn(Storage.prototype, "getItem")
+      .mockImplementation(() => {
+        throw new Error("denied");
+      });
+    try {
+      await expect(
+        guardImport(() => Promise.reject(CHUNK_ERROR)),
+      ).rejects.toBe(CHUNK_ERROR);
+      expect(reload).not.toHaveBeenCalled();
+    } finally {
+      getItem.mockRestore();
     }
   });
 });

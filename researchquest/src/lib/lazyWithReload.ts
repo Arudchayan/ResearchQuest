@@ -11,6 +11,7 @@ const CHUNK_FAILURE_PATTERNS = [
   "failed to fetch dynamically imported module",
   "error loading dynamically imported module",
   "importing a module script failed",
+  "failed to load module script",
   "loading chunk",
   "loading css chunk",
 ];
