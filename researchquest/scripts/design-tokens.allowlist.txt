@@ -29,7 +29,6 @@ src/components/analysis/AdversarialReviewPanel.tsx :: <span className="flex h-6 
 src/components/analysis/AnalysisView.tsx :: high: "bg-coral-soft text-coral-strong border border-coral/20",
 src/components/analysis/AnalysisView.tsx :: medium: "bg-gold-soft text-gold-strong border border-gold/20",
 src/components/analysis/AnalysisView.tsx :: <span className="icon-tile bg-coral-soft text-coral-strong">
-src/components/analysis/AnalysisView.tsx :: <div className="flex items-center gap-5 rounded-2xl border border-border-subtle bg-bg-surface/80 p-6 shadow-card backdrop-blur">
 src/components/analysis/AnalysisView.tsx :: <span className="icon-tile bg-accent-soft text-accent-strong">
 src/components/analysis/AnalysisView.tsx :: "inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-small font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent",
 src/components/analysis/AnalysisView.tsx :: ? "bg-accent-soft text-accent-strong"
@@ -64,7 +63,7 @@ src/components/editor/sub-components/LinkDialog.tsx :: className="inline-flex h-
 src/components/feeds/FeedItemCard.tsx :: news: "bg-gold-soft text-gold-strong",
 src/components/feeds/FeedItemCard.tsx :: custom: "bg-accent-soft text-accent-strong",
 src/components/feeds/FeedItemCard.tsx :: new: "bg-accent-soft text-accent-strong",
-src/components/feeds/FeedItemCard.tsx :: className="inline-flex items-center gap-1 text-caption font-medium text-accent-strong hover:text-accent"
+src/components/feeds/FeedItemCard.tsx :: className="inline-flex items-center gap-1 text-caption font-medium text-accent-strong underline underline-offset-4 hover:text-accent"
 src/components/feeds/FeedItemCard.tsx :: className="inline-flex items-center gap-1 rounded-lg border border-border-moderate bg-bg-surface px-2.5 py-1 text-caption font-medium text-text-secondary shadow-sm transition-colors hover:border-border-strong hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
 src/components/feeds/FeedItemCard.tsx :: className="inline-flex items-center gap-1 rounded-lg border border-border-moderate bg-bg-surface px-2.5 py-1 text-caption font-medium text-text-secondary shadow-sm transition-colors hover:border-border-strong hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
 src/components/feeds/FeedItemCard.tsx :: className="inline-flex items-center gap-1 rounded-lg bg-text-primary px-2.5 py-1 text-caption font-medium text-bg-base shadow-sm transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"

@@ -103,7 +103,7 @@ export function AnalysisView() {
               papers, ideas, notes, and topics.
             </p>
           </div>
-          <div className="flex items-center gap-5 rounded-xl border border-border-subtle bg-bg-surface/80 p-6 shadow-card backdrop-blur">
+          <div className="flex items-center gap-5 rounded-xl border border-border-subtle bg-bg-surface/80 p-6 shadow-md backdrop-blur">
             <div className="relative flex h-36 w-36 items-center justify-center">
               <svg width="140" height="140" className="-rotate-90">
                 <circle
