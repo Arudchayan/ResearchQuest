@@ -27,7 +27,7 @@ export function getPriorityColor(priority: TaskPriority): BadgeVariant {
   return priorityBadgeVariants[priority];
 }
 
-export function isOverdue(dueDate: string | undefined): boolean {
+export function isOverdue(dueDate: string | undefined | null): boolean {
   if (!dueDate) return false;
   const parsed = parseDateInput(dueDate);
   if (!parsed) return false;

@@ -80,6 +80,11 @@ vi.mock("../../store/appStore", () => ({
 }));
 vi.mock("../../utils/gamification", () => ({
   XP_REWARDS: { FOCUS_SESSION_MINUTE: 2 },
+  // Mirror of the real client gate (sessions below 25 min earn 0 XP).
+  xpForFocusSession: (durationMinutes: number) =>
+    Number.isFinite(durationMinutes) && durationMinutes >= 25
+      ? Math.floor(durationMinutes) * 2
+      : 0,
   awardXP: vi.fn().mockResolvedValue(null),
   notifyGamificationResult: vi.fn(),
 }));
@@ -240,7 +245,9 @@ describe("FocusWorkspace", () => {
     });
 
     // Expect awardXP to be called
-    expect(awardXP).toHaveBeenCalledWith(userId, 50, "complete_focus_session"); // 25 min * 2 XP/min = 50 XP
+    expect(awardXP).toHaveBeenCalledWith(userId, 50, "complete_focus_session", {
+      durationMinutes: 25,
+    }); // 25 min * 2 XP/min = 50 XP
 
     // Expect toast to be shown; the "+N XP" toast is notifyGamificationResult's
     expect(toast.success).toHaveBeenCalledWith(
@@ -902,7 +909,9 @@ describe("FocusWorkspace", () => {
       <FocusWorkspace userId={userId} />,
     );
     expect(awardXP).toHaveBeenCalledTimes(1);
-    expect(awardXP).toHaveBeenCalledWith(userId, 50, "complete_focus_session");
+    expect(awardXP).toHaveBeenCalledWith(userId, 50, "complete_focus_session", {
+      durationMinutes: 25,
+    });
     expect(supabaseInsert).toHaveBeenCalledTimes(1);
 
     // A further remount must not re-award XP for the same session.
@@ -988,7 +997,9 @@ describe("FocusWorkspace", () => {
 
     // StrictMode double-invokes effects, but XP + insert must fire exactly once.
     expect(awardXP).toHaveBeenCalledTimes(1);
-    expect(awardXP).toHaveBeenCalledWith(userId, 50, "complete_focus_session");
+    expect(awardXP).toHaveBeenCalledWith(userId, 50, "complete_focus_session", {
+      durationMinutes: 25,
+    });
     expect(supabaseInsert).toHaveBeenCalledTimes(1);
 
     // A further remount must not re-award the same completed session.

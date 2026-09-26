@@ -2,6 +2,7 @@ import { useEffect, useCallback, useRef, useState } from "react";
 import type { EditorView } from "@codemirror/view";
 import { CitationPicker } from "./CitationPicker";
 import { TopicSelector } from "../topics/TopicSelector";
+import { persistedNoteTitle } from "../../utils/text";
 
 // Hooks
 import { useMarkdownEditor } from "./hooks/useMarkdownEditor";
@@ -52,17 +53,35 @@ export function MarkdownEditor({ onBackToList }: MarkdownEditorProps) {
   const saveNoteRef = useRef(saveNote);
   saveNoteRef.current = saveNote;
 
-  // Auto-save on a note-id key, not selectedNote object identity. Flush the
-  // in-flight draft on unmount so leaving the route cannot drop the title.
+  // Dirty-check against the stored note so clean mounts/switches never write.
+  const isDirty =
+    !!selectedNote &&
+    !!userId &&
+    (content !== (selectedNote.markdown_body ?? "") ||
+      persistedNoteTitle(title, content) !== (selectedNote.title ?? ""));
+  const dirtyRef = useRef(false);
+  dirtyRef.current = isDirty;
+
+  // Auto-save on a note-id key, not selectedNote object identity. Skips clean
+  // drafts; the unmount flush below covers in-app note switches (the view
+  // remounts this component per note id via key).
   useEffect(() => {
-    if (!selectedNote?.id || !userId) return;
-    const timer = setTimeout(() => { void saveNote(); }, 1000);
+    if (!selectedNote?.id || !userId || !dirtyRef.current) return;
+    const timer = setTimeout(() => { void saveNoteRef.current(); }, 1000);
     return () => clearTimeout(timer);
-  }, [content, title, selectedNote?.id, userId, saveNote]);
+  }, [content, title, selectedNote?.id, userId]);
 
   useEffect(() => {
+    const flushIfDirty = () => {
+      if (dirtyRef.current) void saveNoteRef.current();
+    };
+    // Best-effort only: browsers do not await async writes during unload, so
+    // tab-close loss is still possible. In-app navigation is covered by the
+    // unmount flush below, which always runs.
+    window.addEventListener("beforeunload", flushIfDirty);
     return () => {
-      void saveNoteRef.current();
+      window.removeEventListener("beforeunload", flushIfDirty);
+      flushIfDirty();
     };
   }, []);
 

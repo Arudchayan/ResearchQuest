@@ -20,7 +20,7 @@ vi.mock("../../utils/gamification", () => ({
   notifyGamificationResult: vi.fn(),
   XP_REWARDS: {
     CREATE_NOTE: 10,
-    UPDATE_NOTE: 5,
+    UPDATE_NOTE: 0,
   },
 }));
 

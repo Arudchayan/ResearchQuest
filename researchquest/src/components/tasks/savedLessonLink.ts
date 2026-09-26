@@ -33,7 +33,7 @@ export function trustedAtlasLessonUrl(value: string | null): string | null {
 }
 
 /** A saved task can carry an Atlas URL as text, but only approved lesson paths become links. */
-export function savedAtlasLessonUrl(description: string | undefined): string | null {
+export function savedAtlasLessonUrl(description: string | undefined | null): string | null {
   if (!description?.split(/\r?\n/).some((line) => line === "From Learning Platform")) return null;
 
   const lines = description.split(/\r?\n/).filter((line) => line.startsWith("Open lesson: "));

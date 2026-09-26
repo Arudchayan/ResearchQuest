@@ -25,7 +25,11 @@ import {
   useTodayPlanStore,
 } from "../../store/todayPlanStore";
 import type { Note, Paper, Task } from "../../types/database";
-import { awardXP, notifyGamificationResult, XP_REWARDS } from "../../utils/gamification";
+import {
+  awardXP,
+  notifyGamificationResult,
+  xpForFocusSession,
+} from "../../utils/gamification";
 import {
   playTimerCompleteSound,
   showTimerCompleteNotification,
@@ -217,10 +221,15 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
 
     if (userId) {
       const durationMinutes = Math.floor(sessionLength / 60);
-      const xpEarned = durationMinutes * XP_REWARDS.FOCUS_SESSION_MINUTE;
+      // Client mirror of the server focus gate (>= 25 min). The award_xp RPC
+      // enforces this authoritatively; the gate here only avoids a no-op call.
+      // durationMinutes is passed through so the server can verify it.
+      const xpEarned = xpForFocusSession(durationMinutes);
 
       if (xpEarned > 0) {
-        awardXP(userId, xpEarned, "complete_focus_session")
+        awardXP(userId, xpEarned, "complete_focus_session", {
+          durationMinutes,
+        })
           .then((result) => {
             setAwardedXp(result?.xpEarned ?? null);
             notifyGamificationResult(result);
@@ -340,7 +349,6 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   const progress =
     sessionLength > 0 ? (sessionLength - effectiveTimeLeft) / sessionLength : 0;
   const durationMinutes = Math.floor(sessionLength / 60);
-  const xpEarned = durationMinutes * XP_REWARDS.FOCUS_SESSION_MINUTE;
   const sessionOrdinal = Math.max(1, sessionCount);
 
   useEffect(() => {
@@ -1075,7 +1083,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                     Colophon
                   </span>
                   <span className="font-mono text-caption font-semibold tabular-nums text-success">
-                    {durationMinutes} MIN · +{awardedXp ?? xpEarned} XP
+                    {durationMinutes} MIN · +{awardedXp ?? xpForFocusSession(durationMinutes)} XP
                   </span>
                   {selectedTarget?.type === "task" && (
                     <Button

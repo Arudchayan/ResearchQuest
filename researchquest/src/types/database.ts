@@ -98,12 +98,13 @@ export interface Task {
   id: string;
   user_id: string;
   title: string;
-  description?: string;
+  // Nullable columns (see supabase/tables/tasks.sql): cleared fields persist as null.
+  description?: string | null;
   priority: "high" | "medium" | "low";
-  due_date?: string;
+  due_date?: string | null;
   completed: boolean;
-  category?: string;
-  project_id?: string;
+  category?: string | null;
+  project_id?: string | null;
   created_at: string;
   updated_at: string;
 }
