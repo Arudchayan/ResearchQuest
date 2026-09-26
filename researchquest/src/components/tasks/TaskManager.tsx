@@ -36,7 +36,8 @@ import type { TaskFilter, TaskPriority, TaskCategory, SortOption } from "./taskT
 import { PRIORITIES, CATEGORIES, PRIORITY_ORDER } from "./taskTypes";
 import { TaskCard, isOverdue } from "./TaskCard";
 import { clearLearningTaskHandoff, readLearningTaskHandoff } from "./learningHandoff";
-import { subscribeSoftNavigation } from "../../lib/softNavigation";
+import { navigateToView, subscribeSoftNavigation } from "../../lib/softNavigation";
+import { useTodayPlanStore } from "../../store/todayPlanStore";
 
 export function TaskManager() {
   const [userId, setUserId] = useState<string | undefined>(undefined);
@@ -279,6 +280,13 @@ export function TaskManager() {
 
   const handleToggleComplete = async (task: Task) => {
     await completeTask(task.id);
+  };
+
+  const handleStartFocus = (task: Task) => {
+    if (task.completed) return;
+    useAppStore.getState().setSelectedTask(task);
+    useTodayPlanStore.getState().setPendingFocusTaskId(task.id);
+    navigateToView("focus");
   };
 
   const { handleDeleteWithUndo } = useUndoDelete(
@@ -596,6 +604,7 @@ export function TaskManager() {
                     onToggleComplete={handleToggleComplete}
                     onEdit={handleEditClick}
                     onDelete={() => void handleDeleteWithUndo(task)}
+                    onFocus={handleStartFocus}
                     compact={compactView}
                     highlightQuery={searchQuery}
                   />

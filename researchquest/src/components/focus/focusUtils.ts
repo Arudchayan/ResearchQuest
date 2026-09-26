@@ -1,14 +1,16 @@
 import type { Note, Paper, Task } from "../../types/database";
 import { deriveTitleFromMarkdown } from "../../utils/text";
 
-export type FocusTargetType = "note" | "paper" | "task";
+export type FocusEntityType = "note" | "paper" | "task";
+export type FocusTargetType = FocusEntityType | "freeform";
 
 export interface SelectedTarget {
   type: FocusTargetType;
   id: string;
+  title?: string;
 }
 
-export type CollapsedGroups = Record<FocusTargetType, boolean>;
+export type CollapsedGroups = Record<FocusEntityType, boolean>;
 
 export type CollapsiblePanel = "suggestions";
 
@@ -62,8 +64,10 @@ function isFocusSessionSnapshot(value: unknown): value is FocusSessionSnapshot {
   return (
     (selected["type"] === "note" ||
       selected["type"] === "paper" ||
-      selected["type"] === "task") &&
-    typeof selected["id"] === "string"
+      selected["type"] === "task" ||
+      selected["type"] === "freeform") &&
+    typeof selected["id"] === "string" &&
+    (selected["title"] === undefined || typeof selected["title"] === "string")
   );
 }
 
@@ -223,4 +227,25 @@ export function extractTaskPreview(task: Task) {
     return task.description;
   }
   return "Break this task into the next concrete step during your focus session.";
+}
+
+export function resolveFocusTitle(
+  target: SelectedTarget | null,
+  item: Note | Paper | Task | null,
+): string {
+  if (!target) return "Nothing selected yet";
+  switch (target.type) {
+    case "freeform":
+      return target.title?.trim() || "Free focus";
+    case "note":
+      return item ? extractNoteSummary(item as Note) : "Nothing selected yet";
+    case "paper":
+      return item ? (item as Paper).title : "Nothing selected yet";
+    case "task":
+      return item ? (item as Task).title : "Nothing selected yet";
+    default: {
+      const _exhaustive: never = target.type;
+      return _exhaustive;
+    }
+  }
 }
