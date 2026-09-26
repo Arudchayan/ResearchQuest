@@ -55,23 +55,19 @@ import {
   extractPaperPreview,
   extractTaskPreview,
   loadStoredFocusSession,
-  persistPausedFocusSession,
-  remainingSecondsOnRestore,
-  restoredSessionNeedsContinue,
-  rewriteStoredFocusSessionPaused,
-  isFocusDocumentReload,
-  FOCUS_DOCUMENT_RELOAD_START_QUIET_MS,
+  legacyImportForStore,
+  saveFocusSession,
+  clearStoredFocusSession,
   resolveFocusTitle,
 } from "./focusUtils";
+import { publishLiveFocusSnapshot } from "./focusSessionGuard";
 import {
-  bumpFocusRunEpoch,
-  currentFocusRunEpoch,
-  publishLiveFocusSnapshot,
-  registerFocusFreeze,
-} from "./focusSessionGuard";
+  remainingSecondsForRun,
+  initialFocusTimerData,
+  FOCUS_TIMER_STORAGE_KEY,
+  useFocusTimerStore,
+} from "../../store/focusTimerStore";
 import { FocusTargetAside } from "./FocusTargetAside";
-
-const DEFAULT_SESSION_LENGTH = 25 * 60;
 
 interface FocusWorkspaceProps {
   userId: string | undefined;
@@ -92,11 +88,24 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   const setSelectedNote = useAppStore((state) => state.setSelectedNote);
   const setSelectedPaper = useAppStore((state) => state.setSelectedPaper);
 
-  const [restoredSession] = useState(() => loadStoredFocusSession());
+  // Countdown authority: the live focus-timer store (deadline-derived,
+  // persisted). Local state below is display/config UI only.
+  const timerStatus = useFocusTimerStore((state) => state.status);
+  const storeDeadlineMs = useFocusTimerStore((state) => state.deadlineMs);
+  const storeRemainingSec = useFocusTimerStore((state) => state.remainingSec);
+  const storeRunId = useFocusTimerStore((state) => state.runId);
+  const storeStartedAtMs = useFocusTimerStore((state) => state.startedAtMs);
+  const storeSessionCount = useFocusTimerStore((state) => state.sessionCount);
+  const selectedTarget = useFocusTimerStore((state) => state.selectedTarget);
+  const sessionLength = useFocusTimerStore((state) => state.sessionLength);
+  const isRunning = timerStatus === "running";
+  const hasCompletedSession = timerStatus === "complete";
 
-  const [selectedTarget, setSelectedTarget] = useState<SelectedTarget | null>(
-    restoredSession?.selectedTarget ?? null,
-  );
+  const applyTargetSelection = useCallback((target: SelectedTarget) => {
+    awardedRunRef.current = null;
+    setAwardedXp(null);
+    useFocusTimerStore.getState().selectTarget(target);
+  }, []);
 
   // Consumed on every change (not just mount) so KeepAlive-hidden panes
   // still pick up Today → Focus navigations, including soft-navigation
@@ -110,42 +119,24 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     if (!Array.isArray(tasks)) return;
     const task = tasks.find((t) => t.id === pendingId);
     if (!task) return;
-    setSelectedTarget({ type: "task", id: pendingId });
-  }, [pendingFocusTaskId]);
+    applyTargetSelection({ type: "task", id: pendingId });
+  }, [pendingFocusTaskId, applyTargetSelection]);
 
   // Today sets selectedTask alongside pendingFocus; force the workspace onto
   // that task even if the pending id was already consumed elsewhere.
   useEffect(() => {
     if (typeof selectedTaskId !== "string" || !selectedTaskId) return;
-    setSelectedTarget((prev) => {
-      if (prev?.type === "task" && prev.id === selectedTaskId) return prev;
-      return { type: "task", id: selectedTaskId };
-    });
-  }, [selectedTaskId]);
-  const [sessionLength, setSessionLength] = useState(
-    restoredSession?.sessionLength ?? DEFAULT_SESSION_LENGTH,
-  );
-  const [timeLeft, setTimeLeft] = useState(() => {
-    if (!restoredSession) return DEFAULT_SESSION_LENGTH;
-    return remainingSecondsOnRestore(restoredSession);
-  });
-  // Restored snapshots land paused. Storage may remember task/elapsed; live
-  // isRunning is never copied, and the interval stays disarmed until Continue.
-  const [isRunning, setIsRunning] = useState(false);
-  const [startedAt, setStartedAt] = useState<number | null>(null);
-  const [resumeHold, setResumeHold] = useState(() =>
-    restoredSessionNeedsContinue(restoredSession),
+    const current = useFocusTimerStore.getState().selectedTarget;
+    if (current?.type === "task" && current.id === selectedTaskId) return;
+    applyTargetSelection({ type: "task", id: selectedTaskId });
+  }, [selectedTaskId, applyTargetSelection]);
+  // Displayed countdown. While running it is re-derived from the deadline on
+  // every tick; otherwise it mirrors the store's frozen remaining.
+  const [timeLeft, setTimeLeft] = useState(() =>
+    remainingSecondsForRun(useFocusTimerStore.getState()),
   );
   const [customMinutes, setCustomMinutes] = useState("");
-  const [hasCompletedSession, setHasCompletedSession] = useState(
-    restoredSession?.hasCompletedSession ?? false,
-  );
-  const [sessionCount, setSessionCount] = useState(
-    restoredSession?.sessionCount ?? 0,
-  );
-  // State (not a ref): the award resolves asynchronously AFTER the colophon's
-  // first render (hasCompletedSession flips synchronously), so the colophon
-  // must re-render with the actually credited (boosted) amount once it lands.
+  // Completion XP display (lands async after the colophon first renders).
   const [awardedXp, setAwardedXp] = useState<number | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(() => {
     if (typeof window === "undefined") {
@@ -189,30 +180,34 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     return _exhaustive;
   }, [notes, papers, tasks, selectedTarget]);
 
-  useEffect(() => {
-    if (restoredSession) return;
-    setTimeLeft(sessionLength);
-    setIsRunning(false);
-    setStartedAt(null);
-    setHasCompletedSession(false);
-  }, [sessionLength, selectedTarget?.id, restoredSession]);
-
-  const sessionAwardedRef = useRef(false);
+  // Exactly-once completion per live run. The key is the store's run id, so
+  // double-invoked effects, visibility races, and remounts cannot double-award.
+  const awardedRunRef = useRef<string | null>(null);
 
   const completeSession = useCallback(() => {
-    if (sessionAwardedRef.current) return;
-    sessionAwardedRef.current = true;
+    const timerState = useFocusTimerStore.getState();
+    const runKey = timerState.runId;
+    if (!runKey) return;
+    if (
+      awardedRunRef.current === runKey ||
+      timerState.awardedRunId === runKey
+    ) {
+      if (timerState.status !== "complete") timerState.markComplete();
+      return;
+    }
+    awardedRunRef.current = runKey;
+    timerState.markComplete();
+    timerState.markAwarded(runKey);
 
-    setIsRunning(false);
-    setStartedAt(null);
-    setHasCompletedSession(true);
+    const completedTarget = timerState.selectedTarget;
+    const completedLength = timerState.sessionLength;
 
     if (isSoundEnabled) {
       playTimerCompleteSound();
     }
 
     if (isNotificationEnabled) {
-      const targetName = resolveFocusTitle(selectedTarget, selectedItem as Note | Paper | Task | null);
+      const targetName = resolveFocusTitle(completedTarget, selectedItem as Note | Paper | Task | null);
 
       showTimerCompleteNotification("Focus session complete!", {
         body: `You completed your session on ${targetName}.`,
@@ -220,7 +215,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     }
 
     if (userId) {
-      const durationMinutes = Math.floor(sessionLength / 60);
+      const durationMinutes = Math.floor(completedLength / 60);
       // Client mirror of the server focus gate (>= 25 min). The award_xp RPC
       // enforces this authoritatively; the gate here only avoids a no-op call.
       // durationMinutes is passed through so the server can verify it.
@@ -237,12 +232,12 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
           .catch((err) => logger.error("Failed to award XP", err));
         toast.success("Focus session complete!", {
           description: `You completed ${durationMinutes} minutes of focus.`,
-          ...(selectedTarget?.type === "task"
+          ...(completedTarget?.type === "task"
             ? {
                 action: {
                   label: "Mark task done?",
                   onClick: () => {
-                    void completeTask(selectedTarget.id);
+                    void completeTask(completedTarget.id);
                   },
                 },
               }
@@ -254,9 +249,9 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
         .from("focus_sessions")
         .insert({
           user_id: userId,
-          duration_seconds: sessionLength,
-          target_type: selectedTarget?.type ?? null,
-          target_id: selectedTarget?.id ?? null,
+          duration_seconds: completedLength,
+          target_type: completedTarget?.type ?? null,
+          target_id: completedTarget?.id ?? null,
         })
         .then(({ error }) => {
           if (error) {
@@ -266,7 +261,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
           const { focusSessionSecondsToday, setFocusSessionSecondsToday } =
             useAppStore.getState();
           setFocusSessionSecondsToday(
-            focusSessionSecondsToday + sessionLength,
+            focusSessionSecondsToday + completedLength,
           );
         });
     }
@@ -275,221 +270,136 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     isSoundEnabled,
     isNotificationEnabled,
     selectedItem,
-    selectedTarget,
-    sessionLength,
     completeTask,
   ]);
 
   const completeSessionRef = useRef(completeSession);
   completeSessionRef.current = completeSession;
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  // Start/Continue in this mount is the only way the interval may run.
-  // Hydrate and lifecycle freeze must not leave isRunning true able to
-  // restart the timer when completeSession's identity changes.
-  const runArmedRef = useRef(false);
-  // Wine Ctrl+Shift+R WHILE Pause live: hydrate lands Continue, then a
-  // reload-burst click / focus-restore keyup hits the same button and
-  // arms Pause. Ignore Start/Continue until this timestamp; Pause always
-  // works. Gated on navigation type=reload so in-session remount tests
-  // (no reload entry) keep immediate Continue.
-  const reloadStartQuietUntilRef = useRef(0);
 
-  const stopTimerNow = () => {
-    if (timerRef.current == null) return;
-    window.clearInterval(timerRef.current);
-    timerRef.current = null;
-  };
-
+  // Deadline-derived countdown. The interval only re-renders from
+  // `deadline - Date.now()`, so navigation, unmount/remount, and hidden tabs
+  // cannot stall the timer — wall time always counts. Completion fires when
+  // the deadline passes, including on the first tick after returning.
   useEffect(() => {
-    if (!isRunning || !runArmedRef.current) {
-      stopTimerNow();
-      return;
-    }
-
-    const epoch = currentFocusRunEpoch();
-    const timer = window.setInterval(() => {
-      if (epoch !== currentFocusRunEpoch()) {
-        window.clearInterval(timer);
-        if (timerRef.current === timer) timerRef.current = null;
-        return;
+    if (timerStatus !== "running" || storeDeadlineMs == null) return;
+    const reconcile = () => {
+      const remaining = remainingSecondsForRun(
+        useFocusTimerStore.getState(),
+      );
+      setTimeLeft(remaining);
+      if (remaining <= 0) {
+        completeSessionRef.current();
       }
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          window.clearInterval(timer);
-          if (timerRef.current === timer) timerRef.current = null;
-          runArmedRef.current = false;
-          completeSessionRef.current();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    timerRef.current = timer;
-
-    return () => {
-      window.clearInterval(timer);
-      if (timerRef.current === timer) timerRef.current = null;
     };
-  }, [isRunning]);
+    reconcile();
+    const timer = window.setInterval(reconcile, 500);
+    return () => window.clearInterval(timer);
+  }, [timerStatus, storeDeadlineMs, storeRunId]);
 
+  // While idle/paused/complete the display mirrors the store's frozen value.
   useEffect(() => {
-    if (hasCompletedSession || !restoredSession || timeLeft > 0) {
-      return;
-    }
-    completeSession();
-  }, [hasCompletedSession, restoredSession, timeLeft, completeSession]);
+    if (timerStatus === "running") return;
+    setTimeLeft(useFocusTimerStore.getState().remainingSec);
+  }, [timerStatus, storeRemainingSec, storeRunId]);
+
+  // A hidden tab throttles intervals; on return, reconcile immediately from
+  // the deadline and complete if it elapsed while hidden.
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden" || document.hidden) return;
+      const timerState = useFocusTimerStore.getState();
+      if (timerState.status !== "running") return;
+      const remaining = remainingSecondsForRun(timerState);
+      setTimeLeft(remaining);
+      if (remaining <= 0) {
+        completeSessionRef.current();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () =>
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, []);
 
   const isLoading = notesLoading || papersLoading || tasksLoading;
   const effectiveTimeLeft = Math.max(0, timeLeft);
-  const isPaused =
-    !isRunning &&
-    !hasCompletedSession &&
-    effectiveTimeLeft > 0 &&
-    (effectiveTimeLeft < sessionLength || resumeHold);
+  const isPaused = timerStatus === "paused";
   const progress =
     sessionLength > 0 ? (sessionLength - effectiveTimeLeft) / sessionLength : 0;
   const durationMinutes = Math.floor(sessionLength / 60);
-  const sessionOrdinal = Math.max(1, sessionCount);
+  const sessionOrdinal = Math.max(1, storeSessionCount);
 
+  // Storage is the source of truth across mounts: if the persisted timer key
+  // is gone (fresh profile, wiped storage) an in-memory live run is a stale
+  // ghost — drop it so a fresh mount never resumes a session that no longer
+  // exists anywhere. Runs before the legacy migration below.
   useEffect(() => {
-    persistPausedFocusSession({
-      selectedTarget,
-      sessionLength,
-      liveIsRunning: isRunning,
-      liveStartedAt: startedAt,
-      timeLeft: effectiveTimeLeft,
-      hasCompletedSession,
-      sessionCount,
-      keepAlive: resumeHold,
+    if (typeof window === "undefined") return;
+    if (window.localStorage.getItem(FOCUS_TIMER_STORAGE_KEY) !== null) return;
+    const timerState = useFocusTimerStore.getState();
+    if (
+      timerState.status !== "idle" ||
+      timerState.runId !== null ||
+      timerState.selectedTarget !== null ||
+      timerState.sessionCount !== 0 ||
+      timerState.awardedRunId !== null
+    ) {
+      useFocusTimerStore.setState({ ...initialFocusTimerData });
+    }
+  }, []);
+
+  // One-way migration of a legacy rq_focus_session snapshot (pre-fix
+  // leftovers or a crash mirror) into the live store. Skipped whenever the
+  // store already holds a run — a restore must never clobber live state.
+  useEffect(() => {
+    const timerState = useFocusTimerStore.getState();
+    if (timerState.status !== "idle" || timerState.runId !== null) return;
+    const mapped = legacyImportForStore(loadStoredFocusSession());
+    if (!mapped) return;
+    timerState.importSession(mapped);
+  }, []);
+
+  // Compat mirror: keep rq_focus_session fresh (with the live deadline) for
+  // crash recovery and the page-lifecycle guard. Idle clears it. Ticks never
+  // touch the store, so this writes on transitions only — no churn.
+  useEffect(() => {
+    const timerState = useFocusTimerStore.getState();
+    if (timerState.status === "idle" || !timerState.selectedTarget) {
+      clearStoredFocusSession();
+      return;
+    }
+    saveFocusSession({
+      version: 1,
+      selectedTarget: timerState.selectedTarget,
+      sessionLength: timerState.sessionLength,
+      isRunning: timerState.status === "running",
+      startedAt:
+        timerState.status === "running" ? timerState.startedAtMs : null,
+      deadline:
+        timerState.status === "running" ? timerState.deadlineMs : null,
+      timeLeft: remainingSecondsForRun(timerState),
+      hasCompletedSession: timerState.status === "complete",
+      sessionCount: timerState.sessionCount,
     });
   }, [
-    isRunning,
-    startedAt,
-    hasCompletedSession,
-    resumeHold,
+    timerStatus,
+    storeRunId,
+    storeRemainingSec,
+    storeSessionCount,
     selectedTarget,
     sessionLength,
-    effectiveTimeLeft,
-    sessionCount,
   ]);
 
-  const persistRef = useRef({
-    isRunning,
-    startedAt,
-    selectedTarget,
-    sessionLength,
-    timeLeft: effectiveTimeLeft,
-    hasCompletedSession,
-    sessionCount,
-    resumeHold,
-  });
-  persistRef.current = {
-    isRunning,
-    startedAt,
-    selectedTarget,
-    sessionLength,
-    timeLeft: effectiveTimeLeft,
-    hasCompletedSession,
-    sessionCount,
-    resumeHold,
-  };
   publishLiveFocusSnapshot({
     selectedTarget,
     sessionLength,
     timeLeft: effectiveTimeLeft,
     hasCompletedSession,
-    sessionCount,
-    isLive: isRunning || runArmedRef.current,
-    resumeHold,
+    sessionCount: storeSessionCount,
+    isLive: isRunning,
+    resumeHold: timerStatus === "paused",
+    deadlineMs: storeDeadlineMs,
+    startedAtMs: storeStartedAtMs,
   });
-
-  const freezeLiveToContinue = () => {
-    stopTimerNow();
-    runArmedRef.current = false;
-    bumpFocusRunEpoch();
-    const snap = persistRef.current;
-    const remaining = snap.timeLeft;
-    const inProgress =
-      snap.isRunning ||
-      snap.resumeHold ||
-      (snap.selectedTarget !== null && remaining < snap.sessionLength);
-    persistRef.current = {
-      ...snap,
-      isRunning: false,
-      startedAt: null,
-      timeLeft: remaining,
-      resumeHold: inProgress,
-    };
-    persistPausedFocusSession({
-      selectedTarget: persistRef.current.selectedTarget,
-      sessionLength: persistRef.current.sessionLength,
-      liveIsRunning: false,
-      liveStartedAt: null,
-      timeLeft: remaining,
-      hasCompletedSession: persistRef.current.hasCompletedSession,
-      sessionCount: persistRef.current.sessionCount,
-      keepAlive: inProgress,
-    });
-    setTimeLeft(remaining);
-    setIsRunning(false);
-    setStartedAt(null);
-    if (inProgress) setResumeHold(true);
-    publishLiveFocusSnapshot({
-      selectedTarget: persistRef.current.selectedTarget,
-      sessionLength: persistRef.current.sessionLength,
-      timeLeft: remaining,
-      hasCompletedSession: persistRef.current.hasCompletedSession,
-      sessionCount: persistRef.current.sessionCount,
-      isLive: false,
-      resumeHold: inProgress,
-    });
-  };
-  const freezeRef = useRef(freezeLiveToContinue);
-  freezeRef.current = freezeLiveToContinue;
-
-  // Cold mount / remount: hydrate from storage is already paused in useState,
-  // but disarm before paint so an interval cannot start this mount.
-  useLayoutEffect(() => {
-    runArmedRef.current = false;
-    bumpFocusRunEpoch();
-    stopTimerNow();
-    rewriteStoredFocusSessionPaused();
-    if (!restoredSession) return;
-    const remaining = remainingSecondsOnRestore(restoredSession);
-    setIsRunning(false);
-    setStartedAt(null);
-    setTimeLeft(remaining);
-    const needsContinue =
-      remaining > 0 && restoredSessionNeedsContinue(restoredSession);
-    if (needsContinue) {
-      setResumeHold(true);
-      if (isFocusDocumentReload()) {
-        reloadStartQuietUntilRef.current =
-          Date.now() + FOCUS_DOCUMENT_RELOAD_START_QUIET_MS;
-      }
-    }
-    persistPausedFocusSession({
-      selectedTarget: restoredSession.selectedTarget,
-      sessionLength: restoredSession.sessionLength,
-      liveIsRunning: false,
-      liveStartedAt: null,
-      timeLeft: remaining,
-      hasCompletedSession: restoredSession.hasCompletedSession,
-      sessionCount: restoredSession.sessionCount ?? 0,
-      keepAlive: needsContinue,
-    });
-  }, [restoredSession]);
-
-  // Capture-phase page lifecycle lives in focusSessionGuard (eager from main).
-  // Register the live freeze so wine/QA hard refresh can disarm without
-  // relying on bubble listeners on the lazy Focus chunk.
-  useLayoutEffect(() => {
-    return registerFocusFreeze({
-      freeze: () => freezeRef.current(),
-      isLive: () =>
-        persistRef.current.isRunning || runArmedRef.current,
-    });
-  }, []);
 
   useLayoutEffect(() => {
     return () => {
@@ -652,7 +562,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
       return;
     }
     const clamped = Math.min(minutes, 180);
-    setSessionLength(clamped * 60);
+    applySessionLength(clamped * 60);
     setCustomMinutes("");
   };
 
@@ -677,70 +587,48 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     }
   };
 
-  const handleTargetSelection = (target: SelectedTarget) => {
-    sessionAwardedRef.current = false;
-    runArmedRef.current = false;
-    stopTimerNow();
-    setAwardedXp(null);
-    setSelectedTarget(target);
-    setHasCompletedSession(false);
-    setIsRunning(false);
-    setStartedAt(null);
-    setResumeHold(false);
-    setTimeLeft(sessionLength);
+  const handleTargetSelection = applyTargetSelection;
+
+  const applySessionLength = (seconds: number) => {
+    const timerState = useFocusTimerStore.getState();
+    if (timerState.status === "running" || timerState.status === "paused") {
+      // A live run keeps its frozen length; retargeting the length stops it
+      // (same observable behavior as before) and arms the next session.
+      timerState.resetRun();
+      awardedRunRef.current = null;
+      setAwardedXp(null);
+    }
+    timerState.setSessionLength(seconds);
   };
 
   const toggleTimer = () => {
-    if (isRunning) {
-      runArmedRef.current = false;
-      stopTimerNow();
-      setIsRunning(false);
-      setStartedAt(null);
-      setResumeHold(true);
-      persistPausedFocusSession({
-        selectedTarget,
-        sessionLength,
-        liveIsRunning: false,
-        liveStartedAt: null,
-        timeLeft: effectiveTimeLeft,
-        hasCompletedSession,
-        sessionCount,
-        keepAlive: true,
-      });
+    const timerState = useFocusTimerStore.getState();
+    if (timerState.status === "running") {
+      // Pause: capture deadline-derived remaining; the paused gap never counts.
+      timerState.pause();
       return;
     }
-    if (Date.now() < reloadStartQuietUntilRef.current) {
+    if (!selectedTarget) return;
+    if (timerState.status === "paused") {
+      // Continue: shift the deadline forward by the frozen remaining.
+      warmupAudio();
+      if (isNotificationEnabled) {
+        requestNotificationPermission();
+      }
+      timerState.resume();
+      dismissOnboarding();
       return;
     }
     if (hasCompletedSession || timeLeft <= 0) {
       setTimeLeft(sessionLength);
-      setHasCompletedSession(false);
     }
-    const nextCount = isPaused ? sessionCount : sessionCount + 1;
-    if (!isPaused) {
-      setSessionCount(nextCount);
-    }
-    sessionAwardedRef.current = false;
+    awardedRunRef.current = null;
     setAwardedXp(null);
     warmupAudio();
     if (isNotificationEnabled) {
       requestNotificationPermission();
     }
-    bumpFocusRunEpoch();
-    runArmedRef.current = true;
-    const started = Date.now();
-    setStartedAt(started);
-    setIsRunning(true);
-    persistPausedFocusSession({
-      selectedTarget,
-      sessionLength,
-      liveIsRunning: true,
-      liveStartedAt: started,
-      timeLeft: effectiveTimeLeft,
-      hasCompletedSession: false,
-      sessionCount: nextCount,
-      keepAlive: true,
-    });
+    timerState.start({ selectedTarget, sessionLength });
     dismissOnboarding();
   };
 
@@ -766,7 +654,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
   const handleFreeformSubmit = () => {
     const title = freeformDraft.trim();
     if (!title) return;
-    setSelectedTarget({ type: "freeform", id: "freeform", title });
+    applyTargetSelection({ type: "freeform", id: "freeform", title });
   };
 
   const canStartFocus =
@@ -927,7 +815,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                         sessionLength === preset.value ? "default" : "outline"
                       }
                       size="sm"
-                      onClick={() => setSessionLength(preset.value)}
+                      onClick={() => applySessionLength(preset.value)}
                       aria-pressed={sessionLength === preset.value}
                       className="h-auto min-h-11 justify-start"
                     >
@@ -1004,15 +892,9 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                     variant="outline"
                     size="lg"
                     onClick={() => {
-                      sessionAwardedRef.current = false;
-                      runArmedRef.current = false;
-                      stopTimerNow();
+                      awardedRunRef.current = null;
                       setAwardedXp(null);
-                      setTimeLeft(sessionLength);
-                      setIsRunning(false);
-                      setStartedAt(null);
-                      setHasCompletedSession(false);
-                      setResumeHold(false);
+                      useFocusTimerStore.getState().resetRun();
                     }}
                   >
                     <RotateCcw className="h-4 w-4" aria-hidden="true" /> Reset

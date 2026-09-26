@@ -22,6 +22,8 @@ export interface FocusSessionSnapshot {
   sessionLength: number;
   isRunning: boolean;
   startedAt: number | null;
+  /** Wall-clock epoch ms the live run ends. Absent on pre-fix snapshots. */
+  deadline?: number | null;
   timeLeft: number;
   hasCompletedSession: boolean;
   sessionCount?: number;
@@ -57,6 +59,14 @@ function isFocusSessionSnapshot(value: unknown): value is FocusSessionSnapshot {
   ) {
     return false;
   }
+  const deadline = snapshot["deadline"];
+  if (
+    deadline !== undefined &&
+    deadline !== null &&
+    (typeof deadline !== "number" || deadline < 0)
+  ) {
+    return false;
+  }
   const target = snapshot["selectedTarget"];
   if (target === null) return true;
   if (typeof target !== "object") return false;
@@ -85,23 +95,29 @@ export function loadStoredFocusSession(): FocusSessionSnapshot | null {
 }
 
 /**
- * Remount remaining. `startedAt` / `isRunning` in storage are never permission
- * to keep ticking — freeze at the last painted `timeLeft` unless the session
- * already expired while away (remaining 0 → complete).
+ * Deadline-derived remaining. Wall time always counts — hidden tabs,
+ * navigation, unmount, and reloads cannot stall or freeze the countdown:
+ * - snapshot with a `deadline` → `deadline - now`;
+ * - snapshot with a `startedAt` anchor (pre-fix) → the deadline is
+ *   reconstructed as `startedAt + sessionLength`;
+ * - otherwise (explicitly paused, anchor cleared) → frozen `timeLeft`.
  */
 export function remainingSecondsOnRestore(
   snapshot: FocusSessionSnapshot,
   now = Date.now(),
 ): number {
-  if (snapshot.startedAt !== null) {
-    const wallRemaining = Math.max(
-      0,
-      snapshot.sessionLength -
-        Math.floor((now - snapshot.startedAt) / 1000),
-    );
-    if (wallRemaining <= 0) return 0;
+  if (typeof snapshot.deadline === "number") {
+    return Math.max(0, Math.ceil((snapshot.deadline - now) / 1000));
   }
-  return snapshot.timeLeft;
+  if (typeof snapshot.startedAt === "number") {
+    return Math.max(
+      0,
+      Math.ceil(
+        (snapshot.startedAt + snapshot.sessionLength * 1000 - now) / 1000,
+      ),
+    );
+  }
+  return Math.max(0, Math.floor(snapshot.timeLeft));
 }
 
 /** Remount of an in-progress snapshot must show Continue even at full duration. */
@@ -111,6 +127,7 @@ export function restoredSessionNeedsContinue(
   if (!snapshot || snapshot.hasCompletedSession || !snapshot.selectedTarget) {
     return false;
   }
+  if (typeof snapshot.deadline === "number") return true;
   return (
     snapshot.isRunning ||
     snapshot.startedAt !== null ||
@@ -128,14 +145,21 @@ export function saveFocusSession(snapshot: FocusSessionSnapshot): void {
 }
 
 /**
- * New-document hard refresh reads this before React paints. Storage may still
- * say `isRunning: true` from a crash or a persist race; that is never
- * permission to auto-run. Empty storage stays empty (fresh Start-only).
+ * New-document hard refresh reads this before React paints. Disarm to an
+ * explicit paused hold: clear `isRunning` AND the wall-clock anchors
+ * (`startedAt`, `deadline`) so the restore freezes at the last painted
+ * `timeLeft` instead of deriving from a stale anchor.
+ * Empty storage stays empty (fresh Start-only).
  */
 export function rewriteStoredFocusSessionPaused(): FocusSessionSnapshot | null {
   const snapshot = loadStoredFocusSession();
   if (!snapshot) return null;
-  const paused: FocusSessionSnapshot = { ...snapshot, isRunning: false };
+  const paused: FocusSessionSnapshot = {
+    ...snapshot,
+    isRunning: false,
+    startedAt: null,
+    deadline: null,
+  };
   saveFocusSession(paused);
   return paused;
 }
@@ -159,12 +183,14 @@ export function clearStoredFocusSession(): void {
   window.localStorage.removeItem(FOCUS_SESSION_STORAGE_KEY);
 }
 
-/** Persist in-progress Focus state without storing permission to auto-run. */
+/** Persist in-progress Focus state. A live `deadline` is written through so a
+ * remount can resume the countdown instead of freezing at `timeLeft`. */
 export function persistPausedFocusSession(input: {
   selectedTarget: SelectedTarget | null;
   sessionLength: number;
   liveIsRunning: boolean;
   liveStartedAt: number | null;
+  deadline?: number | null;
   timeLeft: number;
   hasCompletedSession: boolean;
   sessionCount: number;
@@ -184,13 +210,90 @@ export function persistPausedFocusSession(input: {
     version: 1,
     selectedTarget: input.selectedTarget,
     sessionLength: input.sessionLength,
-    isRunning: false,
+    isRunning: input.liveIsRunning,
     startedAt: input.liveIsRunning ? input.liveStartedAt : null,
+    deadline:
+      input.liveIsRunning && typeof input.deadline === "number"
+        ? input.deadline
+        : null,
     timeLeft: remaining,
     hasCompletedSession: input.hasCompletedSession,
     sessionCount: input.sessionCount,
   });
   return remaining;
+}
+
+/**
+ * One-way mapping of a legacy `rq_focus_session` snapshot into the live
+ * focus-timer store shape. A live snapshot (deadline, or a `startedAt` anchor
+ * whose deadline reconstructs as `startedAt + sessionLength`) resumes running
+ * — or completes on mount when already expired. Snapshots without any anchor
+ * restore as a paused Continue-hold at the last painted `timeLeft`, so no
+ * spurious wall-clock jump or award can occur. Every live import mints a run
+ * id so completion awards exactly once per run.
+ */
+export function legacyImportForStore(
+  snapshot: FocusSessionSnapshot | null,
+  now = Date.now(),
+): {
+  selectedTarget: SelectedTarget | null;
+  sessionLength: number;
+  status: "running" | "paused" | "complete";
+  deadlineMs: number | null;
+  remainingSec: number;
+  startedAtMs: number | null;
+  runId: string | null;
+  sessionCount: number;
+  awardedRunId: string | null;
+} | null {
+  if (!snapshot || !snapshot.selectedTarget) return null;
+  if (snapshot.hasCompletedSession) {
+    return {
+      selectedTarget: snapshot.selectedTarget,
+      sessionLength: snapshot.sessionLength,
+      status: "complete",
+      deadlineMs: null,
+      remainingSec: 0,
+      startedAtMs: snapshot.startedAt,
+      runId: `legacy-${snapshot.startedAt ?? "none"}`,
+      sessionCount: snapshot.sessionCount ?? 0,
+      awardedRunId: `legacy-${snapshot.startedAt ?? "none"}`,
+    };
+  }
+  const anchorDeadlineMs =
+    typeof snapshot.deadline === "number"
+      ? snapshot.deadline
+      : typeof snapshot.startedAt === "number"
+        ? snapshot.startedAt + snapshot.sessionLength * 1000
+        : null;
+  if (snapshot.isRunning && anchorDeadlineMs !== null) {
+    return {
+      selectedTarget: snapshot.selectedTarget,
+      sessionLength: snapshot.sessionLength,
+      status: "running",
+      deadlineMs: anchorDeadlineMs,
+      remainingSec: remainingSecondsOnRestore(snapshot, now),
+      startedAtMs: snapshot.startedAt,
+      runId: makeLegacyFocusRunId(now),
+      sessionCount: snapshot.sessionCount ?? 0,
+      awardedRunId: null,
+    };
+  }
+  return {
+    selectedTarget: snapshot.selectedTarget,
+    sessionLength: snapshot.sessionLength,
+    status: "paused",
+    deadlineMs: null,
+    remainingSec: remainingSecondsOnRestore(snapshot, now),
+    startedAtMs: null,
+    runId: makeLegacyFocusRunId(now),
+    sessionCount: snapshot.sessionCount ?? 0,
+    awardedRunId: null,
+  };
+}
+
+function makeLegacyFocusRunId(nowMs = Date.now()): string {
+  return `legacy-${nowMs.toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 export function formatTime(seconds: number) {

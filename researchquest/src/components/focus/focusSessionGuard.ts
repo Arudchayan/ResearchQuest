@@ -13,7 +13,8 @@
  * same-document `replace` of /focus (or pageshow while App is still the
  * loading skeleton, registration null). Those must freeze from storage too.
  *
- * Visibility hide only freezes the live interval (does not remount).
+ * Visibility hide only flushes the live snapshot (deadline intact) — it never
+ * freezes the interval, since the countdown is deadline-derived.
  */
 
 import { useSyncExternalStore } from "react";
@@ -38,6 +39,8 @@ export type LiveFocusPublish = {
   sessionCount: number;
   isLive: boolean;
   resumeHold: boolean;
+  deadlineMs: number | null;
+  startedAtMs: number | null;
 };
 
 let attached = false;
@@ -63,8 +66,9 @@ function persistPublishedOrStoredPaused(): void {
     persistPausedFocusSession({
       selectedTarget: live.selectedTarget,
       sessionLength: live.sessionLength,
-      liveIsRunning: false,
-      liveStartedAt: null,
+      liveIsRunning: live.isLive,
+      liveStartedAt: live.startedAtMs,
+      deadline: live.deadlineMs,
       timeLeft: live.timeLeft,
       hasCompletedSession: live.hasCompletedSession,
       sessionCount: live.sessionCount,
@@ -103,7 +107,10 @@ function onPageShow(event: Event): void {
 
 function onVisibilityChange(): void {
   if (document.visibilityState !== "hidden" && !document.hidden) return;
-  fireFreeze();
+  // Tab hide must not freeze the live run: the countdown is deadline-derived
+  // so wall-clock time keeps counting while hidden. Only flush the snapshot
+  // (with its deadline) so a crash while hidden can still resume.
+  persistPublishedOrStoredPaused();
 }
 
 function navigateDestinationUrl(event: Event): string {

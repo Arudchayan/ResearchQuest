@@ -35,6 +35,10 @@ import {
   rewriteStoredFocusSessionPaused,
   FOCUS_SESSION_STORAGE_KEY,
 } from "../../components/focus/focusUtils";
+import {
+  initialFocusTimerData,
+  useFocusTimerStore,
+} from "../../store/focusTimerStore";
 
 // Mock alerts
 vi.mock("../../utils/alerts", () => ({
@@ -108,6 +112,9 @@ describe("FocusWorkspace", () => {
     vi.clearAllMocks();
     vi.useFakeTimers();
     window.localStorage.clear();
+    // The live timer store is a module singleton: reset it so each test
+    // starts from a clean slate (localStorage.clear alone cannot).
+    useFocusTimerStore.setState({ ...initialFocusTimerData });
 
     const storeMock = (selector: any) => {
       return vi.fn();
@@ -289,7 +296,7 @@ describe("FocusWorkspace", () => {
     );
   });
 
-  it("lands a stored running session paused with Continue after remount", async () => {
+  it("remount mid-session resumes the live countdown from the deadline", async () => {
     const { unmount } = render(<FocusWorkspace userId={userId} />);
     fireEvent.click(screen.getByText("My Note"));
     fireEvent.click(screen.getByText("Start focus"));
@@ -301,34 +308,29 @@ describe("FocusWorkspace", () => {
 
     unmount();
 
-    // Time away must not keep ticking; remount hydrates the last persisted
-    // remaining (20:00), not wall-clock 18:00.
+    // Time away counts down against the deadline (25:00 - 5:00 live - 2:00
+    // away = 18:00), it is not frozen or reset.
     await act(async () => {
       vi.advanceTimersByTime(2 * 60 * 1000);
     });
 
     const view = render(<FocusWorkspace userId={userId} />);
-    expect(view.getByText("20:00")).toBeInTheDocument();
-    expect(view.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(view.getByText("18:00")).toBeInTheDocument();
+    expect(view.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
     expect(
-      view.queryByRole("button", { name: /^Pause$/i }),
+      view.queryByRole("button", { name: /^Continue$/i }),
     ).not.toBeInTheDocument();
 
     const stored = JSON.parse(
       window.localStorage.getItem(FOCUS_SESSION_STORAGE_KEY)!,
     );
-    expect(stored.isRunning).toBe(false);
+    expect(stored.isRunning).toBe(true);
+    expect(stored.deadline).toBeGreaterThan(Date.now());
 
     await act(async () => {
       vi.advanceTimersByTime(60 * 1000);
     });
-    expect(view.getByText("20:00")).toBeInTheDocument();
-
-    fireEvent.click(view.getByRole("button", { name: /^Continue$/i }));
-    await act(async () => {
-      vi.advanceTimersByTime(60 * 1000);
-    });
-    expect(view.getByText("19:00")).toBeInTheDocument();
+    expect(view.getByText("17:00")).toBeInTheDocument();
   });
 
   function dispatchPageHide() {
@@ -378,58 +380,56 @@ describe("FocusWorkspace", () => {
     document.dispatchEvent(new Event("visibilitychange"));
   }
 
-  it("does not persist isRunning true after Start", async () => {
+  it("persists the live run with isRunning true and a deadline after Start", async () => {
     render(<FocusWorkspace userId={userId} />);
     fireEvent.click(screen.getByText("My Note"));
     fireEvent.click(screen.getByText("Start focus"));
     expect(screen.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
 
+    // Deadline-derived countdown: the live snapshot carries the deadline so
+    // any remount can resume instead of freezing.
     const stored = JSON.parse(
       window.localStorage.getItem(FOCUS_SESSION_STORAGE_KEY)!,
     );
-    expect(stored.isRunning).toBe(false);
+    expect(stored.isRunning).toBe(true);
     expect(stored.selectedTarget).toEqual({ type: "note", id: "note-1" });
     expect(stored.startedAt).not.toBeNull();
+    expect(stored.deadline).toBe(stored.startedAt + 25 * 60 * 1000);
   });
 
-  it("Start then remount with persisted isRunning true lands Continue, not running", async () => {
-    const { unmount } = render(<FocusWorkspace userId={userId} />);
-    fireEvent.click(screen.getByText("My Note"));
-    fireEvent.click(screen.getByText("Start focus"));
-    expect(screen.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
-
-    // Crash-style snapshot: storage still says running (wine hard-refresh).
+  it("cold hydrate of a deadline snapshot resumes live from the deadline", async () => {
+    // Crash-style snapshot WITH a deadline: the 2 minutes since start count
+    // down (25:00 - 2:00 = 23:00) and the run resumes live, not Continue.
+    const startedAt = Date.now() - 2 * 60 * 1000;
     saveFocusSession({
       version: 1,
       selectedTarget: { type: "note", id: "note-1" },
       sessionLength: 25 * 60,
       isRunning: true,
-      startedAt: Date.now(),
+      startedAt,
+      deadline: startedAt + 25 * 60 * 1000,
       timeLeft: 25 * 60,
       hasCompletedSession: false,
       sessionCount: 1,
     });
-    unmount();
 
     const view = render(<FocusWorkspace userId={userId} />);
-    expect(view.getByText("25:00")).toBeInTheDocument();
-    expect(view.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(view.getByText("23:00")).toBeInTheDocument();
+    expect(view.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
     expect(
-      view.queryByRole("button", { name: /^Pause$/i }),
+      view.queryByRole("button", { name: /^Continue$/i }),
     ).not.toBeInTheDocument();
 
     await act(async () => {
       vi.advanceTimersByTime(60 * 1000);
     });
-    expect(view.getByText("25:00")).toBeInTheDocument();
+    expect(view.getByText("22:00")).toBeInTheDocument();
   });
 
-  it("cold hydrate from storage (QA hard-refresh) shows Continue and does not auto-tick", async () => {
-    // #800 Soft FAIL: 02_after_hard_refresh still Pause at 24:04; 03_after_wait
-    // ticked to 23:32. Event-dispatch of pagehide/pageshow is not this path —
-    // a hard refresh remounts React and hydrates from rq_focus_session.
-    // startedAt is 2 minutes ago so wall-clock remaining would be 23:00 if
-    // hydrate were allowed to keep running; last painted remaining is 24:04.
+  it("cold hydrate from storage (QA hard-refresh) resumes the live countdown", async () => {
+    // A hard refresh remounts React and hydrates from rq_focus_session.
+    // startedAt is 2 minutes ago, so the reconstructed deadline
+    // (startedAt + sessionLength) shows 23:00 and keeps ticking live.
     saveFocusSession({
       version: 1,
       selectedTarget: { type: "note", id: "note-1" },
@@ -442,32 +442,29 @@ describe("FocusWorkspace", () => {
     });
 
     const view = render(<FocusWorkspace userId={userId} />);
-    expect(view.getByText("24:04")).toBeInTheDocument();
-    expect(view.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(view.getByText("23:00")).toBeInTheDocument();
+    expect(view.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
     expect(
-      view.queryByRole("button", { name: /^Pause$/i }),
+      view.queryByRole("button", { name: /^Continue$/i }),
     ).not.toBeInTheDocument();
 
     const storedBeforeWait = JSON.parse(
       window.localStorage.getItem(FOCUS_SESSION_STORAGE_KEY)!,
     );
-    expect(storedBeforeWait.isRunning).toBe(false);
+    expect(storedBeforeWait.isRunning).toBe(true);
 
     await act(async () => {
       vi.advanceTimersByTime(18 * 1000);
     });
-    expect(view.getByText("24:04")).toBeInTheDocument();
-    expect(view.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
-    expect(
-      view.queryByRole("button", { name: /^Pause$/i }),
-    ).not.toBeInTheDocument();
-
-    fireEvent.click(view.getByRole("button", { name: /^Continue$/i }));
+    expect(view.getByText("22:42")).toBeInTheDocument();
     expect(view.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
+
+    fireEvent.click(view.getByRole("button", { name: /^Pause$/i }));
+    expect(view.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
     await act(async () => {
       vi.advanceTimersByTime(18 * 1000);
     });
-    expect(view.getByText("23:46")).toBeInTheDocument();
+    expect(view.getByText("22:42")).toBeInTheDocument();
   });
 
   it("wine new-document delayed mount (App skeleton, no pagehide) Continue frozen at last painted remaining", async () => {
@@ -537,11 +534,10 @@ describe("FocusWorkspace", () => {
       });
   }
 
-  it("Ctrl+Shift+R hard reload keeps Continue frozen through burst click, then Continue resumes", async () => {
-    // Wine Product×2: Ctrl+Shift+R WHILE Pause live still Pause and the
-    // clock ticked (24:52→24:37→24:21). New-document hydrate lands Continue,
-    // then the session button arms from reload-burst click/focus-restore.
-    // Playwright page.reload Soft PASS never replayed that click.
+  it("hard reload hydrate of a paused snapshot shows Continue frozen, then Continue resumes live", async () => {
+    // Pre-fix style snapshot without a deadline restores as a paused
+    // Continue-hold at the last painted remaining — no spurious wall-clock
+    // jump — and Continue resumes the live countdown from there.
     mockHardDocumentReload();
     saveFocusSession({
       version: 1,
@@ -558,12 +554,6 @@ describe("FocusWorkspace", () => {
     const view = render(<FocusWorkspace userId={userId} />);
     expect(view.getByText("24:52")).toBeInTheDocument();
     expect(view.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
-
-    fireEvent.click(view.getByRole("button", { name: /^Continue$/i }));
-    expect(view.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
-    expect(
-      view.queryByRole("button", { name: /^Pause$/i }),
-    ).not.toBeInTheDocument();
 
     await act(async () => {
       vi.advanceTimersByTime(15 * 1000);
@@ -647,7 +637,7 @@ describe("FocusWorkspace", () => {
     expect(view.getByText("24:37")).toBeInTheDocument();
   });
 
-  it("bfcache pageshow of a running session lands paused with Continue", async () => {
+  it("bfcache pageshow of a running session keeps the live countdown running", async () => {
     render(<FocusWorkspace userId={userId} />);
     fireEvent.click(screen.getByText("My Note"));
     fireEvent.click(screen.getByText("Start focus"));
@@ -661,22 +651,19 @@ describe("FocusWorkspace", () => {
       dispatchPageShow(true);
     });
 
-    expect(screen.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    // A live run is never frozen by page lifecycle events.
+    expect(screen.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /^Pause$/i }),
+      screen.queryByRole("button", { name: /^Continue$/i }),
     ).not.toBeInTheDocument();
 
     await act(async () => {
       vi.advanceTimersByTime(60 * 1000);
     });
-    expect(screen.getByText("24:00")).toBeInTheDocument();
+    expect(screen.getByText("23:00")).toBeInTheDocument();
   });
 
-  it("wine hard-refresh pageshow(false) of a live running heap lands Continue, frozen", async () => {
-    // Wine Soft FAIL after #801: Start → hard refresh still Pause and the
-    // clock kept ticking. Preview Soft PASS remounted React (cold hydrate).
-    // Wine reload can keep the heap and fire pageshow(persisted=false)
-    // without unmounting FocusWorkspace.
+  it("pageshow(false) of a live running heap keeps ticking, never Continue", async () => {
     render(<FocusWorkspace userId={userId} />);
     fireEvent.click(screen.getByText("My Note"));
     fireEvent.click(screen.getByText("Start focus"));
@@ -690,22 +677,19 @@ describe("FocusWorkspace", () => {
       dispatchPageShow(false);
     });
 
-    expect(screen.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /^Pause$/i }),
+      screen.queryByRole("button", { name: /^Continue$/i }),
     ).not.toBeInTheDocument();
 
     await act(async () => {
       vi.advanceTimersByTime(18 * 1000);
     });
-    expect(screen.getByText("24:43")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(screen.getByText("24:25")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
   });
 
-  it("wine same-document replace of a live Pause run lands Continue, frozen", async () => {
-    // Preview Soft PASS: Playwright page.reload() → navigationType=reload.
-    // Wine Product hard refresh: location.replace(href) → type=replace, heap
-    // survives, pagehide remount never paints.
+  it("same-document replace of a live run keeps ticking, never Continue", async () => {
     render(<FocusWorkspace userId={userId} />);
     fireEvent.click(screen.getByText("My Note"));
     fireEvent.click(screen.getByText("Start focus"));
@@ -719,21 +703,21 @@ describe("FocusWorkspace", () => {
       dispatchReplaceNavigate();
     });
 
-    expect(screen.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /^Pause$/i }),
+      screen.queryByRole("button", { name: /^Continue$/i }),
     ).not.toBeInTheDocument();
     await act(async () => {
       vi.advanceTimersByTime(18 * 1000);
     });
-    expect(screen.getByText("24:48")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: /^Continue$/i }));
+    expect(screen.getByText("24:30")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Pause$/i }));
+    expect(screen.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
   });
 
-  it("pagehide of a running session (no visibility hide) lands Continue, frozen, then remount stays Continue", async () => {
+  it("pagehide of a running session (no visibility hide) keeps ticking, and remount resumes live", async () => {
     const { unmount } = render(<FocusWorkspace userId={userId} />);
     fireEvent.click(screen.getByText("My Note"));
     fireEvent.click(screen.getByText("Start focus"));
@@ -747,27 +731,27 @@ describe("FocusWorkspace", () => {
       dispatchPageHide();
     });
 
-    expect(screen.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /^Pause$/i }),
+      screen.queryByRole("button", { name: /^Continue$/i }),
     ).not.toBeInTheDocument();
     await act(async () => {
       vi.advanceTimersByTime(18 * 1000);
     });
-    expect(screen.getByText("24:39")).toBeInTheDocument();
+    expect(screen.getByText("24:21")).toBeInTheDocument();
 
     unmount();
     const view = render(<FocusWorkspace userId={userId} />);
-    expect(view.getByText("24:39")).toBeInTheDocument();
-    expect(view.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(view.getByText("24:21")).toBeInTheDocument();
+    expect(view.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
     expect(
-      view.queryByRole("button", { name: /^Pause$/i }),
+      view.queryByRole("button", { name: /^Continue$/i }),
     ).not.toBeInTheDocument();
     await act(async () => {
       vi.advanceTimersByTime(18 * 1000);
     });
-    expect(view.getByText("24:39")).toBeInTheDocument();
-    expect(view.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(view.getByText("24:03")).toBeInTheDocument();
+    expect(view.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
   });
 
   function KeyedFocusWorkspace({ userId }: { userId: string }) {
@@ -775,7 +759,7 @@ describe("FocusWorkspace", () => {
     return <FocusWorkspace key={epoch} userId={userId} />;
   }
 
-  it("pagehide remounts keyed Focus from rq_focus_session Continue, frozen", async () => {
+  it("pagehide remounts keyed Focus from the live run, still ticking", async () => {
     render(<KeyedFocusWorkspace userId={userId} />);
     fireEvent.click(screen.getByText("My Note"));
     fireEvent.click(screen.getByText("Start focus"));
@@ -789,20 +773,21 @@ describe("FocusWorkspace", () => {
       dispatchPageHide();
     });
 
-    expect(screen.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    // The hydrate-epoch remount resumes the same live deadline — no freeze.
+    expect(screen.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /^Pause$/i }),
+      screen.queryByRole("button", { name: /^Continue$/i }),
     ).not.toBeInTheDocument();
     expect(screen.getByText("24:39")).toBeInTheDocument();
 
     await act(async () => {
       vi.advanceTimersByTime(18 * 1000);
     });
-    expect(screen.getByText("24:39")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(screen.getByText("24:21")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
   });
 
-  it("wine visibility hide of a running session lands Continue and does not auto-tick", async () => {
+  it("visibility hide of a running session keeps ticking against the deadline", async () => {
     render(<FocusWorkspace userId={userId} />);
     fireEvent.click(screen.getByText("My Note"));
     fireEvent.click(screen.getByText("Start focus"));
@@ -816,30 +801,33 @@ describe("FocusWorkspace", () => {
       dispatchVisibility(true);
     });
 
-    expect(screen.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    // Hiding the tab never pauses: the run stays live and wall time counts.
+    expect(screen.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /^Pause$/i }),
+      screen.queryByRole("button", { name: /^Continue$/i }),
     ).not.toBeInTheDocument();
 
     await act(async () => {
       vi.advanceTimersByTime(18 * 1000);
     });
-    expect(screen.getByText("24:43")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: /^Continue$/i }));
-    expect(screen.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
-    await act(async () => {
-      vi.advanceTimersByTime(18 * 1000);
-    });
     expect(screen.getByText("24:25")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
+    expect(awardXP).not.toHaveBeenCalled();
 
     await act(async () => {
       dispatchVisibility(false);
     });
+    expect(screen.getByText("24:25")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Pause$/i }));
+    expect(screen.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    await act(async () => {
+      vi.advanceTimersByTime(18 * 1000);
+    });
+    expect(screen.getByText("24:25")).toBeInTheDocument();
   });
 
-  it("visibility hide after Continue freezes last painted remaining, not wall-clock since Continue", async () => {
+  it("visibility hide after resume keeps ticking against the shifted deadline", async () => {
     render(<FocusWorkspace userId={userId} />);
     fireEvent.click(screen.getByText("My Note"));
     fireEvent.click(screen.getByText("Start focus"));
@@ -857,17 +845,17 @@ describe("FocusWorkspace", () => {
       dispatchVisibility(true);
     });
 
-    expect(screen.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
-    expect(screen.getByText("24:41")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
     await act(async () => {
       vi.advanceTimersByTime(18 * 1000);
     });
-    expect(screen.getByText("24:41")).toBeInTheDocument();
+    expect(screen.getByText("24:23")).toBeInTheDocument();
   });
 
-  it("wine persistPaused snapshot (isRunning false, startedAt set) hydrates Continue, frozen", async () => {
-    // After Start, persistPausedFocusSession writes isRunning:false but keeps
-    // startedAt. Wine cold mount must not treat that as permission to run.
+  it("live persistPaused snapshot hydrates running against the reconstructed deadline", async () => {
+    // persistPausedFocusSession writes a live run through (isRunning true with
+    // its startedAt anchor). A cold mount resumes it live against the
+    // reconstructed deadline instead of freezing at the last paint.
     persistPausedFocusSession({
       selectedTarget: { type: "note", id: "note-1" },
       sessionLength: 25 * 60,
@@ -880,18 +868,17 @@ describe("FocusWorkspace", () => {
     });
 
     const view = render(<FocusWorkspace userId={userId} />);
-    expect(view.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(view.getByText("24:43")).toBeInTheDocument();
+    expect(view.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
     expect(
-      view.queryByRole("button", { name: /^Pause$/i }),
+      view.queryByRole("button", { name: /^Continue$/i }),
     ).not.toBeInTheDocument();
 
     await act(async () => {
       vi.advanceTimersByTime(18 * 1000);
     });
-    expect(view.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
-    expect(
-      view.queryByRole("button", { name: /^Pause$/i }),
-    ).not.toBeInTheDocument();
+    expect(view.getByText("24:25")).toBeInTheDocument();
+    expect(view.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
   });
 
   it("completes a session that ended while away, awarding XP only once", async () => {
@@ -931,12 +918,18 @@ describe("FocusWorkspace", () => {
       vi.advanceTimersByTime(5 * 60 * 1000);
     });
 
-    const { getByText, getByRole, unmount: unmountAgain } = render(
+    // The remount resumes the live run against the deadline (20:00), and
+    // Reset returns to an idle Start-only session with storage cleared.
+    const { getByText, getByRole, queryByRole, unmount: unmountAgain } = render(
       <FocusWorkspace userId={userId} />,
     );
-    expect(getByText("25:00")).toBeInTheDocument();
-    expect(getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(getByText("20:00")).toBeInTheDocument();
+    expect(getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
     fireEvent.click(getByText("Reset"));
+    expect(getByText("25:00")).toBeInTheDocument();
+    expect(getByText("Start focus")).toBeInTheDocument();
+    expect(queryByRole("button", { name: /^Continue$/i })).not.toBeInTheDocument();
+    expect(window.localStorage.getItem(FOCUS_SESSION_STORAGE_KEY)).toBeNull();
 
     unmountAgain();
     const next = render(<FocusWorkspace userId={userId} />);
@@ -944,7 +937,7 @@ describe("FocusWorkspace", () => {
     expect(next.getByText("Start focus")).toBeInTheDocument();
   });
 
-  it("StrictMode remount of a stored running session lands paused until Continue", async () => {
+  it("StrictMode remount of a stored running session resumes live and completes exactly once", async () => {
     // Seed a running session that started 5 minutes ago.
     saveFocusSession({
       version: 1,
@@ -962,26 +955,29 @@ describe("FocusWorkspace", () => {
       </StrictMode>,
     );
 
-    // The second StrictMode setup must not wipe the restored session.
+    // The second StrictMode setup must not wipe the restored session. The
+    // seeded run (started 5 minutes ago) resumes live against the wall clock.
     expect(getByText("20:00")).toBeInTheDocument();
-    expect(getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
 
     const stored = JSON.parse(
       window.localStorage.getItem(FOCUS_SESSION_STORAGE_KEY)!,
     );
-    expect(stored.isRunning).toBe(false);
+    expect(stored.isRunning).toBe(true);
     expect(stored.timeLeft).toBe(20 * 60);
 
     await act(async () => {
       vi.advanceTimersByTime(60 * 1000);
     });
-    expect(getByText("20:00")).toBeInTheDocument();
+    expect(getByText("19:00")).toBeInTheDocument();
 
+    fireEvent.click(getByRole("button", { name: /^Pause$/i }));
+    expect(getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
     fireEvent.click(getByRole("button", { name: /^Continue$/i }));
     await act(async () => {
       vi.advanceTimersByTime(60 * 1000);
     });
-    expect(getByText("19:00")).toBeInTheDocument();
+    expect(getByText("18:00")).toBeInTheDocument();
 
     // Complete the session while away, then remount in StrictMode.
     unmount();
