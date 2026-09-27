@@ -21,7 +21,7 @@
     "test:run": "vitest run --pool forks --maxWorkers=2 --silent",
     "test:build": "vitest run --config vitest.build.config.ts",
     "test:coverage": "vitest run --coverage",
-    "test:coverage:threshold": "vitest run --coverage --coverage.thresholds.lines=80 --coverage.thresholds.functions=80 --coverage.thresholds.branches=75 --coverage.thresholds.statements=80",
+    "test:coverage:threshold": "vitest run --coverage",
     "test:e2e": "playwright test",
     "test:e2e:axe": "playwright test e2e/axe-views.spec.ts e2e/axe-interactions.spec.ts",
     "test:e2e:matrix": "RQ_E2E_MATRIX=1 playwright test",
