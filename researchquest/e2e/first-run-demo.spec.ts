@@ -107,9 +107,10 @@ test.describe("first-run demo click", () => {
     await expect(
       page.getByRole("button", { name: /^Delete$/i }),
     ).toBeVisible();
-    await expect(page.getByRole("link", { name: /^Today$/i })).toBeVisible();
-    await expect(page.getByRole("link", { name: /^Feeds$/i })).toBeVisible();
-    await expect(page.locator('[data-first-run="true"]')).toHaveCount(0);
+    // First-run door: AppShell hides nav chrome and marks the surface.
+    await expect(page.locator('[data-first-run="true"]')).toHaveCount(1);
+    await expect(page.getByRole("link", { name: /^Today$/i })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: /^Feeds$/i })).toHaveCount(0);
 
     await page.screenshot({
       path: path.join(ARTIFACTS_DIR, "first_run_seeded_topic.png"),
