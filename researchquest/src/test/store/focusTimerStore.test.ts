@@ -114,18 +114,11 @@ describe("focus timer persisted store shape", () => {
   });
 
   it("uses a dedicated persisted timer store when the fix introduces one", async () => {
-    // The fix may introduce src/store/focusTimerStore.ts (a zustand persisted
-    // store holding endsAt/remaining + a complete-once guard). import.meta.glob
-    // is build-safe when the file does not exist yet (a bare dynamic import
-    // would fail at transform time). If the store is absent, the localStorage
-    // snapshot contract above IS the store shape under test, so this passes
-    // vacuously.
+    // Glob keeps this spec extension-agnostic; the store is in-tree, so assert
+    // a hit instead of skipping the contract on an empty glob.
     const candidates = import.meta.glob("../../store/focusTimerStore.*");
     const keys = Object.keys(candidates);
-    if (keys.length === 0) {
-      expect(loadStoredFocusSession()).toBeNull();
-      return;
-    }
+    expect(keys).not.toHaveLength(0);
 
     const mod = (await (
       candidates[keys[0]] as () => Promise<Record<string, unknown>>
