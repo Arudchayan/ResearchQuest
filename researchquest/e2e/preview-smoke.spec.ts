@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { enableDemoMode, gotoDemoView } from "./a11y";
+import { enableDemoMode, gotoDemoView, seededTopicDetailHeading } from "./a11y";
 
 /**
  * Preview smoke (PR9 item 9): the production build in `researchquest/dist`,
@@ -39,9 +39,9 @@ test.describe("preview smoke (production build boots)", () => {
     await expect(page).toHaveURL(/\/topics\/topic-ai-agents/, {
       timeout: 30_000,
     });
-    await expect(
-      page.getByRole("heading", { name: /AI Agents for Research/i }),
-    ).toBeVisible({ timeout: 30_000 });
+    await expect(seededTopicDetailHeading(page)).toBeVisible({
+      timeout: 30_000,
+    });
   });
 
   test("deep-linked demo view settles (prod bundle)", async ({
@@ -50,8 +50,8 @@ test.describe("preview smoke (production build boots)", () => {
   }) => {
     await enableDemoMode(context);
     await gotoDemoView(page, "/topics/topic-ai-agents");
-    await expect(
-      page.getByRole("heading", { name: /AI Agents for Research/i }),
-    ).toBeVisible({ timeout: 30_000 });
+    await expect(seededTopicDetailHeading(page)).toBeVisible({
+      timeout: 30_000,
+    });
   });
 });
