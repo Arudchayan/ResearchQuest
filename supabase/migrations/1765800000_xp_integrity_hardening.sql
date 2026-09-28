@@ -36,6 +36,12 @@
 -- Excluded: total_xp, current_level, current_streak, longest_streak,
 -- last_activity_date, streak_tz_lo_min, streak_tz_hi_min, streak_tz_set_at,
 -- and all *_count.
+--
+-- Streak tz gate: 6h, union-widen on inconsistent credited claims. The gate
+-- only exists to stop two advances at the same instant. Lifetime lead is
+-- already bounded because every claimed local day maps to an offset in
+-- [-720, 840] and consistent claims narrow the band, so the maximum lead
+-- over real time is about +1 to +2 days total, not per window.
 
 -- ===========================================================================
 -- A. Rolling-window lookup
@@ -82,7 +88,7 @@ COMMENT ON COLUMN public.user_profiles.streak_tz_lo_min IS
 COMMENT ON COLUMN public.user_profiles.streak_tz_hi_min IS
   'Inclusive UTC-offset minutes consistent with recent credited streak claims. Written only by award_xp.';
 COMMENT ON COLUMN public.user_profiles.streak_tz_set_at IS
-  'Server time when streak_tz_lo_min/hi_min last changed, or when the streak last advanced. Written only by award_xp.';
+  'Server time when streak_tz_lo_min/hi_min last changed, or when the streak last advanced or the band last union-widened. Written only by award_xp.';
 
 -- Test-replaceable clock. Production is clock_timestamp(); tests CREATE OR
 -- REPLACE this function as table owner. Not a GUC. Authenticated cannot
@@ -280,8 +286,8 @@ DECLARE
   v_r_tasks INTEGER;
   v_r_insights INTEGER;
   v_r_freeze INTEGER;
-  v_persist_tz BOOLEAN := FALSE;
   v_apply_streak BOOLEAN := FALSE;
+  v_gate_open BOOLEAN;
 BEGIN
   IF v_uid IS NULL OR p_uid IS NULL OR p_uid <> v_uid THEN
     RAISE EXCEPTION 'permission denied'
@@ -491,19 +497,11 @@ BEGIN
     v_last := v_today;
     v_apply_streak := TRUE;
   ELSE
-    -- Time-gated ±180 persist, including inconsistent claims, so a permanent
-    -- timezone move can walk into the new offset (180 min per 12h).
-    IF v_tz_lo IS NOT NULL AND v_tz_hi IS NOT NULL
-       AND (
-         v_tz_set_at IS NULL
-         OR (v_now - v_tz_set_at) >= interval '12 hours'
-       ) THEN
-      v_tz_lo := GREATEST(-720, v_tz_lo - 180);
-      v_tz_hi := LEAST(840, v_tz_hi + 180);
-      v_tz_set_at := v_now;
-      v_persist_tz := TRUE;
-    END IF;
-
+    -- Gate exists only to stop two advances in the same instant. Lifetime
+    -- lead is already bounded: every claimed local day maps to an offset in
+    -- [-720, 840], and consistent claims narrow the band, so the maximum
+    -- lead over real time is about +1 to +2 days total, not per window.
+    -- A 9h flight in 13h is a normal move; do not magnitude-cap the widen.
     IF v_tz_lo IS NULL OR v_tz_hi IS NULL THEN
       v_w_lo := -720;
       v_w_hi := 840;
@@ -514,6 +512,28 @@ BEGIN
 
     v_n_lo := GREATEST(v_w_lo, v_claim_lo);
     v_n_hi := LEAST(v_w_hi, v_claim_hi);
+    v_gate_open := (
+      v_tz_set_at IS NULL
+      OR (v_now - v_tz_set_at) >= interval '6 hours'
+    );
+
+    -- Credited inconsistent claim, gate open (>= 6h): union the stored band
+    -- with this claim's interval, clamp, stamp set_at, then evaluate N
+    -- against the widened band. Gate closed (< 6h): XP only, no widen, no
+    -- advance, never reset.
+    IF v_claim_lo <= v_claim_hi
+       AND v_n_lo > v_n_hi
+       AND v_tz_lo IS NOT NULL
+       AND v_tz_hi IS NOT NULL
+       AND v_gate_open THEN
+      v_tz_lo := GREATEST(-720, LEAST(v_tz_lo, v_claim_lo));
+      v_tz_hi := LEAST(840, GREATEST(v_tz_hi, v_claim_hi));
+      v_tz_set_at := v_now;
+      v_w_lo := v_tz_lo;
+      v_w_hi := v_tz_hi;
+      v_n_lo := GREATEST(v_w_lo, v_claim_lo);
+      v_n_hi := LEAST(v_w_hi, v_claim_hi);
+    END IF;
 
     -- Inclusive N: any overlap of 0 or more integer minutes (n_lo <= n_hi)
     -- is consistent, including a shared midnight minute (UTC+2 [30,120] at
@@ -528,10 +548,8 @@ BEGIN
       v_tz_lo := v_n_lo;
       v_tz_hi := v_n_hi;
       -- Stamp set_at on every advance (v_today > v_last), even when N equals
-      -- the stored interval. Otherwise a D+1 claim 1ms before the 12h gate
-      -- leaves set_at stale, and a D+2 claim 1ms after widens into a
-      -- singleton overlap and credits +2 in the same instant (stored
-      -- [-720,-35] at D+1 21:35Z).
+      -- the stored interval. Narrowing on advance makes a same-instant D+1
+      -- claim empty, which is the burst cap (including after a union widen).
       IF v_last IS NULL THEN
         v_new_streak := 1;
         v_last := v_today;
@@ -589,25 +607,9 @@ BEGIN
     DO UPDATE SET
       xp_earned = COALESCE(d.xp_earned, 0) + EXCLUDED.xp_earned,
       streak_count = EXCLUDED.streak_count;
-  ELSIF v_persist_tz THEN
-    -- Inconsistent: persist only the 12h-gated ±180 widen. No streak, last,
-    -- freeze, or daily_logs change (no gap bridge).
-    UPDATE public.user_profiles AS p
-    SET
-      total_xp = COALESCE(p.total_xp, 0) + v_credited,
-      current_level = ((COALESCE(p.total_xp, 0) + v_credited) / 500) + 1,
-      streak_tz_lo_min = v_tz_lo,
-      streak_tz_hi_min = v_tz_hi,
-      streak_tz_set_at = v_tz_set_at
-    WHERE p.id = v_uid
-    RETURNING
-      p.total_xp, p.current_level, p.current_streak, p.longest_streak,
-      p.last_activity_date, p.streak_freeze_tokens
-    INTO
-      v_r_total, v_r_level, v_r_streak,
-      v_r_longest, v_r_last, v_r_freeze;
   ELSE
-    -- Empty or inconsistent N with no widen due: credit XP only.
+    -- Empty or inconsistent N with the 6h gate closed: credit XP only.
+    -- No streak, last, freeze, daily_logs, or tz-band change.
     UPDATE public.user_profiles AS p
     SET
       total_xp = COALESCE(p.total_xp, 0) + v_credited,
@@ -649,7 +651,7 @@ GRANT EXECUTE ON FUNCTION public.award_xp(UUID, INTEGER, TEXT, TEXT, TEXT, DATE,
 GRANT EXECUTE ON FUNCTION public.award_xp(UUID, INTEGER, TEXT, TEXT, TEXT, DATE, INTEGER) TO service_role;
 
 COMMENT ON FUNCTION public.award_xp(UUID, INTEGER, TEXT, TEXT, TEXT, DATE, INTEGER) IS
-  'Atomic XP award for auth.uid() only. Credits least(p_delta, server XP_REWARDS mapping); unknown actions 0. Local-day ±1 plus rolling 24h cap. Streak updates on credited timezone-consistent awards; empty or inconsistent N credits XP without touching streak, last_activity_date, freeze, or daily_logs. Credited awards persist a ±180 widen of the stored tz interval when streak_tz_set_at is NULL or at least 12h old. Streak advance (v_today > v_last) always refreshes streak_tz_set_at. A credited feasible claim self-heals to streak 1 when current_streak is 0 or last_activity_date is NULL or more than 2 days before p. Does not write *_count columns.';
+  'Atomic XP award for auth.uid() only. Credits least(p_delta, server XP_REWARDS mapping); unknown actions 0. Local-day ±1 plus rolling 24h cap. Streak updates on credited timezone-consistent awards; empty or inconsistent N with the 6h gate closed credits XP without touching streak, last_activity_date, freeze, daily_logs, or the tz band. An inconsistent credited claim with the gate open (>= 6h, or set_at NULL) unions the stored band with the claim interval (clamped to [-720, 840]) and then applies normal streak rules. Consistent claims narrow the band. Streak advance and widen both refresh streak_tz_set_at. A credited feasible claim self-heals to streak 1 when current_streak is 0 or last_activity_date is NULL or more than 2 days before p. Does not write *_count columns.';
 
 -- ===========================================================================
 -- E. award_achievement_xp: catalogue XP + real-table eligibility
