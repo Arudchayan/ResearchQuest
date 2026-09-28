@@ -30,6 +30,9 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Added
 
+- CI guard for Supabase migration version prefixes: duplicate timestamps,
+  out-of-order files vs master, and new files in reserved range
+  1764800000–1765000000 (`pnpm run check:migration-versions`).
 - Systematic axe-core sweep (WCAG 2.1 AA) over all main views plus
   focus-trap, tab-order, contrast, and reduced-motion interaction proofs
   (`researchquest/e2e/a11y.ts`, `axe-views.spec.ts`,
