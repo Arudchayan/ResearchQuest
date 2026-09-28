@@ -257,7 +257,7 @@ describe("parseBibTeX", () => {
       ]);
     });
 
-    it("strips braces around TeX accents and von particles", () => {
+    it("strips braces around TeX umlauts and von particles", () => {
       const result = parseBibTeX(
         String.raw`@article{k, author = {G{\"{o}}del, Kurt and {van der Berg}, Ludwig}}`,
       );
