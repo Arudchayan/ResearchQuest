@@ -1,10 +1,9 @@
 /**
  * Nightly streak evaluator (1765900000): static contract + live PG17 replica.
  *
- * Pins the 00:05Z pg_cron path to last_activity_date + streak_tz_lo_min so a
- * UTC-5 user active at 20:00 local is not zeroed, and a future daily_logs
- * row cannot spoof the gap. CI installs PostgreSQL 17 so live cases run
- * (0 skipped).
+ * Miss detection uses last_activity_date against the UTC-12 civil date so a
+ * westward DST/travel drop cannot false-zero a still-active local day. CI
+ * installs PostgreSQL 17 so live cases run (0 skipped).
  */
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
@@ -89,9 +88,11 @@ describe("1765900000 evaluate_user_streaks local day (static)", () => {
     expect(fn).toMatch(/LANGUAGE\s+plpgsql/i);
   });
 
-  it("computes local_today_min from streak_tz_lo_min and last_activity_date only", () => {
+  it("computes miss gap from the UTC-12 civil date, not streak_tz_lo_min", () => {
     expect(fn).toMatch(/local_today_min/i);
-    expect(fn).toMatch(/make_interval\s*\(\s*mins\s*=>\s*COALESCE\s*\(\s*(?:profile\.)?streak_tz_lo_min\s*,\s*-720\s*\)\s*\)/i);
+    expect(fn).toMatch(/make_interval\s*\(\s*mins\s*=>\s*-720\s*\)/i);
+    expect(fn).not.toMatch(/streak_tz_lo_min/i);
+    expect(raw).toMatch(/UTC-12/);
     expect(fn).toMatch(/AT\s+TIME\s+ZONE\s+'UTC'/i);
     expect(fn).toMatch(/public\.xp_server_now\s*\(\s*\)/i);
     expect(fn).toMatch(/gap\s*:=\s*local_today_min\s*-\s*(?:profile\.)?last_activity_date/i);
@@ -195,9 +196,12 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
     freeze?: number;
     rest?: number;
     tzLo: number | null;
+    tzHi?: number | null;
   }): void {
     const last = opts.lastActivity === null ? "NULL" : `'${opts.lastActivity}'::date`;
-    const tz = opts.tzLo === null ? "NULL" : String(opts.tzLo);
+    const tzLo = opts.tzLo === null ? "NULL" : String(opts.tzLo);
+    const tzHi =
+      opts.tzHi === undefined ? tzLo : opts.tzHi === null ? "NULL" : String(opts.tzHi);
     replica.exec(`
       UPDATE public.user_profiles
       SET current_streak = ${opts.streak ?? 5},
@@ -205,8 +209,8 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
           last_activity_date = ${last},
           streak_freeze_tokens = ${opts.freeze ?? 0},
           rest_days = ${opts.rest ?? 0},
-          streak_tz_lo_min = ${tz},
-          streak_tz_hi_min = ${tz},
+          streak_tz_lo_min = ${tzLo},
+          streak_tz_hi_min = ${tzHi},
           streak_tz_set_at = public.xp_server_now()
       WHERE id = '${USER_A}';
     `);
@@ -249,15 +253,29 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
     expect(row.streak_freeze_tokens).toBe(1);
   });
 
-  it("(b) UTC+10 user who missed a day is zeroed", () => {
-    // Tue 00:05Z = Tue 10:05 UTC+10. Last activity Sun → local gap 2, no token.
+  it("(b) UTC+10 user who missed a day is zeroed after UTC-12 closed the next day", () => {
+    // last=Sun 7. UTC-12 closes Mon 8 at 12:00Z Tue. 12:05Z Tue is 00:05 UTC-12 Wed.
+    const afterUtc12Closed = "2026-06-09T12:05:00.000Z";
     seed({ lastActivity: "2026-06-07", streak: 9, freeze: 0, rest: 0, tzLo: 600 });
-    setXpNow(replica, CRON_005Z);
+    setXpNow(replica, afterUtc12Closed);
     replica.exec("SELECT public.evaluate_user_streaks();");
-    const row = readProfile();
+    let row = readProfile();
     expect(row.current_streak).toBe(0);
     expect(row.last_activity_date).toBe("2026-06-07");
     expect(row.streak_freeze_tokens).toBe(0);
+
+    seed({ lastActivity: "2026-06-07", streak: 9, freeze: 1, rest: 0, tzLo: 600 });
+    setXpNow(replica, afterUtc12Closed);
+    replica.exec("SELECT public.evaluate_user_streaks();");
+    row = readProfile();
+    expect(row.current_streak).toBe(9);
+    expect(row.streak_freeze_tokens).toBe(0);
+    expect(row.last_activity_date).toBe("2026-06-08");
+    replica.exec("SELECT public.evaluate_user_streaks();");
+    row = readProfile();
+    expect(row.current_streak).toBe(9);
+    expect(row.streak_freeze_tokens).toBe(0);
+    expect(row.last_activity_date).toBe("2026-06-08");
   });
 
   it("(c) one missed day with a freeze token keeps the streak and consumes exactly one", () => {
@@ -311,6 +329,38 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
     const row = readProfile();
     expect(row.current_streak).toBe(3);
     expect(row.last_activity_date).toBeNull();
+  });
+
+  it("Azores fall-back: 00:05Z on 10-27 does not zero a user last active 10-25", () => {
+    // QA: Atlantic/Azores across 2026-10-25 fall-back. Cron 2026-10-27 00:05Z
+    // is 23:05 local 10-26 (35 min remain). Stored lo=-2 is east of UTC-1.
+    seed({
+      lastActivity: "2026-10-25",
+      streak: 6,
+      freeze: 0,
+      rest: 0,
+      tzLo: -2,
+      tzHi: 659,
+    });
+    setXpNow(replica, "2026-10-27T00:05:00.000Z");
+    replica.exec("SELECT public.evaluate_user_streaks();");
+    const row = readProfile();
+    expect(row.current_streak).toBe(6);
+    expect(row.last_activity_date).toBe("2026-10-25");
+    expect(row.streak_freeze_tokens).toBe(0);
+    expect(row.rest_days).toBe(0);
+  });
+
+  it("Berlin-to-New-York traveller is not zeroed at the first NY evening cron", () => {
+    // 6h westward drop; stored lo still Berlin (UTC+1). 2026-01-17 00:05Z is
+    // 19:05 EST on 01-16 — the first NY evening after last=01-15.
+    seed({ lastActivity: "2026-01-15", streak: 8, freeze: 0, rest: 0, tzLo: 60 });
+    setXpNow(replica, "2026-01-17T00:05:00.000Z");
+    replica.exec("SELECT public.evaluate_user_streaks();");
+    const row = readProfile();
+    expect(row.current_streak).toBe(8);
+    expect(row.last_activity_date).toBe("2026-01-15");
+    expect(row.streak_freeze_tokens).toBe(0);
   });
 
   it("does not overwrite last_activity_date when award_xp raced after the snapshot", () => {
