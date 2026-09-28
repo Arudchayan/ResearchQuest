@@ -27,22 +27,27 @@
 --   ~22h for a real miss to ZERO; award_xp enforces its own liveness.
 --   Boost expiry still uses now(), matching the live body.
 --
--- FREEZE/REST GUARD
---   UTC-12 gap=2 is not enough to spend a token. At the 00:05Z cron, any
---   offset >= 0 is already local day U, so last=U-3 with UTC-12 gap=2
---   means they missed both U-2 and U-1. Spending a token and setting
---   last=U-2 wastes it: the next claim on local U is g=2 in award_xp
---   (second token or reset). Freeze/rest therefore also require
---   local_today_max - last_activity_date <= 2, where local_today_max is
---   xp_server_now() at COALESCE(streak_tz_hi_min, 840). If that
---   difference is >= 3, CONTINUE (award_xp handles a claim; otherwise
---   the next run sees gap >= 3 and zeroes). NULL hi never freezes.
+-- FREEZE/REST COVERAGE
+--   Completed missed local days are
+--   k = local_today_max - last_activity_date - 1, with
+--   local_today_max = xp_server_now() at COALESCE(streak_tz_hi_min, 840).
+--   UTC-12 gap=2 exposes one Earth-closed miss. Spend exactly one
+--   freeze (else rest) token and set last = local_today_min - 1 only
+--   when freeze+rest >= k (the whole missed run up to local yesterday).
+--   That is N-for-N without double-spend: each 00:05Z run covers one
+--   newly closed miss; award_xp spends the last token on an east
+--   return (g=2, s=5, frz=0 at +10). West waits one extra UTC-12
+--   night so the cron spends the last token and the return is g=1
+--   (s=6, frz=0). CONTINUE (no token) when 0 < tokens < k so a token
+--   is never wasted on a gap it cannot save (the 1-token east two-day
+--   miss keeps its token). Zero when gap >= 3 or gap = 2 with zero
+--   tokens. UTC-12 still gates visibility (gap <= 1 continues).
+--   NULL hi uses +14.
 --
 -- CREDIT
---   gap=2 freeze and rest-day UPDATEs also set
---   streak_credit_at = public.xp_server_now(). award_xp's 48h liveness
---   (e = now - credit_at) would otherwise treat the same missed day as
---   a second freeze/reset when the user claims the next local day.
+--   The freeze/rest UPDATE sets streak_credit_at = public.xp_server_now().
+--   award_xp's 48h liveness (e = now - credit_at) would otherwise treat
+--   the same missed run as a second freeze/reset on the next local day.
 --   The zeroing path does not touch streak_credit_at.
 --
 -- RACE
@@ -124,6 +129,7 @@ DECLARE
   gap INTEGER;
   freeze_tokens INTEGER;
   rest_tokens INTEGER;
+  missed_days INTEGER;
 BEGIN
   FOR profile IN
     SELECT
@@ -156,13 +162,15 @@ BEGIN
     rest_tokens := COALESCE(profile.rest_days, 0);
 
     IF gap = 2 AND (freeze_tokens > 0 OR rest_tokens > 0) THEN
-      -- Earliest-on-Earth gap=2 can still be two missed local days for an
-      -- eastern band. Only freeze/rest when hi (else UTC+14) is within 2.
+      -- Spend one token only when freeze+rest covers every completed
+      -- local miss (k). The old max-last <= 2 / >= 3 CONTINUE guard
+      -- skipped east k>=2 even when tokens >= k.
       local_today_max := (
         (public.xp_server_now() AT TIME ZONE 'UTC')
         + make_interval(mins => COALESCE(profile.streak_tz_hi_min, 840))
       )::date;
-      IF local_today_max - profile.last_activity_date >= 3 THEN
+      missed_days := local_today_max - profile.last_activity_date - 1;
+      IF missed_days >= 1 AND freeze_tokens + rest_tokens < missed_days THEN
         CONTINUE;
       END IF;
       IF freeze_tokens > 0 THEN
