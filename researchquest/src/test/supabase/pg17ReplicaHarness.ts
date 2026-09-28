@@ -466,7 +466,7 @@ export function resetUser(replica: Replica, uid: string): void {
           AND column_name = 'streak_tz_lo_min'
       ) THEN
         EXECUTE format(
-          'UPDATE public.user_profiles SET streak_tz_lo_min = NULL, streak_tz_hi_min = NULL WHERE id = %L',
+          'UPDATE public.user_profiles SET streak_tz_lo_min = NULL, streak_tz_hi_min = NULL, streak_tz_set_at = NULL WHERE id = %L',
           '${uid}'
         );
       END IF;
@@ -502,7 +502,7 @@ export function setXpNow(replica: Replica, iso: string): void {
     CREATE OR REPLACE FUNCTION public.xp_server_now()
     RETURNS timestamptz
     LANGUAGE sql
-    STABLE
+    VOLATILE
     SET search_path = ''
     AS $fn$ SELECT TIMESTAMPTZ '${ts}'; $fn$;
   `);
@@ -513,7 +513,7 @@ export function resetXpNow(replica: Replica): void {
     CREATE OR REPLACE FUNCTION public.xp_server_now()
     RETURNS timestamptz
     LANGUAGE sql
-    STABLE
+    VOLATILE
     SET search_path = ''
     AS $fn$ SELECT clock_timestamp(); $fn$;
   `);
