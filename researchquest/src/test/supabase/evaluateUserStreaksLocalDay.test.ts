@@ -229,6 +229,23 @@ describe("1765900000 evaluate_user_streaks local day (static)", () => {
     );
   });
 
+  it("PC1: missed uses GREATEST(last, pending) so a 2-step chain counts from the latest pending (D+1), not D or L", () => {
+    expect(fn).toMatch(
+      /missed\s*:=\s*local_today_min\s*-\s*GREATEST\s*\(\s*profile\.last_activity_date\s*,\s*profile\.streak_pending_date\s*\)\s*-\s*1/i,
+    );
+    expect(fn).toMatch(/profile\.streak_pending_date/i);
+    expect(fn).not.toMatch(/missed\s*:=\s*local_today_min\s*-\s*profile\.last_activity_date\s*-\s*1/i);
+    expect(fn).not.toMatch(/COALESCE\s*\(\s*profile\.streak_pending_date/i);
+  });
+
+  it("PC1t: cron never spends freeze/rest; award_xp spends tokens on the return claim", () => {
+    expect(fn).not.toMatch(/streak_freeze_tokens\s*=/i);
+    expect(fn).not.toMatch(/rest_days\s*=/i);
+    expect(fn).not.toMatch(/streak_freeze_tokens\s*=\s*\S+\s*-\s*1/i);
+    expect(fn).not.toMatch(/rest_days\s*=\s*\S+\s*-\s*1/i);
+    expect(raw).toMatch(/award_xp spends tokens on the return claim/i);
+  });
+
   it("keeps active_boost expiry cleanup and revokes client EXECUTE", () => {
     expect(fn).toMatch(/active_boost->>'expires_at'/i);
     expect(fn).toMatch(/\(active_boost->>'expires_at'\)::timestamptz\s*<=\s*now\(\)/i);
@@ -369,6 +386,36 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
       setAt: "2026-09-06T11:59:32.456Z",
       pendingDate: "2026-09-07",
     });
+  }
+
+  /** T10 P6b via real award_xp: L=10-05, D=10-06 then D+1=10-07 XP-only (gate closed). */
+  function drivePendingChain(opts: { freeze: number; rest?: number; tag: string }): ProfileRow {
+    seed({
+      lastActivity: "2026-10-05",
+      streak: 5,
+      freeze: opts.freeze,
+      rest: opts.rest ?? 0,
+      tzLo: -600,
+      tzHi: -600,
+      creditAt: "2026-10-06T06:00:00.000Z",
+      setAt: "2026-10-06T06:00:00.000Z",
+    });
+    const first = claim("2026-10-06T07:00:00.000Z", "2026-10-06", `${opts.tag}-d`);
+    expect(first.current_streak).toBe(5);
+    expect(first.last_activity_date).toBe("2026-10-05");
+    let row = readProfile();
+    expect(row.streak_pending_date).toBe("2026-10-06");
+    const second = claim("2026-10-06T10:30:00.000Z", "2026-10-07", `${opts.tag}-d1`);
+    expect(second.current_streak).toBe(5);
+    expect(second.last_activity_date).toBe("2026-10-05");
+    row = readProfile();
+    expect(row.current_streak).toBe(5);
+    expect(row.last_activity_date).toBe("2026-10-05");
+    expect(row.streak_pending_date).toBe("2026-10-07");
+    expect(row.streak_freeze_tokens).toBe(opts.freeze);
+    expect(row.rest_days).toBe(opts.rest ?? 0);
+    expect(new Date(row.streak_credit_at ?? "").toISOString()).toBe("2026-10-06T10:30:00.000Z");
+    return row;
   }
 
   function runCrons(isos: readonly string[]): void {
@@ -1550,6 +1597,77 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
     expect(row.current_streak).toBe(7);
     expect(row.last_activity_date).toBe("2026-09-08");
     expect(row.streak_freeze_tokens).toBe(1);
+    expect(row.rest_days).toBe(0);
+  });
+
+  it("PC1: 2-step pending chain, 0 tokens: kept each night from D+1 through 10-09 00:05Z, zeroed at 10-10", () => {
+    drivePendingChain({ freeze: 0, tag: "pc1" });
+    for (const night of [
+      "2026-10-07T00:05:00.000Z",
+      "2026-10-08T00:05:00.000Z",
+      "2026-10-09T00:05:00.000Z",
+    ]) {
+      runCrons([night]);
+      const kept = readProfile();
+      expect(kept.current_streak).toBe(5);
+      expect(kept.last_activity_date).toBe("2026-10-05");
+      expect(kept.streak_pending_date).toBe("2026-10-07");
+      expect(kept.streak_freeze_tokens).toBe(0);
+      expect(kept.rest_days).toBe(0);
+      expect(new Date(kept.streak_credit_at ?? "").toISOString()).toBe("2026-10-06T10:30:00.000Z");
+    }
+    runCrons(["2026-10-10T00:05:00.000Z"]);
+    const zeroed = readProfile();
+    expect(zeroed.current_streak).toBe(0);
+    expect(zeroed.last_activity_date).toBe("2026-10-05");
+    expect(zeroed.streak_pending_date).toBe("2026-10-07");
+    expect(zeroed.streak_freeze_tokens).toBe(0);
+    expect(zeroed.rest_days).toBe(0);
+    expect(new Date(zeroed.streak_credit_at ?? "").toISOString()).toBe("2026-10-06T10:30:00.000Z");
+  });
+
+  it("PC1t: 2-step chain + 1 freeze: cron keeps through 10-10 (token unspent), zeros at 10-11", () => {
+    drivePendingChain({ freeze: 1, tag: "pc1t" });
+    for (const night of [
+      "2026-10-07T00:05:00.000Z",
+      "2026-10-08T00:05:00.000Z",
+      "2026-10-09T00:05:00.000Z",
+      "2026-10-10T00:05:00.000Z",
+    ]) {
+      runCrons([night]);
+      const kept = readProfile();
+      expect(kept.current_streak).toBe(5);
+      expect(kept.last_activity_date).toBe("2026-10-05");
+      expect(kept.streak_pending_date).toBe("2026-10-07");
+      expect(kept.streak_freeze_tokens).toBe(1);
+      expect(kept.rest_days).toBe(0);
+    }
+    runCrons(["2026-10-11T00:05:00.000Z"]);
+    const zeroed = readProfile();
+    expect(zeroed.current_streak).toBe(0);
+    expect(zeroed.last_activity_date).toBe("2026-10-05");
+    expect(zeroed.streak_pending_date).toBe("2026-10-07");
+    expect(zeroed.streak_freeze_tokens).toBe(1);
+    expect(zeroed.rest_days).toBe(0);
+  });
+
+  it("PC1tr: 2-step chain + 1 freeze: return claim spends the token; cron spent 0", () => {
+    drivePendingChain({ freeze: 1, tag: "pc1tr" });
+    runCrons([
+      "2026-10-07T00:05:00.000Z",
+      "2026-10-08T00:05:00.000Z",
+      "2026-10-09T00:05:00.000Z",
+    ]);
+    let row = readProfile();
+    expect(row.current_streak).toBe(5);
+    expect(row.streak_freeze_tokens).toBe(1);
+    const awarded = claim("2026-10-09T11:00:00.000Z", "2026-10-09", "pc1tr-ret");
+    expect(awarded.current_streak).toBe(6);
+    expect(awarded.streak_freeze_tokens).toBe(0);
+    row = readProfile();
+    expect(row.current_streak).toBe(6);
+    expect(row.last_activity_date).toBe("2026-10-09");
+    expect(row.streak_freeze_tokens).toBe(0);
     expect(row.rest_days).toBe(0);
   });
 });
