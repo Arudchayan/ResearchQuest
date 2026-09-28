@@ -146,8 +146,12 @@ describe("1765800000 xp integrity hardening (static)", () => {
     expect(award).toMatch(/streak_tz_lo_min/i);
     expect(award).toMatch(/streak_tz_set_at/i);
     expect(award).toMatch(/interval\s+'6 hours'/i);
+    expect(award).toMatch(/interval\s+'48 hours'/i);
+    expect(award).toMatch(/interval\s+'72 hours'/i);
+    expect(award).toMatch(/streak_credit_at/i);
+    expect(award).toMatch(/streak_prev_inc_at/i);
     expect(award).toMatch(
-      /v_today\s*=\s*v_last\s*\+\s*1[\s\S]{0,250}v_tz_set_at\s*:=\s*v_now/i,
+      /v_gap\s*=\s*1[\s\S]{0,400}v_tz_set_at\s*:=\s*v_now/i,
     );
     expect(award).toMatch(/-\s*720/i);
     expect(award).toMatch(/840/i);
@@ -188,6 +192,9 @@ describe("1765800000 xp integrity hardening (static)", () => {
     expect(grant.toLowerCase()).not.toMatch(/current_level/);
     expect(grant.toLowerCase()).not.toMatch(/current_streak/);
     expect(grant.toLowerCase()).not.toMatch(/streak_tz_/);
+    expect(grant.toLowerCase()).not.toMatch(/streak_credit/);
+    expect(grant.toLowerCase()).not.toMatch(/streak_inc/);
+    expect(grant.toLowerCase()).not.toMatch(/streak_prev/);
     expect(grant.toLowerCase()).not.toMatch(/_count/);
   });
 
@@ -228,8 +235,11 @@ describe("1765800000 xp integrity hardening (static)", () => {
     expect(functionBlock(sql, "award_xp")).toMatch(/public\.xp_server_now\s*\(\s*\)/i);
     expect(functionBlock(sql, "award_xp")).not.toMatch(/current_setting/i);
     expect(raw).toMatch(/ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\s+streak_tz_set_at\s+timestamptz/i);
+    expect(raw).toMatch(/ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\s+streak_credit_at\s+timestamptz/i);
+    expect(raw).toMatch(/ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\s+streak_inc_at\s+timestamptz/i);
+    expect(raw).toMatch(/ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\s+streak_prev_inc_at\s+timestamptz/i);
     expect(raw).toMatch(
-      /DROP\s+COLUMN\s+IF\s+EXISTS\s+streak_tz_lo_min[\s\S]*DROP\s+COLUMN\s+IF\s+EXISTS\s+streak_tz_hi_min[\s\S]*DROP\s+COLUMN\s+IF\s+EXISTS\s+streak_tz_set_at/i,
+      /DROP\s+COLUMN\s+IF\s+EXISTS\s+streak_tz_lo_min[\s\S]*DROP\s+COLUMN\s+IF\s+EXISTS\s+streak_tz_hi_min[\s\S]*DROP\s+COLUMN\s+IF\s+EXISTS\s+streak_tz_set_at[\s\S]*DROP\s+COLUMN\s+IF\s+EXISTS\s+streak_credit_at[\s\S]*DROP\s+COLUMN\s+IF\s+EXISTS\s+streak_inc_at[\s\S]*DROP\s+COLUMN\s+IF\s+EXISTS\s+streak_prev_inc_at/i,
     );
   });
 
@@ -238,6 +248,13 @@ describe("1765800000 xp integrity hardening (static)", () => {
     expect(sql).toMatch(/REVOKE\s+INSERT\s+ON\s+TABLE\s+public\.user_profiles\s+FROM\s+anon/i);
     expect(sql).toMatch(/current_user\s+IN\s*\(\s*'authenticated'\s*,\s*'anon'\s*\)/i);
     expect(sql).toMatch(/cannot mint streak freeze tokens or rest days/i);
+    expect(sql).toMatch(/cannot update locked streak columns/i);
+    expect(sql).toMatch(
+      /BEFORE UPDATE OF streak_freeze_tokens,\s*rest_days,\s*streak_credit_at,\s*streak_inc_at,\s*streak_prev_inc_at/i,
+    );
+    expect(raw).toMatch(/COMMENT ON COLUMN public\.user_profiles\.streak_credit_at IS/i);
+    expect(raw).toMatch(/COMMENT ON COLUMN public\.user_profiles\.streak_inc_at IS/i);
+    expect(raw).toMatch(/COMMENT ON COLUMN public\.user_profiles\.streak_prev_inc_at IS/i);
     expect(sql).toMatch(/CHECK\s*\(\s*streak_freeze_tokens\s*>=\s*0\s*\)\s*NOT\s+VALID/i);
     expect(sql).toMatch(/CHECK\s*\(\s*rest_days\s*>=\s*0\s*\)\s*NOT\s+VALID/i);
   });
@@ -613,7 +630,11 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
     expect(consistent.last_activity_date).toBe("2026-09-28");
   });
 
-  it("X8: 4-day 12:30 walk of (day-1) then (day+1) ends at 3", () => {
+  it("X8: 4-day 12:30 walk of (day-1) then (day+1) ends at 2 (rule 4)", () => {
+    // Round 7 union-widen let the D+1 claim on day 1 freeze/reset (g=2) and
+    // the walk ended at 3. Rule 4 keeps that widened miss as XP-only while
+    // e < 48h, so last stays D0; at e=48h the g=3 claim resets, then the
+    // next real day advances once. Genuine change from round 7.
     const d0 = "2026-09-28";
     setXpNow(replica, "2026-09-28T12:30:00.000Z");
     awardXp(replica, USER_A, 10, "create_note", { entityId: "w1", localDay: d0 });
@@ -634,8 +655,8 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
 
     expect(s1.current_streak).toBe(1);
     expect(s2.current_streak).toBe(1);
-    expect(s3.current_streak).toBe(2);
-    expect(s4.current_streak).toBe(3);
+    expect(s3.current_streak).toBe(1);
+    expect(s4.current_streak).toBe(2);
   });
 
   it("with stored [0,0], D+1 then D+2 at D+1 22:00Z adds at most 1", () => {
@@ -1094,6 +1115,324 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
     expect(s2.current_streak).toBe(6);
   });
 
+  function seedQr(
+    streak: number,
+    last: string,
+    freeze: number,
+    lo: number | null,
+    hi: number | null,
+    setAt: string | null,
+    extras?: { creditAt?: string | null; incAt?: string | null; prevIncAt?: string | null },
+  ): void {
+    const ts = (v: string | null | undefined, fallback: string | null): string => {
+      const x = v === undefined ? fallback : v;
+      return x == null ? "NULL" : `'${x}'::timestamptz`;
+    };
+    replica.exec(`
+      UPDATE public.user_profiles
+      SET last_activity_date = '${last}'::date,
+          current_streak = ${streak},
+          longest_streak = ${streak},
+          streak_freeze_tokens = ${freeze},
+          streak_tz_lo_min = ${lo == null ? "NULL" : String(lo)},
+          streak_tz_hi_min = ${hi == null ? "NULL" : String(hi)},
+          streak_tz_set_at = ${ts(setAt, setAt)},
+          streak_credit_at = ${ts(extras?.creditAt, setAt)},
+          streak_inc_at = ${ts(extras?.incAt, null)},
+          streak_prev_inc_at = ${ts(extras?.prevIncAt, null)},
+          total_xp = ${streak * 10}
+      WHERE id = '${USER_A}';
+    `);
+  }
+
+  it("QA1: g=1 at e=48h exactly resets to 1; 5ms later D0 advances to 2", () => {
+    const d0 = "2026-09-28";
+    const d0m1 = "2026-09-27";
+    const d0m2 = "2026-09-26";
+    seedQr(5, d0m2, 0, 120, 120, "2026-09-26T07:00:00.000Z");
+    setXpNow(replica, "2026-09-28T07:00:00.000Z");
+    const first = awardXp(replica, USER_A, 10, "create_note", {
+      entityId: "qa1-0",
+      localDay: d0m1,
+    });
+    expect(first.xp_credited).toBe(10);
+    expect(first.current_streak).toBe(1);
+    setXpNow(replica, "2026-09-28T07:00:05.000Z");
+    const second = awardXp(replica, USER_A, 10, "create_note", {
+      entityId: "qa1-1",
+      localDay: d0,
+    });
+    expect(second.xp_credited).toBe(10);
+    expect(second.current_streak).toBe(2);
+  });
+
+  it("QA2: first 48h reset then UTC-7..-12 resident continues 1,2 / 3,4 / 5,6 / 7,8", () => {
+    const d0 = "2026-09-28";
+    seedQr(5, addDays(d0, -1), 0, 120, 120, "2026-09-27T07:00:00.000Z");
+    const streaks: number[] = [];
+    for (const extra of [1, 3, 5, 7]) {
+      const day = addDays(d0, extra);
+      setXpNow(replica, `${day}T07:00:00.000Z`);
+      streaks.push(
+        awardXp(replica, USER_A, 10, "create_note", {
+          entityId: `qa2-${extra}a`,
+          localDay: addDays(day, -1),
+        }).current_streak,
+      );
+      setXpNow(replica, `${day}T13:00:00.000Z`);
+      streaks.push(
+        awardXp(replica, USER_A, 10, "create_note", {
+          entityId: `qa2-${extra}b`,
+          localDay: day,
+        }).current_streak,
+      );
+    }
+    expect(streaks).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+  });
+
+  it("QA3: 11:59/17:59/23:59 bursts on D0+1,+4,+7 reset each active day; max 3; never +2 in 24h", () => {
+    const d0 = "2026-09-28";
+    seedQr(5, d0, 0, 1, 840, "2026-09-27T10:00:00.000Z");
+    const seen: number[] = [];
+    let lastIncAt: string | null = null;
+    let prevIncAt: string | null = null;
+    for (const extra of [1, 4, 7]) {
+      const day = addDays(d0, extra);
+      const claims: Array<[string, string]> = [
+        [`${day}T11:59:00.000Z`, addDays(day, -1)],
+        [`${day}T17:59:00.000Z`, day],
+        [`${day}T23:59:00.000Z`, addDays(day, 1)],
+      ];
+      for (let i = 0; i < claims.length; i += 1) {
+        const [when, p] = claims[i];
+        setXpNow(replica, when);
+        const before = replica
+          .exec(`SELECT current_streak FROM public.user_profiles WHERE id = '${USER_A}'`)
+          .trim();
+        const row = awardXp(replica, USER_A, 10, "create_note", {
+          entityId: `qa3-${extra}-${i}`,
+          localDay: p,
+        });
+        seen.push(row.current_streak);
+        if (row.current_streak > Number(before) && Number(before) > 0) {
+          if (prevIncAt != null) {
+            expect(new Date(when).getTime() - new Date(prevIncAt).getTime()).toBeGreaterThan(
+              24 * 60 * 60 * 1000,
+            );
+          }
+          prevIncAt = lastIncAt;
+          lastIncAt = when;
+        }
+      }
+    }
+    expect(seen[0]).toBe(5);
+    expect(Math.max(...seen.slice(1))).toBeLessThanOrEqual(3);
+  });
+
+  it("QA4: 73h55m idle gap resets to 1", () => {
+    const d0 = "2026-09-28";
+    seedQr(5, d0, 0, 120, 120, "2026-09-28T07:00:00.000Z");
+    setXpNow(replica, "2026-10-01T08:55:00.000Z");
+    const row = awardXp(replica, USER_A, 10, "create_note", {
+      entityId: "qa4",
+      localDay: "2026-10-01",
+    });
+    expect(row.xp_credited).toBe(10);
+    expect(row.current_streak).toBe(1);
+  });
+
+  it("QA5: D0-1 at 00:00Z, D0 at 06:00Z, D0+1 at 10:00Z => 6,7,7 with last = D0+1 (hold)", () => {
+    // Western seed so D0 at 06:00Z (6h gate open) union-widens to include
+    // +840; D0+1 at 10:00Z then fits without another widen and HOLDs.
+    const d0 = "2026-09-28";
+    seedQr(5, addDays(d0, -2), 0, -720, -720, "2026-09-26T12:00:00.000Z");
+    setXpNow(replica, "2026-09-28T00:00:00.000Z");
+    const a = awardXp(replica, USER_A, 10, "create_note", {
+      entityId: "qa5-0",
+      localDay: addDays(d0, -1),
+    });
+    expect(a.current_streak).toBe(6);
+    setXpNow(replica, "2026-09-28T06:00:00.000Z");
+    const b = awardXp(replica, USER_A, 10, "create_note", {
+      entityId: "qa5-1",
+      localDay: d0,
+    });
+    expect(b.current_streak).toBe(7);
+    setXpNow(replica, "2026-09-28T10:00:00.000Z");
+    const c = awardXp(replica, USER_A, 10, "create_note", {
+      entityId: "qa5-2",
+      localDay: addDays(d0, 1),
+    });
+    expect(c.xp_credited).toBe(10);
+    expect(c.current_streak).toBe(7);
+    expect(c.last_activity_date).toBe(addDays(d0, 1));
+    const heldLog = replica
+      .exec(
+        `SELECT streak_count FROM public.daily_logs WHERE user_id = '${USER_A}' AND date = '${addDays(d0, 1)}'::date`,
+      )
+      .trim();
+    expect(heldLog).toBe("7");
+  });
+
+  it("QA6: legacy NULL band and timestamps; 11:00 burst then 17:00 D0 then 23:59 D0+1 => 6,6,6,7,7", () => {
+    const d0 = "2026-09-28";
+    seedQr(5, addDays(d0, -2), 0, null, null, null, {
+      creditAt: null,
+      incAt: null,
+      prevIncAt: null,
+    });
+    setXpNow(replica, "2026-09-28T11:00:00.000Z");
+    const s0 = awardXp(replica, USER_A, 10, "create_note", {
+      entityId: "qa6-0",
+      localDay: addDays(d0, -1),
+    });
+    const s1 = awardXp(replica, USER_A, 10, "create_note", {
+      entityId: "qa6-1",
+      localDay: d0,
+    });
+    const s2 = awardXp(replica, USER_A, 10, "create_note", {
+      entityId: "qa6-2",
+      localDay: addDays(d0, 1),
+    });
+    expect([s0.current_streak, s1.current_streak, s2.current_streak]).toEqual([6, 6, 6]);
+    setXpNow(replica, "2026-09-28T17:00:00.001Z");
+    const s3 = awardXp(replica, USER_A, 10, "create_note", {
+      entityId: "qa6-3",
+      localDay: d0,
+    });
+    expect(s3.current_streak).toBe(7);
+    setXpNow(replica, "2026-09-28T23:59:00.000Z");
+    const s4 = awardXp(replica, USER_A, 10, "create_note", {
+      entityId: "qa6-4",
+      localDay: addDays(d0, 1),
+    });
+    expect(s4.current_streak).toBe(7);
+  });
+
+  it("fixed-tz midnight: D 23:59:59.999 then D+1 00:00 local both advance", () => {
+    const d = "2026-09-28";
+    const plus = "2026-09-29";
+    seedQr(4, addDays(d, -1), 0, 0, 0, "2026-09-28T12:00:00.000Z");
+    setXpNow(replica, "2026-09-28T23:59:59.999Z");
+    const a = awardXp(replica, USER_A, 10, "create_note", { entityId: "midn-0", localDay: d });
+    expect(a.current_streak).toBe(5);
+    setXpNow(replica, utcIsoFromLocal(plus, 0, 0));
+    const b = awardXp(replica, USER_A, 10, "create_note", { entityId: "midn-1", localDay: plus });
+    expect(b.current_streak).toBe(6);
+    expect(b.last_activity_date).toBe(plus);
+  });
+
+  it("liveness: g=1 at 48h-1ms advances; at 48h exactly takes the freeze path", () => {
+    const d0 = "2026-09-28";
+    seedQr(5, addDays(d0, -1), 1, 0, 0, "2026-09-26T07:00:00.000Z");
+    setXpNow(replica, "2026-09-28T06:59:59.999Z");
+    const early = awardXp(replica, USER_A, 10, "create_note", {
+      entityId: "live-early",
+      localDay: d0,
+    });
+    expect(early.current_streak).toBe(6);
+    expect(early.streak_freeze_tokens).toBe(1);
+
+    resetUser(replica, USER_A);
+    seedQr(5, addDays(d0, -1), 1, 0, 0, "2026-09-26T07:00:00.000Z");
+    setXpNow(replica, "2026-09-28T07:00:00.000Z");
+    const exact = awardXp(replica, USER_A, 10, "create_note", {
+      entityId: "live-exact",
+      localDay: d0,
+    });
+    expect(exact.current_streak).toBe(5);
+    expect(exact.streak_freeze_tokens).toBe(0);
+    expect(exact.last_activity_date).toBe(d0);
+  });
+
+  it("liveness: freeze consumed at 48h..72h; reset at 72h even with a token", () => {
+    const d0 = "2026-09-28";
+    seedQr(5, addDays(d0, -1), 1, 0, 0, "2026-09-26T07:00:00.000Z");
+    setXpNow(replica, "2026-09-28T08:00:00.000Z");
+    const mid = awardXp(replica, USER_A, 10, "create_note", {
+      entityId: "live-mid",
+      localDay: d0,
+    });
+    expect(mid.current_streak).toBe(5);
+    expect(mid.streak_freeze_tokens).toBe(0);
+
+    resetUser(replica, USER_A);
+    seedQr(5, addDays(d0, -1), 1, 0, 0, "2026-09-25T07:00:00.000Z");
+    setXpNow(replica, "2026-09-28T07:00:00.000Z");
+    const late = awardXp(replica, USER_A, 10, "create_note", {
+      entityId: "live-72",
+      localDay: d0,
+    });
+    expect(late.current_streak).toBe(1);
+    expect(late.streak_freeze_tokens).toBe(1);
+    expect(late.last_activity_date).toBe(d0);
+  });
+
+  it("rate: third increment at prev_inc + 24h exactly is a hold; +1ms advances", () => {
+    const d0 = "2026-09-28";
+    const d1 = "2026-09-29";
+    seedQr(7, d0, 0, 0, 0, "2026-09-28T06:00:00.000Z", {
+      creditAt: "2026-09-28T06:00:00.000Z",
+      incAt: "2026-09-28T06:00:00.000Z",
+      prevIncAt: "2026-09-28T00:00:00.000Z",
+    });
+    setXpNow(replica, "2026-09-29T00:00:00.000Z");
+    const held = awardXp(replica, USER_A, 10, "create_note", {
+      entityId: "rate-hold",
+      localDay: d1,
+    });
+    expect(held.current_streak).toBe(7);
+    expect(held.last_activity_date).toBe(d1);
+
+    resetUser(replica, USER_A);
+    seedQr(7, d0, 0, 0, 0, "2026-09-28T06:00:00.000Z", {
+      creditAt: "2026-09-28T06:00:00.000Z",
+      incAt: "2026-09-28T06:00:00.000Z",
+      prevIncAt: "2026-09-28T00:00:00.000Z",
+    });
+    setXpNow(replica, "2026-09-29T00:00:00.001Z");
+    const go = awardXp(replica, USER_A, 10, "create_note", {
+      entityId: "rate-go",
+      localDay: d1,
+    });
+    expect(go.current_streak).toBe(8);
+    expect(go.last_activity_date).toBe(d1);
+  });
+
+  it("rule 4: widened g=3 at e=10h is XP only; same claim at e=48h resets", () => {
+    const d0 = "2026-09-28";
+    seedQr(5, addDays(d0, -3), 0, 60, 60, "2026-09-28T13:00:00.000Z", {
+      creditAt: "2026-09-28T13:00:00.000Z",
+    });
+    setXpNow(replica, "2026-09-28T23:00:00.000Z");
+    const blocked = awardXp(replica, USER_A, 10, "create_note", {
+      entityId: "r4-early",
+      localDay: d0,
+    });
+    expect(blocked.xp_credited).toBe(10);
+    expect(blocked.current_streak).toBe(5);
+    expect(blocked.last_activity_date).toBe(addDays(d0, -3));
+    const tz = replica
+      .exec(
+        `SELECT streak_tz_lo_min, streak_tz_hi_min, streak_tz_set_at FROM public.user_profiles WHERE id = '${USER_A}'`,
+      )
+      .trim();
+    expect(tz.startsWith("60|60|")).toBe(true);
+
+    resetUser(replica, USER_A);
+    seedQr(5, addDays(d0, -3), 0, 60, 60, "2026-09-28T13:00:00.000Z", {
+      creditAt: "2026-09-26T23:00:00.000Z",
+    });
+    setXpNow(replica, "2026-09-28T23:00:00.000Z");
+    const reset = awardXp(replica, USER_A, 10, "create_note", {
+      entityId: "r4-late",
+      localDay: d0,
+    });
+    expect(reset.xp_credited).toBe(10);
+    expect(reset.current_streak).toBe(1);
+    expect(reset.last_activity_date).toBe(d0);
+  });
+
   it("flight: UTC+1 at 21:00Z then UTC+10 7h later for the next local day advances", () => {
     // Seed [60,60]: an unseeded 21:00Z first claim stores [-720,179], which
     // still overlaps D+1. Dest 15:00Z = 01:00 at UTC+10 is the next local
@@ -1253,6 +1592,9 @@ DECLARE
   v_prev int;
   v_streak int;
   v_elapsed int;
+  v_credit_before timestamptz;
+  v_inc1 timestamptz;
+  v_inc2 timestamptz;
   v_uid uuid := '${USER_A}'::uuid;
 BEGIN
   PERFORM setseed(0.42);
@@ -1263,8 +1605,11 @@ BEGIN
     UPDATE public.user_profiles
     SET total_xp = 0, current_level = 1, current_streak = 0, longest_streak = 0,
         last_activity_date = NULL, streak_freeze_tokens = 0,
-        streak_tz_lo_min = NULL, streak_tz_hi_min = NULL, streak_tz_set_at = NULL
+        streak_tz_lo_min = NULL, streak_tz_hi_min = NULL, streak_tz_set_at = NULL,
+        streak_credit_at = NULL, streak_inc_at = NULL, streak_prev_inc_at = NULL
     WHERE id = v_uid;
+    v_inc1 := NULL;
+    v_inc2 := NULL;
     v_first := timestamptz '2026-03-01 08:00:00+00'
       + ((random() * 400)::int) * interval '1 hour';
     FOR day IN 0..29 LOOP
@@ -1275,7 +1620,8 @@ BEGIN
       UPDATE public._xp_prop_clock SET t = v_now;
       v_utc := (v_now AT TIME ZONE 'UTC')::date;
       v_p := v_utc + (floor(random() * 3)::int - 1);
-      SELECT current_streak INTO v_prev FROM public.user_profiles WHERE id = v_uid;
+      SELECT current_streak, streak_credit_at INTO v_prev, v_credit_before
+      FROM public.user_profiles WHERE id = v_uid;
       PERFORM set_config('app.uid', v_uid::text, false);
       SET LOCAL ROLE authenticated;
       SELECT a.current_streak INTO v_streak FROM public.award_xp(
@@ -1290,8 +1636,20 @@ BEGIN
         RAISE EXCEPTION 'run % day % gained % in one instant (prev %, now %)',
           run, day, v_streak - v_prev, v_prev, v_streak;
       END IF;
+      IF v_streak > v_prev AND v_prev > 0 THEN
+        IF v_credit_before IS NOT NULL
+           AND (v_now - v_credit_before) >= interval '48 hours' THEN
+          RAISE EXCEPTION 'run % day % increment while e >= 48h', run, day;
+        END IF;
+        IF v_inc1 IS NOT NULL AND (v_now - v_inc1) <= interval '24 hours' THEN
+          RAISE EXCEPTION 'run % day % more than +2 increments in 24h', run, day;
+        END IF;
+        v_inc1 := v_inc2;
+        v_inc2 := v_now;
+      END IF;
       v_prev := v_streak;
       v_p := v_utc + (floor(random() * 3)::int - 1);
+      SELECT streak_credit_at INTO v_credit_before FROM public.user_profiles WHERE id = v_uid;
       PERFORM set_config('app.uid', v_uid::text, false);
       SET LOCAL ROLE authenticated;
       SELECT a.current_streak INTO v_streak FROM public.award_xp(
@@ -1301,6 +1659,17 @@ BEGIN
       IF v_streak - v_prev >= 2 THEN
         RAISE EXCEPTION 'run % day % second claim +% in one instant',
           run, day, v_streak - v_prev;
+      END IF;
+      IF v_streak > v_prev AND v_prev > 0 THEN
+        IF v_credit_before IS NOT NULL
+           AND (v_now - v_credit_before) >= interval '48 hours' THEN
+          RAISE EXCEPTION 'run % day % second increment while e >= 48h', run, day;
+        END IF;
+        IF v_inc1 IS NOT NULL AND (v_now - v_inc1) <= interval '24 hours' THEN
+          RAISE EXCEPTION 'run % day % second claim more than +2 in 24h', run, day;
+        END IF;
+        v_inc1 := v_inc2;
+        v_inc2 := v_now;
       END IF;
       v_elapsed := ((v_now AT TIME ZONE 'UTC')::date - (v_first AT TIME ZONE 'UTC')::date) + 1;
       IF v_streak > v_elapsed + 2 THEN
@@ -1364,7 +1733,7 @@ SELECT 'ok';
     expect(() =>
       replica.execAs(
         USER_A,
-        `UPDATE public.user_profiles SET streak_tz_lo_min = 0, streak_tz_hi_min = 0, streak_tz_set_at = now() WHERE id = '${USER_A}'`,
+        `UPDATE public.user_profiles SET streak_tz_lo_min = 0, streak_tz_hi_min = 0, streak_tz_set_at = now(), streak_credit_at = now(), streak_inc_at = now(), streak_prev_inc_at = now() WHERE id = '${USER_A}'`,
       ),
     ).toThrow(/permission denied|must be owner/i);
   });
