@@ -110,6 +110,28 @@ describe("1765900000 evaluate_user_streaks local day (static)", () => {
     expect(fn).not.toMatch(/last_activity_date\s*=\s*latest_activity/i);
   });
 
+  it("guards freeze, rest, and zero updates against a stale profile snapshot", () => {
+    const freeze =
+      /UPDATE\s+public\.user_profiles\s+SET\s+streak_freeze_tokens[\s\S]*?WHERE[\s\S]*?;/i.exec(fn)?.[0] ?? "";
+    const rest =
+      /UPDATE\s+public\.user_profiles\s+SET\s+rest_days[\s\S]*?WHERE[\s\S]*?;/i.exec(fn)?.[0] ?? "";
+    const zero =
+      /UPDATE\s+public\.user_profiles\s+SET\s+current_streak\s*=\s*0[\s\S]*?WHERE[\s\S]*?;/i.exec(fn)?.[0] ?? "";
+    expect(freeze.length).toBeGreaterThan(0);
+    expect(rest.length).toBeGreaterThan(0);
+    expect(zero.length).toBeGreaterThan(0);
+    for (const block of [freeze, rest, zero]) {
+      expect(block).toMatch(/WHERE\s+id\s*=\s*profile\.id/i);
+      expect(block).toMatch(
+        /last_activity_date\s+IS\s+NOT\s+DISTINCT\s+FROM\s+profile\.last_activity_date/i,
+      );
+    }
+    expect(freeze).toMatch(/streak_freeze_tokens\s*=\s*profile\.streak_freeze_tokens/i);
+    expect(rest).toMatch(/rest_days\s*=\s*profile\.rest_days/i);
+    expect(zero).not.toMatch(/streak_freeze_tokens\s*=\s*profile\.streak_freeze_tokens/i);
+    expect(zero).not.toMatch(/rest_days\s*=\s*profile\.rest_days/i);
+  });
+
   it("keeps active_boost expiry cleanup and revokes client EXECUTE", () => {
     expect(fn).toMatch(/active_boost->>'expires_at'/i);
     expect(fn).toMatch(/\(active_boost->>'expires_at'\)::timestamptz\s*<=\s*now\(\)/i);
@@ -120,18 +142,22 @@ describe("1765900000 evaluate_user_streaks local day (static)", () => {
     );
   });
 
-  it("embeds the pre-change 1764802000 body in a top-of-file rollback comment", () => {
+  it("embeds the live 20260923163428 harden_rpc_security_definer body as rollback", () => {
     const live = raw.lastIndexOf("CREATE OR REPLACE FUNCTION public.evaluate_user_streaks");
     expect(live).toBeGreaterThan(0);
     const header = raw.slice(0, live);
     expect(header.length).toBeGreaterThan(0);
     expect(header).toMatch(/ROLLBACK/i);
-    expect(header).toMatch(/1764802000/);
+    expect(header).toMatch(/20260923163428/);
+    expect(header).toMatch(/harden_rpc_security_definer \(live\)/);
+    expect(header).toMatch(/SET search_path TO 'public'/);
+    expect(header).toMatch(/-- Only service_role \/ postgres should call this/);
+    expect(header).toMatch(/AS \$function\$/);
     expect(header).toMatch(/FROM public\.daily_logs/);
     expect(header).toMatch(/days_since_activity := \(CURRENT_DATE - latest_activity\)/);
     expect(header).toMatch(/last_activity_date = CURRENT_DATE - 1/);
     expect(header).toMatch(/last_activity_date = latest_activity/);
-    expect(header).toMatch(/SET search_path = public/);
+    expect(header).not.toMatch(/1764802000/);
   });
 
   it("requires PostgreSQL 17 in CI so live replica cases are not skipped", () => {
@@ -285,6 +311,38 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
     const row = readProfile();
     expect(row.current_streak).toBe(3);
     expect(row.last_activity_date).toBeNull();
+  });
+
+  it("does not overwrite last_activity_date when award_xp raced after the snapshot", () => {
+    // Architect repro: cron reads last=D-2/freeze=2, award_xp then sets last=D
+    // and freeze=1, cron must not write last=D-1 from the stale snapshot.
+    seed({ lastActivity: "2026-06-06", streak: 12, freeze: 2, rest: 4, tzLo: -300 });
+    replica.exec(`
+      CREATE OR REPLACE FUNCTION public.xp_server_now()
+      RETURNS timestamptz
+      LANGUAGE plpgsql
+      VOLATILE
+      SET search_path = public
+      AS $fn$
+      BEGIN
+        UPDATE public.user_profiles
+        SET last_activity_date = '2026-06-08'::date,
+            streak_freeze_tokens = 1
+        WHERE id = '${USER_A}';
+        RETURN TIMESTAMPTZ '2026-06-09 00:05:00+00';
+      END;
+      $fn$;
+      REVOKE ALL ON FUNCTION public.xp_server_now() FROM PUBLIC;
+      REVOKE ALL ON FUNCTION public.xp_server_now() FROM anon;
+      REVOKE ALL ON FUNCTION public.xp_server_now() FROM authenticated;
+      REVOKE ALL ON FUNCTION public.xp_server_now() FROM service_role;
+    `);
+    replica.exec("SELECT public.evaluate_user_streaks();");
+    const row = readProfile();
+    expect(row.current_streak).toBe(12);
+    expect(row.last_activity_date).toBe("2026-06-08");
+    expect(row.streak_freeze_tokens).toBe(1);
+    expect(row.rest_days).toBe(4);
   });
 
   it("expires active_boost on wall-clock now and denies authenticated EXECUTE", () => {
