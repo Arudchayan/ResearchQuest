@@ -36,6 +36,7 @@ import {
   FOCUS_SESSION_STORAGE_KEY,
 } from "../../components/focus/focusUtils";
 import {
+  FOCUS_TIMER_STORAGE_KEY,
   initialFocusTimerData,
   useFocusTimerStore,
 } from "../../store/focusTimerStore";
@@ -533,6 +534,155 @@ describe("FocusWorkspace", () => {
         return [];
       });
   }
+
+  function seedPersistedTimer(state: Record<string, unknown>) {
+    window.localStorage.setItem(
+      FOCUS_TIMER_STORAGE_KEY,
+      JSON.stringify({ state, version: 0 }),
+    );
+  }
+
+  function rehydrateFocusTimerStoreFromStorage() {
+    const raw = window.localStorage.getItem(FOCUS_TIMER_STORAGE_KEY);
+    if (!raw) {
+      useFocusTimerStore.setState({ ...initialFocusTimerData });
+      return;
+    }
+    const parsed = JSON.parse(raw) as { state: Record<string, unknown> };
+    useFocusTimerStore.setState({
+      ...initialFocusTimerData,
+      ...parsed.state,
+    });
+  }
+
+  it("Ctrl+Shift+R hard reload keeps Continue frozen through burst click, then Continue resumes", async () => {
+    // Wine Product×2: Ctrl+Shift+R WHILE Pause live still Pause and the
+    // clock ticked. New-document hydrate lands Continue, then the session
+    // button arms from reload-burst click/focus-restore. Playwright
+    // page.reload Soft PASS never replayed that click.
+    mockHardDocumentReload();
+    saveFocusSession({
+      version: 1,
+      selectedTarget: { type: "note", id: "note-1" },
+      sessionLength: 25 * 60,
+      isRunning: true,
+      startedAt: Date.now() - 8 * 1000,
+      timeLeft: 24 * 60 + 52,
+      hasCompletedSession: false,
+      sessionCount: 1,
+    });
+    rewriteStoredFocusSessionPaused();
+
+    const view = render(<FocusWorkspace userId={userId} />);
+    expect(view.getByText("24:52")).toBeInTheDocument();
+    expect(view.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+
+    fireEvent.click(view.getByRole("button", { name: /^Continue$/i }));
+    expect(view.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(
+      view.queryByRole("button", { name: /^Pause$/i }),
+    ).not.toBeInTheDocument();
+
+    await act(async () => {
+      vi.advanceTimersByTime(15 * 1000);
+    });
+    expect(view.getByText("24:52")).toBeInTheDocument();
+    expect(view.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+
+    fireEvent.click(view.getByRole("button", { name: /^Continue$/i }));
+    expect(view.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
+    await act(async () => {
+      vi.advanceTimersByTime(18 * 1000);
+    });
+    expect(view.getByText("24:34")).toBeInTheDocument();
+  });
+
+  it("hard reload of a live persist-store run hydrates Continue frozen with no auto-start", async () => {
+    // Regressed by 9ae5ce7: the live authority moved to
+    // researchquest-focus-timer. Boot still paused rq_focus_session, but
+    // zustand persist rehydrated status=running and the clock kept ticking.
+    mockHardDocumentReload();
+    const remaining = 24 * 60 + 40;
+    const now = Date.now();
+    const deadlineMs = now + remaining * 1000;
+    seedPersistedTimer({
+      selectedTarget: { type: "note", id: "note-1" },
+      sessionLength: 25 * 60,
+      status: "running",
+      deadlineMs,
+      endsAt: deadlineMs,
+      remainingSec: 25 * 60,
+      startedAtMs: now - 20 * 1000,
+      runId: "reload-run",
+      sessionCount: 1,
+      awardedRunId: null,
+    });
+    persistPausedFocusSession({
+      selectedTarget: { type: "note", id: "note-1" },
+      sessionLength: 25 * 60,
+      liveIsRunning: true,
+      liveStartedAt: now - 20 * 1000,
+      deadline: deadlineMs,
+      timeLeft: remaining,
+      hasCompletedSession: false,
+      sessionCount: 1,
+      keepAlive: true,
+    });
+    rewriteStoredFocusSessionPaused();
+    rehydrateFocusTimerStoreFromStorage();
+
+    const view = render(<FocusWorkspace userId={userId} />);
+    expect(view.getByText("24:40")).toBeInTheDocument();
+    expect(view.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    expect(
+      view.queryByRole("button", { name: /^Pause$/i }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(view.getByRole("button", { name: /^Continue$/i }));
+    expect(view.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+
+    await act(async () => {
+      vi.advanceTimersByTime(18 * 1000);
+    });
+    expect(view.getByText("24:40")).toBeInTheDocument();
+    expect(view.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+
+    fireEvent.click(view.getByRole("button", { name: /^Continue$/i }));
+    expect(view.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
+    await act(async () => {
+      vi.advanceTimersByTime(18 * 1000);
+    });
+    expect(view.getByText("24:22")).toBeInTheDocument();
+  });
+
+  it("hard reload of a paused persist-store run stays Continue frozen with no auto-start", async () => {
+    mockHardDocumentReload();
+    seedPersistedTimer({
+      selectedTarget: { type: "note", id: "note-1" },
+      sessionLength: 25 * 60,
+      status: "paused",
+      deadlineMs: null,
+      endsAt: null,
+      remainingSec: 24 * 60 + 12,
+      startedAtMs: null,
+      runId: "paused-run",
+      sessionCount: 1,
+      awardedRunId: null,
+    });
+    rewriteStoredFocusSessionPaused();
+    rehydrateFocusTimerStoreFromStorage();
+
+    const view = render(<FocusWorkspace userId={userId} />);
+    expect(view.getByText("24:12")).toBeInTheDocument();
+    expect(view.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+
+    fireEvent.click(view.getByRole("button", { name: /^Continue$/i }));
+    expect(view.getByRole("button", { name: /^Continue$/i })).toBeInTheDocument();
+    await act(async () => {
+      vi.advanceTimersByTime(8 * 1000);
+    });
+    expect(view.getByText("24:12")).toBeInTheDocument();
+  });
 
   it("hard reload hydrate of a paused snapshot shows Continue frozen, then Continue resumes live", async () => {
     // Pre-fix style snapshot without a deadline restores as a paused

@@ -59,6 +59,8 @@ import {
   saveFocusSession,
   clearStoredFocusSession,
   resolveFocusTitle,
+  isFocusDocumentReload,
+  FOCUS_DOCUMENT_RELOAD_START_QUIET_MS,
 } from "./focusUtils";
 import { publishLiveFocusSnapshot } from "./focusSessionGuard";
 import {
@@ -275,6 +277,32 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
 
   const completeSessionRef = useRef(completeSession);
   completeSessionRef.current = completeSession;
+  // Wine Ctrl+Shift+R: hydrate lands Continue, then a reload-burst click /
+  // focus-restore keyup hits the same button and would re-arm Pause. Ignore
+  // Start/Continue until this timestamp; Pause always works. Gated on
+  // navigation type=reload so in-session remounts keep immediate Continue.
+  const reloadStartQuietUntilRef = useRef(0);
+
+  useLayoutEffect(() => {
+    if (!isFocusDocumentReload()) return;
+    const timerState = useFocusTimerStore.getState();
+    if (timerState.status === "running") {
+      timerState.pause();
+    }
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!isFocusDocumentReload()) return;
+    if (
+      timerStatus !== "paused" ||
+      !selectedTarget ||
+      reloadStartQuietUntilRef.current !== 0
+    ) {
+      return;
+    }
+    reloadStartQuietUntilRef.current =
+      Date.now() + FOCUS_DOCUMENT_RELOAD_START_QUIET_MS;
+  }, [timerStatus, selectedTarget]);
 
   // Deadline-derived countdown. The interval only re-renders from
   // `deadline - Date.now()`, so navigation, unmount/remount, and hidden tabs
@@ -606,6 +634,9 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
     if (timerState.status === "running") {
       // Pause: capture deadline-derived remaining; the paused gap never counts.
       timerState.pause();
+      return;
+    }
+    if (Date.now() < reloadStartQuietUntilRef.current) {
       return;
     }
     if (!selectedTarget) return;
