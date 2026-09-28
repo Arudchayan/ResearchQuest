@@ -17,7 +17,6 @@ const daysAgo = (n: number): string =>
   new Date(Date.now() - n * 86400000).toISOString().split("T")[0]!;
 
 const futureISO = () => new Date(Date.now() + 3600000).toISOString();
-const pastISO = () => new Date(Date.now() - 3600000).toISOString();
 
 interface RpcCall {
   fn: string;
@@ -154,7 +153,7 @@ describe("Gamification Award Pipeline (RPC-only)", () => {
     vi.restoreAllMocks();
   });
 
-  it("sends the boost-multiplied delta to the award_xp RPC and does not write total_xp", async () => {
+  it("sends the raw xp amount as p_delta and does not write total_xp", async () => {
     state.profile = makeProfile({
       active_boost: { type: "xp", multiplier: 2, expires_at: futureISO() },
     });
@@ -163,29 +162,19 @@ describe("Gamification Award Pipeline (RPC-only)", () => {
     const result = await awardXP("user-a", 10, "create_note");
 
     expect(result?.xpEarned).toBe(10);
-    expect(state.rpcCalls[0]?.params.p_delta).toBe(20);
+    expect(state.rpcCalls[0]?.params.p_delta).toBe(10);
     expect(state.profileUpdates).toHaveLength(0);
   });
 
-  it("rounds fractional multiplied XP before sending p_delta", async () => {
+  it("does not apply a client-side boost multiplier to p_delta", async () => {
     state.profile = makeProfile({
       active_boost: { type: "xp", multiplier: 1.5, expires_at: futureISO() },
     });
 
     await awardXP("user-a", 7, "create_note");
 
-    expect(state.rpcCalls[0]?.params.p_delta).toBe(11);
+    expect(state.rpcCalls[0]?.params.p_delta).toBe(7);
     expect(state.profileUpdates).toHaveLength(0);
-  });
-
-  it("ignores an expired boost multiplier when sending p_delta", async () => {
-    state.profile = makeProfile({
-      active_boost: { type: "xp", multiplier: 2, expires_at: pastISO() },
-    });
-
-    await awardXP("user-a", 10, "create_note");
-
-    expect(state.rpcCalls[0]?.params.p_delta).toBe(10);
   });
 
   it("hydrates streak from the RPC row without a client profile write", async () => {

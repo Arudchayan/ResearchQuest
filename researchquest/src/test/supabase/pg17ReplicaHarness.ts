@@ -3,8 +3,8 @@
  *
  * Matches the 1765700000 replica recipe: master's table shapes, auth.uid()
  * stubbed from a session GUC, Supabase default privileges, then 1765700000
- * followed by 1765800000. Spawns an ephemeral initdb cluster so CI without
- * PG17 can skip rather than fail.
+ * followed by 1765800000. Spawns an ephemeral initdb cluster. CI installs
+ * PostgreSQL 17 so live cases run with 0 skipped.
  */
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -275,7 +275,7 @@ CREATE TRIGGER update_user_profiles_updated_at
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 `;
 
-export function startReplica(): Replica {
+export function startReplica(opts?: { through?: "1765700000" | "1765800000" }): Replica {
   const bin = pg17BinDir();
   if (!bin) {
     throw new Error("PostgreSQL 17 binaries not found");
@@ -345,7 +345,9 @@ export function startReplica(): Replica {
   writeFileSync(bootstrapFile, BOOTSTRAP_SQL);
   execFile(bootstrapFile);
   execFile(path.join(repoRoot, "supabase/migrations/1765700000_reconcile_unapplied_master_delta.sql"));
-  execFile(path.join(repoRoot, "supabase/migrations/1765800000_xp_integrity_hardening.sql"));
+  if ((opts?.through ?? "1765800000") === "1765800000") {
+    execFile(path.join(repoRoot, "supabase/migrations/1765800000_xp_integrity_hardening.sql"));
+  }
   exec(`
     INSERT INTO auth.users (id) VALUES ('${USER_A}'), ('${USER_B}')
     ON CONFLICT (id) DO NOTHING;

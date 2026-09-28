@@ -313,19 +313,7 @@ export async function awardXP(
     return null;
   }
 
-  const boost = profile.active_boost as
-    | { multiplier?: number; expires_at: string }
-    | null
-    | undefined;
-  const boostActive =
-    boost?.multiplier &&
-    boost.expires_at &&
-    new Date(boost.expires_at).getTime() > Date.now();
-  const xpEarned = Math.round(
-    xpAmount * (boostActive && boost.multiplier ? boost.multiplier : 1),
-  );
-
-  const rpcRow = await tryAwardXpRpc(userId, xpEarned, action, options);
+  const rpcRow = await tryAwardXpRpc(userId, xpAmount, action, options);
   if (!rpcRow) {
     return null;
   }
