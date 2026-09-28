@@ -505,6 +505,10 @@ export function setXpNow(replica: Replica, iso: string): void {
     VOLATILE
     SET search_path = ''
     AS $fn$ SELECT TIMESTAMPTZ '${ts}'; $fn$;
+    REVOKE ALL ON FUNCTION public.xp_server_now() FROM PUBLIC;
+    REVOKE ALL ON FUNCTION public.xp_server_now() FROM anon;
+    REVOKE ALL ON FUNCTION public.xp_server_now() FROM authenticated;
+    REVOKE ALL ON FUNCTION public.xp_server_now() FROM service_role;
   `);
 }
 
@@ -516,5 +520,9 @@ export function resetXpNow(replica: Replica): void {
     VOLATILE
     SET search_path = ''
     AS $fn$ SELECT clock_timestamp(); $fn$;
+    REVOKE ALL ON FUNCTION public.xp_server_now() FROM PUBLIC;
+    REVOKE ALL ON FUNCTION public.xp_server_now() FROM anon;
+    REVOKE ALL ON FUNCTION public.xp_server_now() FROM authenticated;
+    REVOKE ALL ON FUNCTION public.xp_server_now() FROM service_role;
   `);
 }
