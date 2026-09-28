@@ -787,10 +787,12 @@ GRANT EXECUTE ON FUNCTION public.award_achievement_xp(TEXT, INTEGER, TEXT, TEXT)
 COMMENT ON FUNCTION public.award_achievement_xp(TEXT, INTEGER, TEXT, TEXT) IS
   'Atomic one-time achievement award for auth.uid(): server catalogue XP (p_xp ignored), eligibility from notes/papers/tasks/streak, one row per (user, type).';
 
--- Defence-in-depth: TRUNCATE ignores RLS. MAINTAIN (PG17) allows LOCK TABLE
--- in any mode, VACUUM, and REINDEX. Client and edge only SELECT/UPDATE
--- user_profiles; account deletion is auth.users CASCADE / DEFINER, not a
--- client DELETE on this table.
+-- Defence-in-depth: TRUNCATE ignores RLS. MAINTAIN (PG17+) lets a client
+-- LOCK TABLE in any mode, VACUUM, or REINDEX; revoking it removes those.
+-- A role with UPDATE or DELETE can still take row-exclusive locks; that
+-- path is not reachable through PostgREST. Client and edge only
+-- SELECT/UPDATE user_profiles; account deletion is auth.users CASCADE /
+-- DEFINER, not a client DELETE on this table.
 REVOKE TRUNCATE, TRIGGER, REFERENCES, MAINTAIN ON ALL TABLES IN SCHEMA public
   FROM anon, authenticated;
 REVOKE DELETE ON TABLE public.user_profiles FROM anon, authenticated;
@@ -813,6 +815,20 @@ END $$;
 -- 1765700000 definitions this migration replaced. Apply as a single script.
 -- Does not re-apply the rest of 1765700000.
 --
+-- Tighter than pre-migration on purpose: this rollback does not GRANT
+-- INSERT/UPDATE on user_profiles or research_achievements to anon.
+--
+-- Do not GRANT INSERT/UPDATE/DELETE on public.xp_events to authenticated.
+-- 1765700000 already left that table SELECT-only; restoring writes would
+-- reopen ledger forgery.
+--
+-- MAINTAIN is a PG17+ privilege keyword (live is 17.6). Revoking it
+-- removes LOCK TABLE-via-MAINTAIN, VACUUM, and REINDEX. A role with
+-- UPDATE or DELETE can still take row-exclusive locks; that is not
+-- reachable through PostgREST. The per-table GRANT below is version-
+-- guarded like 1765700000 section K. ALTER DEFAULT PRIVILEGES keeps
+-- MAINTAIN as written (postgres-owned new tables).
+--
 --   DROP TRIGGER IF EXISTS lock_freeze_rest_no_mint ON public.user_profiles;
 --   DROP FUNCTION IF EXISTS public.enforce_freeze_rest_no_mint();
 --   ALTER TABLE public.user_profiles
@@ -825,7 +841,6 @@ END $$;
 --   GRANT DELETE ON TABLE public.user_profiles TO anon, authenticated;
 --
 --   GRANT INSERT, UPDATE, DELETE ON TABLE public.research_achievements TO authenticated;
---   GRANT INSERT, UPDATE, DELETE ON TABLE public.xp_events TO authenticated;
 --
 --   DROP POLICY IF EXISTS "Users can insert own achievements" ON public.research_achievements;
 --   CREATE POLICY "Users can insert own achievements"
@@ -841,8 +856,43 @@ END $$;
 --     ON public.research_achievements FOR DELETE
 --     USING ((select auth.uid()) = user_id);
 --
---   GRANT TRUNCATE, TRIGGER, REFERENCES, MAINTAIN ON ALL TABLES IN SCHEMA public
---     TO anon, authenticated;
+--   -- Inverse of the ALL-tables TRUNCATE/TRIGGER/REFERENCES/MAINTAIN revoke,
+--   -- omitting public.xp_events and the 7 atlas_* tables. Before this
+--   -- migration: anon has no privileges on those; authenticated has only
+--   -- SELECT on xp_events; authenticated has only SELECT/INSERT/UPDATE/DELETE
+--   -- on atlas_* (no TRUNCATE/TRIGGER/REFERENCES/MAINTAIN).
+--   DO $rb$
+--   DECLARE
+--     t text;
+--     privs text := 'TRUNCATE, TRIGGER, REFERENCES';
+--   BEGIN
+--     IF current_setting('server_version_num')::integer >= 170000 THEN
+--       privs := privs || ', MAINTAIN';
+--     END IF;
+--     FOR t IN
+--       SELECT c.relname
+--       FROM pg_class AS c
+--       JOIN pg_namespace AS n ON n.oid = c.relnamespace
+--       WHERE n.nspname = 'public'
+--         AND c.relkind = 'r'
+--         AND c.relname NOT IN (
+--           'xp_events',
+--           'atlas_identities',
+--           'atlas_progress_snapshots',
+--           'atlas_proof_drafts',
+--           'atlas_fresh_check_attempts',
+--           'atlas_validation_sessions',
+--           'atlas_validation_scores',
+--           'atlas_link_checks'
+--         )
+--     LOOP
+--       EXECUTE format(
+--         'GRANT %s ON TABLE public.%I TO anon, authenticated',
+--         privs, t
+--       );
+--     END LOOP;
+--   END
+--   $rb$;
 --   ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
 --     GRANT TRUNCATE, TRIGGER, REFERENCES, MAINTAIN ON TABLES TO anon, authenticated;
 --
