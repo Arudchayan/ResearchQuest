@@ -51,3 +51,22 @@ export function extractFunctionErrorMessage(
 
   return fallback;
 }
+
+const AUTH_ERROR_COPY = {
+  invalidCredentials: "Invalid email or password. Please try again.",
+  emailNotConfirmed: "Please confirm your email address before signing in.",
+} as const;
+
+/** Map provider auth errors to the copy already used on the sign-in door. */
+export function toFriendlyAuthError(error: unknown, fallback: string): string {
+  const raw = extractFunctionErrorMessage(error, fallback).toLowerCase();
+
+  if (raw.includes("invalid login credentials")) {
+    return AUTH_ERROR_COPY.invalidCredentials;
+  }
+  if (raw.includes("email not confirmed")) {
+    return AUTH_ERROR_COPY.emailNotConfirmed;
+  }
+
+  return fallback;
+}
