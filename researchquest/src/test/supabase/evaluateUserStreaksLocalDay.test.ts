@@ -4,9 +4,9 @@
  * Lazy cron: UTC-12 missed = local_today_min - last - 1. Zero current_streak
  * only when missed > freeze + rest AND (credit_at IS NULL or e >= 48h).
  * Never spends tokens and never moves last_activity_date or streak_credit_at.
- * award_xp ( #826 round 9 ) spends tokens on the return claim.
- * CI installs PostgreSQL 17 so live cases run. Round-9 claim cases skip
- * until 1765800000 contains r9 award_xp (`requires #826 r9 award_xp`).
+ * award_xp (#826 round 9) spends tokens on the return claim, including
+ * east-of-UTC early returns before the 00:05Z run. CI installs PostgreSQL 17
+ * so live cases run (0 skipped).
  */
 import { readFileSync } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
@@ -29,9 +29,6 @@ const testDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(testDir, "..", "..", "..", "..");
 const migrationsDir = path.join(repoRoot, "supabase", "migrations");
 const FILE = "1765900000_evaluate_user_streaks_local_day.sql";
-const HARDENING_FILE =
-  process.env.RQ_XP_HARDENING_SQL ||
-  path.join(migrationsDir, "1765800000_xp_integrity_hardening.sql");
 const QA_HELPERS = path.join(testDir, "qa827ReproHelpers.sql");
 
 const CRON_005Z = "2026-06-09T00:05:00.000Z";
@@ -41,8 +38,6 @@ const C3 = [
   "2026-10-15T00:05:00.000Z",
   "2026-10-16T00:05:00.000Z",
 ] as const;
-const R9_REASON = "requires #826 r9 award_xp";
-
 function stripLineComments(text: string): string {
   return text
     .split("\n")
@@ -81,9 +76,6 @@ type ProfileRow = {
 let raw = "";
 let sql = "";
 let fn = "";
-const hasR9AwardXp = /v_need\s*:=\s*GREATEST\s*\(\s*1\s*,\s*v_gap\s*-\s*1\s*\)/i.test(
-  readFileSync(HARDENING_FILE, "utf8"),
-);
 
 beforeAll(async () => {
   raw = await readFile(path.join(migrationsDir, FILE), "utf8");
@@ -596,7 +588,7 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
     );
   });
 
-  it.skipIf(!hasR9AwardXp)(`X1 #827 R1 UTC+10 frz=2 (${R9_REASON})`, () => {
+  it(`X1 #827 R1 UTC+10 frz=2`, () => {
     seed({
       lastActivity: "2026-10-13",
       streak: 5,
@@ -622,7 +614,7 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
     expect(row.rest_days).toBe(0);
   });
 
-  it.skipIf(!hasR9AwardXp)(`X2 R1 with 1 freeze (${R9_REASON})`, () => {
+  it(`X2 R1 with 1 freeze`, () => {
     seed({
       lastActivity: "2026-10-13",
       streak: 5,
@@ -644,7 +636,7 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
     expect(row.rest_days).toBe(0);
   });
 
-  it.skipIf(!hasR9AwardXp)(`X3 R1 with 2 rest days (${R9_REASON})`, () => {
+  it(`X3 R1 with 2 rest days`, () => {
     seed({
       lastActivity: "2026-10-13",
       streak: 5,
@@ -665,7 +657,7 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
     expect(row.rest_days).toBe(0);
   });
 
-  it.skipIf(!hasR9AwardXp)(`X4 R1w UTC-5 control frz=2 (${R9_REASON})`, () => {
+  it(`X4 R1w UTC-5 control frz=2`, () => {
     seed({
       lastActivity: "2026-10-13",
       streak: 5,
@@ -687,7 +679,7 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
     expect(row.rest_days).toBe(0);
   });
 
-  it.skipIf(!hasR9AwardXp)(`X5 R1w UTC-5 frz=1 N<k (${R9_REASON})`, () => {
+  it(`X5 R1w UTC-5 frz=1 N<k`, () => {
     seed({
       lastActivity: "2026-10-13",
       streak: 5,
@@ -708,7 +700,7 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
     expect(row.streak_freeze_tokens).toBe(1);
   });
 
-  it.skipIf(!hasR9AwardXp)(`X6 #827 R2 UTC+10 rest=1, miss 10-14, claim 10-15 (${R9_REASON})`, () => {
+  it(`X6 #827 R2 UTC+10 rest=1, miss 10-14, claim 10-15`, () => {
     seed({
       lastActivity: "2026-10-13",
       streak: 5,
@@ -729,7 +721,7 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
     expect(row.rest_days).toBe(0);
   });
 
-  it.skipIf(!hasR9AwardXp)(`mixed 1 freeze + 1 rest on R1 shape (${R9_REASON})`, () => {
+  it(`mixed 1 freeze + 1 rest on R1 shape`, () => {
     seed({
       lastActivity: "2026-10-13",
       streak: 5,
@@ -750,7 +742,7 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
     expect(row.rest_days).toBe(0);
   });
 
-  it.skipIf(!hasR9AwardXp)(`X7 N>=k keeps streak and spends k; N=k-1 resets with tokens kept (${R9_REASON})`, () => {
+  it(`X7 N>=k keeps streak and spends k; N=k-1 resets with tokens kept`, () => {
     seed({
       lastActivity: "2026-10-13",
       streak: 5,
@@ -782,7 +774,7 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
     expect(awarded.streak_freeze_tokens).toBe(1);
   });
 
-  it.skipIf(!hasR9AwardXp)(`X8 same-instant cron then award equals award then cron (${R9_REASON})`, () => {
+  it(`X8 same-instant cron then award equals award then cron`, () => {
     const t = "2026-10-20T00:05:00.000Z";
     const credit = "2026-10-18T01:05:00.000Z";
     seed({
@@ -819,7 +811,7 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
     expect(awardFirst.current_streak).toBe(cronFirst.current_streak);
   });
 
-  it.skipIf(!hasR9AwardXp)(`X9 NULL band g=2 at e=47h05m is bridged; cron does not zero first (${R9_REASON})`, () => {
+  it(`X9 NULL band g=2 at e=47h05m is bridged; cron does not zero first`, () => {
     seed({
       lastActivity: "2026-10-18",
       streak: 5,
@@ -858,7 +850,7 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
     expect(row.last_activity_date).toBe("2026-10-20");
   });
 
-  it.skipIf(!hasR9AwardXp)(`R4 UTC+10 k=2 early return 00:30 local (${R9_REASON})`, () => {
+  it(`R4 UTC+10 k=2 early return 00:30 local`, () => {
     // QA FAIL at 81f0c441: award_xp g=3 reset s=1 frz=2. Probes X1 is the
     // after-00:05Z twin (s=6 last=10-16 frz=0 rest=0). Same shape here.
     const state = qaRun(`
@@ -872,7 +864,7 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
     expect(state).not.toMatch(/frz=2/);
   });
 
-  it.skipIf(!hasR9AwardXp)(`R5 UTC+14 k=2 return 12:00 local before spending run (${R9_REASON})`, () => {
+  it(`R5 UTC+14 k=2 return 12:00 local before spending run`, () => {
     const state = qaRun(`
       SELECT pg_temp.q_reset('${USER_A}'::uuid, 5, DATE '2026-10-13', 2, 0, 840, 840, TIMESTAMPTZ '2026-10-12 22:00Z');
       SELECT pg_temp.q_cron(TIMESTAMPTZ '2026-10-14 00:05Z');
@@ -883,7 +875,7 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
     expect(state).not.toMatch(/^s=1 /);
   });
 
-  it.skipIf(!hasR9AwardXp)(`R6 Berlin k=3 return 00:30 local spends all 3 tokens (${R9_REASON})`, () => {
+  it(`R6 Berlin k=3 return 00:30 local spends all 3 tokens`, () => {
     const state = qaRun(`
       SELECT pg_temp.q_reset('${USER_A}'::uuid, 5, DATE '2026-10-13', 3, 0, 120, 120, TIMESTAMPTZ '2026-10-13 10:00Z');
       SELECT pg_temp.q_cron(TIMESTAMPTZ '2026-10-14 00:05Z');
@@ -896,7 +888,78 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
     expect(state).not.toMatch(/frz=2/);
   });
 
-  it.skipIf(!hasR9AwardXp).each([
+  // QA N2a-freeze 24/180 FAILs at 81f0c441: east return before 00:05Z on
+  // L+k+1. award_xp spends m=g-1 and the return day counts (s=prior+1).
+  // leftover freeze = N-k. Crons only before the return-day 00:05Z.
+  it.each([
+    { zone: "Berlin", tz: 120, k: 2, n: 2, hh: 0, mm: 30, last: "2026-10-16", frz: 0 },
+    { zone: "Berlin", tz: 120, k: 2, n: 3, hh: 0, mm: 30, last: "2026-10-16", frz: 1 },
+    { zone: "Berlin", tz: 120, k: 3, n: 3, hh: 0, mm: 30, last: "2026-10-17", frz: 0 },
+    { zone: "Kathmandu", tz: 345, k: 2, n: 2, hh: 0, mm: 30, last: "2026-10-16", frz: 0 },
+    { zone: "Kathmandu", tz: 345, k: 2, n: 3, hh: 0, mm: 30, last: "2026-10-16", frz: 1 },
+    { zone: "Kathmandu", tz: 345, k: 3, n: 3, hh: 0, mm: 30, last: "2026-10-17", frz: 0 },
+    { zone: "Sydney", tz: 660, k: 2, n: 2, hh: 0, mm: 30, last: "2026-10-16", frz: 0 },
+    { zone: "Sydney", tz: 660, k: 2, n: 3, hh: 0, mm: 30, last: "2026-10-16", frz: 1 },
+    { zone: "Sydney", tz: 660, k: 3, n: 3, hh: 0, mm: 30, last: "2026-10-17", frz: 0 },
+    { zone: "UTC+10", tz: 600, k: 2, n: 2, hh: 0, mm: 30, last: "2026-10-16", frz: 0 },
+    { zone: "UTC+10", tz: 600, k: 2, n: 3, hh: 0, mm: 30, last: "2026-10-16", frz: 1 },
+    { zone: "UTC+10", tz: 600, k: 3, n: 3, hh: 0, mm: 30, last: "2026-10-17", frz: 0 },
+    { zone: "UTC+13", tz: 780, k: 2, n: 2, hh: 0, mm: 30, last: "2026-10-16", frz: 0 },
+    { zone: "UTC+13", tz: 780, k: 2, n: 2, hh: 12, mm: 0, last: "2026-10-16", frz: 0 },
+    { zone: "UTC+13", tz: 780, k: 2, n: 3, hh: 0, mm: 30, last: "2026-10-16", frz: 1 },
+    { zone: "UTC+13", tz: 780, k: 2, n: 3, hh: 12, mm: 0, last: "2026-10-16", frz: 1 },
+    { zone: "UTC+13", tz: 780, k: 3, n: 3, hh: 0, mm: 30, last: "2026-10-17", frz: 0 },
+    { zone: "UTC+13", tz: 780, k: 3, n: 3, hh: 12, mm: 0, last: "2026-10-17", frz: 0 },
+    { zone: "UTC+14", tz: 840, k: 2, n: 2, hh: 0, mm: 30, last: "2026-10-16", frz: 0 },
+    { zone: "UTC+14", tz: 840, k: 2, n: 2, hh: 12, mm: 0, last: "2026-10-16", frz: 0 },
+    { zone: "UTC+14", tz: 840, k: 2, n: 3, hh: 0, mm: 30, last: "2026-10-16", frz: 1 },
+    { zone: "UTC+14", tz: 840, k: 2, n: 3, hh: 12, mm: 0, last: "2026-10-16", frz: 1 },
+    { zone: "UTC+14", tz: 840, k: 3, n: 3, hh: 0, mm: 30, last: "2026-10-17", frz: 0 },
+    { zone: "UTC+14", tz: 840, k: 3, n: 3, hh: 12, mm: 0, last: "2026-10-17", frz: 0 },
+  ])("N2a-east $zone k=$k N=$n @$hh:$mm before 00:05Z", ({
+    zone,
+    tz,
+    k,
+    n,
+    hh,
+    mm,
+    last,
+    frz,
+  }) => {
+    const credit = utcIsoFromLocal("2026-10-13", 12, tz);
+    const crons: string[] = [];
+    for (const d of ["2026-10-14", "2026-10-15", "2026-10-16", "2026-10-17"]) {
+      if (d >= last) break;
+      crons.push(`${d}T00:05:00.000Z`);
+    }
+    seed({
+      lastActivity: "2026-10-13",
+      streak: 5,
+      freeze: n,
+      rest: 0,
+      tzLo: tz,
+      tzHi: tz,
+      creditAt: credit,
+      setAt: credit,
+    });
+    runCrons(crons);
+    const awarded = claim(
+      utcIsoFromLocal(last, hh, tz, mm),
+      last,
+      `n2a-${zone}-k${k}-n${n}-${hh}${mm}`,
+    );
+    expect(awarded.current_streak).toBe(6);
+    expect(awarded.current_streak).not.toBe(1);
+    expect(awarded.last_activity_date).toBe(last);
+    expect(awarded.streak_freeze_tokens).toBe(frz);
+    const row = readProfile();
+    expect(row.current_streak).toBe(6);
+    expect(row.last_activity_date).toBe(last);
+    expect(row.streak_freeze_tokens).toBe(frz);
+    expect(row.rest_days).toBe(0);
+  });
+
+  it.each([
     { zone: "Berlin", tz: 120, k: 2, freeze: 2, ret: "2026-10-16", insideH: 0, insideM: 30 },
     { zone: "Kathmandu", tz: 345, k: 2, freeze: 2, ret: "2026-10-16", insideH: 0, insideM: 30 },
     { zone: "Sydney", tz: 660, k: 2, freeze: 2, ret: "2026-10-16", insideH: 0, insideM: 30 },
@@ -904,7 +967,7 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
     { zone: "+13", tz: 780, k: 2, freeze: 2, ret: "2026-10-16", insideH: 12, insideM: 0 },
     { zone: "+14", tz: 840, k: 2, freeze: 2, ret: "2026-10-16", insideH: 12, insideM: 0 },
     { zone: "Berlin-k3", tz: 120, k: 3, freeze: 3, ret: "2026-10-17", insideH: 0, insideM: 30 },
-  ])(`early-return window $zone k=$k inside vs after 00:05Z (${R9_REASON})`, ({
+  ])(`early-return window $zone k=$k inside vs after 00:05Z`, ({
     zone,
     tz,
     freeze,
