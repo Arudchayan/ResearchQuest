@@ -38,10 +38,33 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
         run: node researchquest/scripts/check-supabase-env.mjs
 
+  # Fail fast when PRs collide on supabase/migrations version prefixes
+  # (duplicate timestamps, out-of-order vs master, reserved 1764800000–1765000000).
+  migration-versions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: "22"
+
+      - name: Guard migration version prefixes
+        env:
+          # PR base SHA, or the previous commit on push. All-zero "before" on
+          # a new branch is ignored by the script.
+          MIGRATION_VERSION_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: node researchquest/scripts/check-migration-versions.mjs
+
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: [env-guard]
+    needs: [env-guard, migration-versions]
     defaults:
       run:
         working-directory: researchquest
