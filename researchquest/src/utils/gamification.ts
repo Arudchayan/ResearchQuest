@@ -133,7 +133,7 @@ export function getLevelFromXP(totalXP: number): number {
 }
 
 export interface GamificationResult {
-  /** Actual XP credited (after boost multiplier). */
+  /** Actual XP credited by the award_xp RPC. */
   xpEarned: number;
   level: number;
   leveledUp: boolean;
