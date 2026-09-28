@@ -270,8 +270,6 @@ DECLARE
   v_tz_lo INTEGER;
   v_tz_hi INTEGER;
   v_tz_set_at TIMESTAMPTZ;
-  v_gap_last DATE;
-  v_prior_day DATE;
   v_r_total INTEGER;
   v_r_level INTEGER;
   v_r_streak INTEGER;
@@ -491,35 +489,31 @@ BEGIN
   v_n_lo := GREATEST(v_w_lo, v_claim_lo);
   v_n_hi := LEAST(v_w_hi, v_claim_hi);
 
-  SELECT max(e.local_day) INTO v_prior_day
-  FROM public.xp_events AS e
-  WHERE e.user_id = v_uid
-    AND e.xp > 0
-    AND e.created_at < v_now;
-  v_gap_last := v_profile.last_activity_date;
-  IF v_prior_day IS NOT NULL AND (v_gap_last IS NULL OR v_prior_day > v_gap_last) THEN
-    v_gap_last := v_prior_day;
-  END IF;
-
-  IF v_claim_lo <= v_claim_hi AND v_n_lo <= v_n_hi THEN
-    -- Timezone-consistent: apply streak rules against last consistent day
-    -- or the latest credited local_day (so a travel stall is activity for
-    -- gap/freeze/reset without incrementing on the inconsistent calls).
+  IF v_claim_lo <= v_claim_hi AND v_n_lo <= v_n_hi
+     AND NOT (
+       -- A 1-minute overlap between adjacent local days (D-1 then D ~61s
+       -- later near UTC-11) is a boundary nick against a wider stored band,
+       -- not a real timezone. Singleton stored offsets such as [60,60] stay
+       -- consistent (W is not wider than N).
+       v_n_lo = v_n_hi
+       AND v_profile.streak_tz_lo_min IS NOT NULL
+       AND v_w_lo < v_w_hi
+     ) THEN
+    -- Timezone-consistent: apply streak rules for p against last_activity_date
+    -- only. Inconsistent claims must not bridge a real gap.
     IF v_tz_lo IS DISTINCT FROM v_n_lo OR v_tz_hi IS DISTINCT FROM v_n_hi THEN
       v_tz_set_at := v_now;
     END IF;
     v_tz_lo := v_n_lo;
     v_tz_hi := v_n_hi;
-    IF v_gap_last IS NULL THEN
+    IF v_last IS NULL THEN
       v_new_streak := 1;
       v_last := v_today;
-    ELSIF v_today < v_gap_last THEN
+    ELSIF v_today < v_last THEN
       NULL;
-    ELSIF v_today = v_gap_last THEN
-      IF v_last IS NULL OR v_today > v_last THEN
-        v_last := v_today;
-      END IF;
-    ELSIF v_today = v_gap_last + 1 THEN
+    ELSIF v_today = v_last THEN
+      NULL;
+    ELSIF v_today = v_last + 1 THEN
       v_new_streak := v_new_streak + 1;
       v_last := v_today;
     ELSIF v_freeze > 0 AND v_new_streak > 0 THEN
@@ -529,48 +523,53 @@ BEGIN
       v_new_streak := 1;
       v_last := v_today;
     END IF;
-  ELSIF v_profile.streak_tz_lo_min IS NOT NULL
-     AND v_profile.streak_tz_hi_min IS NOT NULL
-     AND v_profile.streak_tz_set_at IS NOT NULL
-     AND (v_now - v_profile.streak_tz_set_at) >= interval '12 hours' THEN
-    -- Traveller adaptation: persist one ±90 widen. Do not take the claim
-    -- interval, do not move last_activity_date, do not increment.
-    v_tz_lo := GREATEST(-720, v_profile.streak_tz_lo_min - 90);
-    v_tz_hi := LEAST(840, v_profile.streak_tz_hi_min + 90);
-    v_tz_set_at := v_now;
+
+    IF v_new_streak % 7 = 0 AND v_new_streak > COALESCE(v_profile.current_streak, 0) THEN
+      v_freeze := v_freeze + 1;
+    END IF;
+
+    v_longest := GREATEST(v_new_streak, COALESCE(v_profile.longest_streak, 0));
+
+    UPDATE public.user_profiles AS p
+    SET
+      total_xp = COALESCE(p.total_xp, 0) + v_credited,
+      current_level = ((COALESCE(p.total_xp, 0) + v_credited) / 500) + 1,
+      current_streak = v_new_streak,
+      longest_streak = v_longest,
+      last_activity_date = v_last,
+      streak_freeze_tokens = v_freeze,
+      streak_tz_lo_min = v_tz_lo,
+      streak_tz_hi_min = v_tz_hi,
+      streak_tz_set_at = v_tz_set_at
+    WHERE p.id = v_uid
+    RETURNING
+      p.total_xp, p.current_level, p.current_streak, p.longest_streak,
+      p.last_activity_date, p.streak_freeze_tokens
+    INTO
+      v_r_total, v_r_level, v_r_streak,
+      v_r_longest, v_r_last, v_r_freeze;
+
+    INSERT INTO public.daily_logs AS d (user_id, date, xp_earned, streak_count)
+    VALUES (v_uid, v_today, v_credited, v_new_streak)
+    ON CONFLICT (user_id, date)
+    DO UPDATE SET
+      xp_earned = COALESCE(d.xp_earned, 0) + EXCLUDED.xp_earned,
+      streak_count = EXCLUDED.streak_count;
+  ELSE
+    -- Empty or inconsistent N: credit XP only. Do not touch streak, last,
+    -- freeze, tz interval, or daily_logs (no gap bridge).
+    UPDATE public.user_profiles AS p
+    SET
+      total_xp = COALESCE(p.total_xp, 0) + v_credited,
+      current_level = ((COALESCE(p.total_xp, 0) + v_credited) / 500) + 1
+    WHERE p.id = v_uid
+    RETURNING
+      p.total_xp, p.current_level, p.current_streak, p.longest_streak,
+      p.last_activity_date, p.streak_freeze_tokens
+    INTO
+      v_r_total, v_r_level, v_r_streak,
+      v_r_longest, v_r_last, v_r_freeze;
   END IF;
-
-  IF v_new_streak % 7 = 0 AND v_new_streak > COALESCE(v_profile.current_streak, 0) THEN
-    v_freeze := v_freeze + 1;
-  END IF;
-
-  v_longest := GREATEST(v_new_streak, COALESCE(v_profile.longest_streak, 0));
-
-  UPDATE public.user_profiles AS p
-  SET
-    total_xp = COALESCE(p.total_xp, 0) + v_credited,
-    current_level = ((COALESCE(p.total_xp, 0) + v_credited) / 500) + 1,
-    current_streak = v_new_streak,
-    longest_streak = v_longest,
-    last_activity_date = v_last,
-    streak_freeze_tokens = v_freeze,
-    streak_tz_lo_min = v_tz_lo,
-    streak_tz_hi_min = v_tz_hi,
-    streak_tz_set_at = v_tz_set_at
-  WHERE p.id = v_uid
-  RETURNING
-    p.total_xp, p.current_level, p.current_streak, p.longest_streak,
-    p.last_activity_date, p.streak_freeze_tokens
-  INTO
-    v_r_total, v_r_level, v_r_streak,
-    v_r_longest, v_r_last, v_r_freeze;
-
-  INSERT INTO public.daily_logs AS d (user_id, date, xp_earned, streak_count)
-  VALUES (v_uid, v_today, v_credited, v_new_streak)
-  ON CONFLICT (user_id, date)
-  DO UPDATE SET
-    xp_earned = COALESCE(d.xp_earned, 0) + EXCLUDED.xp_earned,
-    streak_count = EXCLUDED.streak_count;
 
   SELECT count(*)::integer INTO v_r_notes FROM public.notes AS n WHERE n.user_id = v_uid;
   SELECT count(*)::integer INTO v_r_papers FROM public.papers AS p WHERE p.user_id = v_uid;
@@ -600,7 +599,7 @@ GRANT EXECUTE ON FUNCTION public.award_xp(UUID, INTEGER, TEXT, TEXT, TEXT, DATE,
 GRANT EXECUTE ON FUNCTION public.award_xp(UUID, INTEGER, TEXT, TEXT, TEXT, DATE, INTEGER) TO service_role;
 
 COMMENT ON FUNCTION public.award_xp(UUID, INTEGER, TEXT, TEXT, TEXT, DATE, INTEGER) IS
-  'Atomic XP award for auth.uid() only. Credits least(p_delta, server XP_REWARDS mapping); unknown actions 0. Local-day ±1 plus rolling 24h cap. Streak updates only on credited timezone-consistent awards; empty N credits XP without touching the tz interval or last_activity_date. Does not write *_count columns.';
+  'Atomic XP award for auth.uid() only. Credits least(p_delta, server XP_REWARDS mapping); unknown actions 0. Local-day ±1 plus rolling 24h cap. Streak updates only on credited timezone-consistent awards; empty or inconsistent N credits XP without touching streak, last_activity_date, freeze, or the tz interval. Does not write *_count columns.';
 
 -- ===========================================================================
 -- E. award_achievement_xp: catalogue XP + real-table eligibility
