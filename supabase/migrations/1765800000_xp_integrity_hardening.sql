@@ -36,19 +36,38 @@
 -- last_activity_date, streak_tz_lo_min, streak_tz_hi_min, streak_tz_set_at,
 -- streak_credit_at, streak_inc_at, streak_prev_inc_at, and all *_count.
 --
--- Streak tz gate: 6h, union-widen on inconsistent credited claims. The gate
--- only exists to stop two advances at the same instant. Lifetime lead is
--- already bounded because every claimed local day maps to an offset in
--- [-720, 840] and consistent claims narrow the band, so the maximum lead
--- over real time is about +1 to +2 days total, not per window.
--- Liveness: a credited claim that sets last_activity_date stamps
--- streak_credit_at. g = p - last. e = now - credit_at (NULL skips).
--- g=1 and e < 48h: advance (rate-capped). g=1 and 48h <= e < 72h, or
--- g=2 and e < 72h: freeze-token path (else reset to 1). g >= 3, or
--- g in (1,2) with e >= 72h: reset to 1. Rate cap: at most two increments
--- in any 24h window (prev_inc NULL or now - prev_inc > 24h); else HOLD
--- last=p and credit_at=now. Rule 4: a widened claim that would freeze
--- or reset while e < 48h is XP only (no widen, no state change).
+-- Streak rules (round 9). Band = UTC-offset minutes [lo, hi] consistent with
+-- recent claims (6h gate). An inconsistent claim that needs <= 60 min of
+-- widening (DST shift, stale band, clock skew) and is not at the same
+-- instant as streak_tz_set_at widens the band by 60 min each side (nudge);
+-- a bigger move unions with the claim interval if the 6h gate is open, else
+-- the award is XP only. g = p - last. e = now - streak_credit_at, where
+-- streak_credit_at is the LATEST streak claim (same-day and HOLD claims
+-- refresh it while the chain is alive; a dead chain is never refreshed, so a
+-- break is remembered). margin = 1h (DST hour) unless the band was NULL or
+-- the claim needed > 60 min of widening.
+--   g <= 0: refresh only.
+--   g = 1 and e < 48h + margin (or credit_at NULL, legacy): +1 or HOLD.
+--   g >= 2, e < 48h (strict) and the skipped date is an offset artefact of
+--     an eastward move (stored lo NULL, or under the stored band's west edge
+--     shifted 60 min east the claim is still on local day last + 1; AND the
+--     claim lies strictly east of the stored band, or e <= 24h * (g - 1) - 1h
+--     so no fixed zone could have skipped a day): bridge, +1 or HOLD.
+--   Otherwise (g >= 2 not bridged, or g = 1 on a dead chain) the token
+--     path: m = GREATEST(1, g - 1) missed days; needs streak > 0,
+--     freeze + rest_days >= m and e < 24h * (m + 2) + margin (credit_at
+--     NULL: g >= 2 only). Spends m tokens, streak_freeze_tokens first then
+--     rest_days, then counts the claim as a normal next day (+1 or HOLD).
+--     Else reset to 1, tokens kept. N tokens buy N missed days; this is the
+--     only place tokens are spent for a returning claim, so the nightly
+--     cron must not spend them too (see #827).
+-- Two rate clocks gate every +1 (else HOLD: last = p, credit_at = now):
+--   burst  streak_prev_inc_at: NULL or now - it > 23h (at most two +1 in
+--          any 23h window; 23h = 24h minus the DST hour).
+--   lead   streak_inc_at = C: NULL or now > C - 1h; +1 sets C := C + 24h
+--          (NULL -> now); start/reset sets C := now. C = reset time +
+--          24h * (streak - 1), so streak - real days since the reset claim
+--          stays below 2 + 1/24.
 
 -- ===========================================================================
 -- A. Rolling-window lookup
@@ -101,13 +120,13 @@ COMMENT ON COLUMN public.user_profiles.streak_tz_lo_min IS
 COMMENT ON COLUMN public.user_profiles.streak_tz_hi_min IS
   'Inclusive UTC-offset minutes consistent with recent credited streak claims. Written only by award_xp.';
 COMMENT ON COLUMN public.user_profiles.streak_tz_set_at IS
-  'Server time when streak_tz_lo_min/hi_min last changed, or when the streak last advanced or the band last union-widened. Written only by award_xp.';
+  'Server time when streak_tz_lo_min/hi_min last changed or the streak last advanced, spent tokens or reset. Gates union widening (6h) and same-instant nudges. Written only by award_xp.';
 COMMENT ON COLUMN public.user_profiles.streak_credit_at IS
-  'xp_server_now() of the last credited claim that set last_activity_date (start, advance, freeze, hold, reset). NULL is legacy and skips the 48h liveness rule. Written only by award_xp.';
+  'xp_server_now() of the latest streak claim while the chain is alive (start, advance, hold, freeze, reset, and same-day or earlier-day refreshes). Liveness: e = now - this. NULL is legacy (one bounded first claim). Written only by award_xp.';
 COMMENT ON COLUMN public.user_profiles.streak_inc_at IS
-  'xp_server_now() of the last streak increment (advance, or a freeze path that increments). NULL is legacy and skips the 24h rate cap for that check. Written only by award_xp.';
+  'Lead clock C. An increment is allowed only if this is NULL or now > C - 1h; an increment sets C := C + 24h (NULL -> now); a start or reset sets C := now. Bounds streak - real days since the reset claim below 2 + 1/24. Written only by award_xp.';
 COMMENT ON COLUMN public.user_profiles.streak_prev_inc_at IS
-  'xp_server_now() of the increment before streak_inc_at. An increment is allowed only if this is NULL or now - streak_prev_inc_at > 24h. Written only by award_xp.';
+  'Burst clock. An increment is allowed only if this is NULL or now - this > 23h; an increment sets it to the previous streak_tz_set_at (>= the previous increment time); a start or reset sets NULL. Written only by award_xp.';
 
 -- Test-replaceable clock. Production is clock_timestamp(); tests CREATE OR
 -- REPLACE this function as table owner. Not a GUC. Authenticated cannot
@@ -305,12 +324,17 @@ DECLARE
   v_credit_at TIMESTAMPTZ;
   v_inc_at TIMESTAMPTZ;
   v_prev_inc_at TIMESTAMPTZ;
-  v_orig_lo INTEGER;
-  v_orig_hi INTEGER;
-  v_orig_set_at TIMESTAMPTZ;
+  v_old_set_at TIMESTAMPTZ;
   v_gap INTEGER;
-  v_needed_widen BOOLEAN;
-  v_would_fr BOOLEAN;
+  v_band_null BOOLEAN;
+  v_widen_min INTEGER;
+  v_margin INTERVAL;
+  v_alive BOOLEAN;
+  v_rest INTEGER := 0;
+  v_need INTEGER;
+  v_use INTEGER;
+  v_bridge_ok BOOLEAN;
+  v_step BOOLEAN;
   v_r_total INTEGER;
   v_r_level INTEGER;
   v_r_streak INTEGER;
@@ -516,14 +540,14 @@ BEGIN
   v_credit_at := v_profile.streak_credit_at;
   v_inc_at := v_profile.streak_inc_at;
   v_prev_inc_at := v_profile.streak_prev_inc_at;
+  v_old_set_at := v_tz_set_at;
   v_freeze := COALESCE(v_profile.streak_freeze_tokens, 0);
+  v_rest := COALESCE(v_profile.rest_days, 0);
   v_last := v_profile.last_activity_date;
   v_new_streak := COALESCE(v_profile.current_streak, 0);
-  v_needed_widen := FALSE;
 
   -- Self-heal: no streak left to protect (streak 0 or last NULL). A
-  -- feasible claim starts fresh. Calendar gaps of 3+ days are handled
-  -- below so rule 4 can still refuse an early widened reset.
+  -- feasible claim starts fresh. The start is a lead-clock cell.
   IF v_claim_lo <= v_claim_hi
      AND (
        v_new_streak = 0
@@ -535,163 +559,160 @@ BEGIN
     v_new_streak := 1;
     v_last := v_today;
     v_credit_at := v_now;
+    v_inc_at := v_now;
+    v_prev_inc_at := NULL;
     v_apply_streak := TRUE;
-  ELSE
-    -- Gate exists only to stop two advances in the same instant. Lifetime
-    -- lead is already bounded: every claimed local day maps to an offset in
-    -- [-720, 840], and consistent claims narrow the band, so the maximum
-    -- lead over real time is about +1 to +2 days total, not per window.
-    -- A 9h flight in 13h is a normal move; do not magnitude-cap the widen.
-    IF v_tz_lo IS NULL OR v_tz_hi IS NULL THEN
+  ELSIF v_claim_lo <= v_claim_hi THEN
+    v_band_null := (v_tz_lo IS NULL OR v_tz_hi IS NULL);
+    IF v_band_null THEN
       v_w_lo := -720;
       v_w_hi := 840;
     ELSE
       v_w_lo := v_tz_lo;
       v_w_hi := v_tz_hi;
     END IF;
-
     v_n_lo := GREATEST(v_w_lo, v_claim_lo);
     v_n_hi := LEAST(v_w_hi, v_claim_hi);
-    v_gate_open := (
-      v_tz_set_at IS NULL
-      OR (v_now - v_tz_set_at) >= interval '6 hours'
-    );
+    v_widen_min := 0;
 
-    -- Credited inconsistent claim, gate open (>= 6h): union the stored band
-    -- with this claim's interval, clamp, stamp set_at, then evaluate N
-    -- against the widened band. Gate closed (< 6h): XP only, no widen, no
-    -- advance, never reset. Rule 4 may still undo this widen.
-    v_orig_lo := v_tz_lo;
-    v_orig_hi := v_tz_hi;
-    v_orig_set_at := v_tz_set_at;
-    v_needed_widen := (
-      v_claim_lo <= v_claim_hi
-      AND v_n_lo > v_n_hi
-      AND v_tz_lo IS NOT NULL
-      AND v_tz_hi IS NOT NULL
-      AND v_gate_open
-    );
-    IF v_needed_widen THEN
-      v_tz_lo := GREATEST(-720, LEAST(v_tz_lo, v_claim_lo));
-      v_tz_hi := LEAST(840, GREATEST(v_tz_hi, v_claim_hi));
-      v_tz_set_at := v_now;
+    -- Inconsistent claim (band is non-NULL here). v_widen_min = minutes of
+    -- widening needed (>= 1).
+    --   <= 60 and not the same instant as streak_tz_set_at: DST nudge, widen
+    --     the band by 60 min on each side (DST shift, stale band, clock skew).
+    --   else 6h gate open: union with the claim interval.
+    --   else: XP only.
+    IF v_n_lo > v_n_hi THEN
+      v_widen_min := CASE
+        WHEN v_claim_lo > v_tz_hi THEN v_claim_lo - v_tz_hi
+        ELSE v_tz_lo - v_claim_hi
+      END;
+      v_gate_open := (
+        v_tz_set_at IS NULL
+        OR (v_now - v_tz_set_at) >= interval '6 hours'
+      );
+      IF v_widen_min <= 60
+         AND (v_tz_set_at IS NULL OR v_now > v_tz_set_at) THEN
+        v_tz_lo := GREATEST(-720, v_tz_lo - 60);
+        v_tz_hi := LEAST(840, v_tz_hi + 60);
+      ELSIF v_gate_open THEN
+        v_tz_lo := GREATEST(-720, LEAST(v_tz_lo, v_claim_lo));
+        v_tz_hi := LEAST(840, GREATEST(v_tz_hi, v_claim_hi));
+      END IF;
       v_w_lo := v_tz_lo;
       v_w_hi := v_tz_hi;
-      v_n_lo := GREATEST(v_w_lo, v_claim_lo);
-      v_n_hi := LEAST(v_w_hi, v_claim_hi);
+      v_n_lo := GREATEST(v_tz_lo, v_claim_lo);
+      v_n_hi := LEAST(v_tz_hi, v_claim_hi);
     END IF;
 
-    -- Inclusive N: any overlap of 0 or more integer minutes (n_lo <= n_hi)
-    -- is consistent, including a shared midnight minute (UTC+2 [30,120] at
-    -- 22:00:30Z → N=[120,120]; UTC+14 [780,840] at 10:00:30Z → N=[840,840]).
-    -- Same-instant adjacent local days still have n_lo > n_hi because claim
-    -- windows are half-open, which is the burst cap (X1, 11:00 D-1/D/D+1,
-    -- full-range D/D+1/D+2).
-    IF v_claim_lo <= v_claim_hi AND v_n_lo <= v_n_hi THEN
-      v_gap := CASE WHEN v_last IS NULL THEN NULL ELSE (v_today - v_last) END;
-      v_would_fr := (
-        v_gap IS NOT NULL
-        AND v_today > v_last
-        AND (
-          v_gap >= 3
-          OR v_gap = 2
-          OR (
-            v_gap = 1
-            AND v_credit_at IS NOT NULL
-            AND (v_now - v_credit_at) >= interval '48 hours'
-          )
-        )
+    IF v_n_lo <= v_n_hi THEN
+      -- e = now - streak_credit_at (latest streak claim). DST margin: 1h on
+      -- the g=1 48h rule and the 72h rule unless the band was NULL or the
+      -- claim needed a widen of more than 60 min. g >= 2 bridges use a strict
+      -- 48h (no margin).
+      v_margin := CASE
+        WHEN v_band_null OR v_widen_min > 60 THEN interval '0'
+        ELSE interval '1 hour'
+      END;
+      v_alive := (
+        v_credit_at IS NOT NULL
+        AND (v_now - v_credit_at) < interval '48 hours' + v_margin
       );
-      -- Rule 4: widened claims cannot destroy state early. If the claim
-      -- needed a widen and rule 2 would freeze or reset while e < 48h,
-      -- credit XP only: revert the widen, no set_at/band/streak/last/token
-      -- /daily_logs change. Real misses still reset once e >= 48h.
-      IF v_needed_widen
-         AND v_would_fr
-         AND v_credit_at IS NOT NULL
-         AND (v_now - v_credit_at) < interval '48 hours' THEN
-        v_tz_lo := v_orig_lo;
-        v_tz_hi := v_orig_hi;
-        v_tz_set_at := v_orig_set_at;
-      ELSE
-        IF v_tz_lo IS DISTINCT FROM v_n_lo OR v_tz_hi IS DISTINCT FROM v_n_hi THEN
-          v_tz_set_at := v_now;
-        END IF;
-        v_tz_lo := v_n_lo;
-        v_tz_hi := v_n_hi;
-        -- Stamp set_at on every advance (v_today > v_last), even when N equals
-        -- the stored interval. Narrowing on advance makes a same-instant D+1
-        -- claim empty, which is the burst cap (including after a union widen).
-        IF v_last IS NULL THEN
-          v_new_streak := 1;
-          v_last := v_today;
+      IF v_tz_lo IS DISTINCT FROM v_n_lo OR v_tz_hi IS DISTINCT FROM v_n_hi THEN
+        v_tz_set_at := v_now;
+      END IF;
+      v_tz_lo := v_n_lo;
+      v_tz_hi := v_n_hi;
+      v_gap := v_today - v_last;
+
+      IF v_today <= v_last THEN
+        -- Same or earlier local day: liveness refresh only (never while
+        -- the chain is already broken, so a break is remembered).
+        IF v_credit_at IS NULL OR v_alive THEN
           v_credit_at := v_now;
-          v_tz_set_at := v_now;
-        ELSIF v_today < v_last THEN
-          NULL;
-        ELSIF v_today = v_last THEN
-          NULL;
-        ELSIF v_gap = 1
-              AND (
-                v_credit_at IS NULL
-                OR (v_now - v_credit_at) < interval '48 hours'
-              ) THEN
-          -- Normal consecutive advance, subject to the 24h rate cap.
-          IF v_prev_inc_at IS NULL
-             OR (v_now - v_prev_inc_at) > interval '24 hours' THEN
-            v_prev_inc_at := v_inc_at;
-            v_inc_at := v_now;
-            v_new_streak := v_new_streak + 1;
-            v_last := v_today;
-            v_credit_at := v_now;
+        END IF;
+      ELSE
+        -- Bridge test for g >= 2: the skipped local date must be an offset
+        -- artefact of an eastward move:
+        --   (a) under the stored (pre-claim) band's west edge shifted 60 min
+        --       east (DST tolerance) this claim is still on local day
+        --       last + 1, and
+        --   (b) there is evidence of the move: the claim interval lies
+        --       strictly east of the stored band, or the skip is impossible
+        --       for any fixed zone (e <= 24h * (g - 1) - 1h, the 1h being a
+        --       23h spring-forward day).
+        -- A fixed-zone user who really missed a local day is not bridged,
+        -- including one whose stored band is wide (e.g. [-720, 840]).
+        v_bridge_ok := (
+          v_gap >= 2
+          AND (v_now - v_credit_at) < interval '48 hours'
+          AND (
+            v_profile.streak_tz_lo_min IS NULL
+            OR ((v_now + make_interval(mins => LEAST(840, v_profile.streak_tz_lo_min + 60)))
+                  AT TIME ZONE 'UTC')::date <= v_last + 1
+          )
+          AND (
+            v_profile.streak_tz_hi_min IS NULL
+            OR v_claim_lo > v_profile.streak_tz_hi_min
+            OR (v_now - v_credit_at) <= make_interval(hours => 24 * (v_gap - 1) - 1)
+          )
+        );
+        v_step := FALSE;
+        IF (v_gap = 1 AND (v_alive OR v_credit_at IS NULL)) OR v_bridge_ok THEN
+          -- g = 1 with the chain alive (or legacy NULL credit_at), or a
+          -- bridged g >= 2 (strict 48h, no margin).
+          v_step := TRUE;
+        ELSE
+          -- Token path: m = GREATEST(1, g - 1) missed local days (g = 1 here
+          -- means a dead chain: one token for liveness). Needs m tokens,
+          -- freeze first then rest days, and e < 24h * (m + 2) + margin
+          -- (legacy NULL credit_at: any g >= 2). Then the claim counts as a
+          -- normal next day (+1 or HOLD). Otherwise reset to 1, tokens kept.
+          v_need := GREATEST(1, v_gap - 1);
+          IF v_new_streak > 0
+             AND v_freeze + v_rest >= v_need
+             AND (
+               (v_credit_at IS NULL AND v_gap >= 2)
+               OR (v_credit_at IS NOT NULL
+                   AND (v_now - v_credit_at) < make_interval(hours => 24 * (v_need + 2)) + v_margin)
+             ) THEN
+            v_use := LEAST(v_freeze, v_need);
+            v_freeze := v_freeze - v_use;
+            v_rest := v_rest - (v_need - v_use);
             v_tz_set_at := v_now;
-          ELSE
-            -- HOLD: last and credit_at move forward; streak unchanged.
-            v_last := v_today;
-            v_credit_at := v_now;
-          END IF;
-        ELSIF (
-                v_gap = 1
-                AND v_credit_at IS NOT NULL
-                AND (v_now - v_credit_at) >= interval '48 hours'
-                AND (v_now - v_credit_at) < interval '72 hours'
-              )
-              OR (
-                v_gap = 2
-                AND (
-                  v_credit_at IS NULL
-                  OR (v_now - v_credit_at) < interval '72 hours'
-                )
-              ) THEN
-          -- Existing gap-2 freeze-token path (token if available, else reset).
-          IF v_freeze > 0 AND v_new_streak > 0 THEN
-            v_freeze := v_freeze - 1;
-            v_last := v_today;
-            v_credit_at := v_now;
-            v_tz_set_at := v_now;
+            v_step := TRUE;
           ELSE
             v_new_streak := 1;
             v_last := v_today;
             v_credit_at := v_now;
             v_tz_set_at := v_now;
-            IF v_needed_widen THEN
+            v_inc_at := v_now;
+            v_prev_inc_at := NULL;
+            IF v_widen_min > 0 THEN
               v_tz_lo := v_w_lo;
               v_tz_hi := v_w_hi;
             END IF;
           END IF;
-        ELSE
-          -- g >= 3, or g in (1,2) with e >= 72h: reset to 1.
-          v_new_streak := 1;
+        END IF;
+        IF v_step THEN
+          -- Two rate clocks gate every +1:
+          --   burst: streak_prev_inc_at NULL or now - it > 23h
+          --   lead:  streak_inc_at NULL or now > streak_inc_at - 1h
+          IF (v_prev_inc_at IS NULL OR (v_now - v_prev_inc_at) > interval '23 hours')
+             AND (v_inc_at IS NULL OR v_now > v_inc_at - interval '1 hour') THEN
+            v_prev_inc_at := COALESCE(v_old_set_at, v_profile.streak_credit_at);
+            v_inc_at := CASE
+              WHEN v_inc_at IS NULL THEN v_now
+              ELSE v_inc_at + interval '24 hours'
+            END;
+            v_new_streak := v_new_streak + 1;
+            v_tz_set_at := v_now;
+          END IF;
+          -- +1 or HOLD: last and credit_at move forward either way.
           v_last := v_today;
           v_credit_at := v_now;
-          v_tz_set_at := v_now;
-          IF v_needed_widen THEN
-            v_tz_lo := v_w_lo;
-            v_tz_hi := v_w_hi;
-          END IF;
         END IF;
-        v_apply_streak := TRUE;
       END IF;
+      v_apply_streak := TRUE;
     END IF;
   END IF;
 
@@ -710,6 +731,7 @@ BEGIN
       longest_streak = v_longest,
       last_activity_date = v_last,
       streak_freeze_tokens = v_freeze,
+      rest_days = v_rest,
       streak_tz_lo_min = v_tz_lo,
       streak_tz_hi_min = v_tz_hi,
       streak_tz_set_at = v_tz_set_at,
@@ -774,7 +796,7 @@ GRANT EXECUTE ON FUNCTION public.award_xp(UUID, INTEGER, TEXT, TEXT, TEXT, DATE,
 GRANT EXECUTE ON FUNCTION public.award_xp(UUID, INTEGER, TEXT, TEXT, TEXT, DATE, INTEGER) TO service_role;
 
 COMMENT ON FUNCTION public.award_xp(UUID, INTEGER, TEXT, TEXT, TEXT, DATE, INTEGER) IS
-  'Atomic XP award for auth.uid() only. Credits least(p_delta, server XP_REWARDS mapping); unknown actions 0. Local-day ±1 plus rolling 24h cap. Streak updates on credited timezone-consistent awards; empty or inconsistent N with the 6h gate closed credits XP without touching streak, last_activity_date, freeze, daily_logs, or the tz band. An inconsistent credited claim with the gate open (>= 6h, or set_at NULL) unions the stored band with the claim interval (clamped to [-720, 840]) and then applies normal streak rules unless rule 4 applies. Consistent claims narrow the band. Streak advance and widen both refresh streak_tz_set_at. Liveness: e = now - streak_credit_at (NULL skips); g=1 and e < 48h advances (24h rate cap, else HOLD); g=1 and 48h <= e < 72h or g=2 and e < 72h uses freeze (else reset); g >= 3 or g in (1,2) with e >= 72h resets. A widened claim that would freeze or reset while e < 48h is XP only. A credited feasible claim self-heals to streak 1 when current_streak is 0 or last_activity_date is NULL. Does not write *_count columns.';
+  'Atomic XP award for auth.uid() only. Credits least(p_delta, server XP_REWARDS mapping); unknown actions 0. Local-day ±1 plus rolling 24h cap. Streak updates on credited timezone-consistent awards. An inconsistent claim needing <= 60 min of widening (not at the same instant as streak_tz_set_at) widens the band by 60 min each side; a larger move unions with the claim interval when the 6h gate is open, else the award is XP only without touching streak state. Liveness: e = now - streak_credit_at (latest streak claim; refreshed by same-day claims only while alive). margin = 1h unless the band was NULL or the widen exceeded 60 min. g=1 and e < 48h+margin (or credit_at NULL): +1; g>=2 with e < 48h, the skipped date an offset artefact under the stored band west edge shifted 60 min east, and evidence of an eastward move (claim strictly east of the stored band, or e <= 24h*(g-1)-1h): +1 (bridge); otherwise m = max(1, g-1) missed days are covered by m tokens (streak_freeze_tokens first, then rest_days) when e < 24h*(m+2)+margin, and the claim then counts as a normal next day; else reset to 1 with tokens kept. Every +1 needs the burst clock (streak_prev_inc_at NULL or > 23h ago) and the lead clock (streak_inc_at NULL or now > streak_inc_at - 1h), else HOLD (last = p, credit_at = now). A credited feasible claim self-heals to streak 1 when current_streak is 0 or last_activity_date is NULL. Does not write *_count columns.';
 
 -- ===========================================================================
 -- E. award_achievement_xp: catalogue XP + real-table eligibility

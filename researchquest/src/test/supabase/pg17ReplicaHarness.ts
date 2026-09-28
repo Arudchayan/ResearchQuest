@@ -452,7 +452,7 @@ export function resetUser(replica: Replica, uid: string): void {
     VALUES ('${uid}', 0, 1, 0, 0)
     ON CONFLICT (id) DO UPDATE SET
       total_xp = 0, current_level = 1, current_streak = 0, longest_streak = 0,
-      last_activity_date = NULL, streak_freeze_tokens = 0,
+      last_activity_date = NULL, streak_freeze_tokens = 0, rest_days = 0,
       notes_count = 0, papers_count = 0, tasks_completed_count = 0,
       papers_with_insights_count = 0;
   `);
@@ -466,7 +466,7 @@ export function resetUser(replica: Replica, uid: string): void {
           AND column_name = 'streak_tz_lo_min'
       ) THEN
         EXECUTE format(
-          'UPDATE public.user_profiles SET streak_tz_lo_min = NULL, streak_tz_hi_min = NULL, streak_tz_set_at = NULL, streak_credit_at = NULL, streak_inc_at = NULL, streak_prev_inc_at = NULL WHERE id = %L',
+          'UPDATE public.user_profiles SET rest_days = 0, streak_tz_lo_min = NULL, streak_tz_hi_min = NULL, streak_tz_set_at = NULL, streak_credit_at = NULL, streak_inc_at = NULL, streak_prev_inc_at = NULL WHERE id = %L',
           '${uid}'
         );
       END IF;
