@@ -1,5 +1,5 @@
 /**
- * @vitest-environment node
+ * Unit tests for the Supabase migration version CI guard.
  */
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -8,10 +8,12 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   DEFAULT_MIGRATIONS_DIR,
+  DEFAULT_REPO_ROOT,
   RESERVED_VERSION_MAX,
   RESERVED_VERSION_MIN,
   checkMigrationVersions,
   formatReport,
+  listMigrationsAtGitRef,
   nextSafeVersion,
   parseGitLsTreeNames,
   parseVersionPrefix,
@@ -251,6 +253,50 @@ describe("runCheck against fixture directories", () => {
     expect(result.baseUnavailable).toBe(true);
     expect(result.text).toContain("Failed to list supabase/migrations at deadbeef");
   });
+
+  it("falls back to duplicate-only when the default git base cannot be listed", () => {
+    const dir = fixtureDir(["1765400000_next_change.sql"]);
+    const result = runCheck({
+      migrationsDir: dir,
+      repoRoot: DEFAULT_REPO_ROOT,
+      env: {},
+      listBase: () => null,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.baseUnavailable).toBe(true);
+    expect(result.text).toContain("skipped new-file order/reserved checks");
+  });
+
+  it("skips new-file checks when no git base is available", () => {
+    const dir = fixtureDir(["1764800000_already_on_master.sql"]);
+    const result = runCheck({
+      migrationsDir: dir,
+      repoRoot: dir,
+      env: {},
+      listBase: () => {
+        throw new Error("listBase should not run without a git base");
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.text).toContain("skipped new-file order/reserved checks");
+  });
+
+  it("ignores GitHub's all-zero before SHA", () => {
+    const dir = fixtureDir(["1765400000_ok.sql"]);
+    const result = runCheck({
+      migrationsDir: dir,
+      repoRoot: dir,
+      env: { MIGRATION_VERSION_BASE: "0000000000000000000000000000000000000000" },
+      listBase: () => {
+        throw new Error("listBase should not run for the zero SHA");
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.baseRef).toBeNull();
+  });
 });
 
 describe("live supabase/migrations tree", () => {
@@ -276,6 +322,16 @@ describe("git ls-tree parsing", () => {
       "1764802000_increment_xp.sql",
       "1764900000_paper_topics_authority.sql",
     ]);
+  });
+
+  it("lists supabase/migrations at HEAD", () => {
+    const names = listMigrationsAtGitRef(DEFAULT_REPO_ROOT, "HEAD");
+    expect(names).not.toBeNull();
+    expect(names).toContain("1765300000_batch3_checks_realtime_triggers.sql");
+  });
+
+  it("returns null for an unknown git ref", () => {
+    expect(listMigrationsAtGitRef(DEFAULT_REPO_ROOT, "this-ref-does-not-exist")).toBeNull();
   });
 });
 
