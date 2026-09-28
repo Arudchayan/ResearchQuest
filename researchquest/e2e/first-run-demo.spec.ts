@@ -136,10 +136,20 @@ test.describe("first-run demo click", () => {
       page.getByText(/Demo workspace — sample data on this device/i),
     ).toBeVisible();
 
+    await page.screenshot({
+      path: path.join(ARTIFACTS_DIR, "after_go_to_full_workspace_today.png"),
+      fullPage: true,
+    });
+
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.getByRole("link", { name: /^Today$/i })).toBeVisible({
       timeout: 15_000,
     });
     await expect(page.locator('[data-first-run="true"]')).toHaveCount(0);
+
+    await page.screenshot({
+      path: path.join(ARTIFACTS_DIR, "after_reload_stays_on_today.png"),
+      fullPage: true,
+    });
   });
 });
