@@ -456,4 +456,65 @@ export function resetUser(replica: Replica, uid: string): void {
       notes_count = 0, papers_count = 0, tasks_completed_count = 0,
       papers_with_insights_count = 0;
   `);
+  replica.exec(`
+    DO $tz$
+    BEGIN
+      IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'user_profiles'
+          AND column_name = 'streak_tz_lo_min'
+      ) THEN
+        EXECUTE format(
+          'UPDATE public.user_profiles SET streak_tz_lo_min = NULL, streak_tz_hi_min = NULL WHERE id = %L',
+          '${uid}'
+        );
+      END IF;
+    END
+    $tz$;
+  `);
+}
+
+/** Inclusive YYYY-MM-DD plus N calendar days in UTC. */
+export function addDays(isoDate: string, days: number): string {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
+}
+
+/**
+ * UTC instant for a local civil datetime at an east-positive UTC offset
+ * in minutes. Example: 2026-06-10 22:00 at UTC+2 → 2026-06-10T20:00:00.000Z.
+ */
+export function utcIsoFromLocal(
+  date: string,
+  hour: number,
+  offsetMin: number,
+  minute = 0,
+): string {
+  const [year, month, day] = date.split("-").map(Number);
+  const ms = Date.UTC(year, month - 1, day, hour, minute, 0) - offsetMin * 60 * 1000;
+  return new Date(ms).toISOString();
+}
+
+export function setXpNow(replica: Replica, iso: string): void {
+  const ts = new Date(iso).toISOString().replace("T", " ").replace("Z", "+00");
+  replica.exec(`
+    CREATE OR REPLACE FUNCTION public.xp_server_now()
+    RETURNS timestamptz
+    LANGUAGE sql
+    STABLE
+    SET search_path = ''
+    AS $fn$ SELECT TIMESTAMPTZ '${ts}'; $fn$;
+  `);
+}
+
+export function resetXpNow(replica: Replica): void {
+  replica.exec(`
+    CREATE OR REPLACE FUNCTION public.xp_server_now()
+    RETURNS timestamptz
+    LANGUAGE sql
+    STABLE
+    SET search_path = ''
+    AS $fn$ SELECT clock_timestamp(); $fn$;
+  `);
 }
