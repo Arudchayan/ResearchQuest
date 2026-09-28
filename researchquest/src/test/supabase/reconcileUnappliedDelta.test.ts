@@ -250,7 +250,10 @@ describe("1765700000 reconcile unapplied master delta", () => {
     expect(serverCaps).not.toHaveProperty("generic");
     for (const [action, cap] of Object.entries(clientCaps)) {
       if (action === "generic") continue;
-      expect(serverCaps[action], action).toBe(cap);
+      expect({ action, serverCap: serverCaps[action] }).toEqual({
+        action,
+        serverCap: cap,
+      });
     }
   });
 
@@ -274,8 +277,8 @@ describe("1765700000 reconcile unapplied master delta", () => {
     const zeroByDesign = new Set(["update_note"]);
     for (const action of actions) {
       const m = new RegExp(`WHEN\\s+'${action}'\\s+THEN\\s+(\\d+)`, "i").exec(caseBlock);
-      expect(m, action).not.toBeNull();
-      if (!zeroByDesign.has(action)) expect(Number(m![1]), action).toBeGreaterThan(0);
+      expect({ action, found: Boolean(m) }).toEqual({ action, found: true });
+      expect(Number(m?.[1])).toBeGreaterThan(zeroByDesign.has(action) ? -1 : 0);
     }
   });
 
