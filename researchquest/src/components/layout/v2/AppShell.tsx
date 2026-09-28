@@ -21,6 +21,7 @@ export function AppShell({ children }: AppShellProps) {
   const mobileSidebarWasOpenRef = useRef(false);
   // OPTIMIZATION: Use shallow selector to prevent unnecessary re-renders when other parts of the store change
   const {
+    currentView,
     isMobileSidebarOpen,
     setIsMobileSidebarOpen,
     isRightSidebarOpen,
@@ -29,6 +30,7 @@ export function AppShell({ children }: AppShellProps) {
     effectiveTheme,
   } = useAppStore(
     useShallow((state) => ({
+      currentView: state.currentView,
       isMobileSidebarOpen: state.isMobileSidebarOpen,
       setIsMobileSidebarOpen: state.setIsMobileSidebarOpen,
       isRightSidebarOpen: state.isRightSidebarOpen,
@@ -39,7 +41,8 @@ export function AppShell({ children }: AppShellProps) {
   );
   const isDemoFirstRunSurface =
     typeof window !== "undefined" &&
-    isDemoFirstRunPath(window.location.pathname);
+    isDemoFirstRunPath(window.location.pathname) &&
+    currentView === "topics";
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

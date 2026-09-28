@@ -5,6 +5,9 @@ import { useTopics } from "../../../hooks/useTopics";
 import { mockSupabaseClient } from "../../mocks/supabase";
 
 vi.mock("../../../hooks/useTopics");
+vi.mock("../../../lib/softNavigation", () => ({
+  navigateToView: vi.fn(),
+}));
 vi.mock("../../../lib/supabase", async () => {
   const { mockSupabaseClient: client } = await import("../../mocks/supabase");
   return {
@@ -189,6 +192,31 @@ describe("TopicDetailView first-run (unified shell)", () => {
       expect(screen.getByText(/Attention Is All You Need/i)).toBeInTheDocument();
       expect(screen.getByText(/ReAct:/i)).toBeInTheDocument();
     });
+  });
+
+  it("Go to full workspace keeps demo mode and navigates into the shell", async () => {
+    localStorage.setItem("rq_demo_mode", "1");
+    const { disableDemoModeAndReload } = await import("../../../lib/supabase");
+    const { navigateToView } = await import("../../../lib/softNavigation");
+    vi.mocked(disableDemoModeAndReload).mockImplementationOnce(() => {
+      localStorage.removeItem("rq_demo_mode");
+    });
+
+    render(
+      <TopicDetailView
+        topic={mockTopic}
+        onUpdate={vi.fn().mockResolvedValue(true)}
+        onDelete={vi.fn().mockResolvedValue(true)}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /Go to full workspace/i }),
+    );
+
+    expect(disableDemoModeAndReload).not.toHaveBeenCalled();
+    expect(navigateToView).toHaveBeenCalledWith("dashboard");
+    expect(localStorage.getItem("rq_demo_mode")).toBe("1");
   });
 
   it("Exit demo leaves demo mode for the full workspace", async () => {

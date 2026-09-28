@@ -214,7 +214,7 @@ export function TopicDetailView({
     void loadAssociations();
   }, [loadAssociations, topic.idea_count, topic.note_count, topic.paper_count]);
 
-  /** Demo first-run coachmark + exit — the topic renders the full workspace shell. */
+  /** Demo first-run banner: stay in demo for the shell CTA; Exit demo clears. */
   const isFirstRunTopic =
     isDemoMode && topic.id === DEMO_FIRST_RUN_TOPIC_ID;
 
@@ -361,7 +361,7 @@ export function TopicDetailView({
           <div className="mt-3 flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={() => disableDemoModeAndReload("/")}
+              onClick={() => navigateToView("dashboard")}
               className="inline-flex items-center gap-2 rounded-control bg-primary-500 px-3 py-2 text-bg-base transition-colors hover:bg-primary-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
             >
               Go to full workspace

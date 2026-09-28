@@ -27,6 +27,9 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Demo first-run uses the full workspace shell with a demo banner, exit CTAs,
   and a single OnboardingGuide. Papers/tasks/ideas no longer each mount a
   copy of the guide.
+- "Go to full workspace" on the demo first-run topic stays in demo mode and
+  opens the app shell (Today / Notes / Papers). "Exit demo" still clears
+  `rq_demo_mode` and demo data.
 
 ### Added
 

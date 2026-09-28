@@ -110,4 +110,33 @@ describe("AppShell Accessibility", () => {
       expect(link).not.toHaveAttribute("aria-current", "page");
     });
   });
+
+  it("shows shell nav after leaving the demo first-run topic view", () => {
+    window.history.replaceState(null, "", "/topics/topic-ai-agents");
+    useAppStore.setState({ currentView: "topics" });
+
+    const ui = (
+      <TooltipProvider>
+        <AppShell>
+          <div>Content</div>
+        </AppShell>
+      </TooltipProvider>
+    );
+    const { rerender } = render(ui);
+
+    expect(document.querySelector('[data-first-run="true"]')).toBeTruthy();
+    expect(
+      screen.queryByRole("link", { name: /^Today$/i }),
+    ).not.toBeInTheDocument();
+
+    useAppStore.setState({ currentView: "dashboard" });
+    rerender(ui);
+
+    expect(document.querySelector('[data-first-run="true"]')).toBeNull();
+    expect(
+      screen.getAllByRole("link", { name: /^Today$/i }).length,
+    ).toBeGreaterThan(0);
+
+    window.history.replaceState(null, "", "/");
+  });
 });
