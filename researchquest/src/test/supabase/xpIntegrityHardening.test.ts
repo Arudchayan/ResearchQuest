@@ -4,7 +4,7 @@
  * Live cases replay the QA repros (day-window burst, streak backfill, crafted
  * p_delta, direct total_xp write, set_config bypass, ineligible achievement)
  * against an ephemeral Postgres 17 cluster using the same replica recipe as
- * 1765700000. Static checks still run when PG17 is absent so CI stays green.
+ * 1765700000. CI installs PostgreSQL 17 so live cases run (0 skipped).
  */
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
@@ -13,6 +13,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   PG17_AVAILABLE,
   USER_A,
+  USER_B,
   awardAchievement,
   awardXp,
   resetUser,
@@ -187,6 +188,42 @@ describe("1765800000 xp integrity hardening (static)", () => {
     expect(raw).not.toMatch(/supabase db push/i);
   });
 
+  it("measures the 20h streak gate from the first claim of last_activity_date", () => {
+    const award = functionBlock(sql, "award_xp");
+    expect(award).toMatch(/min\s*\(\s*e\.created_at\s*\)/i);
+    expect(award).toMatch(/e\.local_day\s*=\s*v_profile\.last_activity_date/i);
+    expect(award).toMatch(/last_activity_date\s*\+\s*1/i);
+    expect(award).not.toMatch(/SELECT\s+max\s*\(\s*e\.created_at\s*\)\s+INTO\s+v_last_event/i);
+  });
+
+  it("revokes INSERT on user_profiles and blocks freeze/rest minting by role", () => {
+    expect(sql).toMatch(/REVOKE\s+INSERT\s+ON\s+TABLE\s+public\.user_profiles\s+FROM\s+authenticated/i);
+    expect(sql).toMatch(/REVOKE\s+INSERT\s+ON\s+TABLE\s+public\.user_profiles\s+FROM\s+anon/i);
+    expect(sql).toMatch(/current_user\s+IN\s*\(\s*'authenticated'\s*,\s*'anon'\s*\)/i);
+    expect(sql).toMatch(/cannot mint streak freeze tokens or rest days/i);
+    expect(sql).toMatch(/CHECK\s*\(\s*streak_freeze_tokens\s*>=\s*0\s*\)\s*NOT\s+VALID/i);
+    expect(sql).toMatch(/CHECK\s*\(\s*rest_days\s*>=\s*0\s*\)\s*NOT\s+VALID/i);
+  });
+
+  it("counts insights with NULLIF(btrim(key_insights),'') and has no explicit BEGIN/COMMIT", () => {
+    expect(sql).toMatch(
+      /NULLIF\s*\(\s*btrim\s*\(\s*p\.key_insights\s*\)\s*,\s*''\s*\)\s*IS\s+NOT\s+NULL/i,
+    );
+    expect(sql).not.toMatch(/^\s*BEGIN\s*;/m);
+    expect(sql).not.toMatch(/^\s*COMMIT\s*;/m);
+  });
+
+  it("does not multiply p_delta by a client-side boost", () => {
+    expect(gamification).not.toMatch(/boostActive/);
+    expect(gamification).not.toMatch(/xpAmount\s*\*\s*\(/);
+  });
+
+  it("requires PostgreSQL 17 in CI so live replica cases are not skipped", () => {
+    if (process.env.CI) {
+      expect(PG17_AVAILABLE).toBe(true);
+    }
+  });
+
   it("removes the client total_xp fallback and does not write XP ledgers from the browser", () => {
     expect(gamification).toMatch(/never write total_xp/);
     expect(gamification).not.toMatch(
@@ -347,12 +384,148 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
     expect(row.total_xp).toBe(10);
   });
 
-  it("still allows authenticated to update boost/freeze/rest columns", () => {
+  it("still allows authenticated to decrease rest days and freeze tokens, not increase them", () => {
+    replica.exec(`
+      UPDATE public.user_profiles
+      SET rest_days = 3, streak_freeze_tokens = 2
+      WHERE id = '${USER_A}';
+    `);
     replica.execAs(
       USER_A,
-      `UPDATE public.user_profiles SET rest_days = 2 WHERE id = '${USER_A}'`,
+      `UPDATE public.user_profiles SET rest_days = 2, streak_freeze_tokens = 1 WHERE id = '${USER_A}'`,
     );
-    const rest = replica.exec(`SELECT rest_days FROM public.user_profiles WHERE id = '${USER_A}'`).trim();
-    expect(Number(rest)).toBe(2);
+    const row = replica.exec(
+      `SELECT rest_days, streak_freeze_tokens FROM public.user_profiles WHERE id = '${USER_A}'`,
+    ).trim();
+    expect(row).toMatch(/2\|1/);
+
+    expect(() =>
+      replica.execAs(
+        USER_A,
+        `UPDATE public.user_profiles SET rest_days = 9 WHERE id = '${USER_A}'`,
+      ),
+    ).toThrow(/cannot mint|permission denied/i);
+    expect(() =>
+      replica.execAs(
+        USER_A,
+        `UPDATE public.user_profiles SET streak_freeze_tokens = 9 WHERE id = '${USER_A}'`,
+      ),
+    ).toThrow(/cannot mint|permission denied/i);
+  });
+
+  it("advances the streak to 3 with two sessions a day on 3 consecutive days", () => {
+    const today = replica.exec("SELECT (now() AT TIME ZONE 'UTC')::date").trim();
+    const d1 = replica.exec("SELECT ((now() AT TIME ZONE 'UTC')::date - 2)").trim();
+    const d2 = replica.exec("SELECT ((now() AT TIME ZONE 'UTC')::date - 1)").trim();
+
+    replica.exec(`
+      INSERT INTO public.xp_events (user_id, action, entity_id, xp, local_day, created_at)
+      VALUES
+        ('${USER_A}', 'create_note', '', 10, '${d1}', now() - interval '50 hours'),
+        ('${USER_A}', 'create_note', '', 10, '${d1}', now() - interval '49 hours');
+      UPDATE public.user_profiles
+      SET last_activity_date = '${d1}'::date,
+          current_streak = 1,
+          longest_streak = 1,
+          total_xp = 20
+      WHERE id = '${USER_A}';
+    `);
+
+    const day2a = awardXp(replica, USER_A, 10, "create_note", { localDay: d2 });
+    expect(day2a.current_streak).toBe(2);
+    const day2b = awardXp(replica, USER_A, 10, "create_note", { localDay: d2 });
+    expect(day2b.current_streak).toBe(2);
+
+    replica.exec(`
+      UPDATE public.xp_events
+      SET created_at = now() - interval '21 hours'
+      WHERE user_id = '${USER_A}'
+        AND local_day = '${d2}'::date
+        AND created_at = (
+          SELECT min(e.created_at) FROM public.xp_events AS e
+          WHERE e.user_id = '${USER_A}' AND e.local_day = '${d2}'::date
+        );
+    `);
+
+    const day3a = awardXp(replica, USER_A, 10, "create_note", { localDay: today });
+    expect(day3a.current_streak).toBe(3);
+    const day3b = awardXp(replica, USER_A, 10, "create_note", { localDay: today });
+    expect(day3b.current_streak).toBe(3);
+  });
+
+  it("reaches streak 3 for 22:00 then 09:00 then 09:00 across three local days", () => {
+    const d1 = replica.exec("SELECT ((now() AT TIME ZONE 'UTC')::date - 2)").trim();
+    const d2 = replica.exec("SELECT ((now() AT TIME ZONE 'UTC')::date - 1)").trim();
+    const d3 = replica.exec("SELECT (now() AT TIME ZONE 'UTC')::date").trim();
+
+    replica.exec(`
+      INSERT INTO public.xp_events (user_id, action, entity_id, xp, local_day, created_at)
+      VALUES
+        ('${USER_A}', 'create_note', '', 10, '${d1}', now() - interval '35 hours'),
+        ('${USER_A}', 'create_note', '', 10, '${d2}', now() - interval '24 hours');
+      UPDATE public.user_profiles
+      SET last_activity_date = '${d1}'::date,
+          current_streak = 1,
+          longest_streak = 1,
+          total_xp = 20
+      WHERE id = '${USER_A}';
+    `);
+
+    const third = awardXp(replica, USER_A, 10, "create_note", { localDay: d3 });
+    expect(third.current_streak).toBe(3);
+    expect(third.last_activity_date).toBe(d3);
+  });
+
+  it("holds the streak when the next local day is under 20h from the first claim", () => {
+    const yesterday = replica.exec("SELECT ((now() AT TIME ZONE 'UTC')::date - 1)").trim();
+    const today = replica.exec("SELECT (now() AT TIME ZONE 'UTC')::date").trim();
+
+    replica.exec(`
+      INSERT INTO public.xp_events (user_id, action, entity_id, xp, local_day, created_at)
+      VALUES ('${USER_A}', 'create_note', '', 10, '${yesterday}', now() - interval '11 hours');
+      UPDATE public.user_profiles
+      SET last_activity_date = '${yesterday}'::date,
+          current_streak = 1,
+          longest_streak = 1,
+          total_xp = 10
+      WHERE id = '${USER_A}';
+    `);
+
+    const held = awardXp(replica, USER_A, 10, "create_note", { localDay: today });
+    expect(held.current_streak).toBe(1);
+    expect(held.last_activity_date).toBe(yesterday);
+    const todayEvents = replica
+      .exec(
+        `SELECT count(*) FROM public.xp_events WHERE user_id = '${USER_A}' AND local_day = '${today}'::date`,
+      )
+      .trim();
+    expect(Number(todayEvents)).toBe(1);
+  });
+
+  it("denies a direct INSERT into user_profiles by authenticated", () => {
+    replica.exec(`DELETE FROM public.user_profiles WHERE id = '${USER_B}'`);
+    expect(() =>
+      replica.execAs(
+        USER_B,
+        `INSERT INTO public.user_profiles (id) VALUES ('${USER_B}')`,
+      ),
+    ).toThrow(/permission denied/i);
+  });
+
+  it("denies direct INSERT into xp_events and research_achievements", () => {
+    expect(() =>
+      replica.execAs(
+        USER_A,
+        `INSERT INTO public.xp_events (user_id, action, entity_id, xp, local_day)
+         VALUES ('${USER_A}', 'create_note', '', 10, (now() AT TIME ZONE 'UTC')::date)`,
+      ),
+    ).toThrow(/permission denied/i);
+    expect(() =>
+      replica.execAs(
+        USER_A,
+        `INSERT INTO public.research_achievements (user_id, achievement_type, title)
+         VALUES ('${USER_A}', 'first_paper', 'x')`,
+      ),
+    ).toThrow(/permission denied/i);
   });
 });

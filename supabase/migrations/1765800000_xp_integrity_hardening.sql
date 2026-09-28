@@ -35,8 +35,6 @@
 -- last_activity_date, notes_count, papers_count, tasks_completed_count,
 -- papers_with_insights_count.
 
-BEGIN;
-
 -- ===========================================================================
 -- A. Rolling-window lookup
 -- ===========================================================================
@@ -54,6 +52,9 @@ DROP FUNCTION IF EXISTS public.enforce_total_xp_monotonic();
 REVOKE UPDATE ON TABLE public.user_profiles FROM PUBLIC;
 REVOKE UPDATE ON TABLE public.user_profiles FROM anon;
 REVOKE UPDATE ON TABLE public.user_profiles FROM authenticated;
+REVOKE INSERT ON TABLE public.user_profiles FROM PUBLIC;
+REVOKE INSERT ON TABLE public.user_profiles FROM anon;
+REVOKE INSERT ON TABLE public.user_profiles FROM authenticated;
 GRANT UPDATE (active_boost, streak_freeze_tokens, rest_days, updated_at)
   ON TABLE public.user_profiles TO authenticated;
 
@@ -61,6 +62,79 @@ GRANT SELECT ON TABLE public.user_profiles TO authenticated;
 
 COMMENT ON COLUMN public.user_profiles.total_xp IS
   'Canonical writers: award_xp / award_achievement_xp (SECURITY DEFINER, table owner). Authenticated has no UPDATE privilege on this column.';
+
+-- Profiles are created by handle_new_user (DEFINER). Authenticated may
+-- decrement freeze tokens / rest days (consumeFreeze / useRestDay) but must
+-- not mint them. Role check, not a GUC, so owner-running DEFINER RPCs are
+-- unaffected.
+CREATE OR REPLACE FUNCTION public.enforce_freeze_rest_no_mint()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = ''
+AS $$
+BEGIN
+  IF current_user IN ('authenticated', 'anon')
+     AND (
+       COALESCE(NEW.streak_freeze_tokens, 0) > COALESCE(OLD.streak_freeze_tokens, 0)
+       OR COALESCE(NEW.rest_days, 0) > COALESCE(OLD.rest_days, 0)
+     ) THEN
+    RAISE EXCEPTION 'cannot mint streak freeze tokens or rest days'
+      USING ERRCODE = '42501';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.enforce_freeze_rest_no_mint() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.enforce_freeze_rest_no_mint() FROM anon;
+REVOKE ALL ON FUNCTION public.enforce_freeze_rest_no_mint() FROM authenticated;
+
+DROP TRIGGER IF EXISTS lock_freeze_rest_no_mint ON public.user_profiles;
+CREATE TRIGGER lock_freeze_rest_no_mint
+  BEFORE UPDATE OF streak_freeze_tokens, rest_days ON public.user_profiles
+  FOR EACH ROW EXECUTE FUNCTION public.enforce_freeze_rest_no_mint();
+
+UPDATE public.user_profiles
+SET streak_freeze_tokens = 0
+WHERE streak_freeze_tokens IS NULL OR streak_freeze_tokens < 0;
+UPDATE public.user_profiles
+SET rest_days = 0
+WHERE rest_days IS NULL OR rest_days < 0;
+
+ALTER TABLE public.user_profiles
+  ALTER COLUMN streak_freeze_tokens SET DEFAULT 0,
+  ALTER COLUMN rest_days SET DEFAULT 0;
+ALTER TABLE public.user_profiles
+  ALTER COLUMN streak_freeze_tokens SET NOT NULL,
+  ALTER COLUMN rest_days SET NOT NULL;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'user_profiles_streak_freeze_tokens_nonnegative'
+      AND conrelid = 'public.user_profiles'::regclass
+  ) THEN
+    ALTER TABLE public.user_profiles
+      ADD CONSTRAINT user_profiles_streak_freeze_tokens_nonnegative
+      CHECK (streak_freeze_tokens >= 0) NOT VALID;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'user_profiles_rest_days_nonnegative'
+      AND conrelid = 'public.user_profiles'::regclass
+  ) THEN
+    ALTER TABLE public.user_profiles
+      ADD CONSTRAINT user_profiles_rest_days_nonnegative
+      CHECK (rest_days >= 0) NOT VALID;
+  END IF;
+END $$;
+
+ALTER TABLE public.user_profiles
+  VALIDATE CONSTRAINT user_profiles_streak_freeze_tokens_nonnegative;
+ALTER TABLE public.user_profiles
+  VALIDATE CONSTRAINT user_profiles_rest_days_nonnegative;
 
 -- SELECT policies stay owner-scoped (1765700000 WITH CHECK on UPDATE remains
 -- for the columns that are still grantable).
@@ -145,6 +219,9 @@ DECLARE
   v_last_award TIMESTAMPTZ;
   v_last_event TIMESTAMPTZ;
   v_last DATE;
+  v_held BOOLEAN := FALSE;
+  v_base_last DATE;
+  v_base_streak INTEGER;
   v_r_total INTEGER;
   v_r_level INTEGER;
   v_r_streak INTEGER;
@@ -191,9 +268,12 @@ BEGIN
     RAISE EXCEPTION 'profile not found for user %', v_uid;
   END IF;
 
-  SELECT max(e.created_at) INTO v_last_event
-  FROM public.xp_events AS e
-  WHERE e.user_id = v_uid;
+  IF v_profile.last_activity_date IS NOT NULL THEN
+    SELECT min(e.created_at) INTO v_last_event
+    FROM public.xp_events AS e
+    WHERE e.user_id = v_uid
+      AND e.local_day = v_profile.last_activity_date;
+  END IF;
 
   -- Server-owned XP per action (mirrors XP_REWARDS). Unknown → 0.
   IF v_action = 'complete_focus_session' THEN
@@ -294,7 +374,7 @@ BEGIN
       SELECT count(*)::integer INTO v_r_notes FROM public.notes AS n WHERE n.user_id = v_uid;
       SELECT count(*)::integer INTO v_r_papers FROM public.papers AS p WHERE p.user_id = v_uid;
       SELECT count(*)::integer INTO v_r_tasks FROM public.tasks AS t WHERE t.user_id = v_uid AND t.completed IS TRUE;
-      SELECT count(*)::integer INTO v_r_insights FROM public.papers AS p WHERE p.user_id = v_uid AND p.key_insights IS NOT NULL;
+      SELECT count(*)::integer INTO v_r_insights FROM public.papers AS p WHERE p.user_id = v_uid AND NULLIF(btrim(p.key_insights), '') IS NOT NULL;
 
       total_xp := v_profile.total_xp;
       current_level := (COALESCE(v_profile.total_xp, 0) / 500) + 1;
@@ -326,20 +406,43 @@ BEGIN
     v_last := v_profile.last_activity_date;
   ELSIF v_profile.last_activity_date IS NOT NULL THEN
     v_days_diff := v_today - v_profile.last_activity_date;
+    v_base_last := v_profile.last_activity_date;
+    v_base_streak := GREATEST(COALESCE(v_profile.current_streak, 1), 1);
+
+    IF v_days_diff >= 2 THEN
+      SELECT EXISTS (
+        SELECT 1
+        FROM public.xp_events AS e
+        WHERE e.user_id = v_uid
+          AND e.local_day = v_profile.last_activity_date + 1
+      ) INTO v_held;
+
+      IF v_held THEN
+        -- Held-back day: an event exists for last+1 but last_activity was
+        -- not advanced (20h gate). Recover it, then apply the remaining gap.
+        v_base_last := v_profile.last_activity_date + 1;
+        v_base_streak := COALESCE(v_profile.current_streak, 0) + 1;
+        v_days_diff := v_today - v_base_last;
+        SELECT min(e.created_at) INTO v_last_event
+        FROM public.xp_events AS e
+        WHERE e.user_id = v_uid
+          AND e.local_day = v_base_last;
+      END IF;
+    END IF;
 
     IF v_days_diff <= 0 THEN
-      v_new_streak := GREATEST(COALESCE(v_profile.current_streak, 1), 1);
-      v_last := v_profile.last_activity_date;
+      v_new_streak := v_base_streak;
+      v_last := v_base_last;
     ELSIF v_days_diff = 1
        AND (v_last_event IS NULL OR (now() - v_last_event) >= interval '20 hours') THEN
-      v_new_streak := COALESCE(v_profile.current_streak, 0) + 1;
+      v_new_streak := COALESCE(v_base_streak, 0) + 1;
       v_last := v_today;
     ELSIF v_days_diff = 1 THEN
-      v_new_streak := GREATEST(COALESCE(v_profile.current_streak, 1), 1);
-      v_last := v_profile.last_activity_date;
-    ELSIF v_freeze > 0 AND COALESCE(v_profile.current_streak, 0) > 0 THEN
+      v_new_streak := v_base_streak;
+      v_last := v_base_last;
+    ELSIF v_freeze > 0 AND COALESCE(v_base_streak, 0) > 0 THEN
       v_freeze := v_freeze - 1;
-      v_new_streak := v_profile.current_streak;
+      v_new_streak := v_base_streak;
       v_last := v_today;
     ELSE
       v_new_streak := 1;
@@ -382,7 +485,7 @@ BEGIN
   SELECT count(*)::integer INTO v_r_notes FROM public.notes AS n WHERE n.user_id = v_uid;
   SELECT count(*)::integer INTO v_r_papers FROM public.papers AS p WHERE p.user_id = v_uid;
   SELECT count(*)::integer INTO v_r_tasks FROM public.tasks AS t WHERE t.user_id = v_uid AND t.completed IS TRUE;
-  SELECT count(*)::integer INTO v_r_insights FROM public.papers AS p WHERE p.user_id = v_uid AND p.key_insights IS NOT NULL;
+  SELECT count(*)::integer INTO v_r_insights FROM public.papers AS p WHERE p.user_id = v_uid AND NULLIF(btrim(p.key_insights), '') IS NOT NULL;
 
   total_xp := v_r_total;
   current_level := v_r_level;
@@ -407,7 +510,7 @@ GRANT EXECUTE ON FUNCTION public.award_xp(UUID, INTEGER, TEXT, TEXT, TEXT, DATE,
 GRANT EXECUTE ON FUNCTION public.award_xp(UUID, INTEGER, TEXT, TEXT, TEXT, DATE, INTEGER) TO service_role;
 
 COMMENT ON FUNCTION public.award_xp(UUID, INTEGER, TEXT, TEXT, TEXT, DATE, INTEGER) IS
-  'Atomic XP award for auth.uid() only. Credits least(p_delta, server XP_REWARDS mapping); unknown actions 0. Local-day ±1 plus rolling 24h cap. Streak advances at most once per 20h and never for an earlier local day. Does not write *_count columns.';
+  'Atomic XP award for auth.uid() only. Credits least(p_delta, server XP_REWARDS mapping); unknown actions 0. Local-day ±1 plus rolling 24h cap. Streak advances at most once per 20h from the first claim of last_activity_date, recovers a held-back last+1 day, and never for an earlier local day. Does not write *_count columns.';
 
 -- ===========================================================================
 -- E. award_achievement_xp: catalogue XP + real-table eligibility
@@ -489,7 +592,7 @@ BEGIN
     WHEN 'task_warrior' THEN
       (SELECT count(*) FROM public.tasks AS t WHERE t.user_id = v_uid AND t.completed IS TRUE) >= 25
     WHEN 'insight_collector' THEN
-      (SELECT count(*) FROM public.papers AS p WHERE p.user_id = v_uid AND p.key_insights IS NOT NULL) >= 10
+      (SELECT count(*) FROM public.papers AS p WHERE p.user_id = v_uid AND NULLIF(btrim(p.key_insights), '') IS NOT NULL) >= 10
     ELSE
       FALSE
   END;
@@ -545,4 +648,3 @@ GRANT EXECUTE ON FUNCTION public.award_achievement_xp(TEXT, INTEGER, TEXT, TEXT)
 COMMENT ON FUNCTION public.award_achievement_xp(TEXT, INTEGER, TEXT, TEXT) IS
   'Atomic one-time achievement award for auth.uid(): server catalogue XP (p_xp ignored), eligibility from notes/papers/tasks/streak, one row per (user, type).';
 
-COMMIT;
