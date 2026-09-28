@@ -16,6 +16,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   PG17_AVAILABLE,
   USER_A,
+  addDays,
   awardXp,
   resetUser,
   resetXpNow,
@@ -30,6 +31,31 @@ const repoRoot = path.resolve(testDir, "..", "..", "..", "..");
 const migrationsDir = path.join(repoRoot, "supabase", "migrations");
 const FILE = "1765900000_evaluate_user_streaks_local_day.sql";
 const QA_HELPERS = path.join(testDir, "qa827ReproHelpers.sql");
+const N2A_MATRIX = JSON.parse(
+  readFileSync(path.join(testDir, "qa827N2aMatrix180.json"), "utf8"),
+) as Array<{
+  k: number;
+  n: number;
+  t: string;
+  tz: string;
+  used: number;
+  final: string;
+  log: string;
+}>;
+
+/** Fixed October-2026 offsets for QA N2a zones (Etc/GMT is POSIX-inverted). */
+const N2A_TZ_MIN: Record<string, number> = {
+  "Pacific/Kiritimati": 840,
+  "Etc/GMT-13": 780,
+  "Etc/GMT-10": 600,
+  "Asia/Kathmandu": 345,
+  "Australia/Sydney": 660,
+  "Europe/Berlin": 120,
+  UTC: 0,
+  "America/New_York": -240,
+  "Etc/GMT+5": -300,
+  "Etc/GMT+12": -720,
+};
 
 const CRON_005Z = "2026-06-09T00:05:00.000Z";
 const NEXT_CRON_005Z = "2026-06-10T00:05:00.000Z";
@@ -850,6 +876,49 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
     expect(row.last_activity_date).toBe("2026-10-20");
   });
 
+  it(`R1 UTC+10 k=2 frz=2 return after 00:05Z`, () => {
+    const state = qaRun(`
+      SELECT pg_temp.q_reset('${USER_A}'::uuid, 5, DATE '2026-10-13', 2, 0, 600, 600, TIMESTAMPTZ '2026-10-13 02:00Z');
+      SELECT pg_temp.q_cron(TIMESTAMPTZ '2026-10-14 00:05Z');
+      SELECT pg_temp.q_cron(TIMESTAMPTZ '2026-10-15 00:05Z');
+      SELECT pg_temp.q_cron(TIMESTAMPTZ '2026-10-16 00:05Z');
+      SELECT pg_temp.q_award('${USER_A}'::uuid, TIMESTAMPTZ '2026-10-16 02:00Z', DATE '2026-10-16', 'r1');
+    `);
+    expect(state).toBe("s=6 last=2026-10-16 frz=0 rest=0");
+  });
+
+  it(`R1w UTC-5 k=2 frz=2 control`, () => {
+    const state = qaRun(`
+      SELECT pg_temp.q_reset('${USER_A}'::uuid, 5, DATE '2026-10-13', 2, 0, -300, -300, TIMESTAMPTZ '2026-10-13 17:00Z');
+      SELECT pg_temp.q_cron(TIMESTAMPTZ '2026-10-14 00:05Z');
+      SELECT pg_temp.q_cron(TIMESTAMPTZ '2026-10-15 00:05Z');
+      SELECT pg_temp.q_cron(TIMESTAMPTZ '2026-10-16 00:05Z');
+      SELECT pg_temp.q_award('${USER_A}'::uuid, TIMESTAMPTZ '2026-10-16 17:00Z', DATE '2026-10-16', 'r1w');
+    `);
+    expect(state).toBe("s=6 last=2026-10-16 frz=0 rest=0");
+  });
+
+  it(`R2 UTC+10 rest=1 one missed local day`, () => {
+    const state = qaRun(`
+      SELECT pg_temp.q_reset('${USER_A}'::uuid, 5, DATE '2026-10-13', 0, 1, 600, 600, TIMESTAMPTZ '2026-10-13 02:00Z');
+      SELECT pg_temp.q_cron(TIMESTAMPTZ '2026-10-14 00:05Z');
+      SELECT pg_temp.q_cron(TIMESTAMPTZ '2026-10-15 00:05Z');
+      SELECT pg_temp.q_award('${USER_A}'::uuid, TIMESTAMPTZ '2026-10-15 02:00Z', DATE '2026-10-15', 'r2');
+    `);
+    expect(state).toBe("s=6 last=2026-10-15 frz=0 rest=0");
+  });
+
+  it(`R3 UTC+10 k=2 frz=1 N<k resets and keeps the token`, () => {
+    const state = qaRun(`
+      SELECT pg_temp.q_reset('${USER_A}'::uuid, 5, DATE '2026-10-13', 1, 0, 600, 600, TIMESTAMPTZ '2026-10-13 02:00Z');
+      SELECT pg_temp.q_cron(TIMESTAMPTZ '2026-10-14 00:05Z');
+      SELECT pg_temp.q_cron(TIMESTAMPTZ '2026-10-15 00:05Z');
+      SELECT pg_temp.q_cron(TIMESTAMPTZ '2026-10-16 00:05Z');
+      SELECT pg_temp.q_award('${USER_A}'::uuid, TIMESTAMPTZ '2026-10-16 02:00Z', DATE '2026-10-16', 'r3');
+    `);
+    expect(state).toBe("s=1 last=2026-10-16 frz=1 rest=0");
+  });
+
   it(`R4 UTC+10 k=2 early return 00:30 local`, () => {
     // QA FAIL at 81f0c441: award_xp g=3 reset s=1 frz=2. Probes X1 is the
     // after-00:05Z twin (s=6 last=10-16 frz=0 rest=0). Same shape here.
@@ -886,6 +955,34 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
     expect(state).toBe("s=6 last=2026-10-17 frz=0 rest=0");
     expect(state).not.toMatch(/^s=1 /);
     expect(state).not.toMatch(/frz=2/);
+  });
+
+  it(`R7 UTC+10 frz=2 never returns: lazy cron keeps tokens then zeros`, () => {
+    seed({
+      lastActivity: "2026-10-13",
+      streak: 5,
+      freeze: 2,
+      rest: 0,
+      tzLo: 600,
+      tzHi: 600,
+      creditAt: "2026-10-13T02:00:00.000Z",
+      setAt: "2026-10-13T02:00:00.000Z",
+    });
+    runCrons([
+      "2026-10-16T00:05:00.000Z",
+      "2026-10-16T00:05:30.000Z",
+      "2026-10-17T00:05:00.000Z",
+    ]);
+    let row = readProfile();
+    expect(row.current_streak).toBe(5);
+    expect(row.streak_freeze_tokens).toBe(2);
+    expect(row.last_activity_date).toBe("2026-10-13");
+    runCrons(["2026-10-18T00:05:00.000Z"]);
+    row = readProfile();
+    expect(row.current_streak).toBe(0);
+    expect(row.streak_freeze_tokens).toBe(2);
+    expect(row.last_activity_date).toBe("2026-10-13");
+    expect(row.rest_days).toBe(0);
   });
 
   // QA N2a-freeze 24/180 FAILs at 81f0c441: east return before 00:05Z on
@@ -958,6 +1055,52 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
     expect(row.streak_freeze_tokens).toBe(frz);
     expect(row.rest_days).toBe(0);
   });
+
+  // Full QA N2a-freeze 180: 10 zones × {00:30,12:00,23:30} × (k,N) N>=k.
+  // matrix180.final.last is always return ld + 2 (sim horizon). Architect
+  // R4 confirms last_activity_date is the return day (ld in the log), s=6,
+  // exactly k tokens spent. Assert that; do not rewrite json.final.
+  it.each(N2A_MATRIX.map((row, i) => ({ ...row, i })))(
+    "N2a $tz k=$k N=$n t=$t",
+    ({ k, n, t, tz, used, log, i }) => {
+      const tzMin = N2A_TZ_MIN[tz];
+      if (tzMin === undefined) throw new Error(`unknown N2a tz ${tz}`);
+      const ld = /ld=(\d{4}-\d{2}-\d{2})/.exec(log)?.[1];
+      expect(ld).toBe(addDays("2026-10-13", k + 1));
+      if (!ld) throw new Error(`missing ld in ${log}`);
+      expect(used).toBe(k);
+      const [hh, mm] = t.split(":").map(Number);
+      const credit = utcIsoFromLocal("2026-10-13", 12, tzMin);
+      const claimAt = utcIsoFromLocal(ld, hh, tzMin, mm);
+      const crons: string[] = [];
+      for (const d of [
+        "2026-10-14",
+        "2026-10-15",
+        "2026-10-16",
+        "2026-10-17",
+        "2026-10-18",
+        "2026-10-19",
+      ]) {
+        const cron = `${d}T00:05:00.000Z`;
+        if (cron < claimAt) crons.push(cron);
+      }
+      seed({
+        lastActivity: "2026-10-13",
+        streak: 5,
+        freeze: n,
+        rest: 0,
+        tzLo: tzMin,
+        tzHi: tzMin,
+        creditAt: credit,
+        setAt: credit,
+      });
+      runCrons(crons);
+      claim(claimAt, ld, `n2a180-${i}`);
+      const row = readProfile();
+      const state = `s=${row.current_streak} last=${row.last_activity_date} frz=${row.streak_freeze_tokens} rest=${row.rest_days}`;
+      expect(state).toBe(`s=6 last=${ld} frz=${n - k} rest=0`);
+    },
+  );
 
   it.each([
     { zone: "Berlin", tz: 120, k: 2, freeze: 2, ret: "2026-10-16", insideH: 0, insideM: 30 },
