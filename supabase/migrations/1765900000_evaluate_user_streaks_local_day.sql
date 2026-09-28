@@ -3,8 +3,8 @@
 --
 -- WHY THIS FILE EXISTS
 --   The pg_cron job `5 0 * * *` (00:05 UTC) runs public.evaluate_user_streaks().
---   The 1764802000 definition (latest in the repo; 1765800000 did not replace
---   it) compared UTC CURRENT_DATE to COALESCE(MAX(daily_logs.date),
+--   The live body (migration 20260923163428 harden_rpc_security_definer)
+--   compared UTC CURRENT_DATE to COALESCE(MAX(daily_logs.date),
 --   last_activity_date). Two bugs on live:
 --     1. Users west of UTC whose only activity is after ~19:05 local see UTC
 --        gap = 2 at the 00:05Z run even though their local gap is 1, so the
@@ -19,17 +19,24 @@
 -- CLOCK
 --   local_today_min uses public.xp_server_now() (clock_timestamp() in
 --   production; tests pin it to 00:05Z). Equivalent to now() for a short
---   cron run. Boost expiry still uses now(), matching 1764802000.
+--   cron run. Boost expiry still uses now(), matching the live body.
+--
+-- RACE
+--   The FOR loop snapshots each profile row. award_xp can consume a freeze
+--   and set last=D after that read. The three per-user UPDATEs therefore
+--   no-op unless last_activity_date (and freeze/rest on those branches)
+--   still match the snapshot.
 --
 -- ROLLBACK
---   The pre-change body below is copied from
---   supabase/migrations/1764802000_update_with_check_hardening.sql (the
---   latest repo definition of evaluate_user_streaks). RQ Architect should
---   diff it against the live catalog before pasting it back. Paste the
---   following CREATE OR REPLACE (uncommented) to restore:
+--   Source: 20260923163428 harden_rpc_security_definer (live). Paste the
+--   following CREATE OR REPLACE (uncommented) to restore the live body.
 --
 -- CREATE OR REPLACE FUNCTION public.evaluate_user_streaks()
--- RETURNS void AS $$
+--  RETURNS void
+--  LANGUAGE plpgsql
+--  SECURITY DEFINER
+--  SET search_path TO 'public'
+-- AS $function$
 -- DECLARE
 --   profile RECORD;
 --   latest_activity DATE;
@@ -37,13 +44,9 @@
 --   freeze_tokens INTEGER;
 --   rest_tokens INTEGER;
 -- BEGIN
+--   -- Only service_role / postgres should call this (EXECUTE revoked from anon/authenticated below)
 --   FOR profile IN
---     SELECT
---       id,
---       current_streak,
---       last_activity_date,
---       streak_freeze_tokens,
---       rest_days
+--     SELECT id, current_streak, last_activity_date, streak_freeze_tokens, rest_days
 --     FROM public.user_profiles
 --   LOOP
 --     SELECT COALESCE(MAX(date), profile.last_activity_date)
@@ -67,33 +70,26 @@
 --     IF days_since_activity = 2 AND (freeze_tokens > 0 OR rest_tokens > 0) THEN
 --       IF freeze_tokens > 0 THEN
 --         UPDATE public.user_profiles
---         SET
---           streak_freeze_tokens = freeze_tokens - 1,
---           last_activity_date = CURRENT_DATE - 1
+--         SET streak_freeze_tokens = freeze_tokens - 1, last_activity_date = CURRENT_DATE - 1
 --         WHERE id = profile.id;
 --       ELSE
 --         UPDATE public.user_profiles
---         SET
---           rest_days = rest_tokens - 1,
---           last_activity_date = CURRENT_DATE - 1
+--         SET rest_days = rest_tokens - 1, last_activity_date = CURRENT_DATE - 1
 --         WHERE id = profile.id;
 --       END IF;
 --     ELSE
 --       UPDATE public.user_profiles
---       SET
---         current_streak = 0,
---         last_activity_date = latest_activity
+--       SET current_streak = 0, last_activity_date = latest_activity
 --       WHERE id = profile.id;
 --     END IF;
 --   END LOOP;
 --
---   -- Expire boosts that have run out of time
 --   UPDATE public.user_profiles
 --   SET active_boost = NULL
 --   WHERE active_boost->>'expires_at' IS NOT NULL
 --     AND (active_boost->>'expires_at')::timestamptz <= now();
 -- END;
--- $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+-- $function$;
 
 CREATE OR REPLACE FUNCTION public.evaluate_user_streaks()
 RETURNS void AS $$
@@ -140,19 +136,24 @@ BEGIN
         SET
           streak_freeze_tokens = freeze_tokens - 1,
           last_activity_date = local_today_min - 1
-        WHERE id = profile.id;
+        WHERE id = profile.id
+          AND last_activity_date IS NOT DISTINCT FROM profile.last_activity_date
+          AND streak_freeze_tokens = profile.streak_freeze_tokens;
       ELSE
         UPDATE public.user_profiles
         SET
           rest_days = rest_tokens - 1,
           last_activity_date = local_today_min - 1
-        WHERE id = profile.id;
+        WHERE id = profile.id
+          AND last_activity_date IS NOT DISTINCT FROM profile.last_activity_date
+          AND rest_days = profile.rest_days;
       END IF;
     ELSE
       UPDATE public.user_profiles
       SET
         current_streak = 0
-      WHERE id = profile.id;
+      WHERE id = profile.id
+        AND last_activity_date IS NOT DISTINCT FROM profile.last_activity_date;
     END IF;
   END LOOP;
 
