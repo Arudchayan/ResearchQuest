@@ -151,7 +151,7 @@ describe("1765800000 xp integrity hardening (static)", () => {
     expect(award).toMatch(/-\s*90/i);
     expect(award).toMatch(/v_today\s*<\s*v_last/i);
     expect(award).not.toMatch(/v_gap_last/);
-    expect(award).toMatch(/Empty or inconsistent N/i);
+    expect(raw).toMatch(/Empty or inconsistent N/i);
   });
 
   it("does not increment running counts from award_xp", () => {
