@@ -146,6 +146,9 @@ describe("1765800000 xp integrity hardening (static)", () => {
     expect(award).toMatch(/streak_tz_lo_min/i);
     expect(award).toMatch(/streak_tz_set_at/i);
     expect(award).toMatch(/interval\s+'12 hours'/i);
+    expect(award).toMatch(
+      /v_today\s*=\s*v_last\s*\+\s*1[\s\S]{0,250}v_tz_set_at\s*:=\s*v_now/i,
+    );
     expect(award).toMatch(/-\s*720/i);
     expect(award).toMatch(/840/i);
     expect(award).toMatch(/-\s*180/i);
@@ -232,21 +235,28 @@ describe("1765800000 xp integrity hardening (static)", () => {
     expect(sql).toMatch(/CHECK\s*\(\s*rest_days\s*>=\s*0\s*\)\s*NOT\s+VALID/i);
   });
 
-  it("revokes TRUNCATE/TRIGGER/REFERENCES and user_profiles DELETE from anon and authenticated", () => {
+  it("revokes TRUNCATE/TRIGGER/REFERENCES/MAINTAIN and user_profiles DELETE from anon and authenticated", () => {
     expect(sql).toMatch(
-      /REVOKE\s+TRUNCATE\s*,\s*TRIGGER\s*,\s*REFERENCES\s+ON\s+ALL\s+TABLES\s+IN\s+SCHEMA\s+public\s+FROM\s+anon\s*,\s*authenticated/i,
+      /REVOKE\s+TRUNCATE\s*,\s*TRIGGER\s*,\s*REFERENCES\s*,\s*MAINTAIN\s+ON\s+ALL\s+TABLES\s+IN\s+SCHEMA\s+public\s+FROM\s+anon\s*,\s*authenticated/i,
     );
     expect(sql).toMatch(
       /REVOKE\s+DELETE\s+ON\s+TABLE\s+public\.user_profiles\s+FROM\s+anon\s*,\s*authenticated/i,
     );
     expect(sql).toMatch(
-      /ALTER\s+DEFAULT\s+PRIVILEGES[\s\S]*REVOKE\s+TRUNCATE\s*,\s*TRIGGER\s*,\s*REFERENCES\s+ON\s+TABLES\s+FROM\s+anon\s*,\s*authenticated/i,
+      /ALTER\s+DEFAULT\s+PRIVILEGES[\s\S]*REVOKE\s+TRUNCATE\s*,\s*TRIGGER\s*,\s*REFERENCES\s*,\s*MAINTAIN\s+ON\s+TABLES\s+FROM\s+anon\s*,\s*authenticated/i,
     );
     expect(raw).toMatch(
-      /GRANT\s+TRUNCATE\s*,\s*TRIGGER\s*,\s*REFERENCES\s+ON\s+ALL\s+TABLES\s+IN\s+SCHEMA\s+public[\s\S]*TO\s+anon\s*,\s*authenticated/i,
+      /GRANT\s+TRUNCATE\s*,\s*TRIGGER\s*,\s*REFERENCES\s*,\s*MAINTAIN\s+ON\s+ALL\s+TABLES\s+IN\s+SCHEMA\s+public[\s\S]*TO\s+anon\s*,\s*authenticated/i,
     );
     expect(raw).toMatch(
       /GRANT\s+DELETE\s+ON\s+TABLE\s+public\.user_profiles\s+TO\s+anon\s*,\s*authenticated/i,
+    );
+    expect(raw).toMatch(
+      /DROP\s+TRIGGER\s+IF\s+EXISTS\s+lock_freeze_rest_no_mint[\s\S]*DROP\s+FUNCTION\s+IF\s+EXISTS\s+public\.enforce_freeze_rest_no_mint/i,
+    );
+    expect(raw).toMatch(/CREATE\s+OR\s+REPLACE\s+FUNCTION\s+public\.award_xp\s*\(/i);
+    expect(raw).toMatch(
+      /CREATE\s+OR\s+REPLACE\s+FUNCTION\s+public\.award_achievement_xp\s*\(/i,
     );
   });
 
@@ -489,6 +499,44 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
     expect(row.last_activity_date).toBe("2026-06-11");
   });
 
+  it("two claims 2ms apart around the 12h widen credit at most +1 streak", () => {
+    // stored [-720,-35], last=D, widen due at t = D+1 21:35Z. A D+1 claim at
+    // t-1ms used to leave set_at stale because N equalled the stored band;
+    // a D+2 claim at t+1ms then widened to [-720,145] and overlapped at 145.
+    const d = "2026-06-10";
+    const plus = "2026-06-11";
+    const plus2 = "2026-06-12";
+    setXpNow(replica, "2026-06-11T09:35:00.000Z");
+    replica.exec(`
+      UPDATE public.user_profiles
+      SET last_activity_date = '${d}'::date,
+          current_streak = 1,
+          longest_streak = 1,
+          streak_tz_lo_min = -720,
+          streak_tz_hi_min = -35,
+          streak_tz_set_at = public.xp_server_now(),
+          total_xp = 10
+      WHERE id = '${USER_A}';
+    `);
+    setXpNow(replica, "2026-06-11T21:34:59.999Z");
+    const first = awardXp(replica, USER_A, 10, "create_note", {
+      entityId: "gate-a",
+      localDay: plus,
+    });
+    expect(first.xp_credited).toBe(10);
+    expect(first.current_streak).toBe(2);
+    expect(first.last_activity_date).toBe(plus);
+    setXpNow(replica, "2026-06-11T21:35:00.001Z");
+    const second = awardXp(replica, USER_A, 10, "create_note", {
+      entityId: "gate-b",
+      localDay: plus2,
+    });
+    expect(second.xp_credited).toBe(10);
+    expect(second.current_streak - first.current_streak).toBeLessThanOrEqual(1);
+    expect(second.current_streak).toBe(2);
+    expect(second.last_activity_date).toBe(plus);
+  });
+
   it("midnight-minute UTC+14 [780,840] at 10:00:30Z increments +1", () => {
     setXpNow(replica, "2026-06-11T09:00:00.000Z");
     replica.exec(`
@@ -550,7 +598,7 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
     expect(consistent.last_activity_date).toBe("2026-09-28");
   });
 
-  it("X8: 4-day 12:30 walk of (day-1) then (day+1) ends at most 4", () => {
+  it("X8: 4-day 12:30 walk of (day-1) then (day+1) ends at 3", () => {
     const d0 = "2026-09-28";
     setXpNow(replica, "2026-09-28T12:30:00.000Z");
     awardXp(replica, USER_A, 10, "create_note", { entityId: "w1", localDay: d0 });
@@ -569,10 +617,10 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
     awardXp(replica, USER_A, 10, "create_note", { entityId: "w8", localDay: addDays(d0, 2) });
     const s4 = awardXp(replica, USER_A, 10, "create_note", { entityId: "w9", localDay: addDays(d0, 4) });
 
-    expect(s1.current_streak).toBeLessThanOrEqual(4);
-    expect(s2.current_streak).toBeLessThanOrEqual(4);
-    expect(s3.current_streak).toBeLessThanOrEqual(4);
-    expect(s4.current_streak).toBeLessThanOrEqual(4);
+    expect(s1.current_streak).toBe(1);
+    expect(s2.current_streak).toBe(1);
+    expect(s3.current_streak).toBe(2);
+    expect(s4.current_streak).toBe(3);
   });
 
   it("with stored [0,0], D+1 then D+2 at D+1 22:00Z adds at most 1", () => {
@@ -1045,6 +1093,9 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
     );
     expect(() =>
       replica.execAs(USER_A, `DELETE FROM public.user_profiles WHERE id = '${USER_A}'`),
+    ).toThrow(/42501|permission denied/i);
+    expect(() =>
+      replica.execAs(USER_A, "LOCK TABLE public.user_profiles IN ACCESS EXCLUSIVE MODE"),
     ).toThrow(/42501|permission denied/i);
     const stillThere = replica
       .exec(`SELECT count(*) FROM public.user_profiles WHERE id = '${USER_A}'`)
