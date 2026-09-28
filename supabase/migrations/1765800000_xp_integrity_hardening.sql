@@ -515,16 +515,13 @@ BEGIN
     v_n_lo := GREATEST(v_w_lo, v_claim_lo);
     v_n_hi := LEAST(v_w_hi, v_claim_hi);
 
-    IF v_claim_lo <= v_claim_hi AND v_n_lo <= v_n_hi
-       AND NOT (
-         -- A 1-minute overlap between adjacent local days (D-1 then D ~61s
-         -- later near UTC-11) is a boundary nick against a wider stored band,
-         -- not a real timezone. Singleton stored offsets such as [60,60] stay
-         -- consistent (W is not wider than N).
-         v_n_lo = v_n_hi
-         AND v_profile.streak_tz_lo_min IS NOT NULL
-         AND v_w_lo < v_w_hi
-       ) THEN
+    -- Inclusive N: any overlap of 0 or more integer minutes (n_lo <= n_hi)
+    -- is consistent, including a shared midnight minute (UTC+2 [30,120] at
+    -- 22:00:30Z → N=[120,120]; UTC+14 [780,840] at 10:00:30Z → N=[840,840]).
+    -- Same-instant adjacent local days still have n_lo > n_hi because claim
+    -- windows are half-open, which is the burst cap (X1, 11:00 D-1/D/D+1,
+    -- full-range D/D+1/D+2).
+    IF v_claim_lo <= v_claim_hi AND v_n_lo <= v_n_hi THEN
       IF v_tz_lo IS DISTINCT FROM v_n_lo OR v_tz_hi IS DISTINCT FROM v_n_hi THEN
         v_tz_set_at := v_now;
       END IF;
@@ -781,6 +778,27 @@ GRANT EXECUTE ON FUNCTION public.award_achievement_xp(TEXT, INTEGER, TEXT, TEXT)
 COMMENT ON FUNCTION public.award_achievement_xp(TEXT, INTEGER, TEXT, TEXT) IS
   'Atomic one-time achievement award for auth.uid(): server catalogue XP (p_xp ignored), eligibility from notes/papers/tasks/streak, one row per (user, type).';
 
+-- Defence-in-depth: TRUNCATE ignores RLS. Client and edge only SELECT/UPDATE
+-- user_profiles; account deletion is auth.users CASCADE / DEFINER, not a
+-- client DELETE on this table.
+REVOKE TRUNCATE, TRIGGER, REFERENCES ON ALL TABLES IN SCHEMA public
+  FROM anon, authenticated;
+REVOKE DELETE ON TABLE public.user_profiles FROM anon, authenticated;
+
+DO $$
+DECLARE
+  v_owner name;
+BEGIN
+  SELECT pg_get_userbyid(c.relowner) INTO v_owner
+  FROM pg_class AS c
+  WHERE c.oid = 'public.user_profiles'::regclass;
+  EXECUTE format(
+    'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public '
+    || 'REVOKE TRUNCATE, TRIGGER, REFERENCES ON TABLES FROM anon, authenticated',
+    v_owner
+  );
+END $$;
+
 -- Rollback (manual, do not run in this file):
 --   ALTER TABLE public.user_profiles
 --     DROP COLUMN IF EXISTS streak_tz_lo_min,
@@ -788,4 +806,9 @@ COMMENT ON FUNCTION public.award_achievement_xp(TEXT, INTEGER, TEXT, TEXT) IS
 --     DROP COLUMN IF EXISTS streak_tz_set_at;
 --   DROP FUNCTION IF EXISTS public.xp_server_now();
 --   Restore award_xp / award_achievement_xp / grants from 1765700000.
+--   GRANT TRUNCATE, TRIGGER, REFERENCES ON ALL TABLES IN SCHEMA public
+--     TO anon, authenticated;
+--   GRANT DELETE ON TABLE public.user_profiles TO anon, authenticated;
+--   ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+--     GRANT TRUNCATE, TRIGGER, REFERENCES ON TABLES TO anon, authenticated;
 
