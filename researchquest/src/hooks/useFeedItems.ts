@@ -14,6 +14,7 @@ import {
   writeListCache,
 } from "../lib/idbCache";
 import { useFeedItemsStore } from "../store/feedItemsStore";
+import { doisMatch } from "../utils/paperUtils";
 
 export const FEED_ITEM_TYPES = ["paper", "job", "news", "custom"] as const;
 export const FEED_ITEM_STATUSES = [
@@ -61,7 +62,28 @@ interface PromoteResponse {
 interface RealtimePayload {
   eventType: string;
   new: FeedItem | null;
-  old: { id?: unknown } | null;
+  old: {
+    id?: unknown;
+    type?: unknown;
+    status?: unknown;
+    user_id?: unknown;
+  } | null;
+}
+
+export interface RealtimeMergeOptions {
+  type: FeedTypeFilter;
+  status: FeedStatusFilter;
+  userId?: string;
+  cap?: number;
+  hasMore?: boolean;
+  windowTail?: FeedListCursor | null;
+}
+
+export interface RealtimeMergeResult {
+  items: FeedItem[];
+  countDelta: number;
+  refetch: boolean;
+  refetchCount: boolean;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -97,6 +119,55 @@ export function compareFeedItems(a: FeedItem, b: FeedItem) {
 
 function sortFeedItems(items: FeedItem[]) {
   return [...items].sort(compareFeedItems);
+}
+
+export function feedItemAtOrAboveCursor(
+  item: FeedItem,
+  cursor: FeedListCursor,
+): boolean {
+  const pivot: FeedItem = {
+    ...item,
+    id: cursor.id,
+    created_at: cursor.created_at,
+    published_at: cursor.published_at,
+  };
+  return compareFeedItems(item, pivot) <= 0;
+}
+
+function shouldMergeIntoLoadedWindow(
+  row: FeedItem,
+  options: Pick<RealtimeMergeOptions, "hasMore" | "windowTail">,
+): boolean {
+  if (!options.hasMore) return true;
+  if (!options.windowTail) return true;
+  return feedItemAtOrAboveCursor(row, options.windowTail);
+}
+
+function capFeedItems(items: FeedItem[], cap?: number) {
+  return typeof cap === "number" ? items.slice(0, cap) : items;
+}
+
+function oldPayloadHasFilterColumns(
+  old: RealtimePayload["old"],
+): old is RealtimePayload["old"] & { type: FeedItemType; status: FeedItemStatus } {
+  return !!old &&
+    typeof old.type === "string" &&
+    typeof old.status === "string";
+}
+
+function oldItemFromPayload(
+  old: RealtimePayload["old"] & { type: FeedItemType; status: FeedItemStatus },
+): FeedItem {
+  return {
+    id: typeof old.id === "string" ? old.id : "",
+    user_id: typeof old.user_id === "string" ? old.user_id : "",
+    type: old.type,
+    status: old.status,
+    title: "",
+    payload: {},
+    created_at: "",
+    updated_at: "",
+  };
 }
 
 type EqChain = { eq: (column: string, value: string) => EqChain };
@@ -175,58 +246,89 @@ export function feedItemCursorFromRow(item: FeedItem): FeedListCursor {
 export function mergeRealtimeFeedItem(
   current: FeedItem[],
   payload: RealtimePayload,
-  options: {
-    type: FeedTypeFilter;
-    status: FeedStatusFilter;
-    userId?: string;
-    cap?: number;
-  },
-): { items: FeedItem[]; countDelta: number; refetch: boolean } {
+  options: RealtimeMergeOptions,
+): RealtimeMergeResult {
   if (payload.eventType === "DELETE") {
     const oldId = payload.old?.id;
     if (typeof oldId !== "string") {
-      return { items: current, countDelta: 0, refetch: true };
+      return { items: current, countDelta: 0, refetch: true, refetchCount: false };
     }
     const existed = current.some((item) => item.id === oldId);
     return {
       items: current.filter((item) => item.id !== oldId),
       countDelta: existed ? -1 : 0,
       refetch: false,
+      refetchCount: !existed,
     };
   }
 
   const row = payload.new;
   if (!row || typeof row.id !== "string") {
-    return { items: current, countDelta: 0, refetch: true };
+    return { items: current, countDelta: 0, refetch: true, refetchCount: false };
   }
   if (options.userId && row.user_id !== options.userId) {
-    return { items: current, countDelta: 0, refetch: true };
+    return { items: current, countDelta: 0, refetch: true, refetchCount: false };
   }
 
-  const matches = feedItemMatchesFilters(row, options.type, options.status);
+  const newMatches = feedItemMatchesFilters(row, options.type, options.status);
   const existingIndex = current.findIndex((item) => item.id === row.id);
-  if (!matches) {
-    if (existingIndex === -1) {
-      return { items: current, countDelta: 0, refetch: false };
+  const mergeIntoList = newMatches && (
+    existingIndex !== -1 || shouldMergeIntoLoadedWindow(row, options)
+  );
+
+  const nextItems = (): FeedItem[] => {
+    if (!newMatches) {
+      return existingIndex === -1
+        ? current
+        : current.filter((item) => item.id !== row.id);
+    }
+    if (!mergeIntoList) return current;
+    const merged = existingIndex === -1
+      ? [row, ...current]
+      : current.map((item) => (item.id === row.id ? row : item));
+    return capFeedItems(sortFeedItems(merged), options.cap);
+  };
+
+  if (payload.eventType === "INSERT") {
+    if (!newMatches) {
+      return { items: current, countDelta: 0, refetch: false, refetchCount: false };
+    }
+    if (existingIndex !== -1) {
+      return {
+        items: nextItems(),
+        countDelta: 0,
+        refetch: false,
+        refetchCount: false,
+      };
     }
     return {
-      items: current.filter((item) => item.id !== row.id),
-      countDelta: -1,
+      items: nextItems(),
+      countDelta: 1,
       refetch: false,
+      refetchCount: false,
     };
   }
 
-  const countDelta = existingIndex === -1 ? 1 : 0;
-  const next = existingIndex === -1
-    ? [row, ...current]
-    : current.map((item) => (item.id === row.id ? row : item));
-  const sorted = sortFeedItems(next);
+  if (!oldPayloadHasFilterColumns(payload.old)) {
+    return {
+      items: nextItems(),
+      countDelta: 0,
+      refetch: false,
+      refetchCount: true,
+    };
+  }
+
+  const oldMatches = feedItemMatchesFilters(
+    oldItemFromPayload(payload.old),
+    options.type,
+    options.status,
+  );
+  const countDelta = (newMatches ? 1 : 0) - (oldMatches ? 1 : 0);
   return {
-    items: typeof options.cap === "number"
-      ? sorted.slice(0, options.cap)
-      : sorted,
+    items: nextItems(),
     countDelta,
     refetch: false,
+    refetchCount: false,
   };
 }
 
@@ -250,13 +352,12 @@ export function arxivIdFromFeedItem(item: FeedItem): string | null {
   return null;
 }
 
-function authorsFromPayload(payload: Record<string, unknown>): string[] | undefined {
+function authorsFromPayload(payload: Record<string, unknown>): string[] {
   const authors = payload.authors ?? payload.author;
   if (Array.isArray(authors)) {
-    const values = authors.filter(
+    return authors.filter(
       (value): value is string => typeof value === "string" && value.trim().length > 0,
     );
-    return values.length > 0 ? values : undefined;
   }
   if (typeof authors === "string" && authors.trim()) {
     return authors
@@ -264,7 +365,49 @@ function authorsFromPayload(payload: Record<string, unknown>): string[] | undefi
       .map((part) => part.trim())
       .filter(Boolean);
   }
-  return undefined;
+  return [];
+}
+
+function normalizeArxivId(id: string): string {
+  return id.replace(/v\d+$/i, "").toLowerCase();
+}
+
+function arxivIdFromString(value: string): string | null {
+  const match = value.match(ARXIV_ID_RE);
+  return match?.[1] ? normalizeArxivId(match[1]) : null;
+}
+
+function normalizeIdentityUrl(url: string): string {
+  return url.trim().replace(/\/+$/, "").toLowerCase();
+}
+
+export function paperMatchesFeedItem(
+  paper: { doi?: string | null; source_url?: string | null },
+  item: FeedItem,
+): boolean {
+  const fields = buildPromotePaperFields(item);
+  const itemDoi =
+    (typeof fields.doi === "string" && fields.doi) ||
+    (isRecord(item.payload) && typeof item.payload.doi === "string"
+      ? item.payload.doi
+      : "");
+  if (paper.doi && itemDoi && doisMatch(paper.doi, itemDoi)) return true;
+
+  const itemArxiv = arxivIdFromFeedItem(item);
+  const paperArxiv = paper.source_url ? arxivIdFromString(paper.source_url) : null;
+  if (itemArxiv && paperArxiv && normalizeArxivId(itemArxiv) === paperArxiv) {
+    return true;
+  }
+
+  const itemUrl =
+    (typeof fields.source_url === "string" && fields.source_url) ||
+    (typeof item.url === "string" ? item.url : "");
+  if (paper.source_url && itemUrl) {
+    if (normalizeIdentityUrl(paper.source_url) === normalizeIdentityUrl(itemUrl)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 export function buildPromotePaperFields(item: FeedItem): Record<string, unknown> {
@@ -277,8 +420,10 @@ export function buildPromotePaperFields(item: FeedItem): Record<string, unknown>
     typeof payload.abstract === "string" ? payload.abstract.trim() : "";
   const abstract = abstractFromPayload || item.summary || undefined;
   const authors = authorsFromPayload(payload);
-  const fields: Record<string, unknown> = { title: item.title };
-  if (authors?.length) fields.authors = authors;
+  const fields: Record<string, unknown> = {
+    title: item.title,
+    authors,
+  };
   if (abstract) fields.abstract = abstract;
   if (sourceUrl) fields.source_url = sourceUrl;
   if (typeof payload.doi === "string" && payload.doi.trim()) {
@@ -338,6 +483,7 @@ function scopedFeedQuery<T>(
   extras?: {
     cursor?: FeedListCursor | null;
     olderThanDays?: number | null;
+    olderThanNow?: Date;
     excludeArchivedAndPromoted?: boolean;
   },
 ): T {
@@ -351,9 +497,11 @@ function scopedFeedQuery<T>(
       NeqChain;
   }
   if (extras?.olderThanDays != null) {
-    next = applyFeedItemOlderThanFilter(next, extras.olderThanDays) as EqChain &
-      OrChain &
-      NeqChain;
+    next = applyFeedItemOlderThanFilter(
+      next,
+      extras.olderThanDays,
+      extras.olderThanNow ?? new Date(),
+    ) as EqChain & OrChain & NeqChain;
   }
   if (extras?.excludeArchivedAndPromoted) {
     next = applyArchiveExclusions(next);
@@ -389,6 +537,8 @@ export function useFeedItems(
   const [loadingOlder, setLoadingOlder] = useState(false);
   const pagedItemsRef = useRef<FeedItem[]>([]);
   const pagedTotalCountRef = useRef(0);
+  const serverCursorRef = useRef<FeedListCursor | null>(null);
+  const fetchGenerationRef = useRef(0);
   const promoteInFlightRef = useRef(new Set<string>());
 
   pagedItemsRef.current = pagedItems;
@@ -477,8 +627,11 @@ export function useFeedItems(
         setPagedTotalCount(0);
         setPagedLoading(false);
         setLoadingOlder(false);
+        serverCursorRef.current = null;
         return;
       }
+
+      const generation = ++fetchGenerationRef.current;
 
       if (cursor) {
         setLoadingOlder(true);
@@ -492,10 +645,12 @@ export function useFeedItems(
         `${userId}:${type}:${status}`,
       );
 
+      const applyIfCurrent = () => generation === fetchGenerationRef.current;
+
       try {
         if (!cursor) {
           const cached = await readListCache<FeedItem>(cacheKey);
-          if (cached?.data.length) {
+          if (cached?.data.length && applyIfCurrent()) {
             setPagedItems(sortFeedItems(cached.data));
             setPagedLoading(false);
           }
@@ -512,10 +667,13 @@ export function useFeedItems(
           .order("id", { ascending: false })
           .limit(FEED_ITEMS_PAGE_SIZE);
 
+        if (!applyIfCurrent()) return;
+
         if (fetchError) {
           logger.error("Failed to fetch feed items", fetchError);
           const message = toFeedErrorMessage(fetchError, FEED_LIST_ERROR_MESSAGE);
           setPagedError(message);
+          if (cursor) toast.error(message);
           return;
         }
 
@@ -528,6 +686,7 @@ export function useFeedItems(
               .select("*", { count: "exact", head: true }),
             { userId, type, status },
           );
+          if (!applyIfCurrent()) return;
           if (countError) {
             logger.error("Failed to count feed items", countError);
             setPagedError(
@@ -536,34 +695,68 @@ export function useFeedItems(
             return;
           }
           const nextItems = sortFeedItems(rows);
+          const last = nextItems[nextItems.length - 1];
+          serverCursorRef.current = last ? feedItemCursorFromRow(last) : null;
+          pagedItemsRef.current = nextItems;
           setPagedItems(nextItems);
-          setPagedTotalCount(count ?? nextItems.length);
+          const nextCount = count ?? nextItems.length;
+          pagedTotalCountRef.current = nextCount;
+          setPagedTotalCount(nextCount);
           setPagedError(null);
           await writeListCache(cacheKey, nextItems);
           return;
         }
 
+        if (rows.length === 0) {
+          return;
+        }
+        const last = rows[rows.length - 1];
+        if (last) serverCursorRef.current = feedItemCursorFromRow(last);
         const existingIds = new Set(
           pagedItemsRef.current.map((item) => item.id),
         );
         const added = rows.filter((row) => !existingIds.has(row.id));
         if (added.length === 0) {
-          setPagedTotalCount(pagedItemsRef.current.length);
           return;
         }
         const combined = [...pagedItemsRef.current, ...added];
+        pagedItemsRef.current = combined;
         setPagedItems(combined);
         setPagedError(null);
       } catch (fetchError) {
+        if (!applyIfCurrent()) return;
         logger.error("Failed to fetch feed items", fetchError);
-        setPagedError(toFeedErrorMessage(fetchError, FEED_LIST_ERROR_MESSAGE));
+        const message = toFeedErrorMessage(fetchError, FEED_LIST_ERROR_MESSAGE);
+        setPagedError(message);
+        if (cursor) toast.error(message);
       } finally {
-        setPagedLoading(false);
-        setLoadingOlder(false);
+        if (applyIfCurrent()) {
+          setPagedLoading(false);
+          setLoadingOlder(false);
+        }
       }
     },
     [enabled, status, type, userId],
   );
+
+  const refetchPagedCount = useCallback(async () => {
+    if (!userId || !enabled) return;
+    const generation = fetchGenerationRef.current;
+    const { count, error: countError } = await scopedFeedQuery(
+      supabase
+        .from("feed_items")
+        .select("*", { count: "exact", head: true }),
+      { userId, type, status },
+    );
+    if (generation !== fetchGenerationRef.current) return;
+    if (countError) {
+      logger.error("Failed to count feed items", countError);
+      return;
+    }
+    const nextCount = count ?? pagedTotalCountRef.current;
+    pagedTotalCountRef.current = nextCount;
+    setPagedTotalCount(nextCount);
+  }, [enabled, status, type, userId]);
 
   /**
    * Incremental realtime merge: INSERT/UPDATE upsert by id, DELETE removes by
@@ -657,9 +850,20 @@ export function useFeedItems(
             {
               eventType: payload.eventType,
               new: (payload.new ?? null) as FeedItem | null,
-              old: (payload.old ?? null) as { id?: unknown } | null,
+              old: (payload.old ?? null) as {
+                id?: unknown;
+                type?: unknown;
+                status?: unknown;
+                user_id?: unknown;
+              } | null,
             },
-            { type, status, userId },
+            {
+              type,
+              status,
+              userId,
+              hasMore: pagedItemsRef.current.length < pagedTotalCountRef.current,
+              windowTail: serverCursorRef.current,
+            },
           );
           if (merged.refetch) {
             void fetchPagedFeedItems(null);
@@ -667,6 +871,10 @@ export function useFeedItems(
           }
           pagedItemsRef.current = merged.items;
           setPagedItems(merged.items);
+          if (merged.refetchCount) {
+            void refetchPagedCount();
+            return;
+          }
           if (merged.countDelta !== 0) {
             const nextCount = Math.max(
               0,
@@ -684,7 +892,7 @@ export function useFeedItems(
     return () => {
       subscription.unsubscribe();
     };
-  }, [enabled, fetchPagedFeedItems, paged, status, type, userId]);
+  }, [enabled, fetchPagedFeedItems, paged, refetchPagedCount, status, type, userId]);
 
   const updateFeedItemStatus = useCallback(
     async (itemId: string, nextStatus: Extract<FeedItemStatus, "new" | "triaged" | "archived">) => {
@@ -834,11 +1042,10 @@ export function useFeedItems(
 
   const loadOlderFeedItems = useCallback(async () => {
     if (!paged || loadingOlder || pagedLoading) return;
-    const loaded = pagedItemsRef.current;
-    const last = loaded[loaded.length - 1];
-    if (!last) return;
+    const cursor = serverCursorRef.current;
+    if (!cursor) return;
     if (pagedItemsRef.current.length >= pagedTotalCountRef.current) return;
-    await fetchPagedFeedItems(feedItemCursorFromRow(last));
+    await fetchPagedFeedItems(cursor);
   }, [fetchPagedFeedItems, loadingOlder, paged, pagedLoading]);
 
   const archiveMatchingFeedItems = useCallback(
@@ -852,95 +1059,117 @@ export function useFeedItems(
         olderThanDays != null && Number.isFinite(olderThanDays) && olderThanDays > 0
           ? olderThanDays
           : null;
+      const cutoffNow = new Date();
 
-      const { count, error: countError } = await scopedFeedQuery(
-        supabase.from("feed_items").select("*", { count: "exact", head: true }),
-        { userId, type, status },
-        { olderThanDays: cutoffDays, excludeArchivedAndPromoted: true },
-      );
+      try {
+        const { count, error: countError } = await scopedFeedQuery(
+          supabase.from("feed_items").select("*", { count: "exact", head: true }),
+          { userId, type, status },
+          {
+            olderThanDays: cutoffDays,
+            olderThanNow: cutoffNow,
+            excludeArchivedAndPromoted: true,
+          },
+        );
 
-      if (countError) {
-        const message = toFeedErrorMessage(countError, FEED_MUTATION_ERROR_MESSAGE);
+        if (countError) {
+          const message = toFeedErrorMessage(countError, FEED_MUTATION_ERROR_MESSAGE);
+          if (paged) setPagedError(message);
+          setError(message);
+          toast.error(message);
+          return false;
+        }
+
+        const archiveCount = count ?? 0;
+        if (archiveCount === 0) {
+          toast.info("No matching feed items to archive.");
+          return true;
+        }
+
+        const daysLabel = cutoffDays
+          ? ` older than ${cutoffDays} day${cutoffDays === 1 ? "" : "s"}`
+          : "";
+        const confirmed =
+          typeof window === "undefined" ||
+          window.confirm(
+            `Archive ${archiveCount} matching feed item${archiveCount === 1 ? "" : "s"}${daysLabel}?`,
+          );
+        if (!confirmed) return false;
+
+        const previousStoreItems = useFeedItemsStore.getState().items;
+        const previousPagedItems = pagedItemsRef.current;
+        const previousPagedCount = pagedTotalCountRef.current;
+        const cutoffMs = cutoffDays
+          ? cutoffNow.getTime() - cutoffDays * 24 * 60 * 60 * 1000
+          : null;
+        const shouldDrop = (item: FeedItem) => {
+          if (item.status === "archived" || item.status === "promoted") return false;
+          if (!feedItemMatchesFilters(item, type, status)) return false;
+          if (cutoffMs != null) {
+            const timestamp = Date.parse(item.published_at ?? item.created_at);
+            if (!(timestamp < cutoffMs)) return false;
+          }
+          return true;
+        };
+
+        setItems((current) => current.filter((item) => !shouldDrop(item)));
+        if (paged) {
+          const nextItems = previousPagedItems.filter((item) => !shouldDrop(item));
+          pagedItemsRef.current = nextItems;
+          setPagedItems(nextItems);
+          const nextCount = Math.max(0, previousPagedCount - archiveCount);
+          pagedTotalCountRef.current = nextCount;
+          setPagedTotalCount(nextCount);
+        }
+
+        const { data, error: updateError } = await scopedFeedQuery(
+          supabase.from("feed_items").update({ status: "archived" }),
+          { userId, type, status },
+          {
+            olderThanDays: cutoffDays,
+            olderThanNow: cutoffNow,
+            excludeArchivedAndPromoted: true,
+          },
+        ).select("id");
+
+        if (updateError) {
+          logger.error("Failed to archive matching feed items", updateError);
+          setItems(previousStoreItems);
+          if (paged) {
+            pagedItemsRef.current = previousPagedItems;
+            setPagedItems(previousPagedItems);
+            pagedTotalCountRef.current = previousPagedCount;
+            setPagedTotalCount(previousPagedCount);
+            setPagedError(
+              toFeedErrorMessage(updateError, FEED_MUTATION_ERROR_MESSAGE),
+            );
+          }
+          const message = toFeedErrorMessage(
+            updateError,
+            FEED_MUTATION_ERROR_MESSAGE,
+          );
+          setError(message);
+          toast.error(message);
+          return false;
+        }
+
+        const archivedRows = Array.isArray(data) ? data.length : archiveCount;
+        toast.success(
+          `${archivedRows} feed item${archivedRows === 1 ? "" : "s"} archived`,
+        );
+        if (paged) void fetchPagedFeedItems(null);
+        return true;
+      } catch (archiveError) {
+        logger.error("Failed to archive matching feed items", archiveError);
+        const message = toFeedErrorMessage(
+          archiveError,
+          FEED_MUTATION_ERROR_MESSAGE,
+        );
         if (paged) setPagedError(message);
         setError(message);
         toast.error(message);
         return false;
       }
-
-      const archiveCount = count ?? 0;
-      if (archiveCount === 0) {
-        toast.info("No matching feed items to archive.");
-        return true;
-      }
-
-      const daysLabel = cutoffDays
-        ? ` older than ${cutoffDays} day${cutoffDays === 1 ? "" : "s"}`
-        : "";
-      const confirmed =
-        typeof window === "undefined" ||
-        window.confirm(
-          `Archive ${archiveCount} matching feed item${archiveCount === 1 ? "" : "s"}${daysLabel}?`,
-        );
-      if (!confirmed) return false;
-
-      const previousStoreItems = useFeedItemsStore.getState().items;
-      const previousPagedItems = pagedItemsRef.current;
-      const previousPagedCount = pagedTotalCountRef.current;
-      const cutoffMs = cutoffDays
-        ? Date.now() - cutoffDays * 24 * 60 * 60 * 1000
-        : null;
-      const shouldDrop = (item: FeedItem) => {
-        if (item.status === "archived" || item.status === "promoted") return false;
-        if (!feedItemMatchesFilters(item, type, status)) return false;
-        if (cutoffMs != null) {
-          const timestamp = Date.parse(item.published_at ?? item.created_at);
-          if (!(timestamp < cutoffMs)) return false;
-        }
-        return true;
-      };
-
-      setItems((current) => current.filter((item) => !shouldDrop(item)));
-      if (paged) {
-        const nextItems = previousPagedItems.filter((item) => !shouldDrop(item));
-        pagedItemsRef.current = nextItems;
-        setPagedItems(nextItems);
-        const nextCount = Math.max(0, previousPagedCount - archiveCount);
-        pagedTotalCountRef.current = nextCount;
-        setPagedTotalCount(nextCount);
-      }
-
-      const { error: updateError } = await scopedFeedQuery(
-        supabase.from("feed_items").update({ status: "archived" }),
-        { userId, type, status },
-        { olderThanDays: cutoffDays, excludeArchivedAndPromoted: true },
-      ).select("id");
-
-      if (updateError) {
-        logger.error("Failed to archive matching feed items", updateError);
-        setItems(previousStoreItems);
-        if (paged) {
-          pagedItemsRef.current = previousPagedItems;
-          setPagedItems(previousPagedItems);
-          pagedTotalCountRef.current = previousPagedCount;
-          setPagedTotalCount(previousPagedCount);
-          setPagedError(
-            toFeedErrorMessage(updateError, FEED_MUTATION_ERROR_MESSAGE),
-          );
-        }
-        const message = toFeedErrorMessage(
-          updateError,
-          FEED_MUTATION_ERROR_MESSAGE,
-        );
-        setError(message);
-        toast.error(message);
-        return false;
-      }
-
-      toast.success(
-        `${archiveCount} feed item${archiveCount === 1 ? "" : "s"} archived`,
-      );
-      if (paged) void fetchPagedFeedItems(null);
-      return true;
     },
     [fetchPagedFeedItems, paged, setError, setItems, status, type, userId],
   );
@@ -991,6 +1220,95 @@ export function useFeedItems(
             `Promote "${current.title}" to ${target}? This creates a new ${target}.`,
           );
         if (!confirmed) return null;
+
+        if (target === "paper") {
+          const { data: papers, error: papersError } = await supabase
+            .from("papers")
+            .select("id, doi, source_url, title, authors")
+            .eq("user_id", userId);
+          if (!papersError) {
+            const existing = (
+              (papers ?? []) as Array<{
+                id: string;
+                doi?: string | null;
+                source_url?: string | null;
+                title?: string;
+                authors?: string[];
+              }>
+            ).find((paper) => paperMatchesFeedItem(paper, current));
+            if (existing) {
+              const payload = {
+                ...(isRecord(current.payload) ? current.payload : {}),
+                promotion: {
+                  target,
+                  entity_id: existing.id,
+                  promoted_at: new Date().toISOString(),
+                },
+              };
+              const { data: updatedItem, error: linkError } = await supabase
+                .from("feed_items")
+                .update({ status: "promoted", payload })
+                .eq("id", itemId)
+                .eq("user_id", userId)
+                .select("*")
+                .single();
+              if (linkError || !updatedItem) {
+                const message = toFeedErrorMessage(
+                  linkError,
+                  "Failed to promote feed item",
+                );
+                toast.error(message);
+                if (paged) setPagedError(message);
+                setError(message);
+                return null;
+              }
+              const promotedItem = updatedItem as FeedItem;
+              const previousStatus = current.status;
+              const applyPromoted = (prev: FeedItem[]) =>
+                sortFeedItems(
+                  prev.map((item) =>
+                    item.id === promotedItem.id ? promotedItem : item,
+                  ),
+                );
+              setItems((prev) => {
+                const sorted = applyPromoted(prev);
+                void persistFeedCache(sorted);
+                return sorted;
+              });
+              if (paged) {
+                setPagedItems((prev) => {
+                  const next = applyPromoted(prev);
+                  pagedItemsRef.current = next;
+                  return next;
+                });
+                if (status !== "all" && status !== "promoted") {
+                  const nextItems = pagedItemsRef.current.filter(
+                    (item) => item.id !== itemId,
+                  );
+                  pagedItemsRef.current = nextItems;
+                  setPagedItems(nextItems);
+                  const nextCount = Math.max(0, pagedTotalCountRef.current - 1);
+                  pagedTotalCountRef.current = nextCount;
+                  setPagedTotalCount(nextCount);
+                }
+              }
+              toast.success(`Promoted to ${target}`, {
+                description:
+                  "Linked an existing paper. Undo reverts the feed status; the paper is kept.",
+                action: {
+                  label: "Undo",
+                  onClick: () => {
+                    void updateFeedItemStatus(
+                      itemId,
+                      previousStatus === "triaged" ? "triaged" : "new",
+                    );
+                  },
+                },
+              });
+              return { target, entity: existing, item: promotedItem };
+            }
+          }
+        }
 
         const {
           data: { session },

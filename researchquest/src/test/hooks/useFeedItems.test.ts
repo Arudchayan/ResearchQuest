@@ -11,6 +11,7 @@ import {
   feedItemsKeysetOrFilter,
   getApiBaseUrl,
   mergeRealtimeFeedItem,
+  paperMatchesFeedItem,
   useFeedItems,
 } from "../../hooks/useFeedItems";
 import { useFeedItemsStore } from "../../store/feedItemsStore";
@@ -294,10 +295,183 @@ describe("mergeRealtimeFeedItem", () => {
     const result = mergeRealtimeFeedItem([existing], {
       eventType: "UPDATE",
       new: { ...existing, status: "archived" },
-      old: { id: existing.id },
+      old: { id: existing.id, type: existing.type, status: existing.status },
     }, { type: "all", status: "new", userId: "user-1" });
     expect(result.items).toEqual([]);
     expect(result.countDelta).toBe(-1);
+    expect(result.refetchCount).toBe(false);
+  });
+
+  it("merges an insert inside the loaded window and still bumps the total", () => {
+    const tail = createFeedItem({
+      id: "item-100",
+      published_at: "2026-08-01T00:00:00.000Z",
+      created_at: "2026-08-01T00:00:00.000Z",
+    });
+    const incoming = createFeedItem({
+      id: "item-new",
+      published_at: "2026-09-27T12:00:00.000Z",
+    });
+    const result = mergeRealtimeFeedItem([existing, tail], {
+      eventType: "INSERT",
+      new: incoming,
+      old: null,
+    }, {
+      type: "all",
+      status: "new",
+      userId: "user-1",
+      hasMore: true,
+      windowTail: {
+        published_at: tail.published_at ?? null,
+        created_at: tail.created_at,
+        id: tail.id,
+      },
+    });
+    expect(result.items.map((item) => item.id)).toEqual([
+      "item-new",
+      "item-1",
+      "item-100",
+    ]);
+    expect(result.countDelta).toBe(1);
+    expect(result.items[result.items.length - 1]?.id).toBe("item-100");
+  });
+
+  it("does not append an insert below the window; total still +1 and cursor tail stays put", () => {
+    const tail = createFeedItem({
+      id: "item-100",
+      published_at: "2026-08-01T00:00:00.000Z",
+      created_at: "2026-08-01T00:00:00.000Z",
+    });
+    const older = createFeedItem({
+      id: "item-400",
+      published_at: "2026-03-13T00:00:00.000Z",
+      created_at: "2026-07-22T08:03:00.000Z",
+    });
+    const result = mergeRealtimeFeedItem([existing, tail], {
+      eventType: "INSERT",
+      new: older,
+      old: null,
+    }, {
+      type: "all",
+      status: "new",
+      userId: "user-1",
+      hasMore: true,
+      windowTail: {
+        published_at: tail.published_at ?? null,
+        created_at: tail.created_at,
+        id: tail.id,
+      },
+    });
+    expect(result.items.map((item) => item.id)).toEqual(["item-1", "item-100"]);
+    expect(result.countDelta).toBe(1);
+    expect(result.items[result.items.length - 1]?.id).toBe("item-100");
+  });
+
+  it("does not append a NULL published_at insert below a dated window", () => {
+    const tail = createFeedItem({
+      id: "item-100",
+      published_at: "2026-08-01T00:00:00.000Z",
+    });
+    const nullPublished = createFeedItem({
+      id: "item-null",
+      published_at: null,
+      created_at: "2026-09-28T11:00:00.000Z",
+    });
+    const result = mergeRealtimeFeedItem([existing, tail], {
+      eventType: "INSERT",
+      new: nullPublished,
+      old: null,
+    }, {
+      type: "all",
+      status: "new",
+      userId: "user-1",
+      hasMore: true,
+      windowTail: {
+        published_at: tail.published_at ?? null,
+        created_at: tail.created_at,
+        id: tail.id,
+      },
+    });
+    expect(result.items.map((item) => item.id)).toEqual(["item-1", "item-100"]);
+    expect(result.countDelta).toBe(1);
+  });
+
+  it("adds +1 when an off-window UPDATE enters the filter, without splicing it below the tail", () => {
+    const tail = createFeedItem({
+      id: "item-100",
+      published_at: "2026-08-01T00:00:00.000Z",
+    });
+    const incoming = createFeedItem({
+      id: "item-off",
+      published_at: "2026-03-13T00:00:00.000Z",
+      status: "new",
+    });
+    const result = mergeRealtimeFeedItem([existing, tail], {
+      eventType: "UPDATE",
+      new: incoming,
+      old: { id: incoming.id, type: "paper", status: "triaged" },
+    }, {
+      type: "all",
+      status: "new",
+      userId: "user-1",
+      hasMore: true,
+      windowTail: {
+        published_at: tail.published_at ?? null,
+        created_at: tail.created_at,
+        id: tail.id,
+      },
+    });
+    expect(result.items.map((item) => item.id)).toEqual(["item-1", "item-100"]);
+    expect(result.countDelta).toBe(1);
+    expect(result.refetchCount).toBe(false);
+  });
+
+  it("subtracts 1 when an off-window UPDATE leaves the filter", () => {
+    const result = mergeRealtimeFeedItem([existing], {
+      eventType: "UPDATE",
+      new: { ...existing, id: "item-off", status: "triaged" },
+      old: { id: "item-off", type: "paper", status: "new" },
+    }, { type: "all", status: "new", userId: "user-1" });
+    expect(result.items).toEqual([existing]);
+    expect(result.countDelta).toBe(-1);
+    expect(result.refetchCount).toBe(false);
+  });
+
+  it("applies no count delta when an off-window UPDATE stays in the filter", () => {
+    const offWindow = createFeedItem({
+      id: "item-off",
+      published_at: "2026-03-13T00:00:00.000Z",
+      title: "Edited title",
+    });
+    const result = mergeRealtimeFeedItem([existing], {
+      eventType: "UPDATE",
+      new: offWindow,
+      old: { id: offWindow.id, type: "paper", status: "new" },
+    }, {
+      type: "all",
+      status: "new",
+      userId: "user-1",
+      hasMore: true,
+      windowTail: {
+        published_at: existing.published_at ?? null,
+        created_at: existing.created_at,
+        id: existing.id,
+      },
+    });
+    expect(result.items).toEqual([existing]);
+    expect(result.countDelta).toBe(0);
+    expect(result.refetchCount).toBe(false);
+  });
+
+  it("refetches the head count when an UPDATE old payload lacks filter columns", () => {
+    const result = mergeRealtimeFeedItem([existing], {
+      eventType: "UPDATE",
+      new: { ...existing, title: "Edited" },
+      old: { id: existing.id },
+    }, { type: "all", status: "new", userId: "user-1" });
+    expect(result.items[0]?.title).toBe("Edited");
+    expect(result.countDelta).toBe(0);
+    expect(result.refetchCount).toBe(true);
   });
 });
 
@@ -326,6 +500,41 @@ describe("buildPromotePaperFields", () => {
       }),
     );
     expect(fields.source_url).toBe("https://arxiv.org/abs/2305.14552");
+  });
+
+  it("sends an empty authors list when the arXiv item has none", () => {
+    const fields = buildPromotePaperFields(
+      createFeedItem({
+        payload: { arxiv_id: "2609.31121" },
+        url: "https://arxiv.org/abs/2609.31121",
+      }),
+    );
+    expect(fields.authors).toEqual([]);
+  });
+});
+
+describe("paperMatchesFeedItem", () => {
+  it("matches an existing library paper by normalized arXiv id", () => {
+    const item = createFeedItem();
+    expect(
+      paperMatchesFeedItem(
+        { doi: null, source_url: "https://arxiv.org/pdf/1706.03762.pdf" },
+        item,
+      ),
+    ).toBe(true);
+  });
+
+  it("matches an existing library paper by DOI", () => {
+    const item = createFeedItem({
+      payload: { doi: "https://doi.org/10.1234/test" },
+      url: "https://example.com/other",
+    });
+    expect(
+      paperMatchesFeedItem(
+        { doi: "10.1234/test", source_url: null },
+        item,
+      ),
+    ).toBe(true);
   });
 });
 
@@ -389,6 +598,16 @@ describe("useFeedItems paged inbox", () => {
       data: { session: { access_token: "session-token" } },
       error: null,
     });
+    mockSupabaseClient.channel.mockReset();
+    mockSupabaseClient.channel.mockImplementation((_channelName: string) => ({
+      on: vi.fn().mockReturnThis(),
+      subscribe: vi.fn((callback?: (status: string) => void) => {
+        if (typeof callback === "function") callback("SUBSCRIBED");
+        return { unsubscribe: vi.fn() };
+      }),
+      unsubscribe: vi.fn(),
+    }));
+    mockSupabaseClient.from.mockReset();
   });
 
   afterEach(() => {
@@ -574,5 +793,301 @@ describe("useFeedItems paged inbox", () => {
       await second;
     });
     confirmSpy.mockRestore();
+  });
+
+  it("pins Load older to the last server page after an off-window realtime insert", async () => {
+    const newest = createFeedItem({
+      id: "item-1",
+      published_at: "2026-09-20T12:00:00.000Z",
+    });
+    const older = createFeedItem({
+      id: "item-2",
+      published_at: "2026-01-01T00:00:00.000Z",
+    });
+    const belowWindow = createFeedItem({
+      id: "item-400",
+      published_at: "2026-03-13T00:00:00.000Z",
+    });
+    const listBuilders: ReturnType<typeof createBuilder>[] = [];
+    mockSupabaseClient.from.mockImplementation(() => {
+      const next = createBuilder({
+        data: listBuilders.length === 0
+          ? [newest]
+          : listBuilders.length === 1
+          ? []
+          : [older],
+        count: listBuilders.length === 1 ? 3 : null,
+      });
+      listBuilders.push(next);
+      return next;
+    });
+    let inboxHandler:
+      | ((payload: {
+          eventType: string;
+          new: FeedItem | null;
+          old: { id?: unknown } | null;
+        }) => void)
+      | undefined;
+    mockSupabaseClient.channel.mockImplementation(() => {
+      const channel = {
+        on: vi.fn((
+          _event: string,
+          _config: unknown,
+          callback: typeof inboxHandler,
+        ) => {
+          inboxHandler = callback;
+          return channel;
+        }),
+        subscribe: vi.fn((cb?: (status: string) => void) => {
+          cb?.("SUBSCRIBED");
+          return channel;
+        }),
+        unsubscribe: vi.fn(),
+      };
+      return channel;
+    });
+
+    const { result } = renderHook(() =>
+      useFeedItems("user-1", { type: "all", status: "new", paged: true }),
+    );
+    await waitFor(() => {
+      expect(result.current.items).toHaveLength(1);
+      expect(result.current.totalCount).toBe(3);
+    });
+
+    act(() => {
+      inboxHandler?.({
+        eventType: "INSERT",
+        new: belowWindow,
+        old: null,
+      });
+    });
+
+    expect(result.current.items.map((item) => item.id)).toEqual(["item-1"]);
+    expect(result.current.totalCount).toBe(4);
+
+    await act(async () => {
+      await result.current.loadOlderFeedItems();
+    });
+
+    const keysetBuilder = listBuilders.find((builder) =>
+      builder.calls.some((call) => call[0] === "or"),
+    );
+    expect(String(keysetBuilder?.calls.find((call) => call[0] === "or")?.[1])).toContain(
+      "item-1",
+    );
+    expect(String(keysetBuilder?.calls.find((call) => call[0] === "or")?.[1])).not.toContain(
+      "item-400",
+    );
+    expect(result.current.totalCount).toBe(4);
+  });
+
+  it("does not replace the server total with the loaded length when a page is empty", async () => {
+    const newest = createFeedItem({ id: "item-1" });
+    let listCalls = 0;
+    mockSupabaseClient.from.mockImplementation(() => {
+      listCalls += 1;
+      if (listCalls === 1) return createBuilder({ data: [newest] });
+      if (listCalls === 2) return createBuilder({ data: [], count: 851 });
+      return createBuilder({ data: [] });
+    });
+
+    const { result } = renderHook(() =>
+      useFeedItems("user-1", { type: "all", status: "new", paged: true }),
+    );
+    await waitFor(() => {
+      expect(result.current.totalCount).toBe(851);
+    });
+
+    await act(async () => {
+      await result.current.loadOlderFeedItems();
+    });
+
+    expect(result.current.items).toHaveLength(1);
+    expect(result.current.totalCount).toBe(851);
+  });
+
+  it("toasts a Load older failure and keeps the loaded page", async () => {
+    const newest = createFeedItem({ id: "item-1" });
+    let listCalls = 0;
+    mockSupabaseClient.from.mockImplementation(() => {
+      listCalls += 1;
+      if (listCalls === 1) return createBuilder({ data: [newest] });
+      if (listCalls === 2) return createBuilder({ data: [], count: 200 });
+      return createBuilder({
+        data: null,
+        error: { message: "n.or is not a function" },
+      });
+    });
+
+    const { result } = renderHook(() =>
+      useFeedItems("user-1", { type: "all", status: "new", paged: true }),
+    );
+    await waitFor(() => {
+      expect(result.current.items).toHaveLength(1);
+    });
+
+    await act(async () => {
+      await result.current.loadOlderFeedItems();
+    });
+
+    expect(result.current.items).toEqual([newest]);
+    expect(result.current.error).toMatch(/n\.or is not a function/i);
+    expect(toast.error).toHaveBeenCalled();
+  });
+
+  it("freezes the older-than cutoff and toasts the actual updated row count", async () => {
+    const item = createFeedItem();
+    const builders: ReturnType<typeof createBuilder>[] = [];
+    mockSupabaseClient.from.mockImplementation(() => {
+      const next = builders.length === 0
+        ? createBuilder({ data: [item] })
+        : builders.length === 1
+        ? createBuilder({ data: [], count: 1 })
+        : builders.length === 2
+        ? createBuilder({ data: [], count: 3 })
+        : createBuilder({ data: [{ id: "a" }, { id: "b" }] });
+      builders.push(next);
+      return next;
+    });
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    const { result } = renderHook(() =>
+      useFeedItems("user-1", { type: "all", status: "new", paged: true }),
+    );
+    await waitFor(() => {
+      expect(result.current.totalCount).toBe(1);
+    });
+
+    await act(async () => {
+      await result.current.archiveMatchingFeedItems(7);
+    });
+
+    const orFilters = builders
+      .map((builder) => builder.calls.find((call) => call[0] === "or")?.[1])
+      .filter((value): value is string => typeof value === "string");
+    expect(orFilters.length).toBeGreaterThanOrEqual(2);
+    expect(orFilters[0]).toBe(orFilters[1]);
+    expect(toast.success).toHaveBeenCalledWith(
+      expect.stringMatching(/2 feed items archived/i),
+    );
+    confirmSpy.mockRestore();
+  });
+
+  it("toasts and rolls back when archiveMatchingFeedItems throws", async () => {
+    const item = createFeedItem();
+    mockSupabaseClient.from.mockImplementation(() => {
+      const builder = createBuilder({ data: [item], count: 1 });
+      builder.select = vi.fn(() => {
+        throw new Error("n.or is not a function");
+      });
+      return builder;
+    });
+
+    const { result } = renderHook(() =>
+      useFeedItems("user-1", { type: "all", status: "new", paged: true }),
+    );
+
+    let archived = true;
+    await act(async () => {
+      archived = await result.current.archiveMatchingFeedItems(7);
+    });
+
+    expect(archived).toBe(false);
+    expect(toast.error).toHaveBeenCalled();
+    expect(result.current.error).toMatch(/n\.or is not a function/i);
+  });
+
+  it("reuses an existing paper by arXiv id instead of inserting a duplicate", async () => {
+    const item = createFeedItem();
+    const existingPaper = {
+      id: "paper-existing",
+      doi: null,
+      source_url: "https://arxiv.org/abs/1706.03762",
+      title: "Attention Is All You Need",
+      authors: ["Ashish Vaswani"],
+    };
+    const promotedItem = {
+      ...item,
+      status: "promoted" as const,
+      payload: {
+        ...item.payload,
+        promotion: { target: "paper", entity_id: "paper-existing" },
+      },
+    };
+    let feedCalls = 0;
+    mockSupabaseClient.from.mockImplementation((table?: string) => {
+      if (table === "papers") {
+        return createBuilder({ data: [existingPaper] });
+      }
+      feedCalls += 1;
+      if (feedCalls === 1) return createBuilder({ data: [item] });
+      if (feedCalls === 2) return createBuilder({ data: [], count: 1 });
+      return createBuilder({ data: promotedItem });
+    });
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    const { result } = renderHook(() =>
+      useFeedItems("user-1", { type: "all", status: "new", paged: true }),
+    );
+    await waitFor(() => {
+      expect(result.current.items).toHaveLength(1);
+    });
+
+    let promoted: unknown = "unset";
+    await act(async () => {
+      promoted = await result.current.promoteFeedItem("item-1", "paper");
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(promoted).toMatchObject({
+      target: "paper",
+      entity: expect.objectContaining({ id: "paper-existing" }),
+    });
+    confirmSpy.mockRestore();
+  });
+
+  it("ignores a stale filter response after a quicker later request", async () => {
+    const newItem = createFeedItem({ id: "new-1", status: "new" });
+    const jobItem = createFeedItem({
+      id: "job-1",
+      type: "job",
+      title: "Hiring",
+    });
+    let resolveNewList: ((value: unknown) => void) | undefined;
+    const newListPromise = new Promise((resolve) => {
+      resolveNewList = resolve;
+    });
+    let listCalls = 0;
+    mockSupabaseClient.from.mockImplementation(() => {
+      listCalls += 1;
+      if (listCalls === 1) {
+        const builder = createBuilder({ data: [newItem] });
+        builder.then = (onFulfilled?: (value: unknown) => unknown) =>
+          newListPromise.then(onFulfilled);
+        return builder;
+      }
+      if (listCalls === 2) {
+        return createBuilder({ data: [jobItem] });
+      }
+      return createBuilder({ data: [], count: 1 });
+    });
+
+    const { result, rerender } = renderHook(
+      ({ type }: { type: "all" | "job" }) =>
+        useFeedItems("user-1", { type, status: "new", paged: true }),
+      { initialProps: { type: "all" as const } },
+    );
+
+    rerender({ type: "job" });
+    await waitFor(() => {
+      expect(result.current.items[0]?.id).toBe("job-1");
+    });
+
+    await act(async () => {
+      resolveNewList?.({ data: [newItem], error: null, count: null });
+    });
+
+    expect(result.current.items.map((item) => item.id)).toEqual(["job-1"]);
   });
 });

@@ -319,6 +319,74 @@ function projectRow(row: Row, select: string): Row {
   return projected;
 }
 
+function splitTopLevel(input: string): string[] {
+  const parts: string[] = [];
+  let current = "";
+  let depth = 0;
+  let inQuotes = false;
+  for (let i = 0; i < input.length; i++) {
+    const char = input[i];
+    if (char === '"' && input[i - 1] !== "\\") {
+      inQuotes = !inQuotes;
+      current += char;
+      continue;
+    }
+    if (!inQuotes) {
+      if (char === "(") depth += 1;
+      else if (char === ")") depth -= 1;
+      else if (char === "," && depth === 0) {
+        parts.push(current.trim());
+        current = "";
+        continue;
+      }
+    }
+    current += char;
+  }
+  if (current.trim()) parts.push(current.trim());
+  return parts;
+}
+
+function parsePostgrestValue(raw: string): unknown {
+  const trimmed = raw.trim();
+  if (trimmed === "null") return null;
+  if (trimmed === "true") return true;
+  if (trimmed === "false") return false;
+  if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+    return trimmed.slice(1, -1).replace(/\\"/g, '"').replace(/\\\\/g, "\\");
+  }
+  return trimmed;
+}
+
+function parseScalarCondition(raw: string): {
+  column: string;
+  operator: string;
+  value: unknown;
+} {
+  const match = raw.match(
+    /^([a-zA-Z0-9_]+)\.(eq|neq|lt|lte|gt|gte|is)\.(.*)$/,
+  );
+  if (!match) {
+    return { column: raw, operator: "eq", value: raw };
+  }
+  return {
+    column: match[1],
+    operator: match[2],
+    value: parsePostgrestValue(match[3]),
+  };
+}
+
+function parseOrGroups(filters: string): Array<
+  Array<{ column: string; operator: string; value: unknown }>
+> {
+  return splitTopLevel(filters).map((part) => {
+    const andMatch = part.match(/^and\((.*)\)$/s);
+    if (andMatch) {
+      return splitTopLevel(andMatch[1]).map(parseScalarCondition);
+    }
+    return [parseScalarCondition(part)];
+  });
+}
+
 class DemoQuery {
   private tableName: TableName;
   private operation: "read" | "insert" | "upsert" | "update" | "delete" = "read";
@@ -331,6 +399,9 @@ class DemoQuery {
     value: unknown;
     negatedValue?: unknown;
   }> = [];
+  private orClauses: Array<
+    Array<Array<{ column: string; operator: string; value: unknown }>>
+  > = [];
   private sorts: Array<{ column: string; ascending: boolean; nullsFirst: boolean }> = [];
   private rangeStart: number | null = null;
   private rangeEnd: number | null = null;
@@ -361,6 +432,16 @@ class DemoQuery {
 
   neq(column: string, value: unknown): this {
     this.filters.push({ column, operator: "neq", value });
+    return this;
+  }
+
+  or(filters: string): this {
+    this.orClauses.push(parseOrGroups(filters));
+    return this;
+  }
+
+  is(column: string, value: unknown): this {
+    this.filters.push({ column, operator: "is", value });
     return this;
   }
 
@@ -474,9 +555,16 @@ class DemoQuery {
   }
 
   private filteredRows(): Row[] {
-    return (tables[this.tableName] ?? []).filter((row) =>
-      this.filters.every((filter) => matchesFilter(row, filter)),
-    );
+    return (tables[this.tableName] ?? []).filter((row) => {
+      if (!this.filters.every((filter) => matchesFilter(row, filter))) {
+        return false;
+      }
+      return this.orClauses.every((clause) =>
+        clause.some((group) =>
+          group.every((filter) => matchesFilter(row, filter)),
+        ),
+      );
+    });
   }
 
   private sortedRows(rows: Row[]): Row[] {

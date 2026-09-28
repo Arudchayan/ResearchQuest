@@ -220,7 +220,7 @@ export function FeedsView() {
               ))}
               <span className="sr-only">Loading feeds</span>
             </div>
-          ) : error ? (
+          ) : items.length === 0 && error ? (
             <div className="surface-card flex items-center justify-between gap-3 p-6">
               <p className="text-small text-text-secondary" role="alert">
                 {error}
@@ -263,6 +263,21 @@ export function FeedsView() {
                   onPromote={handlePromote}
                 />
               ))}
+              {error && (
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-border-moderate bg-bg-surface px-3 py-2">
+                  <p className="text-small text-text-secondary" role="alert">
+                    {error}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void loadOlderFeedItems()}
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border-moderate bg-bg-surface px-3 py-2 text-small font-medium text-text-secondary shadow-sm transition-colors hover:border-border-strong hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+                  >
+                    <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                    Retry
+                  </button>
+                </div>
+              )}
               {hasMore && (
                 <button
                   type="button"

@@ -147,4 +147,16 @@ describe("FeedsView", () => {
       screen.queryByRole("button", { name: /show all/i }),
     ).not.toBeInTheDocument();
   });
+
+  it("keeps loaded items visible when Load older fails", () => {
+    hookState.error = "n.or is not a function";
+    hookState.hasMore = true;
+    hookState.totalCount = 200;
+    render(<FeedsView />);
+
+    expect(screen.getByText("Orphan paper lead")).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent(/n\.or is not a function/i);
+    expect(screen.getByRole("button", { name: /retry/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /load older/i })).toBeInTheDocument();
+  });
 });
