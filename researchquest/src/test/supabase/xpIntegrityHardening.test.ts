@@ -151,7 +151,7 @@ describe("1765800000 xp integrity hardening (static)", () => {
     expect(award).toMatch(/streak_credit_at/i);
     expect(award).toMatch(/streak_prev_inc_at/i);
     expect(award).toMatch(
-      /v_gap\s*=\s*1[\s\S]{0,400}v_tz_set_at\s*:=\s*v_now/i,
+      /v_gap\s*=\s*1[\s\S]{0,1200}v_new_streak\s*:=\s*v_new_streak\s*\+\s*1[\s\S]{0,250}v_tz_set_at\s*:=\s*v_now/i,
     );
     expect(award).toMatch(/-\s*720/i);
     expect(award).toMatch(/840/i);
