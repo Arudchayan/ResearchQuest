@@ -27,6 +27,13 @@
 --   may wait up to ~22h for a real miss; award_xp enforces its own
 --   liveness. Boost expiry still uses now(), matching the live body.
 --
+-- CREDIT
+--   gap=2 freeze and rest-day UPDATEs also set
+--   streak_credit_at = public.xp_server_now(). award_xp's 48h liveness
+--   (e = now - credit_at) would otherwise treat the same missed day as
+--   a second freeze/reset when the user claims the next local day.
+--   The zeroing path does not touch streak_credit_at.
+--
 -- RACE
 --   The FOR loop snapshots each profile row. award_xp can consume a freeze
 --   and set last=D after that read. The three per-user UPDATEs therefore
@@ -140,7 +147,8 @@ BEGIN
         UPDATE public.user_profiles
         SET
           streak_freeze_tokens = freeze_tokens - 1,
-          last_activity_date = local_today_min - 1
+          last_activity_date = local_today_min - 1,
+          streak_credit_at = public.xp_server_now()
         WHERE id = profile.id
           AND last_activity_date IS NOT DISTINCT FROM profile.last_activity_date
           AND streak_freeze_tokens = profile.streak_freeze_tokens;
@@ -148,7 +156,8 @@ BEGIN
         UPDATE public.user_profiles
         SET
           rest_days = rest_tokens - 1,
-          last_activity_date = local_today_min - 1
+          last_activity_date = local_today_min - 1,
+          streak_credit_at = public.xp_server_now()
         WHERE id = profile.id
           AND last_activity_date IS NOT DISTINCT FROM profile.last_activity_date
           AND rest_days = profile.rest_days;

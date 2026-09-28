@@ -12,6 +12,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   PG17_AVAILABLE,
   USER_A,
+  awardXp,
   resetUser,
   resetXpNow,
   setXpNow,
@@ -58,6 +59,7 @@ type ProfileRow = {
   last_activity_date: string | null;
   streak_freeze_tokens: number;
   rest_days: number;
+  streak_credit_at: string | null;
   active_boost: { expires_at?: string } | null;
 };
 
@@ -131,6 +133,9 @@ describe("1765900000 evaluate_user_streaks local day (static)", () => {
     expect(rest).toMatch(/rest_days\s*=\s*profile\.rest_days/i);
     expect(zero).not.toMatch(/streak_freeze_tokens\s*=\s*profile\.streak_freeze_tokens/i);
     expect(zero).not.toMatch(/rest_days\s*=\s*profile\.rest_days/i);
+    expect(freeze).toMatch(/streak_credit_at\s*=\s*public\.xp_server_now\s*\(\s*\)/i);
+    expect(rest).toMatch(/streak_credit_at\s*=\s*public\.xp_server_now\s*\(\s*\)/i);
+    expect(zero).not.toMatch(/streak_credit_at/i);
   });
 
   it("keeps active_boost expiry cleanup and revokes client EXECUTE", () => {
@@ -185,7 +190,8 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
   function readProfile(): ProfileRow {
     return replica.jsonAs<ProfileRow>(
       USER_A,
-      `SELECT current_streak, last_activity_date, streak_freeze_tokens, rest_days, active_boost
+      `SELECT current_streak, last_activity_date, streak_freeze_tokens, rest_days,
+              streak_credit_at, active_boost
        FROM public.user_profiles WHERE id = '${USER_A}'`,
     );
   }
@@ -197,11 +203,25 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
     rest?: number;
     tzLo: number | null;
     tzHi?: number | null;
+    creditAt?: string | null;
+    setAt?: string | null;
   }): void {
     const last = opts.lastActivity === null ? "NULL" : `'${opts.lastActivity}'::date`;
     const tzLo = opts.tzLo === null ? "NULL" : String(opts.tzLo);
     const tzHi =
       opts.tzHi === undefined ? tzLo : opts.tzHi === null ? "NULL" : String(opts.tzHi);
+    const creditAt =
+      opts.creditAt === undefined
+        ? "streak_credit_at"
+        : opts.creditAt === null
+          ? "NULL"
+          : `TIMESTAMPTZ '${opts.creditAt}'`;
+    const setAt =
+      opts.setAt === undefined
+        ? "public.xp_server_now()"
+        : opts.setAt === null
+          ? "NULL"
+          : `TIMESTAMPTZ '${opts.setAt}'`;
     replica.exec(`
       UPDATE public.user_profiles
       SET current_streak = ${opts.streak ?? 5},
@@ -211,7 +231,8 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
           rest_days = ${opts.rest ?? 0},
           streak_tz_lo_min = ${tzLo},
           streak_tz_hi_min = ${tzHi},
-          streak_tz_set_at = public.xp_server_now()
+          streak_tz_set_at = ${setAt},
+          streak_credit_at = ${creditAt}
       WHERE id = '${USER_A}';
     `);
   }
@@ -361,6 +382,81 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
     expect(row.current_streak).toBe(8);
     expect(row.last_activity_date).toBe("2026-01-15");
     expect(row.streak_freeze_tokens).toBe(0);
+  });
+
+  it("nightly freeze stamps streak_credit_at so the next-day award_xp claim spends no second token", () => {
+    // last=Sun 7, credit_at ~58h before the claim. UTC-12 closes Mon 8 at 12:00Z
+    // Tue; 12:05Z Tue is 00:05 UTC-12 Wed (gap=2). Without stamping credit_at,
+    // award_xp would see g=1 and e>=48h and freeze/reset again.
+    const afterUtc12Closed = "2026-06-09T12:05:00.000Z";
+    const lastActiveAt = "2026-06-07T02:00:00.000Z";
+    const claimAt = "2026-06-09T13:00:00.000Z";
+    seed({
+      lastActivity: "2026-06-07",
+      streak: 9,
+      freeze: 1,
+      rest: 0,
+      tzLo: 600,
+      creditAt: lastActiveAt,
+      setAt: lastActiveAt,
+    });
+    setXpNow(replica, afterUtc12Closed);
+    replica.exec("SELECT public.evaluate_user_streaks();");
+    let row = readProfile();
+    expect(row.current_streak).toBe(9);
+    expect(row.streak_freeze_tokens).toBe(0);
+    expect(row.rest_days).toBe(0);
+    expect(row.last_activity_date).toBe("2026-06-08");
+    expect(new Date(row.streak_credit_at ?? "").toISOString()).toBe(afterUtc12Closed);
+
+    setXpNow(replica, claimAt);
+    const awarded = awardXp(replica, USER_A, 10, "create_note", {
+      entityId: "after-nightly-freeze",
+      localDay: "2026-06-09",
+    });
+    expect(awarded.current_streak).toBe(10);
+    expect(awarded.streak_freeze_tokens).toBe(0);
+    row = readProfile();
+    expect(row.current_streak).toBe(10);
+    expect(row.streak_freeze_tokens).toBe(0);
+    expect(row.rest_days).toBe(0);
+    expect(row.last_activity_date).toBe("2026-06-09");
+  });
+
+  it("nightly rest-day stamp also prevents award_xp from resetting on the next local day", () => {
+    const afterUtc12Closed = "2026-06-09T12:05:00.000Z";
+    const lastActiveAt = "2026-06-07T02:00:00.000Z";
+    const claimAt = "2026-06-09T13:00:00.000Z";
+    seed({
+      lastActivity: "2026-06-07",
+      streak: 9,
+      freeze: 0,
+      rest: 1,
+      tzLo: 600,
+      creditAt: lastActiveAt,
+      setAt: lastActiveAt,
+    });
+    setXpNow(replica, afterUtc12Closed);
+    replica.exec("SELECT public.evaluate_user_streaks();");
+    let row = readProfile();
+    expect(row.current_streak).toBe(9);
+    expect(row.streak_freeze_tokens).toBe(0);
+    expect(row.rest_days).toBe(0);
+    expect(row.last_activity_date).toBe("2026-06-08");
+    expect(new Date(row.streak_credit_at ?? "").toISOString()).toBe(afterUtc12Closed);
+
+    setXpNow(replica, claimAt);
+    const awarded = awardXp(replica, USER_A, 10, "create_note", {
+      entityId: "after-nightly-rest",
+      localDay: "2026-06-09",
+    });
+    expect(awarded.current_streak).toBe(10);
+    expect(awarded.streak_freeze_tokens).toBe(0);
+    row = readProfile();
+    expect(row.current_streak).toBe(10);
+    expect(row.streak_freeze_tokens).toBe(0);
+    expect(row.rest_days).toBe(0);
+    expect(row.last_activity_date).toBe("2026-06-09");
   });
 
   it("does not overwrite last_activity_date when award_xp raced after the snapshot", () => {
