@@ -28,7 +28,7 @@ BEGIN
     streak_freeze_tokens=fr, rest_days=rd,
     streak_tz_lo_min=lo, streak_tz_hi_min=hi,
     streak_tz_set_at=sa, streak_credit_at=sa,
-    streak_inc_at=NULL, streak_prev_inc_at=NULL, active_boost=NULL
+    streak_inc_at=NULL, streak_prev_inc_at=NULL, streak_pending_date=NULL, active_boost=NULL
   WHERE id=u;
 END
 $f$;

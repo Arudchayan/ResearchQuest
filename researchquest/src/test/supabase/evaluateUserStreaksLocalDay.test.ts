@@ -57,6 +57,44 @@ const N2A_TZ_MIN: Record<string, number> = {
   "Etc/GMT+12": -720,
 };
 
+type N2Kind = "freeze" | "rest";
+type N2Row = { tz: string; t: string; kind: N2Kind; k: number; n: number };
+
+const N2_TIMES = ["00:30", "12:00", "23:30"] as const;
+const N2A_KN = [
+  [1, 1],
+  [1, 2],
+  [1, 3],
+  [2, 2],
+  [2, 3],
+  [3, 3],
+] as const;
+const N2B_KN = [
+  [1, 0],
+  [2, 0],
+  [2, 1],
+  [3, 0],
+  [3, 1],
+  [3, 2],
+] as const;
+
+function n2Grid(kn: readonly (readonly [number, number])[]): N2Row[] {
+  const rows: N2Row[] = [];
+  for (const tz of Object.keys(N2A_TZ_MIN)) {
+    for (const t of N2_TIMES) {
+      for (const kind of ["freeze", "rest"] as const) {
+        for (const [k, n] of kn) {
+          rows.push({ tz, t, kind, k, n });
+        }
+      }
+    }
+  }
+  return rows;
+}
+
+const N2A_ALL = n2Grid(N2A_KN);
+const N2B_ALL = n2Grid(N2B_KN);
+
 const CRON_005Z = "2026-06-09T00:05:00.000Z";
 const NEXT_CRON_005Z = "2026-06-10T00:05:00.000Z";
 const C3 = [
@@ -280,7 +318,8 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
           streak_tz_lo_min = ${tzLo},
           streak_tz_hi_min = ${tzHi},
           streak_tz_set_at = ${setAt},
-          streak_credit_at = ${creditAt}
+          streak_credit_at = ${creditAt},
+          streak_pending_date = NULL
       WHERE id = '${USER_A}';
     `);
   }
@@ -295,6 +334,50 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
   function claim(atIso: string, localDay: string, entity: string) {
     setXpNow(replica, atIso);
     return awardXp(replica, USER_A, 10, "create_note", { entityId: entity, localDay });
+  }
+
+  function n2Probe(row: N2Row, tag: string) {
+    const tzMin = N2A_TZ_MIN[row.tz];
+    if (tzMin === undefined) throw new Error(`unknown N2 tz ${row.tz}`);
+    const ld = addDays("2026-10-13", row.k + 1);
+    const [hh, mm] = row.t.split(":").map(Number);
+    const credit = utcIsoFromLocal("2026-10-13", 12, tzMin);
+    const claimAt = utcIsoFromLocal(ld, hh, tzMin, mm);
+    const crons: string[] = [];
+    for (const d of [
+      "2026-10-14",
+      "2026-10-15",
+      "2026-10-16",
+      "2026-10-17",
+      "2026-10-18",
+      "2026-10-19",
+    ]) {
+      const cron = `${d}T00:05:00.000Z`;
+      if (cron < claimAt) crons.push(cron);
+    }
+    const freeze0 = row.kind === "freeze" ? row.n : 0;
+    const rest0 = row.kind === "rest" ? row.n : 0;
+    seed({
+      lastActivity: "2026-10-13",
+      streak: 5,
+      freeze: freeze0,
+      rest: rest0,
+      tzLo: tzMin,
+      tzHi: tzMin,
+      creditAt: credit,
+      setAt: credit,
+    });
+    runCrons(crons);
+    const afterCron = readProfile();
+    const cronSpent =
+      freeze0 - afterCron.streak_freeze_tokens + (rest0 - afterCron.rest_days);
+    claim(claimAt, ld, tag);
+    const afterAward = readProfile();
+    const awardSpent =
+      afterCron.streak_freeze_tokens -
+      afterAward.streak_freeze_tokens +
+      (afterCron.rest_days - afterAward.rest_days);
+    return { ld, afterCron, afterAward, cronSpent, awardSpent, freeze0, rest0 };
   }
 
   function qaRun(body: string): string {
@@ -1056,51 +1139,44 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
     expect(row.rest_days).toBe(0);
   });
 
-  // Full QA N2a-freeze 180: 10 zones × {00:30,12:00,23:30} × (k,N) N>=k.
-  // matrix180.final.last is always return ld + 2 (sim horizon). Architect
-  // R4 confirms last_activity_date is the return day (ld in the log), s=6,
-  // exactly k tokens spent. Assert that; do not rewrite json.final.
-  it.each(N2A_MATRIX.map((row, i) => ({ ...row, i })))(
-    "N2a $tz k=$k N=$n t=$t",
-    ({ k, n, t, tz, used, log, i }) => {
-      const tzMin = N2A_TZ_MIN[tz];
-      if (tzMin === undefined) throw new Error(`unknown N2a tz ${tz}`);
-      const ld = /ld=(\d{4}-\d{2}-\d{2})/.exec(log)?.[1];
-      expect(ld).toBe(addDays("2026-10-13", k + 1));
-      if (!ld) throw new Error(`missing ld in ${log}`);
-      expect(used).toBe(k);
-      const [hh, mm] = t.split(":").map(Number);
-      const credit = utcIsoFromLocal("2026-10-13", 12, tzMin);
-      const claimAt = utcIsoFromLocal(ld, hh, tzMin, mm);
-      const crons: string[] = [];
-      for (const d of [
-        "2026-10-14",
-        "2026-10-15",
-        "2026-10-16",
-        "2026-10-17",
-        "2026-10-18",
-        "2026-10-19",
-      ]) {
-        const cron = `${d}T00:05:00.000Z`;
-        if (cron < claimAt) crons.push(cron);
-      }
-      seed({
-        lastActivity: "2026-10-13",
-        streak: 5,
-        freeze: n,
-        rest: 0,
-        tzLo: tzMin,
-        tzHi: tzMin,
-        creditAt: credit,
-        setAt: credit,
-      });
-      runCrons(crons);
-      claim(claimAt, ld, `n2a180-${i}`);
-      const row = readProfile();
-      const state = `s=${row.current_streak} last=${row.last_activity_date} frz=${row.streak_freeze_tokens} rest=${row.rest_days}`;
-      expect(state).toBe(`s=6 last=${ld} frz=${n - k} rest=0`);
-    },
-  );
+  // N2a-all: 10 zones × 3 times × {freeze,rest} × (k,N) N>=k = 360.
+  // Return day counts (s=prior+1=6); leftover tokens = N-k. Cron spends 0.
+  it.each(N2A_ALL)("N2a-all $kind $tz k=$k N=$n t=$t", (row) => {
+    const tag = `n2a-${row.kind}-${row.tz}-k${row.k}-n${row.n}-${row.t}`;
+    const { ld, afterCron, afterAward, cronSpent, awardSpent, freeze0, rest0 } =
+      n2Probe(row, tag);
+    expect(cronSpent).toBe(0);
+    expect(afterCron.streak_freeze_tokens).toBe(freeze0);
+    expect(afterCron.rest_days).toBe(rest0);
+    expect(awardSpent).toBe(row.k);
+    expect(cronSpent > 0 && awardSpent > 0).toBe(false);
+    const leftoverFrz = row.kind === "freeze" ? row.n - row.k : 0;
+    const leftoverRest = row.kind === "rest" ? row.n - row.k : 0;
+    expect(
+      `s=${afterAward.current_streak} last=${afterAward.last_activity_date} frz=${afterAward.streak_freeze_tokens} rest=${afterAward.rest_days}`,
+    ).toBe(`s=6 last=${ld} frz=${leftoverFrz} rest=${leftoverRest}`);
+  });
+
+  // N2b: N<k, 360 cases. Cron spends 0. Return resets; tokens kept.
+  it.each(N2B_ALL)("N2b $kind $tz k=$k N=$n t=$t", (row) => {
+    const tag = `n2b-${row.kind}-${row.tz}-k${row.k}-n${row.n}-${row.t}`;
+    const { ld, afterCron, afterAward, cronSpent, awardSpent, freeze0, rest0 } =
+      n2Probe(row, tag);
+    expect(cronSpent).toBe(0);
+    expect(afterCron.streak_freeze_tokens).toBe(freeze0);
+    expect(afterCron.rest_days).toBe(rest0);
+    expect(awardSpent).toBe(0);
+    expect(cronSpent > 0 && awardSpent > 0).toBe(false);
+    expect(
+      `s=${afterAward.current_streak} last=${afterAward.last_activity_date} frz=${afterAward.streak_freeze_tokens} rest=${afterAward.rest_days}`,
+    ).toBe(`s=1 last=${ld} frz=${freeze0} rest=${rest0}`);
+  });
+
+  it("N2c: 0 double spends; N2a-all=360 N2b=360", () => {
+    expect(N2A_ALL).toHaveLength(360);
+    expect(N2B_ALL).toHaveLength(360);
+    expect(N2A_MATRIX).toHaveLength(180);
+  });
 
   it.each([
     { zone: "Berlin", tz: 120, k: 2, freeze: 2, ret: "2026-10-16", insideH: 0, insideM: 30 },
