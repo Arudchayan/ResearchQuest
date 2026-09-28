@@ -18,8 +18,9 @@
 --   HARD NO: do not apply this file (or any migration) to a live database
 --   from this change. Leonidas applies it later. Must be applied AFTER
 --   1765800000 (needs user_profiles.streak_tz_lo_min and xp_server_now()).
---   #826 round 9 makes award_xp spend tokens on the return claim
---   (freeze first, then rest; m = GREATEST(1, g - 1)). This job must not.
+--   #826 round 11 makes award_xp spend tokens on the return claim
+--   (freeze first, then rest; m = GREATEST(1, p - GREATEST(last, pending)
+--   - 1), counted from the last CLAIMED date). This job must not.
 --
 -- CLOCK
 --   ZEROING uses public.xp_server_now() (clock_timestamp() in production;
@@ -33,16 +34,25 @@
 --
 -- LAZY CRON (RQ Architect)
 --   Loop only rows with last_activity_date NOT NULL and current_streak > 0.
---     missed := (UTC-12 date) - last_activity_date - 1
+--     base   := GREATEST(last_activity_date, streak_pending_date)
+--               (v2: streak_pending_date counts only when > last, exactly
+--               as award_xp reads it; GREATEST ignores NULL, and a stale
+--               pending <= last gives base = last)
+--     missed := (UTC-12 date) - base - 1
 --   Set current_streak = 0 only when
 --     missed > freeze + rest
 --     AND (streak_credit_at IS NULL OR now - credit_at >= 48h).
---   The UPDATE is guarded on last_activity_date and streak_credit_at still
---   matching the snapshot, so a concurrent award_xp claim is not overwritten.
+--   v2: award_xp (#826 r11) counts missed days from the last CLAIMED date,
+--   so a pending date (claimed XP only) is not missed. A last-based count
+--   here zeroed west-of-UTC users at e >= 48h whom the return claim would
+--   still rescue with their tokens.
+--   The UPDATE is guarded on last_activity_date, streak_credit_at and
+--   streak_pending_date still matching the snapshot, so a concurrent
+--   award_xp claim is not overwritten.
 --   This function NEVER spends streak_freeze_tokens / rest_days and NEVER
---   moves last_activity_date or streak_credit_at. award_xp spends tokens on
---   the return claim. A cron that spends (need-rule or one-token-per-run)
---   burns tokens on streaks that then reset and is order-dependent with
+--   moves last_activity_date, streak_credit_at or streak_pending_date.
+--   award_xp spends tokens on the return claim. A cron that spends
+--   (need-rule or one-token-per-run) burns tokens on streaks that then reset and is order-dependent with
 --   the claim.
 --
 -- ROLLBACK
@@ -117,20 +127,25 @@ DECLARE
   missed INTEGER;
 BEGIN
   -- Display-only zeroing. Never spends streak_freeze_tokens / rest_days and
-  -- never moves last_activity_date or streak_credit_at: award_xp spends
-  -- tokens on the return claim (m = GREATEST(1, g - 1) missed local days).
+  -- never moves last_activity_date, streak_credit_at or streak_pending_date:
+  -- award_xp spends tokens on the return claim (m = GREATEST(1, p -
+  -- GREATEST(last, pending) - 1) missed local days).
   -- Zero only when that return claim can no longer be saved:
-  --   missed = (earliest civil date on Earth, UTC-12) - last - 1 is a lower
-  --   bound on the missed local days of any future claim, so
-  --   missed > freeze + rest means award_xp would reset; and
-  --   now - streak_credit_at >= 48h rules out the award_xp bridge (e < 48h).
+  --   missed = (earliest civil date on Earth, UTC-12) - GREATEST(last,
+  --   pending) - 1 is a lower bound on the missed local days of any future
+  --   claim, so missed > freeze + rest means award_xp would reset (and
+  --   missed >= 1 puts every future claim at p >= GREATEST(last, pending)
+  --   + 2, out of reach of the pending bridge's pending >= p - 1); and
+  --   now - streak_credit_at >= 48h rules out every award_xp bridge (e < 48h).
   FOR profile IN
-    SELECT id, current_streak, last_activity_date, streak_freeze_tokens, rest_days, streak_credit_at
+    SELECT id, current_streak, last_activity_date, streak_freeze_tokens, rest_days, streak_credit_at,
+           streak_pending_date
     FROM public.user_profiles
     WHERE last_activity_date IS NOT NULL AND COALESCE(current_streak, 0) > 0
   LOOP
     local_today_min := (public.xp_server_now() AT TIME ZONE 'UTC' + make_interval(mins => -720))::date;
-    missed := local_today_min - profile.last_activity_date - 1;
+    missed := local_today_min
+              - GREATEST(profile.last_activity_date, profile.streak_pending_date) - 1;
     IF missed > COALESCE(profile.streak_freeze_tokens, 0) + COALESCE(profile.rest_days, 0)
        AND (profile.streak_credit_at IS NULL
             OR public.xp_server_now() - profile.streak_credit_at >= interval '48 hours') THEN
@@ -138,7 +153,8 @@ BEGIN
       SET current_streak = 0
       WHERE id = profile.id
         AND last_activity_date IS NOT DISTINCT FROM profile.last_activity_date
-        AND streak_credit_at IS NOT DISTINCT FROM profile.streak_credit_at;
+        AND streak_credit_at IS NOT DISTINCT FROM profile.streak_credit_at
+        AND streak_pending_date IS NOT DISTINCT FROM profile.streak_pending_date;
     END IF;
   END LOOP;
   UPDATE public.user_profiles SET active_boost = NULL
