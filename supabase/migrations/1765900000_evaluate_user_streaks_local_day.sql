@@ -17,15 +17,26 @@
 --   1765800000 (needs user_profiles.streak_tz_lo_min and xp_server_now()).
 --
 -- CLOCK
---   Miss detection uses public.xp_server_now() (clock_timestamp() in
---   production; tests pin it) at a fixed UTC-12 offset (-720 min), the
---   earliest civil date on Earth. streak_tz_lo_min is NOT used: a stored
---   lo that lags a westward DST fall-back or travel (Azores 2026-10-25,
---   Berlin→New York) would otherwise make gap=2 while the user's real
---   local day is still in progress. A miss is charged only after UTC-12
---   has finished the calendar day after last_activity_date. Eastern users
---   may wait up to ~22h for a real miss; award_xp enforces its own
---   liveness. Boost expiry still uses now(), matching the live body.
+--   ZEROING uses public.xp_server_now() (clock_timestamp() in production;
+--   tests pin it) at a fixed UTC-12 offset (-720 min), the earliest civil
+--   date on Earth. streak_tz_lo_min is NOT used: a stored lo that lags a
+--   westward DST fall-back or travel (Azores 2026-10-25, Berlin→New York)
+--   would otherwise make gap=2 while the user's real local day is still
+--   in progress. A miss is charged only after UTC-12 has finished the
+--   calendar day after last_activity_date. Eastern users may wait up to
+--   ~22h for a real miss to ZERO; award_xp enforces its own liveness.
+--   Boost expiry still uses now(), matching the live body.
+--
+-- FREEZE/REST GUARD
+--   UTC-12 gap=2 is not enough to spend a token. At the 00:05Z cron, any
+--   offset >= 0 is already local day U, so last=U-3 with UTC-12 gap=2
+--   means they missed both U-2 and U-1. Spending a token and setting
+--   last=U-2 wastes it: the next claim on local U is g=2 in award_xp
+--   (second token or reset). Freeze/rest therefore also require
+--   local_today_max - last_activity_date <= 2, where local_today_max is
+--   xp_server_now() at COALESCE(streak_tz_hi_min, 840). If that
+--   difference is >= 3, CONTINUE (award_xp handles a claim; otherwise
+--   the next run sees gap >= 3 and zeroes). NULL hi never freezes.
 --
 -- CREDIT
 --   gap=2 freeze and rest-day UPDATEs also set
@@ -109,6 +120,7 @@ RETURNS void AS $$
 DECLARE
   profile RECORD;
   local_today_min DATE;
+  local_today_max DATE;
   gap INTEGER;
   freeze_tokens INTEGER;
   rest_tokens INTEGER;
@@ -119,7 +131,8 @@ BEGIN
       current_streak,
       last_activity_date,
       streak_freeze_tokens,
-      rest_days
+      rest_days,
+      streak_tz_hi_min
     FROM public.user_profiles
   LOOP
     IF profile.last_activity_date IS NULL THEN
@@ -143,6 +156,15 @@ BEGIN
     rest_tokens := COALESCE(profile.rest_days, 0);
 
     IF gap = 2 AND (freeze_tokens > 0 OR rest_tokens > 0) THEN
+      -- Earliest-on-Earth gap=2 can still be two missed local days for an
+      -- eastern band. Only freeze/rest when hi (else UTC+14) is within 2.
+      local_today_max := (
+        (public.xp_server_now() AT TIME ZONE 'UTC')
+        + make_interval(mins => COALESCE(profile.streak_tz_hi_min, 840))
+      )::date;
+      IF local_today_max - profile.last_activity_date >= 3 THEN
+        CONTINUE;
+      END IF;
       IF freeze_tokens > 0 THEN
         UPDATE public.user_profiles
         SET
