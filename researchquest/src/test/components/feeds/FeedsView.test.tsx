@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FeedsView } from "../../../components/feeds/FeedsView";
 import { useAppStore } from "../../../store/appStore";
@@ -20,26 +20,46 @@ const orphanItem: FeedItem = {
   updated_at: "2026-09-24T12:00:00Z",
 };
 
+const { mockUseFeedItems, navigateToViewMock } = vi.hoisted(() => ({
+  mockUseFeedItems: vi.fn(),
+  navigateToViewMock: vi.fn(),
+}));
+
 vi.mock("../../../hooks/useFeedItems", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("../../../hooks/useFeedItems")>();
   return {
     ...actual,
-    useFeedItems: () => ({
-      items: [orphanItem],
-      loading: false,
-      error: null,
-      actionItemId: null,
-      refreshFeedItems: vi.fn(),
-      archiveFeedItem: vi.fn(),
-      markFeedItemTriaged: vi.fn(),
-      promoteFeedItem: vi.fn(),
-    }),
+    useFeedItems: mockUseFeedItems,
   };
 });
 
+vi.mock("../../../lib/softNavigation", () => ({
+  navigateToView: navigateToViewMock,
+}));
+
+vi.mock("../../../components/feeds/FeedSourcesPanel", () => ({
+  FeedSourcesPanel: () => null,
+}));
+
+function stubFeedItems(items: FeedItem[]) {
+  mockUseFeedItems.mockReturnValue({
+    items,
+    loading: false,
+    error: null,
+    actionItemId: null,
+    refreshFeedItems: vi.fn(),
+    archiveFeedItem: vi.fn(),
+    markFeedItemTriaged: vi.fn(),
+    promoteFeedItem: vi.fn(),
+    updateFeedItemsStatusBatch: vi.fn(),
+  });
+}
+
 describe("FeedsView", () => {
   beforeEach(() => {
+    navigateToViewMock.mockReset();
+    stubFeedItems([orphanItem]);
     useAppStore.setState({
       user: {
         id: "test-user",
@@ -62,6 +82,44 @@ describe("FeedsView", () => {
     ).not.toBeInTheDocument();
     expect(
       screen.queryByText(/orphan items without a source are not shown/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it("offers Show all and Open Papers when the default New filter is empty", () => {
+    stubFeedItems([]);
+    render(<FeedsView />);
+
+    expect(
+      screen.getByRole("heading", { name: /nothing matches these filters/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/add a source above/i),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Show all" }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Open Papers" }));
+    expect(navigateToViewMock).toHaveBeenCalledWith("papers");
+  });
+
+  it("keeps Feeds visible and points to the library when every filter is empty", () => {
+    stubFeedItems([]);
+    render(<FeedsView />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Show all" }));
+
+    expect(
+      screen.getByRole("heading", { name: /nothing to triage/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/nothing arrives on its own/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Open Papers" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Show all" }),
     ).not.toBeInTheDocument();
   });
 });
