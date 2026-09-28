@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, waitFor, act, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AddPaperView } from "../../components/entities/AddPaperView";
-import type { CrossrefPaper } from "../../types/database";
+import type { CrossrefPaper, Paper } from "../../types/database";
 import { useAppStore } from "../../store/appStore";
 import { TooltipProvider } from "../../components/ui/tooltip";
 
@@ -29,9 +29,31 @@ describe("AddPaperView Component", () => {
     publicationDate: "2024",
   };
 
+  const existingReactPaper: Paper = {
+    id: "paper-0007",
+    user_id: "demo-user-0001",
+    title: "ReAct: Synergizing Reasoning and Acting in Language Models",
+    authors: ["Shunyu Yao", "Jeffrey Zhao", "Dian Yu", "Nan Du"],
+    doi: "10.48550/arXiv.2210.03629",
+    source_url: "https://arxiv.org/abs/2210.03629",
+    status: "Reading",
+    created_at: "2024-01-01T00:00:00Z",
+    updated_at: "2024-01-01T00:00:00Z",
+  };
+
+  const reactCrossrefPaper: CrossrefPaper = {
+    title: existingReactPaper.title,
+    authors: existingReactPaper.authors,
+    doi: "https://DOI.org/10.48550/ARXIV.2210.03629",
+    sourceUrl: "https://arxiv.org/abs/2210.03629",
+    abstract: "Interleaving reasoning traces and actions.",
+    publicationDate: "2022",
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
     reloadSpy.mockReset();
+    useAppStore.setState({ papers: [], selectedPaper: null });
     const locationMock: Location = {
       ancestorOrigins: originalLocation.ancestorOrigins,
       hash: originalLocation.hash,
@@ -54,7 +76,6 @@ describe("AddPaperView Component", () => {
       value: locationMock,
     });
     mockOnAdd.mockResolvedValue({ id: "new-paper-id", ...mockCrossrefPaper });
-    useAppStore.setState({ selectedPaper: null });
   });
 
   afterEach(() => {
@@ -314,6 +335,80 @@ describe("AddPaperView Component", () => {
 
       await waitFor(() => {
         expect(screen.getByText(/paper not found/i)).toBeInTheDocument();
+      });
+    });
+
+    it("does not add a paper whose DOI is already in the library, even with a different case or prefix", async () => {
+      useAppStore.setState({ papers: [existingReactPaper] });
+      mockSearchByDOI.mockResolvedValue(reactCrossrefPaper);
+
+      render(
+        <TooltipProvider delayDuration={0}><AddPaperView
+          onAdd={mockOnAdd}
+          searchByDOI={mockSearchByDOI}
+          searchByQuery={mockSearchByQuery}
+        /></TooltipProvider>,
+      );
+
+      const doiInput = screen.getByPlaceholderText(/e.g., 10.1038/i);
+      await userEvent.type(doiInput, "https://doi.org/10.48550/ARXIV.2210.03629");
+      await userEvent.click(screen.getByRole("button", { name: /^search$/i }));
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole("button", { name: /add paper to library/i }),
+        ).toBeInTheDocument();
+      });
+
+      await userEvent.click(
+        screen.getByRole("button", { name: /add paper to library/i }),
+      );
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(/this paper \(doi\) is already in your library/i),
+        ).toBeInTheDocument();
+      });
+      expect(mockOnAdd).not.toHaveBeenCalled();
+      expect(useAppStore.getState().papers).toHaveLength(1);
+
+      await userEvent.click(
+        screen.getByRole("button", { name: /open existing paper/i }),
+      );
+      expect(useAppStore.getState().selectedPaper?.id).toBe(
+        existingReactPaper.id,
+      );
+    });
+
+    it("still adds a paper when the DOI is not in the library", async () => {
+      useAppStore.setState({ papers: [existingReactPaper] });
+      mockSearchByDOI.mockResolvedValue(mockCrossrefPaper);
+
+      render(
+        <TooltipProvider delayDuration={0}><AddPaperView
+          onAdd={mockOnAdd}
+          searchByDOI={mockSearchByDOI}
+          searchByQuery={mockSearchByQuery}
+        /></TooltipProvider>,
+      );
+
+      const doiInput = screen.getByPlaceholderText(/e.g., 10.1038/i);
+      await userEvent.type(doiInput, "10.1234/test.doi");
+      await userEvent.click(screen.getByRole("button", { name: /^search$/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(mockCrossrefPaper.title)).toBeInTheDocument();
+      });
+
+      await userEvent.click(
+        screen.getByRole("button", { name: /add paper to library/i }),
+      );
+
+      await waitFor(() => {
+        expect(mockOnAdd).toHaveBeenCalledTimes(1);
+        expect(
+          screen.queryByText(/this paper \(doi\) is already in your library/i),
+        ).not.toBeInTheDocument();
       });
     });
   });

@@ -1,4 +1,4 @@
-import type { CrossrefPaper, PaperDraft } from "../types/database";
+import type { CrossrefPaper, Paper, PaperDraft } from "../types/database";
 import { isValidUrl } from "../utils/security";
 import type { BibTeXEntry } from "../utils/bibtexParser";
 
@@ -15,6 +15,21 @@ export function doisMatch(left: string, right: string): boolean {
   const b = normalizeDoi(right);
   return a.length > 0 && a === b;
 }
+
+/** First loaded library paper whose DOI matches after normalization, if any. */
+export function findLibraryPaperByDoi<T extends Pick<Paper, "doi">>(
+  papers: readonly T[],
+  doi: string | null | undefined,
+): T | undefined {
+  if (!doi?.trim()) return undefined;
+  return papers.find((paper) => {
+    if (!paper.doi) return false;
+    return doisMatch(paper.doi, doi);
+  });
+}
+
+export const PAPER_DOI_ALREADY_IN_LIBRARY =
+  "This paper (DOI) is already in your library";
 
 export const buildPaperPayload = (paper: CrossrefPaper) => {
   const paperData: PaperDraft = {
