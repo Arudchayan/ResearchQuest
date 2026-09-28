@@ -8,7 +8,11 @@ import { DOI_PATTERN, sanitizeDoiInput, type PaperSearchOptions } from "../../ho
 import { isValidUrl } from "../../utils/security";
 import { usePaperSearch } from "../../hooks/usePaperSearchInternal";
 import { useBibTeXImport } from "../../hooks/useBibTeXImport";
-import { buildPaperPayload } from "../../utils/paperUtils";
+import {
+  buildPaperPayload,
+  findLibraryPaperByDoi,
+  PAPER_DOI_ALREADY_IN_LIBRARY,
+} from "../../utils/paperUtils";
 import { DOISearchTab } from "./AddPaperTabs/DOISearchTab";
 import { KeywordSearchTab } from "./AddPaperTabs/KeywordSearchTab";
 import { ManualEntryTab, type ManualEntryErrors } from "./AddPaperTabs/ManualEntryTab";
@@ -17,6 +21,7 @@ import { BibTeXImportTab } from "./AddPaperTabs/BibTeXImportTab";
 interface AddPaperViewProps {
   onAdd: (paperData: PaperDraft) => Promise<Paper | null>;
   onAddBatch?: (papersData: PaperDraft[]) => Promise<Paper[]>;
+  onExistingPaper?: (paper: Paper) => void;
   searchByDOI: (doi: string) => Promise<CrossrefPaper | null>;
   searchByQuery: (query: string, options?: PaperSearchOptions) => Promise<CrossrefPaper[]>;
 }
@@ -77,10 +82,11 @@ function toDraftAndWarning(
   return { draft: built as PaperDraft };
 }
 
-export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: AddPaperViewProps) {
+export function AddPaperView({ onAdd, onAddBatch, onExistingPaper, searchByDOI, searchByQuery }: AddPaperViewProps) {
   const [activeTab, setActiveTab] = useState<"doi" | "search" | "manual" | "import">("doi");
   const [successMessage, setSuccessMessage] = useState("");
   const [isAdding, setIsAdding] = useState(false);
+  const [duplicatePaper, setDuplicatePaper] = useState<Paper | null>(null);
   const setSelectedPaper = useAppStore((state) => state.setSelectedPaper);
 
   const {
@@ -154,6 +160,7 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
     setHasSearchedDOI(false);
     setHasSearchedQuery(false);
     setImportBannerVisible(false);
+    setDuplicatePaper(null);
   }, [
     setSearchError,
     setImportError,
@@ -171,13 +178,37 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
     setTimeout(() => setSuccessMessage(""), 4000);
   }, [setSelectedPaper]);
 
+  const openExistingPaper = useCallback(
+    (paper: Paper) => {
+      setSelectedPaper(paper);
+      navigateToView("papers", `/papers/${paper.id}`);
+      onExistingPaper?.(paper);
+    },
+    [onExistingPaper, setSelectedPaper],
+  );
+
   const handleDOISearchAction = async (doi: string) => {
     setHasSearchedDOI(true);
+    setDuplicatePaper(null);
     await performDOISearch(doi);
   };
 
   const handleAddDoiResult = async () => {
     if (!doiResult) return;
+    const existing = findLibraryPaperByDoi(
+      useAppStore.getState().papers,
+      doiResult.doi ?? doiInput,
+    );
+    if (existing) {
+      setDuplicatePaper(existing);
+      toast.warning(PAPER_DOI_ALREADY_IN_LIBRARY, {
+        action: {
+          label: "Open",
+          onClick: () => openExistingPaper(existing),
+        },
+      });
+      return;
+    }
     setIsAdding(true);
     try {
       const { draft, urlWarning } = toDraftAndWarning(
@@ -189,6 +220,7 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
         if (urlWarning) toast.warning(urlWarning);
         setDoiInput("");
         setDoiResult(null);
+        setDuplicatePaper(null);
       }
     } catch (err) {
       setSearchError("Failed to add paper.");
@@ -397,6 +429,21 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
         {searchError && (activeTab === "doi" || activeTab === "search") && (
           <div role="alert" className="mb-4 rounded-control border border-destructive bg-destructive-bg p-3 text-small text-destructive">
             {searchError}
+          </div>
+        )}
+        {duplicatePaper && activeTab === "doi" && (
+          <div
+            role="status"
+            className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-control border border-border-subtle bg-bg-elevated p-3 text-small text-text-primary"
+          >
+            <p>{PAPER_DOI_ALREADY_IN_LIBRARY}</p>
+            <button
+              type="button"
+              onClick={() => openExistingPaper(duplicatePaper)}
+              className="font-medium text-primary-500 hover:text-primary-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+            >
+              Open existing paper
+            </button>
           </div>
         )}
         <div className="mb-6 flex items-start gap-3 rounded-control border border-border-subtle bg-bg-elevated p-3 text-small text-text-secondary">
