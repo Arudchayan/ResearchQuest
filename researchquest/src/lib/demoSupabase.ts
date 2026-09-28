@@ -989,6 +989,7 @@ export const demoSupabase = {
             updated_at: now,
           });
           emitTable("ideas", { eventType: "UPDATE", new: existing, old: { ...existing } });
+          persistDemoTables();
           return Promise.resolve({ data: existing, error: null });
         }
       }
@@ -1005,6 +1006,7 @@ export const demoSupabase = {
       };
       ideas.push(created);
       emitTable("ideas", { eventType: "INSERT", new: created });
+      persistDemoTables();
       return Promise.resolve({ data: created, error: null });
     }
     return Promise.resolve({ data: null, error: null });
