@@ -5,8 +5,9 @@
  * Advisor 0029 flagged public.save_idea_with_links as a SECURITY DEFINER RPC
  * executable by `authenticated`. The last CREATE FUNCTION in migration order
  * must be SECURITY INVOKER (RLS applies), pin search_path to '', keep the
- * PostgREST signature, bind writes to auth.uid(), prove ownership of every
- * linked note/paper, and leave EXECUTE revoked from PUBLIC/anon.
+ * PostgREST signature, bind writes to auth.uid(), filter linked note/paper
+ * ids to rows the caller owns (do not 42501 unowned/deleted ids), and leave
+ * EXECUTE revoked from PUBLIC/anon.
  */
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
@@ -91,15 +92,25 @@ describe("save_idea_with_links (effective definition)", () => {
     expect(sql).toMatch(/user_id\s*=\s*caller/i);
   });
 
-  it("proves ownership of every linked note and paper", async () => {
+  it("keeps 22P02 for non-UUID ids and filters unowned UUID ids instead of 42501", async () => {
     const { sql } = await effectiveDefinition();
-    expect(sql).toMatch(
-      /FROM\s+public\.notes\s+n\s+WHERE\s+n\.id\s*=\s*t\.v::uuid\s+AND\s+n\.user_id\s*=\s*caller/i,
-    );
-    expect(sql).toMatch(
-      /FROM\s+public\.papers\s+p\s+WHERE\s+p\.id\s*=\s*t\.v::uuid\s+AND\s+p\.user_id\s*=\s*caller/i,
-    );
     expect(sql).toMatch(/ERRCODE\s*=\s*'22P02'/i);
+    expect(sql).not.toMatch(/permission denied: linked note not owned by caller/i);
+    expect(sql).not.toMatch(/permission denied: linked paper not owned by caller/i);
+    expect(sql).toMatch(/WITH\s+ORDINALITY/i);
+    expect(sql).toMatch(/array_agg\s*\(/i);
+    expect(sql).toMatch(
+      /FROM\s+public\.notes\s+n\s+WHERE\s+n\.id\s*=\s*\S+::uuid\s+AND\s+n\.user_id\s*=\s*(?:caller|auth\.uid\(\))/i,
+    );
+    expect(sql).toMatch(
+      /FROM\s+public\.papers\s+p\s+WHERE\s+p\.id\s*=\s*\S+::uuid\s+AND\s+p\.user_id\s*=\s*(?:caller|auth\.uid\(\))/i,
+    );
+  });
+
+  it("NULL link arrays on update keep then filter existing ids", async () => {
+    const { sql } = await effectiveDefinition();
+    expect(sql).toMatch(/coalesce\s*\(\s*p_linked_note_ids\s*,/i);
+    expect(sql).toMatch(/coalesce\s*\(\s*p_linked_paper_ids\s*,/i);
   });
 
   it("revokes EXECUTE from PUBLIC and anon and grants authenticated", async () => {

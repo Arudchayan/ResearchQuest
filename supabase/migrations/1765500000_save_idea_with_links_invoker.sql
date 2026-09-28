@@ -14,12 +14,20 @@
 --     unaffected.
 --  3. Still requires auth.uid(), rejects a spoofed p_user_id and writes
 --     user_id := auth.uid() (never the caller-supplied id).
---  4. Rejects non-UUID link ids (22P02) and any linked note/paper id that is
---     not a row owned by auth.uid() (42501) - same semantics as the gateway's
---     verifyIdeaLinkOwnership for the API-key path.
---  5. Pins search_path = '' (every relation/function is schema-qualified;
+--  4. Rejects non-UUID-shaped link ids (22P02). UUID-shaped ids are FILTERED
+--     to rows the caller owns (order preserved, de-duplicated) rather than
+--     raising 42501. Notes and papers are hard-deleted and nothing prunes
+--     ideas.linked_*_ids; useIdeas.update re-sends the full arrays, so a
+--     raise would make the idea permanently uneditable after a linked note
+--     or paper is deleted. Because the function is SECURITY INVOKER, another
+--     user's rows are invisible under RLS. Treating foreign and deleted ids
+--     the same (silently dropped) avoids an existence oracle and never
+--     stores a foreign link. This still closes advisor 0029.
+--  5. NULL link arrays on UPDATE keep the stored arrays, then those stored
+--     ids are filtered to owned rows as well.
+--  6. Pins search_path = '' (every relation/function is schema-qualified;
 --     pg_catalog is always searched implicitly).
---  6. REVOKE EXECUTE from PUBLIC/anon; GRANT to authenticated + service_role.
+--  7. REVOKE EXECUTE from PUBLIC/anon; GRANT to authenticated + service_role.
 --
 -- Re-runnable: CREATE OR REPLACE + idempotent REVOKE/GRANT. No table DDL.
 -- Does NOT touch migrations 1764800000..1765000000 or any edge function.
@@ -45,6 +53,10 @@ DECLARE
   cleaned_description text;
   next_stage text;
   result public.ideas;
+  existing_note_ids text[];
+  existing_paper_ids text[];
+  next_note_ids text[];
+  next_paper_ids text[];
 BEGIN
   IF caller IS NULL THEN
     RAISE EXCEPTION 'permission denied'
@@ -68,47 +80,68 @@ BEGIN
     RAISE EXCEPTION 'invalid idea stage: %', next_stage;
   END IF;
 
-  -- Linked notes: UUID-shaped and owned by the caller.
-  IF p_linked_note_ids IS NOT NULL AND pg_catalog.cardinality(p_linked_note_ids) > 0 THEN
-    IF EXISTS (
-      SELECT 1 FROM pg_catalog.unnest(p_linked_note_ids) AS t(v)
-      WHERE t.v IS NULL OR t.v !~ uuid_re
-    ) THEN
-      RAISE EXCEPTION 'linked_note_ids must be an array of UUIDs'
-        USING ERRCODE = '22P02';
+  IF p_idea_id IS NULL THEN
+    next_note_ids := coalesce(p_linked_note_ids, '{}'::text[]);
+    next_paper_ids := coalesce(p_linked_paper_ids, '{}'::text[]);
+  ELSE
+    SELECT i.linked_note_ids, i.linked_paper_ids
+      INTO existing_note_ids, existing_paper_ids
+    FROM public.ideas AS i
+    WHERE i.id = p_idea_id
+      AND i.user_id = caller;
+
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Idea % not found for user %', p_idea_id, caller;
     END IF;
-    IF EXISTS (
-      SELECT 1 FROM pg_catalog.unnest(p_linked_note_ids) AS t(v)
-      WHERE NOT EXISTS (
-        SELECT 1 FROM public.notes n
-        WHERE n.id = t.v::uuid AND n.user_id = caller
-      )
-    ) THEN
-      RAISE EXCEPTION 'permission denied: linked note not owned by caller'
-        USING ERRCODE = '42501';
-    END IF;
+
+    -- NULL arrays on update keep stored links; those stored ids are
+    -- filtered to owned rows below (dead links dropped).
+    next_note_ids := coalesce(p_linked_note_ids, existing_note_ids, '{}'::text[]);
+    next_paper_ids := coalesce(p_linked_paper_ids, existing_paper_ids, '{}'::text[]);
   END IF;
 
-  -- Linked papers: UUID-shaped and owned by the caller.
-  IF p_linked_paper_ids IS NOT NULL AND pg_catalog.cardinality(p_linked_paper_ids) > 0 THEN
-    IF EXISTS (
-      SELECT 1 FROM pg_catalog.unnest(p_linked_paper_ids) AS t(v)
-      WHERE t.v IS NULL OR t.v !~ uuid_re
-    ) THEN
-      RAISE EXCEPTION 'linked_paper_ids must be an array of UUIDs'
-        USING ERRCODE = '22P02';
-    END IF;
-    IF EXISTS (
-      SELECT 1 FROM pg_catalog.unnest(p_linked_paper_ids) AS t(v)
-      WHERE NOT EXISTS (
-        SELECT 1 FROM public.papers p
-        WHERE p.id = t.v::uuid AND p.user_id = caller
-      )
-    ) THEN
-      RAISE EXCEPTION 'permission denied: linked paper not owned by caller'
-        USING ERRCODE = '42501';
-    END IF;
+  IF EXISTS (
+    SELECT 1 FROM pg_catalog.unnest(next_note_ids) AS t(v)
+    WHERE t.v IS NULL OR t.v !~ uuid_re
+  ) THEN
+    RAISE EXCEPTION 'linked_note_ids must be an array of UUIDs'
+      USING ERRCODE = '22P02';
   END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM pg_catalog.unnest(next_paper_ids) AS t(v)
+    WHERE t.v IS NULL OR t.v !~ uuid_re
+  ) THEN
+    RAISE EXCEPTION 'linked_paper_ids must be an array of UUIDs'
+      USING ERRCODE = '22P02';
+  END IF;
+
+  -- UUID-shaped ids: keep only rows the caller owns. Deleted and foreign
+  -- ids are indistinguishable under INVOKER RLS, so both are dropped.
+  -- Preserve first-seen order and de-duplicate.
+  SELECT coalesce(pg_catalog.array_agg(s.x ORDER BY s.min_ord), '{}'::text[])
+    INTO next_note_ids
+  FROM (
+    SELECT u.x, min(u.ord) AS min_ord
+    FROM pg_catalog.unnest(next_note_ids) WITH ORDINALITY AS u(x, ord)
+    WHERE EXISTS (
+      SELECT 1 FROM public.notes n
+      WHERE n.id = u.x::uuid AND n.user_id = caller
+    )
+    GROUP BY u.x
+  ) AS s;
+
+  SELECT coalesce(pg_catalog.array_agg(s.x ORDER BY s.min_ord), '{}'::text[])
+    INTO next_paper_ids
+  FROM (
+    SELECT u.x, min(u.ord) AS min_ord
+    FROM pg_catalog.unnest(next_paper_ids) WITH ORDINALITY AS u(x, ord)
+    WHERE EXISTS (
+      SELECT 1 FROM public.papers p
+      WHERE p.id = u.x::uuid AND p.user_id = caller
+    )
+    GROUP BY u.x
+  ) AS s;
 
   IF p_idea_id IS NULL THEN
     INSERT INTO public.ideas (
@@ -125,8 +158,8 @@ BEGIN
       cleaned_title,
       cleaned_description,
       next_stage,
-      coalesce(p_linked_note_ids, '{}'::text[]),
-      coalesce(p_linked_paper_ids, '{}'::text[]),
+      next_note_ids,
+      next_paper_ids,
       pg_catalog.now()
     )
     RETURNING * INTO result;
@@ -136,8 +169,8 @@ BEGIN
       title = cleaned_title,
       description = cleaned_description,
       stage = next_stage,
-      linked_note_ids = coalesce(p_linked_note_ids, i.linked_note_ids),
-      linked_paper_ids = coalesce(p_linked_paper_ids, i.linked_paper_ids),
+      linked_note_ids = next_note_ids,
+      linked_paper_ids = next_paper_ids,
       updated_at = pg_catalog.now()
     WHERE i.id = p_idea_id
       AND i.user_id = caller
@@ -158,4 +191,4 @@ GRANT EXECUTE ON FUNCTION public.save_idea_with_links(uuid, uuid, text, text, te
 GRANT EXECUTE ON FUNCTION public.save_idea_with_links(uuid, uuid, text, text, text, text[], text[]) TO service_role;
 
 COMMENT ON FUNCTION public.save_idea_with_links(uuid, uuid, text, text, text, text[], text[])
-  IS 'SECURITY INVOKER. Creates or updates an idea as auth.uid() only (RLS applies). p_user_id must match the caller; every linked note/paper id must be owned by the caller.';
+  IS 'SECURITY INVOKER. Creates or updates an idea as auth.uid() only (RLS applies). p_user_id must match the caller. UUID-shaped linked note/paper ids are filtered to rows the caller owns (deleted and foreign ids dropped together so the function is not an existence oracle); non-UUID-shaped ids raise 22P02. NULL link arrays on update keep then filter stored ids.';
