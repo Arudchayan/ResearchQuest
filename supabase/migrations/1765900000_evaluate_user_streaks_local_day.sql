@@ -17,9 +17,15 @@
 --   1765800000 (needs user_profiles.streak_tz_lo_min and xp_server_now()).
 --
 -- CLOCK
---   local_today_min uses public.xp_server_now() (clock_timestamp() in
---   production; tests pin it to 00:05Z). Equivalent to now() for a short
---   cron run. Boost expiry still uses now(), matching the live body.
+--   Miss detection uses public.xp_server_now() (clock_timestamp() in
+--   production; tests pin it) at a fixed UTC-12 offset (-720 min), the
+--   earliest civil date on Earth. streak_tz_lo_min is NOT used: a stored
+--   lo that lags a westward DST fall-back or travel (Azores 2026-10-25,
+--   Berlin→New York) would otherwise make gap=2 while the user's real
+--   local day is still in progress. A miss is charged only after UTC-12
+--   has finished the calendar day after last_activity_date. Eastern users
+--   may wait up to ~22h for a real miss; award_xp enforces its own
+--   liveness. Boost expiry still uses now(), matching the live body.
 --
 -- RACE
 --   The FOR loop snapshots each profile row. award_xp can consume a freeze
@@ -106,19 +112,18 @@ BEGIN
       current_streak,
       last_activity_date,
       streak_freeze_tokens,
-      rest_days,
-      streak_tz_lo_min
+      rest_days
     FROM public.user_profiles
   LOOP
     IF profile.last_activity_date IS NULL THEN
       CONTINUE;
     END IF;
 
-    -- Spec: (now() AT TIME ZONE 'UTC' + make_interval(mins => COALESCE(streak_tz_lo_min, -720)))::date
-    -- xp_server_now() is clock_timestamp() live; tests replace it.
+    -- Earliest civil date on Earth (UTC-12). Do not use streak_tz_lo_min:
+    -- a westward DST/travel drop can leave lo east of the user's real offset.
     local_today_min := (
       public.xp_server_now() AT TIME ZONE 'UTC'
-      + make_interval(mins => COALESCE(profile.streak_tz_lo_min, -720))
+      + make_interval(mins => -720)
     )::date;
 
     gap := local_today_min - profile.last_activity_date;
