@@ -510,23 +510,46 @@ function decodeBibTeXUmlauts(s: string): string {
 }
 
 /**
- * Map BibTeX `Last, First` (one comma) onto the same `First Last` string
- * Crossref/DOI import stores. Names without a comma stay unchanged.
+ * Map BibTeX `Last, First` (exactly one comma) onto the same `First Last`
+ * string Crossref/DOI import stores. Names without a comma, with extra
+ * commas (Jr. form), or with a generational suffix stay unchanged.
  */
 function lastFirstToFirstLast(name: string): string {
   const comma = name.indexOf(",");
   if (comma === -1) return name;
+  if (name.indexOf(",", comma + 1) !== -1) return name;
   const last = name.slice(0, comma).trim();
   const first = name.slice(comma + 1).trim();
   if (!first) return last;
+  if (/^(Jr\.?|Sr\.?|II|III|IV|Esq\.?)$/i.test(first)) return name;
   return `${first} ${last}`.replace(/\s+/g, " ").trim();
+}
+
+function isFullyBraceWrapped(s: string): boolean {
+  if (!s.startsWith("{") || !s.endsWith("}")) return false;
+  let depth = 0;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (c === "\\" && i + 1 < s.length) {
+      i++;
+      continue;
+    }
+    if (c === "{") depth++;
+    else if (c === "}") {
+      depth--;
+      if (depth === 0) return i === s.length - 1;
+    }
+  }
+  return false;
 }
 
 function normalizeAuthorName(raw: string): string {
   let clean = raw.trim().replace(/[\r\n\s]+/g, " ");
   if (!clean) return "";
+  const wrappedLiteral = isFullyBraceWrapped(clean);
   clean = decodeBibTeXUmlauts(clean);
   clean = clean.replace(/[{}]/g, "").replace(/\s+/g, " ").trim();
   if (!clean || /^others$/i.test(clean)) return "";
+  if (wrappedLiteral) return clean;
   return lastFirstToFirstLast(clean);
 }

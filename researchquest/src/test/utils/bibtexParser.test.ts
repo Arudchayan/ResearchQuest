@@ -280,6 +280,27 @@ describe("parseBibTeX", () => {
       );
       expect(result[0].authors).toEqual(["Yann LeCun"]);
     });
+
+    it("does not reorder a two-comma Jr. name", () => {
+      const result = parseBibTeX(
+        `@article{k, author = {King, Jr., Martin Luther}}`,
+      );
+      expect(result[0].authors).toEqual(["King, Jr., Martin Luther"]);
+    });
+
+    it("does not treat a generational suffix as a given name", () => {
+      const result = parseBibTeX(
+        `@article{k, author = {Martin Luther King, Jr.}}`,
+      );
+      expect(result[0].authors).toEqual(["Martin Luther King, Jr."]);
+    });
+
+    it("keeps commas inside a fully braced corporate author", () => {
+      const result = parseBibTeX(
+        `@article{k, author = {{IEEE, Inc.} and Smith, J.}}`,
+      );
+      expect(result[0].authors).toEqual(["IEEE, Inc.", "J. Smith"]);
+    });
   });
 
   describe("Backslash escapes", () => {
