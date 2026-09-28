@@ -1,13 +1,14 @@
 /**
  * Nightly streak evaluator (1765900000): static contract + live PG17 replica.
  *
- * Miss detection uses last_activity_date against the UTC-12 civil date so a
- * westward DST/travel drop cannot false-zero a still-active local day.
- * Freeze/rest spend at most one token per 00:05Z run when freeze+rest
- * covers need = GREATEST(1, local_today_max - last - 1); CONTINUE when
- * tokens < need so a token is not wasted; zero on gap >= 3 / no tokens.
- * CI installs PostgreSQL 17 so live cases run (0 skipped).
+ * Lazy cron: UTC-12 missed = local_today_min - last - 1. Zero current_streak
+ * only when missed > freeze + rest AND (credit_at IS NULL or e >= 48h).
+ * Never spends tokens and never moves last_activity_date or streak_credit_at.
+ * award_xp ( #826 round 9 ) spends tokens on the return claim.
+ * CI installs PostgreSQL 17 so live cases run. Round-9 claim cases skip
+ * until 1765800000 contains r9 award_xp (`requires #826 r9 award_xp`).
  */
+import { readFileSync } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -20,7 +21,6 @@ import {
   resetXpNow,
   setXpNow,
   startReplica,
-  utcIsoFromLocal,
   type Replica,
 } from "./pg17ReplicaHarness";
 
@@ -28,10 +28,18 @@ const testDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(testDir, "..", "..", "..", "..");
 const migrationsDir = path.join(repoRoot, "supabase", "migrations");
 const FILE = "1765900000_evaluate_user_streaks_local_day.sql";
+const HARDENING_FILE =
+  process.env.RQ_XP_HARDENING_SQL ||
+  path.join(migrationsDir, "1765800000_xp_integrity_hardening.sql");
 
 const CRON_005Z = "2026-06-09T00:05:00.000Z";
 const NEXT_CRON_005Z = "2026-06-10T00:05:00.000Z";
-const THIRD_CRON_005Z = "2026-06-11T00:05:00.000Z";
+const C3 = [
+  "2026-10-14T00:05:00.000Z",
+  "2026-10-15T00:05:00.000Z",
+  "2026-10-16T00:05:00.000Z",
+] as const;
+const R9_REASON = "requires #826 r9 award_xp";
 
 function stripLineComments(text: string): string {
   return text
@@ -54,8 +62,9 @@ function functionBlock(sql: string, name: string): string {
   if (!start) return "";
   const tail = sql.slice(start.index);
   const bodyOpen = tail.search(/AS\s+\$\$/i);
-  const bodyClose = tail.indexOf("$$;", bodyOpen + 4);
-  return tail.slice(0, bodyClose + 3);
+  const close = /\$\$\s+LANGUAGE[\s\S]*?;/i.exec(tail.slice(Math.max(bodyOpen, 0)));
+  if (bodyOpen < 0 || !close) return tail;
+  return tail.slice(0, Math.max(bodyOpen, 0) + close.index + close[0].length);
 }
 
 type ProfileRow = {
@@ -70,6 +79,9 @@ type ProfileRow = {
 let raw = "";
 let sql = "";
 let fn = "";
+const hasR9AwardXp = /v_need\s*:=\s*GREATEST\s*\(\s*1\s*,\s*v_gap\s*-\s*1\s*\)/i.test(
+  readFileSync(HARDENING_FILE, "utf8"),
+);
 
 beforeAll(async () => {
   raw = await readFile(path.join(migrationsDir, FILE), "utf8");
@@ -94,86 +106,71 @@ describe("1765900000 evaluate_user_streaks local day (static)", () => {
     expect(fn).toMatch(/LANGUAGE\s+plpgsql/i);
   });
 
-  it("computes miss gap from the UTC-12 civil date, not streak_tz_lo_min", () => {
+  it("computes missed from the UTC-12 civil date, not streak_tz_lo_min", () => {
     expect(fn).toMatch(/local_today_min/i);
     expect(fn).toMatch(/make_interval\s*\(\s*mins\s*=>\s*-720\s*\)/i);
     expect(fn).not.toMatch(/streak_tz_lo_min/i);
     expect(raw).toMatch(/UTC-12/);
     expect(fn).toMatch(/AT\s+TIME\s+ZONE\s+'UTC'/i);
     expect(fn).toMatch(/public\.xp_server_now\s*\(\s*\)/i);
-    expect(fn).toMatch(/gap\s*:=\s*local_today_min\s*-\s*(?:profile\.)?last_activity_date/i);
-    expect(fn).toMatch(/last_activity_date\s+IS\s+NULL/i);
+    expect(fn).toMatch(
+      /missed\s*:=\s*local_today_min\s*-\s*profile\.last_activity_date\s*-\s*1/i,
+    );
+    expect(fn).toMatch(/last_activity_date\s+IS\s+NOT\s+NULL/i);
+    expect(fn).toMatch(/COALESCE\s*\(\s*current_streak\s*,\s*0\s*\)\s*>\s*0/i);
     expect(fn).not.toMatch(/daily_logs/i);
     expect(fn).not.toMatch(/CURRENT_DATE/i);
     expect(fn).not.toMatch(/MAX\s*\(\s*date\s*\)/i);
   });
 
-  it("covers need missed local days with one token per run, else continues or zeroes", () => {
-    expect(fn).toMatch(/streak_tz_hi_min/i);
-    expect(fn).toMatch(/local_today_max/i);
-    expect(fn).toMatch(/\bneed\b/i);
+  it("is lazy: zeroes only when missed > tokens and e >= 48h; never spends or moves last/credit", () => {
     expect(fn).toMatch(
-      /make_interval\s*\(\s*mins\s*=>\s*COALESCE\s*\(\s*profile\.streak_tz_hi_min\s*,\s*840\s*\)\s*\)/i,
+      /missed\s*>\s*COALESCE\s*\(\s*profile\.streak_freeze_tokens\s*,\s*0\s*\)\s*\+\s*COALESCE\s*\(\s*profile\.rest_days\s*,\s*0\s*\)/i,
     );
-    expect(fn).toMatch(
-      /GREATEST\s*\(\s*1\s*,\s*local_today_max\s*-\s*profile\.last_activity_date\s*-\s*1\s*\)/i,
-    );
-    expect(fn).toMatch(/freeze_tokens\s*\+\s*rest_tokens\s*<\s*need/i);
-    expect(fn).toMatch(/last_activity_date\s*=\s*local_today_min\s*-\s*1/i);
-    expect(fn).not.toMatch(/streak_tz_lo_min/i);
-    expect(fn).not.toMatch(/LEAST\s*\(\s*freeze_tokens/i);
+    expect(fn).toMatch(/interval\s+'48 hours'/i);
+    expect(fn).toMatch(/SET\s+current_streak\s*=\s*0/i);
+    expect(fn).not.toMatch(/streak_freeze_tokens\s*=/i);
+    expect(fn).not.toMatch(/rest_days\s*=/i);
+    expect(fn).not.toMatch(/last_activity_date\s*=/i);
+    expect(fn).not.toMatch(/streak_credit_at\s*=/i);
+    expect(fn).not.toMatch(/\bneed\b/i);
+    expect(fn).not.toMatch(/local_today_max/i);
+    expect(fn).not.toMatch(/streak_tz_hi_min/i);
   });
 
-  it("mutant: the old max-last >= 3 CONTINUE guard is gone", () => {
-    expect(fn).not.toMatch(
-      /IF\s+local_today_max\s*-\s*profile\.last_activity_date\s*>=\s*3\s*THEN\s+CONTINUE/i,
-    );
-    expect(fn).not.toMatch(
-      /local_today_max\s*-\s*profile\.last_activity_date\s*<=\s*2/i,
-    );
+  it("mutant: a cron variant that spends a token is gone", () => {
+    // Restoring freeze/rest consumption (81f0c441 / 836fbb02) fails this and
+    // X10: tokens would move on a streak the claim then resets or continues.
+    expect(fn).not.toMatch(/streak_freeze_tokens\s*=\s*\S+\s*-\s*1/i);
+    expect(fn).not.toMatch(/rest_days\s*=\s*\S+\s*-\s*1/i);
+    expect(fn).not.toMatch(/last_activity_date\s*=\s*local_today_min\s*-\s*1/i);
+    expect(fn).not.toMatch(/streak_credit_at\s*=\s*public\.xp_server_now/i);
   });
 
-  it("mirrors freeze-then-rest consumption and leaves last_activity_date on zero", () => {
-    expect(fn).toMatch(/streak_freeze_tokens/i);
-    expect(fn).toMatch(/rest_days/i);
-    expect(fn).toMatch(/last_activity_date\s*=\s*local_today_min\s*-\s*1/i);
-    expect(fn).toMatch(/current_streak\s*=\s*0/i);
-    expect(fn).not.toMatch(/last_activity_date\s*=\s*latest_activity/i);
-  });
-
-  it("guards freeze, rest, and zero updates against a stale profile snapshot", () => {
-    const freeze =
-      /UPDATE\s+public\.user_profiles\s+SET[\s\S]*?streak_freeze_tokens[\s\S]*?WHERE[\s\S]*?;/i.exec(
+  it("guards the zero UPDATE on last_activity_date and streak_credit_at", () => {
+    const zero =
+      /UPDATE\s+public\.user_profiles\s+SET\s+current_streak\s*=\s*0[\s\S]*?WHERE[\s\S]*?;/i.exec(
         fn,
       )?.[0] ?? "";
-    const rest =
-      /UPDATE\s+public\.user_profiles\s+SET[\s\S]*?rest_days[\s\S]*?WHERE[\s\S]*?;/i.exec(fn)?.[0] ??
-      "";
-    const zero =
-      /UPDATE\s+public\.user_profiles\s+SET\s+current_streak\s*=\s*0[\s\S]*?WHERE[\s\S]*?;/i.exec(fn)?.[0] ?? "";
-    expect(freeze.length).toBeGreaterThan(0);
-    expect(rest.length).toBeGreaterThan(0);
     expect(zero.length).toBeGreaterThan(0);
-    for (const block of [freeze, rest, zero]) {
-      expect(block).toMatch(/WHERE\s+id\s*=\s*profile\.id/i);
-      expect(block).toMatch(
-        /last_activity_date\s+IS\s+NOT\s+DISTINCT\s+FROM\s+profile\.last_activity_date/i,
-      );
-    }
-    expect(freeze).toMatch(/streak_freeze_tokens\s*=\s*profile\.streak_freeze_tokens/i);
-    expect(freeze).toMatch(/streak_credit_at\s*=\s*public\.xp_server_now\s*\(\s*\)/i);
-    expect(rest).toMatch(/rest_days\s*=\s*profile\.rest_days/i);
-    expect(rest).toMatch(/streak_credit_at\s*=\s*public\.xp_server_now\s*\(\s*\)/i);
-    expect(zero).not.toMatch(/streak_freeze_tokens\s*=\s*profile\.streak_freeze_tokens/i);
-    expect(zero).not.toMatch(/rest_days\s*=\s*profile\.rest_days/i);
-    expect(zero).not.toMatch(/streak_credit_at/i);
+    expect(zero).toMatch(/WHERE\s+id\s*=\s*profile\.id/i);
+    expect(zero).toMatch(
+      /last_activity_date\s+IS\s+NOT\s+DISTINCT\s+FROM\s+profile\.last_activity_date/i,
+    );
+    expect(zero).toMatch(
+      /streak_credit_at\s+IS\s+NOT\s+DISTINCT\s+FROM\s+profile\.streak_credit_at/i,
+    );
   });
 
   it("keeps active_boost expiry cleanup and revokes client EXECUTE", () => {
     expect(fn).toMatch(/active_boost->>'expires_at'/i);
     expect(fn).toMatch(/\(active_boost->>'expires_at'\)::timestamptz\s*<=\s*now\(\)/i);
-    expect(sql).toMatch(/REVOKE\s+EXECUTE\s+ON\s+FUNCTION\s+public\.evaluate_user_streaks\s*\(\s*\)\s+FROM\s+PUBLIC/i);
-    expect(sql).toMatch(/REVOKE\s+EXECUTE\s+ON\s+FUNCTION\s+public\.evaluate_user_streaks\s*\(\s*\)\s+FROM\s+anon/i);
+    expect(sql).toMatch(
+      /REVOKE\s+EXECUTE\s+ON\s+FUNCTION\s+public\.evaluate_user_streaks\s*\(\s*\)\s+FROM\s+PUBLIC/i,
+    );
+    expect(sql).toMatch(
+      /REVOKE\s+EXECUTE\s+ON\s+FUNCTION\s+public\.evaluate_user_streaks\s*\(\s*\)\s+FROM\s+anon/i,
+    );
     expect(sql).toMatch(
       /REVOKE\s+EXECUTE\s+ON\s+FUNCTION\s+public\.evaluate_user_streaks\s*\(\s*\)\s+FROM\s+authenticated/i,
     );
@@ -268,17 +265,19 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
     `);
   }
 
-  function claimReturn(ret: string, tzMin: number, entity: string) {
-    setXpNow(replica, utcIsoFromLocal(ret, 12, tzMin));
-    return awardXp(replica, USER_A, 10, "create_note", {
-      entityId: entity,
-      localDay: ret,
-    });
+  function runCrons(isos: readonly string[]): void {
+    for (const iso of isos) {
+      setXpNow(replica, iso);
+      replica.exec("SELECT public.evaluate_user_streaks();");
+    }
+  }
+
+  function claim(atIso: string, localDay: string, entity: string) {
+    setXpNow(replica, atIso);
+    return awardXp(replica, USER_A, 10, "create_note", { entityId: entity, localDay });
   }
 
   it("(a) UTC-5 user active at 20:00 local is never zeroed at the 00:05Z run", () => {
-    // Tue 00:05Z = Mon 19:05 UTC-5, before the 20:00 local habit.
-    // Last 20:00 local was Sun (2026-06-07). UTC gap is 2; local gap is 1.
     seed({ lastActivity: "2026-06-07", streak: 5, freeze: 1, tzLo: -300 });
     setXpNow(replica, CRON_005Z);
     replica.exec("SELECT public.evaluate_user_streaks();");
@@ -287,7 +286,6 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
     expect(row.last_activity_date).toBe("2026-06-07");
     expect(row.streak_freeze_tokens).toBe(1);
 
-    // User logs in at 20:00 local (Tue 01:00Z) and the next 00:05Z run is safe.
     replica.exec(`
       UPDATE public.user_profiles
       SET last_activity_date = '2026-06-08'::date
@@ -299,22 +297,9 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
     expect(row.current_streak).toBe(5);
     expect(row.last_activity_date).toBe("2026-06-08");
     expect(row.streak_freeze_tokens).toBe(1);
-
-    replica.exec(`
-      UPDATE public.user_profiles
-      SET last_activity_date = '2026-06-09'::date
-      WHERE id = '${USER_A}';
-    `);
-    setXpNow(replica, THIRD_CRON_005Z);
-    replica.exec("SELECT public.evaluate_user_streaks();");
-    row = readProfile();
-    expect(row.current_streak).toBe(5);
-    expect(row.last_activity_date).toBe("2026-06-09");
-    expect(row.streak_freeze_tokens).toBe(1);
   });
 
   it("(b) UTC+10 user who missed a day is zeroed after UTC-12 closed the next day", () => {
-    // last=Sun 7. UTC-12 closes Mon 8 at 12:00Z Tue. 12:05Z Tue is 00:05 UTC-12 Wed.
     const afterUtc12Closed = "2026-06-09T12:05:00.000Z";
     seed({ lastActivity: "2026-06-07", streak: 9, freeze: 0, rest: 0, tzLo: 600 });
     setXpNow(replica, afterUtc12Closed);
@@ -336,17 +321,11 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
     replica.exec("SELECT public.evaluate_user_streaks();");
     row = readProfile();
     expect(row.current_streak).toBe(9);
-    expect(row.streak_freeze_tokens).toBe(0);
-    expect(row.last_activity_date).toBe("2026-06-08");
-    replica.exec("SELECT public.evaluate_user_streaks();");
-    row = readProfile();
-    expect(row.current_streak).toBe(9);
-    expect(row.streak_freeze_tokens).toBe(0);
-    expect(row.last_activity_date).toBe("2026-06-08");
+    expect(row.streak_freeze_tokens).toBe(1);
+    expect(row.last_activity_date).toBe("2026-06-07");
   });
 
-  it("(c) one missed day with a freeze token keeps the streak and consumes exactly one", () => {
-    // UTC-5 at 00:05Z: local_today_min = Mon 8. last=Sat 6 → gap 2. hi=-300 allows freeze.
+  it("(c) one missed day with tokens is not spent and the streak is left for award_xp", () => {
     seed({
       lastActivity: "2026-06-06",
       streak: 12,
@@ -354,14 +333,17 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
       rest: 4,
       tzLo: -300,
       tzHi: -300,
+      creditAt: "2026-06-06T17:00:00.000Z",
+      setAt: "2026-06-06T17:00:00.000Z",
     });
     setXpNow(replica, CRON_005Z);
     replica.exec("SELECT public.evaluate_user_streaks();");
     const row = readProfile();
     expect(row.current_streak).toBe(12);
-    expect(row.streak_freeze_tokens).toBe(1);
+    expect(row.streak_freeze_tokens).toBe(2);
     expect(row.rest_days).toBe(4);
-    expect(row.last_activity_date).toBe("2026-06-07");
+    expect(row.last_activity_date).toBe("2026-06-06");
+    expect(new Date(row.streak_credit_at ?? "").toISOString()).toBe("2026-06-06T17:00:00.000Z");
   });
 
   it("(d) a future-dated daily_logs row gains nothing", () => {
@@ -381,7 +363,7 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
     expect(log).toBe("2026-12-31");
   });
 
-  it("consumes rest_days only when freeze tokens are exhausted", () => {
+  it("does not consume rest_days; freeze is preferred by award_xp not the cron", () => {
     seed({
       lastActivity: "2026-06-06",
       streak: 4,
@@ -389,14 +371,15 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
       rest: 2,
       tzLo: -300,
       tzHi: -300,
+      creditAt: "2026-06-06T17:00:00.000Z",
     });
     setXpNow(replica, CRON_005Z);
     replica.exec("SELECT public.evaluate_user_streaks();");
     const row = readProfile();
     expect(row.current_streak).toBe(4);
     expect(row.streak_freeze_tokens).toBe(0);
-    expect(row.rest_days).toBe(1);
-    expect(row.last_activity_date).toBe("2026-06-07");
+    expect(row.rest_days).toBe(2);
+    expect(row.last_activity_date).toBe("2026-06-06");
   });
 
   it("does not change a null last_activity_date even when daily_logs has a future row", () => {
@@ -413,8 +396,6 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
   });
 
   it("Azores fall-back: 00:05Z on 10-27 does not zero a user last active 10-25", () => {
-    // QA: Atlantic/Azores across 2026-10-25 fall-back. Cron 2026-10-27 00:05Z
-    // is 23:05 local 10-26 (35 min remain). Stored lo=-2 is east of UTC-1.
     seed({
       lastActivity: "2026-10-25",
       streak: 6,
@@ -433,8 +414,6 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
   });
 
   it("Berlin-to-New-York traveller is not zeroed at the first NY evening cron", () => {
-    // 6h westward drop; stored lo still Berlin (UTC+1). 2026-01-17 00:05Z is
-    // 19:05 EST on 01-16 — the first NY evening after last=01-15.
     seed({ lastActivity: "2026-01-15", streak: 8, freeze: 0, rest: 0, tzLo: 60 });
     setXpNow(replica, "2026-01-17T00:05:00.000Z");
     replica.exec("SELECT public.evaluate_user_streaks();");
@@ -444,230 +423,29 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
     expect(row.streak_freeze_tokens).toBe(0);
   });
 
-  it("nightly freeze stamps streak_credit_at so the next-day award_xp claim spends no second token", () => {
-    // last=Sun 7, credit_at ~58h before the claim. UTC-12 closes Mon 8 at 12:00Z
-    // Tue; 12:05Z Tue is 00:05 UTC-12 Wed (gap=2). Without stamping credit_at,
-    // award_xp would see g=1 and e>=48h and freeze/reset again.
-    const afterUtc12Closed = "2026-06-09T12:05:00.000Z";
-    const lastActiveAt = "2026-06-07T02:00:00.000Z";
-    const claimAt = "2026-06-09T13:00:00.000Z";
-    seed({
-      lastActivity: "2026-06-07",
-      streak: 9,
-      freeze: 1,
-      rest: 0,
-      tzLo: -300,
-      tzHi: -300,
-      creditAt: lastActiveAt,
-      setAt: lastActiveAt,
-    });
-    setXpNow(replica, afterUtc12Closed);
-    replica.exec("SELECT public.evaluate_user_streaks();");
-    let row = readProfile();
-    expect(row.current_streak).toBe(9);
-    expect(row.streak_freeze_tokens).toBe(0);
-    expect(row.rest_days).toBe(0);
-    expect(row.last_activity_date).toBe("2026-06-08");
-    expect(new Date(row.streak_credit_at ?? "").toISOString()).toBe(afterUtc12Closed);
-
-    setXpNow(replica, claimAt);
-    const awarded = awardXp(replica, USER_A, 10, "create_note", {
-      entityId: "after-nightly-freeze",
-      localDay: "2026-06-09",
-    });
-    expect(awarded.current_streak).toBe(10);
-    expect(awarded.streak_freeze_tokens).toBe(0);
-    row = readProfile();
-    expect(row.current_streak).toBe(10);
-    expect(row.streak_freeze_tokens).toBe(0);
-    expect(row.rest_days).toBe(0);
-    expect(row.last_activity_date).toBe("2026-06-09");
-  });
-
-  it("nightly rest-day stamp also prevents award_xp from resetting on the next local day", () => {
-    const afterUtc12Closed = "2026-06-09T12:05:00.000Z";
-    const lastActiveAt = "2026-06-07T02:00:00.000Z";
-    const claimAt = "2026-06-09T13:00:00.000Z";
-    seed({
-      lastActivity: "2026-06-07",
-      streak: 9,
-      freeze: 0,
-      rest: 1,
-      tzLo: -300,
-      tzHi: -300,
-      creditAt: lastActiveAt,
-      setAt: lastActiveAt,
-    });
-    setXpNow(replica, afterUtc12Closed);
-    replica.exec("SELECT public.evaluate_user_streaks();");
-    let row = readProfile();
-    expect(row.current_streak).toBe(9);
-    expect(row.streak_freeze_tokens).toBe(0);
-    expect(row.rest_days).toBe(0);
-    expect(row.last_activity_date).toBe("2026-06-08");
-    expect(new Date(row.streak_credit_at ?? "").toISOString()).toBe(afterUtc12Closed);
-
-    setXpNow(replica, claimAt);
-    const awarded = awardXp(replica, USER_A, 10, "create_note", {
-      entityId: "after-nightly-rest",
-      localDay: "2026-06-09",
-    });
-    expect(awarded.current_streak).toBe(10);
-    expect(awarded.streak_freeze_tokens).toBe(0);
-    row = readProfile();
-    expect(row.current_streak).toBe(10);
-    expect(row.streak_freeze_tokens).toBe(0);
-    expect(row.rest_days).toBe(0);
-    expect(row.last_activity_date).toBe("2026-06-09");
-  });
-
-  it("(i) UTC+10 two-day miss: 00:05Z cron does not freeze; award_xp resets; later cron zeroes", () => {
-    // last=Sun 7. Cron 2026-06-10 00:05Z is already local Wed 10 for UTC+10.
-    // k=2 and freeze=1 cannot cover, so CONTINUE keeps the token.
-    seed({
-      lastActivity: "2026-06-07",
-      streak: 9,
-      freeze: 1,
-      rest: 0,
-      tzLo: 600,
-      tzHi: 600,
-    });
-    setXpNow(replica, NEXT_CRON_005Z);
-    replica.exec("SELECT public.evaluate_user_streaks();");
-    let row = readProfile();
-    expect(row.current_streak).toBe(9);
-    expect(row.streak_freeze_tokens).toBe(1);
-    expect(row.last_activity_date).toBe("2026-06-07");
-
-    setXpNow(replica, "2026-06-10T01:00:00.000Z");
-    const awarded = awardXp(replica, USER_A, 10, "create_note", {
-      entityId: "east-two-day-miss",
-      localDay: "2026-06-10",
-    });
-    expect(awarded.current_streak).toBe(1);
-    expect(awarded.streak_freeze_tokens).toBe(1);
-    row = readProfile();
-    expect(row.current_streak).toBe(1);
-    expect(row.streak_freeze_tokens).toBe(1);
-    expect(row.last_activity_date).toBe("2026-06-10");
-
-    seed({
-      lastActivity: "2026-06-07",
-      streak: 9,
-      freeze: 1,
-      rest: 0,
-      tzLo: 600,
-      tzHi: 600,
-    });
-    setXpNow(replica, THIRD_CRON_005Z);
-    replica.exec("SELECT public.evaluate_user_streaks();");
-    row = readProfile();
-    expect(row.current_streak).toBe(0);
-    expect(row.streak_freeze_tokens).toBe(1);
-    expect(row.last_activity_date).toBe("2026-06-07");
-  });
-
-  it("(ii) UTC+10 one missed day: award_xp spends the freeze once and the cron changes nothing", () => {
-    seed({
-      lastActivity: "2026-06-07",
-      streak: 9,
-      freeze: 1,
-      rest: 0,
-      tzLo: 600,
-      tzHi: 600,
-    });
-    setXpNow(replica, CRON_005Z);
-    replica.exec("SELECT public.evaluate_user_streaks();");
-    let row = readProfile();
-    expect(row.current_streak).toBe(9);
-    expect(row.streak_freeze_tokens).toBe(1);
-    expect(row.last_activity_date).toBe("2026-06-07");
-
-    setXpNow(replica, "2026-06-09T01:00:00.000Z");
-    const awarded = awardXp(replica, USER_A, 10, "create_note", {
-      entityId: "east-one-miss-claim",
-      localDay: "2026-06-09",
-    });
-    expect(awarded.current_streak).toBe(9);
-    expect(awarded.streak_freeze_tokens).toBe(0);
-    row = readProfile();
-    expect(row.current_streak).toBe(9);
-    expect(row.streak_freeze_tokens).toBe(0);
-    expect(row.last_activity_date).toBe("2026-06-09");
-
-    setXpNow(replica, NEXT_CRON_005Z);
-    replica.exec("SELECT public.evaluate_user_streaks();");
-    row = readProfile();
-    expect(row.current_streak).toBe(9);
-    expect(row.streak_freeze_tokens).toBe(0);
-    expect(row.last_activity_date).toBe("2026-06-09");
-  });
-
-  it("(iii) NULL hi with 1 token skips; with 2 tokens spends one", () => {
-    seed({
-      lastActivity: "2026-06-06",
-      streak: 12,
-      freeze: 1,
-      rest: 0,
-      tzLo: -300,
-      tzHi: null,
-    });
-    setXpNow(replica, CRON_005Z);
-    replica.exec("SELECT public.evaluate_user_streaks();");
-    let row = readProfile();
-    expect(row.current_streak).toBe(12);
-    expect(row.streak_freeze_tokens).toBe(1);
-    expect(row.last_activity_date).toBe("2026-06-06");
-
-    seed({
-      lastActivity: "2026-06-06",
-      streak: 12,
-      freeze: 2,
-      rest: 0,
-      tzLo: -300,
-      tzHi: null,
-    });
-    setXpNow(replica, CRON_005Z);
-    replica.exec("SELECT public.evaluate_user_streaks();");
-    row = readProfile();
-    expect(row.current_streak).toBe(12);
-    expect(row.streak_freeze_tokens).toBe(1);
-    expect(row.last_activity_date).toBe("2026-06-07");
-  });
-
-  it("(1) UTC+10 two freeze tokens cover two missed local days: s=5 frz=0", () => {
-    // QA repro. Mutant: restoring max-last <= 2 / >= 3 CONTINUE leaves
-    // s=1 frz=2 (cron skips, award_xp g=3 resets).
+  it("never stamps streak_credit_at and never spends a token", () => {
+    const credit = "2026-10-13T02:00:00.000Z";
     seed({
       lastActivity: "2026-10-13",
       streak: 5,
       freeze: 2,
-      rest: 0,
+      rest: 1,
       tzLo: 600,
       tzHi: 600,
-      creditAt: "2026-10-13T02:00:00.000Z",
-      setAt: "2026-10-13T02:00:00.000Z",
+      creditAt: credit,
+      setAt: credit,
     });
-    setXpNow(replica, "2026-10-14T00:05:00.000Z");
-    replica.exec("SELECT public.evaluate_user_streaks();");
-    setXpNow(replica, "2026-10-15T00:05:00.000Z");
-    replica.exec("SELECT public.evaluate_user_streaks();");
-    setXpNow(replica, "2026-10-16T00:05:00.000Z");
-    replica.exec("SELECT public.evaluate_user_streaks();");
-    setXpNow(replica, "2026-10-16T02:00:00.000Z");
-    const awarded = awardXp(replica, USER_A, 10, "create_note", {
-      entityId: "qa-repro-plus10-k2",
-      localDay: "2026-10-16",
-    });
-    expect(awarded.current_streak).toBe(5);
-    expect(awarded.streak_freeze_tokens).toBe(0);
+    runCrons(C3);
     const row = readProfile();
     expect(row.current_streak).toBe(5);
-    expect(row.streak_freeze_tokens).toBe(0);
-    expect(row.last_activity_date).toBe("2026-10-16");
+    expect(row.streak_freeze_tokens).toBe(2);
+    expect(row.rest_days).toBe(1);
+    expect(row.last_activity_date).toBe("2026-10-13");
+    expect(new Date(row.streak_credit_at ?? "").toISOString()).toBe(credit);
   });
 
-  it("(2) UTC+10 one freeze token on a two-day miss: cron skips, claim resets, token kept", () => {
+  it("zeroes only once missed > N tokens, and not within 48h of credit_at", () => {
+    const credit = "2026-10-13T02:00:00.000Z";
     seed({
       lastActivity: "2026-10-13",
       streak: 5,
@@ -675,103 +453,88 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
       rest: 0,
       tzLo: 600,
       tzHi: 600,
-      creditAt: "2026-10-13T02:00:00.000Z",
-      setAt: "2026-10-13T02:00:00.000Z",
+      creditAt: credit,
+      setAt: credit,
     });
-    setXpNow(replica, "2026-10-14T00:05:00.000Z");
-    replica.exec("SELECT public.evaluate_user_streaks();");
-    setXpNow(replica, "2026-10-15T00:05:00.000Z");
-    replica.exec("SELECT public.evaluate_user_streaks();");
-    setXpNow(replica, "2026-10-16T00:05:00.000Z");
-    replica.exec("SELECT public.evaluate_user_streaks();");
+    // 10-15 12:05Z: UTC-12 is 10-15, missed=1, N=1 → not yet.
+    runCrons(["2026-10-15T12:05:00.000Z"]);
     let row = readProfile();
     expect(row.current_streak).toBe(5);
     expect(row.streak_freeze_tokens).toBe(1);
     expect(row.last_activity_date).toBe("2026-10-13");
-    setXpNow(replica, "2026-10-16T02:00:00.000Z");
-    const awarded = awardXp(replica, USER_A, 10, "create_note", {
-      entityId: "qa-repro-plus10-k2-one-token",
-      localDay: "2026-10-16",
-    });
-    expect(awarded.current_streak).toBe(1);
-    expect(awarded.streak_freeze_tokens).toBe(1);
-    row = readProfile();
-    expect(row.current_streak).toBe(1);
-    expect(row.streak_freeze_tokens).toBe(1);
-  });
 
-  it("(3) UTC+10 two tokens, never returns: 10-16 spends 1, 10-17 skips, 10-18 zeroes with 1 left", () => {
+    // 10-16 12:05Z: missed=2 > 1 and e > 48h → zero, token kept, last/credit stay.
+    runCrons(["2026-10-16T12:05:00.000Z"]);
+    row = readProfile();
+    expect(row.current_streak).toBe(0);
+    expect(row.streak_freeze_tokens).toBe(1);
+    expect(row.last_activity_date).toBe("2026-10-13");
+    expect(new Date(row.streak_credit_at ?? "").toISOString()).toBe(credit);
+
     seed({
       lastActivity: "2026-10-13",
       streak: 5,
-      freeze: 2,
+      freeze: 0,
       rest: 0,
+      tzLo: 600,
+      tzHi: 600,
+      creditAt: "2026-10-13T13:00:00.000Z",
+      setAt: "2026-10-13T13:00:00.000Z",
+    });
+    runCrons(["2026-10-15T12:00:00.000Z"]);
+    row = readProfile();
+    expect(row.current_streak).toBe(5);
+    expect(row.last_activity_date).toBe("2026-10-13");
+
+    seed({
+      lastActivity: "2026-10-13",
+      streak: 5,
+      freeze: 0,
+      rest: 0,
+      tzLo: 600,
+      tzHi: 600,
+      creditAt: "2026-10-13T11:00:00.000Z",
+      setAt: "2026-10-13T11:00:00.000Z",
+    });
+    runCrons(["2026-10-15T12:00:00.000Z"]);
+    row = readProfile();
+    expect(row.current_streak).toBe(0);
+    expect(row.streak_freeze_tokens).toBe(0);
+    expect(row.last_activity_date).toBe("2026-10-13");
+  });
+
+  it("X10 UTC+10 frz=1 rest=1, last 10-13, crons to 10-16 12:05Z: not zeroed, tokens untouched", () => {
+    seed({
+      lastActivity: "2026-10-13",
+      streak: 5,
+      freeze: 1,
+      rest: 1,
       tzLo: 600,
       tzHi: 600,
       creditAt: "2026-10-13T02:00:00.000Z",
       setAt: "2026-10-13T02:00:00.000Z",
     });
-    setXpNow(replica, "2026-10-14T00:05:00.000Z");
-    replica.exec("SELECT public.evaluate_user_streaks();");
-    setXpNow(replica, "2026-10-15T00:05:00.000Z");
-    replica.exec("SELECT public.evaluate_user_streaks();");
-    setXpNow(replica, "2026-10-16T00:05:00.000Z");
-    replica.exec("SELECT public.evaluate_user_streaks();");
-    let row = readProfile();
+    runCrons([
+      "2026-10-15T00:05:00.000Z",
+      "2026-10-16T00:05:00.000Z",
+      "2026-10-16T12:05:00.000Z",
+    ]);
+    const row = readProfile();
     expect(row.current_streak).toBe(5);
+    expect(row.last_activity_date).toBe("2026-10-13");
     expect(row.streak_freeze_tokens).toBe(1);
-    expect(row.last_activity_date).toBe("2026-10-14");
-
-    setXpNow(replica, "2026-10-17T00:05:00.000Z");
-    replica.exec("SELECT public.evaluate_user_streaks();");
-    row = readProfile();
-    expect(row.current_streak).toBe(5);
-    expect(row.streak_freeze_tokens).toBe(1);
-    expect(row.last_activity_date).toBe("2026-10-14");
-
-    setXpNow(replica, "2026-10-18T00:05:00.000Z");
-    replica.exec("SELECT public.evaluate_user_streaks();");
-    row = readProfile();
-    expect(row.current_streak).toBe(0);
-    expect(row.streak_freeze_tokens).toBe(1);
-    expect(row.last_activity_date).toBe("2026-10-14");
+    expect(row.rest_days).toBe(1);
   });
 
-  it("west k=2 with 2 tokens still spends them and keeps the streak", () => {
+  it("does not zero when award_xp raced after the snapshot", () => {
     seed({
-      lastActivity: "2026-10-13",
-      streak: 5,
-      freeze: 2,
+      lastActivity: "2026-06-06",
+      streak: 12,
+      freeze: 0,
       rest: 0,
       tzLo: -300,
-      tzHi: -300,
-      creditAt: "2026-10-13T17:00:00.000Z",
-      setAt: "2026-10-13T17:00:00.000Z",
+      creditAt: "2026-06-06T01:00:00.000Z",
     });
-    setXpNow(replica, "2026-10-14T00:05:00.000Z");
-    replica.exec("SELECT public.evaluate_user_streaks();");
-    setXpNow(replica, "2026-10-15T00:05:00.000Z");
-    replica.exec("SELECT public.evaluate_user_streaks();");
-    setXpNow(replica, "2026-10-16T00:05:00.000Z");
-    replica.exec("SELECT public.evaluate_user_streaks();");
-    setXpNow(replica, "2026-10-17T00:05:00.000Z");
-    replica.exec("SELECT public.evaluate_user_streaks();");
-    let row = readProfile();
-    expect(row.current_streak).toBe(5);
-    expect(row.streak_freeze_tokens).toBe(0);
-    const awarded = claimReturn("2026-10-16", -300, "west-k2");
-    expect(awarded.current_streak).toBe(6);
-    expect(awarded.streak_freeze_tokens).toBe(0);
-    row = readProfile();
-    expect(row.current_streak).toBe(6);
-    expect(row.streak_freeze_tokens).toBe(0);
-    expect(row.last_activity_date).toBe("2026-10-16");
-  });
-
-  it("does not overwrite last_activity_date when award_xp raced after the snapshot", () => {
-    // Architect repro: cron reads last=D-2/freeze=2, award_xp then sets last=D
-    // and freeze=1, cron must not write last=D-1 from the stale snapshot.
-    seed({ lastActivity: "2026-06-06", streak: 12, freeze: 2, rest: 4, tzLo: -300 });
     replica.exec(`
       CREATE OR REPLACE FUNCTION public.xp_server_now()
       RETURNS timestamptz
@@ -782,7 +545,7 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
       BEGIN
         UPDATE public.user_profiles
         SET last_activity_date = '2026-06-08'::date,
-            streak_freeze_tokens = 1
+            streak_credit_at = TIMESTAMPTZ '2026-06-08 00:05:00+00'
         WHERE id = '${USER_A}';
         RETURN TIMESTAMPTZ '2026-06-09 00:05:00+00';
       END;
@@ -796,8 +559,7 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
     const row = readProfile();
     expect(row.current_streak).toBe(12);
     expect(row.last_activity_date).toBe("2026-06-08");
-    expect(row.streak_freeze_tokens).toBe(1);
-    expect(row.rest_days).toBe(4);
+    expect(row.streak_freeze_tokens).toBe(0);
   });
 
   it("expires active_boost on wall-clock now and denies authenticated EXECUTE", () => {
@@ -812,5 +574,267 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
     expect(() => replica.execAs(USER_A, "SELECT public.evaluate_user_streaks();")).toThrow(
       /permission denied/i,
     );
+  });
+
+  it.skipIf(!hasR9AwardXp)(`X1 #827 R1 UTC+10 frz=2 (${R9_REASON})`, () => {
+    seed({
+      lastActivity: "2026-10-13",
+      streak: 5,
+      freeze: 2,
+      rest: 0,
+      tzLo: 600,
+      tzHi: 600,
+      creditAt: "2026-10-13T02:00:00.000Z",
+      setAt: "2026-10-13T02:00:00.000Z",
+    });
+    runCrons(C3);
+    let row = readProfile();
+    expect(row.current_streak).toBe(5);
+    expect(row.last_activity_date).toBe("2026-10-13");
+    expect(row.streak_freeze_tokens).toBe(2);
+    const awarded = claim("2026-10-16T02:00:00.000Z", "2026-10-16", "x1-r1");
+    expect(awarded.current_streak).toBe(6);
+    expect(awarded.streak_freeze_tokens).toBe(0);
+    row = readProfile();
+    expect(row.current_streak).toBe(6);
+    expect(row.last_activity_date).toBe("2026-10-16");
+    expect(row.streak_freeze_tokens).toBe(0);
+    expect(row.rest_days).toBe(0);
+  });
+
+  it.skipIf(!hasR9AwardXp)(`X2 R1 with 1 freeze (${R9_REASON})`, () => {
+    seed({
+      lastActivity: "2026-10-13",
+      streak: 5,
+      freeze: 1,
+      rest: 0,
+      tzLo: 600,
+      tzHi: 600,
+      creditAt: "2026-10-13T02:00:00.000Z",
+      setAt: "2026-10-13T02:00:00.000Z",
+    });
+    runCrons(C3);
+    const awarded = claim("2026-10-16T02:00:00.000Z", "2026-10-16", "x2-r1-one");
+    expect(awarded.current_streak).toBe(1);
+    expect(awarded.streak_freeze_tokens).toBe(1);
+    const row = readProfile();
+    expect(row.current_streak).toBe(1);
+    expect(row.last_activity_date).toBe("2026-10-16");
+    expect(row.streak_freeze_tokens).toBe(1);
+    expect(row.rest_days).toBe(0);
+  });
+
+  it.skipIf(!hasR9AwardXp)(`X3 R1 with 2 rest days (${R9_REASON})`, () => {
+    seed({
+      lastActivity: "2026-10-13",
+      streak: 5,
+      freeze: 0,
+      rest: 2,
+      tzLo: 600,
+      tzHi: 600,
+      creditAt: "2026-10-13T02:00:00.000Z",
+      setAt: "2026-10-13T02:00:00.000Z",
+    });
+    runCrons(C3);
+    const awarded = claim("2026-10-16T02:00:00.000Z", "2026-10-16", "x3-r1-rest");
+    expect(awarded.current_streak).toBe(6);
+    const row = readProfile();
+    expect(row.current_streak).toBe(6);
+    expect(row.last_activity_date).toBe("2026-10-16");
+    expect(row.streak_freeze_tokens).toBe(0);
+    expect(row.rest_days).toBe(0);
+  });
+
+  it.skipIf(!hasR9AwardXp)(`X4 R1w UTC-5 control frz=2 (${R9_REASON})`, () => {
+    seed({
+      lastActivity: "2026-10-13",
+      streak: 5,
+      freeze: 2,
+      rest: 0,
+      tzLo: -300,
+      tzHi: -300,
+      creditAt: "2026-10-13T17:00:00.000Z",
+      setAt: "2026-10-13T17:00:00.000Z",
+    });
+    runCrons(C3);
+    const awarded = claim("2026-10-16T17:00:00.000Z", "2026-10-16", "x4-r1w");
+    expect(awarded.current_streak).toBe(6);
+    expect(awarded.streak_freeze_tokens).toBe(0);
+    const row = readProfile();
+    expect(row.current_streak).toBe(6);
+    expect(row.last_activity_date).toBe("2026-10-16");
+    expect(row.streak_freeze_tokens).toBe(0);
+    expect(row.rest_days).toBe(0);
+  });
+
+  it.skipIf(!hasR9AwardXp)(`X5 R1w UTC-5 frz=1 N<k (${R9_REASON})`, () => {
+    seed({
+      lastActivity: "2026-10-13",
+      streak: 5,
+      freeze: 1,
+      rest: 0,
+      tzLo: -300,
+      tzHi: -300,
+      creditAt: "2026-10-13T17:00:00.000Z",
+      setAt: "2026-10-13T17:00:00.000Z",
+    });
+    runCrons(C3);
+    const awarded = claim("2026-10-16T17:00:00.000Z", "2026-10-16", "x5-r1w-one");
+    expect(awarded.current_streak).toBe(1);
+    expect(awarded.streak_freeze_tokens).toBe(1);
+    const row = readProfile();
+    expect(row.current_streak).toBe(1);
+    expect(row.last_activity_date).toBe("2026-10-16");
+    expect(row.streak_freeze_tokens).toBe(1);
+  });
+
+  it.skipIf(!hasR9AwardXp)(`X6 #827 R2 UTC+10 rest=1, miss 10-14, claim 10-15 (${R9_REASON})`, () => {
+    seed({
+      lastActivity: "2026-10-13",
+      streak: 5,
+      freeze: 0,
+      rest: 1,
+      tzLo: 600,
+      tzHi: 600,
+      creditAt: "2026-10-13T02:00:00.000Z",
+      setAt: "2026-10-13T02:00:00.000Z",
+    });
+    runCrons(["2026-10-14T00:05:00.000Z", "2026-10-15T00:05:00.000Z"]);
+    const awarded = claim("2026-10-15T02:00:00.000Z", "2026-10-15", "x6-r2");
+    expect(awarded.current_streak).toBe(6);
+    const row = readProfile();
+    expect(row.current_streak).toBe(6);
+    expect(row.last_activity_date).toBe("2026-10-15");
+    expect(row.streak_freeze_tokens).toBe(0);
+    expect(row.rest_days).toBe(0);
+  });
+
+  it.skipIf(!hasR9AwardXp)(`mixed 1 freeze + 1 rest on R1 shape (${R9_REASON})`, () => {
+    seed({
+      lastActivity: "2026-10-13",
+      streak: 5,
+      freeze: 1,
+      rest: 1,
+      tzLo: 600,
+      tzHi: 600,
+      creditAt: "2026-10-13T02:00:00.000Z",
+      setAt: "2026-10-13T02:00:00.000Z",
+    });
+    runCrons(C3);
+    const awarded = claim("2026-10-16T02:00:00.000Z", "2026-10-16", "mixed-r1");
+    expect(awarded.current_streak).toBe(6);
+    const row = readProfile();
+    expect(row.current_streak).toBe(6);
+    expect(row.last_activity_date).toBe("2026-10-16");
+    expect(row.streak_freeze_tokens).toBe(0);
+    expect(row.rest_days).toBe(0);
+  });
+
+  it.skipIf(!hasR9AwardXp)(`X7 N>=k keeps streak and spends k; N=k-1 resets with tokens kept (${R9_REASON})`, () => {
+    seed({
+      lastActivity: "2026-10-13",
+      streak: 5,
+      freeze: 2,
+      rest: 0,
+      tzLo: 600,
+      tzHi: 600,
+      creditAt: "2026-10-13T02:00:00.000Z",
+      setAt: "2026-10-13T02:00:00.000Z",
+    });
+    runCrons(C3);
+    let awarded = claim("2026-10-16T02:00:00.000Z", "2026-10-16", "x7-ge");
+    expect(awarded.current_streak).toBe(6);
+    expect(awarded.streak_freeze_tokens).toBe(0);
+
+    seed({
+      lastActivity: "2026-10-13",
+      streak: 5,
+      freeze: 1,
+      rest: 0,
+      tzLo: 0,
+      tzHi: 0,
+      creditAt: "2026-10-13T12:00:00.000Z",
+      setAt: "2026-10-13T12:00:00.000Z",
+    });
+    runCrons(C3);
+    awarded = claim("2026-10-16T12:00:00.000Z", "2026-10-16", "x7-lt");
+    expect(awarded.current_streak).toBe(1);
+    expect(awarded.streak_freeze_tokens).toBe(1);
+  });
+
+  it.skipIf(!hasR9AwardXp)(`X8 same-instant cron then award equals award then cron (${R9_REASON})`, () => {
+    const t = "2026-10-20T00:05:00.000Z";
+    const credit = "2026-10-18T01:05:00.000Z";
+    seed({
+      lastActivity: "2026-10-18",
+      streak: 5,
+      freeze: 2,
+      rest: 0,
+      tzLo: 600,
+      tzHi: 600,
+      creditAt: credit,
+      setAt: credit,
+    });
+    setXpNow(replica, t);
+    replica.exec("SELECT public.evaluate_user_streaks();");
+    const cronFirst = claim(t, "2026-10-20", "x8-cron-first");
+    const a = `${cronFirst.current_streak}/${cronFirst.streak_freeze_tokens}`;
+
+    seed({
+      lastActivity: "2026-10-18",
+      streak: 5,
+      freeze: 2,
+      rest: 0,
+      tzLo: 600,
+      tzHi: 600,
+      creditAt: credit,
+      setAt: credit,
+    });
+    const awardFirst = claim(t, "2026-10-20", "x8-award-first");
+    setXpNow(replica, t);
+    replica.exec("SELECT public.evaluate_user_streaks();");
+    const afterCron = readProfile();
+    const b = `${afterCron.current_streak}/${afterCron.streak_freeze_tokens}`;
+    expect(a).toBe(b);
+    expect(awardFirst.current_streak).toBe(cronFirst.current_streak);
+  });
+
+  it.skipIf(!hasR9AwardXp)(`X9 NULL band g=2 at e=47h05m is bridged; cron does not zero first (${R9_REASON})`, () => {
+    seed({
+      lastActivity: "2026-10-18",
+      streak: 5,
+      freeze: 0,
+      rest: 0,
+      tzLo: null,
+      tzHi: null,
+      creditAt: "2026-10-18T13:00:00.000Z",
+      setAt: "2026-10-18T13:00:00.000Z",
+    });
+    setXpNow(replica, "2026-10-20T12:05:00.000Z");
+    replica.exec("SELECT public.evaluate_user_streaks();");
+    let row = readProfile();
+    expect(row.current_streak).toBe(5);
+    expect(row.last_activity_date).toBe("2026-10-18");
+    const cronFirst = claim("2026-10-20T12:05:00.000Z", "2026-10-20", "x9a");
+    expect(cronFirst.current_streak).toBe(6);
+    expect(cronFirst.last_activity_date).toBe("2026-10-20");
+
+    seed({
+      lastActivity: "2026-10-18",
+      streak: 5,
+      freeze: 0,
+      rest: 0,
+      tzLo: null,
+      tzHi: null,
+      creditAt: "2026-10-18T13:00:00.000Z",
+      setAt: "2026-10-18T13:00:00.000Z",
+    });
+    const awardFirst = claim("2026-10-20T12:05:00.000Z", "2026-10-20", "x9b");
+    setXpNow(replica, "2026-10-20T12:05:00.000Z");
+    replica.exec("SELECT public.evaluate_user_streaks();");
+    row = readProfile();
+    expect(awardFirst.current_streak).toBe(6);
+    expect(row.current_streak).toBe(6);
+    expect(row.last_activity_date).toBe("2026-10-20");
   });
 });
