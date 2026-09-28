@@ -166,7 +166,7 @@ interface AwardAchievementRpcRow {
 /**
  * Atomic XP award via the `award_xp` RPC (single UPDATE, LOCAL-day streaks,
  * idempotency guard, server-side anti-farming caps). Returns null when the
- * RPC is unavailable or fails so the caller falls back to the legacy path.
+ * RPC is unavailable or fails — callers must not write XP themselves.
  * An idempotency key is only sent when the caller supplies one (or an entity
  * id) — repeat awards of the same action without an entity must NOT dedupe
  * each other.
@@ -197,13 +197,24 @@ async function tryAwardXpRpc(
       p_local_day: todayKey(),
       p_duration_minutes: options?.durationMinutes ?? null,
     });
-    if (error || !data) return null;
+    if (error) {
+      logger.error("award_xp RPC failed", error.message);
+      return null;
+    }
+    if (!data) {
+      logger.error("award_xp RPC failed", "empty response");
+      return null;
+    }
     const row = (Array.isArray(data) ? data[0] : data) as
       | AwardXpRpcRow
       | undefined;
-    if (!row || typeof row.total_xp !== "number") return null;
+    if (!row || typeof row.total_xp !== "number") {
+      logger.error("award_xp RPC failed", "malformed response");
+      return null;
+    }
     return row;
-  } catch {
+  } catch (error) {
+    logger.error("award_xp RPC failed", error);
     return null;
   }
 }
@@ -211,8 +222,9 @@ async function tryAwardXpRpc(
 /**
  * Atomic achievement credit via the `award_achievement_xp` RPC (deduped
  * insert + total_xp increment in one transaction). Returns null when the RPC
- * is unavailable or fails so the caller falls back to the legacy path. A
- * duplicate (already awarded) resolves to a row with is_duplicate = true.
+ * is unavailable or fails — callers must not write achievements or XP
+ * themselves. A duplicate (already awarded) resolves to a row with
+ * is_duplicate = true.
  */
 async function tryAwardAchievementRpc(
   achievement: Achievement,
@@ -224,13 +236,24 @@ async function tryAwardAchievementRpc(
       p_title: achievement.title,
       p_description: achievement.description,
     });
-    if (error || !data) return null;
+    if (error) {
+      logger.error("award_achievement_xp RPC failed", error.message);
+      return null;
+    }
+    if (!data) {
+      logger.error("award_achievement_xp RPC failed", "empty response");
+      return null;
+    }
     const row = (Array.isArray(data) ? data[0] : data) as
       | AwardAchievementRpcRow
       | undefined;
-    if (!row || typeof row.total_xp !== "number") return null;
+    if (!row || typeof row.total_xp !== "number") {
+      logger.error("award_achievement_xp RPC failed", "malformed response");
+      return null;
+    }
     return row;
-  } catch {
+  } catch (error) {
+    logger.error("award_achievement_xp RPC failed", error);
     return null;
   }
 }
@@ -264,9 +287,8 @@ export function notifyGamificationResult(
   }
 }
 
-// Award XP and update user profile.
-// Prefers the atomic award_xp RPC; falls back to the legacy SELECT-then-UPDATE
-// path when the RPC is unavailable so existing behavior is preserved.
+// Award XP through the award_xp RPC only. On RPC failure, log and return
+// null — never write total_xp, counts, or ledger rows from the client.
 export async function awardXP(
   userId: string,
   xpAmount: number,
@@ -277,7 +299,6 @@ export async function awardXP(
     durationMinutes?: number;
   },
 ): Promise<GamificationResult | null> {
-  // Get current profile
   const { data: profile, error: fetchError } = await supabase
     .from("user_profiles")
     .select("*, notes_count, papers_count, tasks_completed_count, papers_with_insights_count")
@@ -285,8 +306,6 @@ export async function awardXP(
     .single();
 
   if (fetchError || !profile) {
-    // Optimization: avoid logging the full error object to prevent sensitive data leakage
-    // Only log the message if available
     logger.error(
       "Failed to fetch user profile:",
       fetchError?.message || "Profile not found",
@@ -294,10 +313,6 @@ export async function awardXP(
     return null;
   }
 
-  const today = todayKey();
-
-  // Apply active boost multiplier (rounded to the nearest integer so
-  // fractional multipliers still credit whole XP amounts)
   const boost = profile.active_boost as
     | { multiplier?: number; expires_at: string }
     | null
@@ -310,12 +325,11 @@ export async function awardXP(
     xpAmount * (boostActive && boost.multiplier ? boost.multiplier : 1),
   );
 
-  // Atomic path: the award_xp RPC performs the increment, streak update, and
-  // daily-log upsert in one transaction. The legacy path below is the
-  // fallback when the RPC is unavailable.
   const rpcRow = await tryAwardXpRpc(userId, xpEarned, action, options);
-  if (rpcRow?.is_duplicate) {
-    // Duplicate delivery: report current server totals without re-crediting.
+  if (!rpcRow) {
+    return null;
+  }
+  if (rpcRow.is_duplicate) {
     return {
       xpEarned: 0,
       level: rpcRow.current_level,
@@ -324,166 +338,42 @@ export async function awardXP(
       achievementsEarned: [],
     };
   }
-  if (rpcRow) {
-    const rpcCounts = {
-      notes_count: rpcRow.notes_count || 0,
-      papers_count: rpcRow.papers_count || 0,
-      tasks_completed_count: rpcRow.tasks_completed_count || 0,
-      papers_with_insights_count: rpcRow.papers_with_insights_count || 0,
-    };
-    const achievementsEarned = await checkAchievements(
-      userId,
-      action,
-      rpcRow.current_streak,
-      rpcCounts,
-    );
-    const achievementXp = achievementsEarned.reduce(
-      (sum, achievement) => sum + achievement.xp,
-      0,
-    );
-    const finalTotal = rpcRow.total_xp + achievementXp;
-    const finalLevel = getLevelFromXP(finalTotal);
-    const updatedProfile: UserProfile = {
-      ...(profile as UserProfile),
-      total_xp: finalTotal,
-      current_level: finalLevel,
-      current_streak: rpcRow.current_streak,
-      longest_streak: rpcRow.longest_streak,
-      last_activity_date: rpcRow.last_activity_date,
-      streak_freeze_tokens: rpcRow.streak_freeze_tokens,
-      ...rpcCounts,
-    };
-    useAppStore.getState().setUser(updatedProfile);
-    useGamificationStore.getState().hydrateFromProfile(updatedProfile);
-    return {
-      xpEarned: rpcRow.xp_credited,
-      level: finalLevel,
-      leveledUp: finalLevel > (profile.current_level || 1),
-      streak: rpcRow.current_streak,
-      achievementsEarned,
-    };
-  }
 
-  // Calculate new XP and Level
-  const newTotalXP = (profile.total_xp || 0) + xpEarned;
-  const newLevel = getLevelFromXP(newTotalXP);
-
-  // Calculate Streak
-  // Logic moved here to avoid fetching profile again and to ensure correct calculation based on previous state
-  let newStreak = 1;
-  let freezeTokens = profile.streak_freeze_tokens || 0;
-  if (profile.last_activity_date) {
-    const lastDate = new Date(profile.last_activity_date);
-    const todayDate = new Date(today);
-    const daysDiff = Math.floor(
-      (todayDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24),
-    );
-
-    if (daysDiff === 0) {
-      // Same day, keep current streak
-      newStreak = profile.current_streak || 1;
-    } else if (daysDiff === 1) {
-      // Consecutive day, increment streak
-      newStreak = (profile.current_streak || 0) + 1;
-    } else if (
-      daysDiff >= 2 &&
-      freezeTokens > 0 &&
-      (profile.current_streak || 0) > 0
-    ) {
-      // Streak protection: client is the single authority — consume ONE
-      // freeze token and preserve the streak (matches server cron behavior).
-      // Only preserves a NONZERO streak — a 0-streak (post-cron reset) must
-      // not burn a scarce token, it restarts for free like the no-token path.
-      freezeTokens -= 1;
-      newStreak = profile.current_streak || 1;
-    }
-    // If > 1 day with no tokens, streak resets to 1 (already set)
-  }
-
-  // Grant a freeze token when the streak reaches a new multiple of 7
-  // (only on transition, so staying at 14 doesn't farm tokens daily)
-  if (newStreak % 7 === 0 && newStreak > (profile.current_streak || 0)) {
-    freezeTokens += 1;
-  }
-
-  const longestStreak = Math.max(newStreak, profile.longest_streak || 0);
-
-  // Update running counts
-  const newCounts = {
-    notes_count: profile.notes_count || 0,
-    papers_count: profile.papers_count || 0,
-    tasks_completed_count: profile.tasks_completed_count || 0,
-    papers_with_insights_count: profile.papers_with_insights_count || 0,
+  const rpcCounts = {
+    notes_count: rpcRow.notes_count || 0,
+    papers_count: rpcRow.papers_count || 0,
+    tasks_completed_count: rpcRow.tasks_completed_count || 0,
+    papers_with_insights_count: rpcRow.papers_with_insights_count || 0,
   };
-
-  if (action === "create_note") newCounts.notes_count++;
-  if (action === "create_paper") newCounts.papers_count++;
-  if (action === "complete_task") newCounts.tasks_completed_count++;
-  if (action === "add_paper_insights") newCounts.papers_with_insights_count++;
-
-  // Update profile with ALL changes in one go (anti-N+1: single update folds
-  // boost/streak/token/level/count changes together)
-  const updatePayload: Partial<UserProfile> = {
-    total_xp: newTotalXP,
-    current_level: newLevel,
-    current_streak: newStreak,
-    longest_streak: longestStreak,
-    last_activity_date: today,
-    ...newCounts,
-  };
-  // Only write tokens when they changed to avoid clobbering a concurrent consumeFreeze
-  if (freezeTokens !== (profile.streak_freeze_tokens || 0)) {
-    updatePayload.streak_freeze_tokens = freezeTokens;
-  }
-
-  const { error: updateError } = await supabase
-    .from("user_profiles")
-    .update(updatePayload)
-    .eq("id", userId);
-
-  if (updateError) {
-    logger.error("Failed to update user profile", updateError);
-    return null;
-  }
-
-  // Update or create daily log (passing streak to avoid refetch)
-  await updateDailyLog(userId, xpEarned, newStreak);
-
-  // Check for achievements (passing streak and counts to avoid refetch)
   const achievementsEarned = await checkAchievements(
     userId,
     action,
-    newStreak,
-    newCounts,
+    rpcRow.current_streak,
+    rpcCounts,
   );
-
-  // Re-hydrate the profile into the stores so XP/level/streak/boost/freeze
-  // UI updates immediately without a refetch
-  const updatedProfile: UserProfile = {
-    ...(profile as UserProfile),
-    ...updatePayload,
-  };
-  // Fold achievement XP into the hydrated profile so the store matches DB state
   const achievementXp = achievementsEarned.reduce(
     (sum, achievement) => sum + achievement.xp,
     0,
   );
-  if (achievementXp > 0) {
-    updatedProfile.total_xp += achievementXp;
-    updatedProfile.current_level = getLevelFromXP(updatedProfile.total_xp);
-  }
-
-  // Level computed AFTER achievement XP is folded in, so result.level /
-  // leveledUp reflect the final totals (the hydrated profile's level)
-  const finalLevel = updatedProfile.current_level;
+  const finalTotal = rpcRow.total_xp + achievementXp;
+  const finalLevel = getLevelFromXP(finalTotal);
+  const updatedProfile: UserProfile = {
+    ...(profile as UserProfile),
+    total_xp: finalTotal,
+    current_level: finalLevel,
+    current_streak: rpcRow.current_streak,
+    longest_streak: rpcRow.longest_streak,
+    last_activity_date: rpcRow.last_activity_date,
+    streak_freeze_tokens: rpcRow.streak_freeze_tokens,
+    ...rpcCounts,
+  };
   useAppStore.getState().setUser(updatedProfile);
   useGamificationStore.getState().hydrateFromProfile(updatedProfile);
-
   return {
-    xpEarned,
+    xpEarned: rpcRow.xp_credited,
     level: finalLevel,
     leveledUp: finalLevel > (profile.current_level || 1),
-    streak: newStreak,
+    streak: rpcRow.current_streak,
     achievementsEarned,
   };
 }
@@ -579,117 +469,19 @@ async function checkAchievements(
   return earnedAchievements;
 }
 
-// Award an achievement. Primary path is the atomic `award_achievement_xp`
-// RPC (deduped insert + total_xp increment in one transaction), so the client
-// never writes total_xp directly on this path. The legacy direct-write path
-// below is kept only for when the RPC is unavailable; it credits the same
-// achievement XP so both paths stay consistent.
+// Award an achievement through award_achievement_xp only. On RPC failure,
+// log and return null — never insert research_achievements or write total_xp.
 async function awardAchievement(
   userId: string,
   achievement: Achievement,
 ): Promise<Achievement | null> {
   const rpcRow = await tryAwardAchievementRpc(achievement);
-  if (rpcRow) {
-    // Update cache (also on duplicates: the achievement IS earned, just not
-    // by this call — recording it avoids repeat attempts).
-    const cacheEarned = achievementsCache.get(userId);
-    if (cacheEarned) {
-      cacheEarned.add(achievement.type);
-    }
-    return rpcRow.is_duplicate ? null : achievement;
-  }
-
-  const { error: insertError } = await supabase
-    .from("research_achievements")
-    .insert({
-      user_id: userId,
-      achievement_type: achievement.type,
-      title: achievement.title,
-      description: achievement.description,
-      xp_awarded: achievement.xp,
-    });
-
-  if (insertError) {
-    logger.error("Failed to award achievement", insertError);
+  if (!rpcRow) {
     return null;
   }
-
-  // Update cache
   const cacheEarned = achievementsCache.get(userId);
   if (cacheEarned) {
     cacheEarned.add(achievement.type);
   }
-
-  // Award XP for achievement (simplified to avoid double-counting)
-  const { data: profile } = await supabase
-    .from("user_profiles")
-    .select("total_xp, current_level")
-    .eq("id", userId)
-    .single();
-
-  if (profile) {
-    const newTotalXP = (profile.total_xp || 0) + achievement.xp;
-    const newLevel = getLevelFromXP(newTotalXP);
-
-    const { error: xpError } = await supabase
-      .from("user_profiles")
-      .update({
-        total_xp: newTotalXP,
-        current_level: newLevel,
-      })
-      .eq("id", userId);
-
-    if (xpError) {
-      logger.error("Failed to award achievement XP", xpError);
-    }
-  }
-
-  return achievement;
-}
-
-// Update daily log
-async function updateDailyLog(
-  userId: string,
-  xpEarned: number,
-  currentStreak: number,
-): Promise<void> {
-  const today = todayKey();
-
-  // Optimization: Removed redundant profile fetching and updating.
-  // Streak is now calculated in awardXP and passed down.
-
-  // Check if daily log exists for today
-  const { data: existingLog } = await supabase
-    .from("daily_logs")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("date", today)
-    .maybeSingle();
-
-  if (existingLog) {
-    // Update existing log
-    const { error: updateLogError } = await supabase
-      .from("daily_logs")
-      .update({
-        xp_earned: existingLog.xp_earned + xpEarned,
-        streak_count: currentStreak,
-      })
-      .eq("id", existingLog.id);
-
-    if (updateLogError) {
-      logger.error("Failed to update daily log", updateLogError);
-    }
-  } else {
-    // Create new log
-    const { error: insertLogError } = await supabase.from("daily_logs").insert({
-      user_id: userId,
-      date: today,
-      xp_earned: xpEarned,
-      streak_count: currentStreak,
-    });
-
-    if (insertLogError) {
-      logger.error("Failed to create daily log", insertLogError);
-    }
-  }
+  return rpcRow.is_duplicate ? null : achievement;
 }

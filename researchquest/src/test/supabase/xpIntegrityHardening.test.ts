@@ -1,0 +1,358 @@
+/**
+ * XP integrity hardening (1765800000): static contract + live PG17 replica.
+ *
+ * Live cases replay the QA repros (day-window burst, streak backfill, crafted
+ * p_delta, direct total_xp write, set_config bypass, ineligible achievement)
+ * against an ephemeral Postgres 17 cluster using the same replica recipe as
+ * 1765700000. Static checks still run when PG17 is absent so CI stays green.
+ */
+import { readdir, readFile } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import {
+  PG17_AVAILABLE,
+  USER_A,
+  awardAchievement,
+  awardXp,
+  resetUser,
+  startReplica,
+  type Replica,
+} from "./pg17ReplicaHarness";
+
+const testDir = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(testDir, "..", "..", "..", "..");
+const migrationsDir = path.join(repoRoot, "supabase", "migrations");
+const gamificationPath = path.join(
+  repoRoot,
+  "researchquest",
+  "src",
+  "utils",
+  "gamification.ts",
+);
+const FILE = "1765800000_xp_integrity_hardening.sql";
+
+const XP_REWARDS: Record<string, number> = {
+  create_note: 10,
+  update_note: 0,
+  create_paper: 15,
+  update_paper_status: 10,
+  add_paper_insights: 15,
+  create_idea: 20,
+  advance_idea_stage: 25,
+  create_task: 5,
+  complete_task: 20,
+  daily_task_completion: 10,
+  create_topic: 15,
+  update_topic: 8,
+  tag_entity_with_topic: 6,
+  complete_topic_quest: 30,
+};
+
+const PROFILE_UPDATE_COLUMNS = [
+  "active_boost",
+  "rest_days",
+  "streak_freeze_tokens",
+  "updated_at",
+];
+
+function stripLineComments(text: string): string {
+  return text
+    .split("\n")
+    .map((line) => {
+      const idx = line.indexOf("--");
+      if (idx === -1) return line;
+      const before = line.slice(0, idx);
+      const quotes = (before.match(/'/g) ?? []).length;
+      return quotes % 2 === 0 ? before : line;
+    })
+    .join("\n");
+}
+
+function functionBlock(sql: string, name: string): string {
+  const start = new RegExp(
+    `CREATE\\s+(?:OR\\s+REPLACE\\s+)?FUNCTION\\s+public\\.${name}\\s*\\(`,
+    "i",
+  ).exec(sql);
+  if (!start) return "";
+  const tail = sql.slice(start.index);
+  const bodyOpen = tail.search(/AS\s+\$\$/i);
+  const bodyClose = tail.indexOf("$$;", bodyOpen + 4);
+  return tail.slice(0, bodyClose + 3);
+}
+
+let raw = "";
+let sql = "";
+let gamification = "";
+
+beforeAll(async () => {
+  raw = await readFile(path.join(migrationsDir, FILE), "utf8");
+  sql = stripLineComments(raw);
+  gamification = await readFile(gamificationPath, "utf8");
+});
+
+describe("1765800000 xp integrity hardening (static)", () => {
+  it("keeps the canonical 7-arg award_xp and 4-arg award_achievement_xp signatures", () => {
+    expect(sql).toMatch(
+      /CREATE\s+OR\s+REPLACE\s+FUNCTION\s+public\.award_xp\s*\(\s*p_uid\s+UUID/i,
+    );
+    expect(sql).toMatch(
+      /CREATE\s+OR\s+REPLACE\s+FUNCTION\s+public\.award_achievement_xp\s*\(\s*p_achievement_type\s+TEXT/i,
+    );
+    expect(functionBlock(sql, "award_xp")).toMatch(/p_delta/);
+    expect(functionBlock(sql, "award_xp")).toMatch(/p_local_day/);
+    expect(functionBlock(sql, "award_achievement_xp")).toMatch(/p_xp/);
+  });
+
+  it("pins empty or fully-qualified search_path on DEFINER RPCs", () => {
+    for (const name of ["award_xp", "award_achievement_xp"]) {
+      const block = functionBlock(sql, name);
+      expect(block).toMatch(/SECURITY\s+DEFINER/i);
+      expect(block).toMatch(/SET\s+search_path\s*=\s*''/i);
+    }
+  });
+
+  it("credits least(p_delta, server mapping) and 0 for unknown actions", () => {
+    const award = functionBlock(sql, "award_xp");
+    expect(award).toMatch(/LEAST\s*\(\s*p_delta\s*,\s*v_server_xp\s*\)/i);
+    const rewardBlock = /v_server_xp\s*:=\s*CASE\s+v_action([\s\S]*?)END;/i.exec(award)?.[1] ?? "";
+    expect(rewardBlock).toMatch(/ELSE\s+0/i);
+    for (const [action, xp] of Object.entries(XP_REWARDS)) {
+      expect(rewardBlock).toMatch(new RegExp(`WHEN\\s+'${action}'\\s+THEN\\s+${xp}\\b`, "i"));
+    }
+    expect(gamification).toContain("CREATE_NOTE: 10");
+  });
+
+  it("enforces a rolling 24h per-action cap in addition to the local-day window", () => {
+    const award = functionBlock(sql, "award_xp");
+    expect(award).toMatch(/interval\s+'24 hours'/i);
+    expect(award).toMatch(/created_at\s*>\s*now\(\)\s*-\s*interval\s+'24 hours'/i);
+    expect(award).toMatch(/p_local_day\s*>=\s*v_utc_day\s*-\s*1/i);
+  });
+
+  it("advances the streak at most once per 20h and never for an earlier local day", () => {
+    const award = functionBlock(sql, "award_xp");
+    expect(award).toMatch(/interval\s+'20 hours'/i);
+    expect(award).toMatch(/v_today\s*<\s*v_profile\.last_activity_date/i);
+  });
+
+  it("does not increment running counts from award_xp", () => {
+    const award = functionBlock(sql, "award_xp");
+    expect(award).not.toMatch(/notes_count\s*=\s*CASE/i);
+    expect(award).not.toMatch(/papers_count\s*=\s*CASE/i);
+    expect(award).toMatch(/FROM\s+public\.notes/i);
+  });
+
+  it("revokes table UPDATE on user_profiles and grants only legitimate columns", () => {
+    expect(sql).toMatch(/REVOKE\s+UPDATE\s+ON\s+TABLE\s+public\.user_profiles\s+FROM\s+authenticated/i);
+    expect(sql).toMatch(/REVOKE\s+UPDATE\s+ON\s+TABLE\s+public\.user_profiles\s+FROM\s+anon/i);
+    const grant =
+      /GRANT\s+UPDATE\s*\(([^)]+)\)\s+ON\s+TABLE\s+public\.user_profiles\s+TO\s+authenticated/i.exec(
+        sql,
+      )?.[1] ?? "";
+    const cols = grant
+      .split(",")
+      .map((c) => c.trim().replaceAll('"', "").toLowerCase())
+      .filter(Boolean)
+      .sort();
+    expect(cols).toEqual([...PROFILE_UPDATE_COLUMNS].sort());
+    expect(grant.toLowerCase()).not.toMatch(/total_xp/);
+    expect(grant.toLowerCase()).not.toMatch(/current_level/);
+    expect(grant.toLowerCase()).not.toMatch(/current_streak/);
+    expect(grant.toLowerCase()).not.toMatch(/_count/);
+  });
+
+  it("drops the settable GUC bypass and client writes on the XP ledgers", () => {
+    expect(functionBlock(sql, "award_xp")).not.toMatch(/app\.bypass_xp_guard/);
+    expect(functionBlock(sql, "award_achievement_xp")).not.toMatch(/app\.bypass_xp_guard/);
+    expect(sql).toMatch(/DROP\s+TRIGGER\s+IF\s+EXISTS\s+lock_total_xp_monotonic/i);
+    expect(sql).toMatch(/REVOKE\s+INSERT\s*,\s*UPDATE\s*,\s*DELETE[\s\S]*research_achievements[\s\S]*authenticated/i);
+    expect(sql).toMatch(/REVOKE\s+INSERT\s*,\s*UPDATE\s*,\s*DELETE[\s\S]*xp_events[\s\S]*authenticated/i);
+  });
+
+  it("checks achievement eligibility from real tables and ignores p_xp above the catalogue", () => {
+    const block = functionBlock(sql, "award_achievement_xp");
+    expect(block).toMatch(/FROM\s+public\.papers/i);
+    expect(block).toMatch(/FROM\s+public\.notes/i);
+    expect(block).toMatch(/FROM\s+public\.tasks/i);
+    expect(block).toMatch(/achievement eligibility not met/i);
+    expect(block).not.toMatch(/\+\s*p_xp\b/i);
+    expect(block).toMatch(/WHEN\s+'note_master'\s+THEN\s+v_xp\s*:=\s*200/i);
+  });
+
+  it("is the only new migration after 1765700000 and does not re-apply 1764800000..1765300000", async () => {
+    const names = (await readdir(migrationsDir)).filter((n) => n.endsWith(".sql")).sort();
+    expect(names.some((n) => n.startsWith("1765800000"))).toBe(true);
+    expect(raw).toMatch(/HARD NO/);
+    expect(raw).not.toMatch(/supabase db push/i);
+  });
+
+  it("removes the client total_xp fallback and does not write XP ledgers from the browser", () => {
+    expect(gamification).toMatch(/never write total_xp/);
+    expect(gamification).not.toMatch(
+      /\.from\(\s*["']user_profiles["']\s*\)[\s\S]{0,400}\.update\(/,
+    );
+    expect(gamification).not.toMatch(/\.from\(\s*["']xp_events["']\s*\)/);
+    expect(gamification).not.toMatch(
+      /\.from\(\s*["']research_achievements["']\s*\)[\s\S]{0,200}\.(insert|update|delete)\(/,
+    );
+  });
+});
+
+describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replica)", () => {
+  let replica: Replica;
+
+  beforeAll(() => {
+    replica = startReplica();
+  });
+
+  afterAll(() => {
+    replica?.stop();
+  });
+
+  beforeEach(() => {
+    resetUser(replica, USER_A);
+  });
+
+  it("credits a normal create_note at the server value", () => {
+    const row = awardXp(replica, USER_A, 10, "create_note");
+    expect(row.xp_credited).toBe(10);
+    expect(row.total_xp).toBe(10);
+    expect(row.current_streak).toBe(1);
+  });
+
+  it("rejects the day-window burst: utc+1 and utc-1 cannot add another cap after today is full", () => {
+    const today = replica.exec("SELECT (now() AT TIME ZONE 'UTC')::date").trim();
+    const plus = replica.exec("SELECT ((now() AT TIME ZONE 'UTC')::date + 1)").trim();
+    const minus = replica.exec("SELECT ((now() AT TIME ZONE 'UTC')::date - 1)").trim();
+
+    const first = awardXp(replica, USER_A, 10, "create_note", { localDay: today });
+    expect(first.xp_credited).toBe(10);
+    for (let i = 0; i < 9; i += 1) {
+      awardXp(replica, USER_A, 10, "create_note", { localDay: today });
+    }
+    const capped = awardXp(replica, USER_A, 10, "create_note", { localDay: today });
+    expect(capped.xp_credited).toBe(0);
+    expect(capped.total_xp).toBe(100);
+
+    const tomorrow = awardXp(replica, USER_A, 100, "create_note", { localDay: plus });
+    expect(tomorrow.xp_credited).toBe(0);
+    expect(tomorrow.total_xp).toBe(100);
+
+    const yesterday = awardXp(replica, USER_A, 100, "create_note", { localDay: minus });
+    expect(yesterday.xp_credited).toBe(0);
+    expect(yesterday.total_xp).toBe(100);
+  });
+
+  it("does not add +2 to the streak in one real day via utc+1, and does not backfill", () => {
+    const today = replica.exec("SELECT (now() AT TIME ZONE 'UTC')::date").trim();
+    const plus = replica.exec("SELECT ((now() AT TIME ZONE 'UTC')::date + 1)").trim();
+    const minus = replica.exec("SELECT ((now() AT TIME ZONE 'UTC')::date - 1)").trim();
+
+    const first = awardXp(replica, USER_A, 10, "create_note", { localDay: today });
+    expect(first.current_streak).toBe(1);
+    expect(first.last_activity_date).toBe(today);
+
+    const tomorrow = awardXp(replica, USER_A, 10, "create_note", { localDay: plus });
+    expect(tomorrow.current_streak).toBe(1);
+    expect(tomorrow.last_activity_date).toBe(today);
+
+    const backfill = awardXp(replica, USER_A, 10, "create_note", { localDay: minus });
+    expect(backfill.current_streak).toBe(1);
+    expect(backfill.last_activity_date).toBe(today);
+  });
+
+  it("advances the streak by 1 after ~20h of server time on the next local day", () => {
+    const today = replica.exec("SELECT (now() AT TIME ZONE 'UTC')::date").trim();
+    const first = awardXp(replica, USER_A, 10, "create_note", { localDay: today });
+    expect(first.current_streak).toBe(1);
+
+    replica.exec(`
+      UPDATE public.xp_events
+      SET created_at = now() - interval '21 hours'
+      WHERE user_id = '${USER_A}';
+      UPDATE public.user_profiles
+      SET last_activity_date = (now() AT TIME ZONE 'UTC')::date - 1
+      WHERE id = '${USER_A}';
+    `);
+
+    const next = awardXp(replica, USER_A, 10, "create_note", { localDay: today });
+    expect(next.current_streak).toBe(2);
+    expect(next.xp_credited).toBe(10);
+  });
+
+  it("clamps a crafted p_delta to the server action value", () => {
+    const row = awardXp(replica, USER_A, 1000, "create_note");
+    expect(row.xp_credited).toBe(10);
+    expect(row.total_xp).toBe(10);
+    const unknown = awardXp(replica, USER_A, 200, "invented_action");
+    expect(unknown.xp_credited).toBe(0);
+    expect(unknown.total_xp).toBe(10);
+  });
+
+  it("denies a direct total_xp increment on the caller's own profile", () => {
+    awardXp(replica, USER_A, 10, "create_note");
+    expect(() =>
+      replica.execAs(
+        USER_A,
+        `UPDATE public.user_profiles SET total_xp = total_xp + 1000 WHERE id = '${USER_A}'`,
+      ),
+    ).toThrow(/permission denied|must be owner/i);
+    const total = replica.exec(`SELECT total_xp FROM public.user_profiles WHERE id = '${USER_A}'`).trim();
+    expect(Number(total)).toBe(10);
+  });
+
+  it("ignores set_config('app.bypass_xp_guard') for direct total_xp writes", () => {
+    awardXp(replica, USER_A, 10, "create_note");
+    expect(() =>
+      replica.execAs(
+        USER_A,
+        `SELECT set_config('app.bypass_xp_guard', 'on', true);
+         UPDATE public.user_profiles SET total_xp = 9999 WHERE id = '${USER_A}'`,
+      ),
+    ).toThrow(/permission denied|must be owner/i);
+    const total = replica.exec(`SELECT total_xp FROM public.user_profiles WHERE id = '${USER_A}'`).trim();
+    expect(Number(total)).toBe(10);
+  });
+
+  it("denies an ineligible achievement and awards an eligible one once", () => {
+    expect(() => awardAchievement(replica, USER_A, "note_master", 500)).toThrow(
+      /eligibility not met/i,
+    );
+
+    replica.exec(`
+      INSERT INTO public.notes (user_id, title, markdown_body)
+      SELECT '${USER_A}', 'n' || g, 'body'
+      FROM generate_series(1, 50) AS g;
+    `);
+
+    const first = awardAchievement(replica, USER_A, "note_master", 500);
+    expect(first.xp_credited).toBe(200);
+    expect(first.total_xp).toBe(200);
+    expect(first.is_duplicate).toBe(false);
+
+    const dup = awardAchievement(replica, USER_A, "note_master", 500);
+    expect(dup.xp_credited).toBe(0);
+    expect(dup.is_duplicate).toBe(true);
+    expect(dup.total_xp).toBe(200);
+  });
+
+  it("still allows SELECT on the owner's profile after column grants", () => {
+    awardXp(replica, USER_A, 10, "create_note");
+    const row = replica.jsonAs<{ total_xp: number; id: string }>(
+      USER_A,
+      `SELECT id, total_xp FROM public.user_profiles WHERE id = '${USER_A}'`,
+    );
+    expect(row.id).toBe(USER_A);
+    expect(row.total_xp).toBe(10);
+  });
+
+  it("still allows authenticated to update boost/freeze/rest columns", () => {
+    replica.execAs(
+      USER_A,
+      `UPDATE public.user_profiles SET rest_days = 2 WHERE id = '${USER_A}'`,
+    );
+    const rest = replica.exec(`SELECT rest_days FROM public.user_profiles WHERE id = '${USER_A}'`).trim();
+    expect(Number(rest)).toBe(2);
+  });
+});
