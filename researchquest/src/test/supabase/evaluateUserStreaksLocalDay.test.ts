@@ -638,9 +638,12 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
       ["+10", 600],
       ["+14", 840],
     ];
+    const covering: { k: 2 | 3; last: string }[] = [
+      { k: 2, last: "2026-10-13" },
+      { k: 3, last: "2026-10-12" },
+    ];
     for (const [label, tz] of bands) {
-      for (const k of [2, 3]) {
-        const last = k === 2 ? "2026-10-13" : "2026-10-12";
+      for (const { k, last } of covering) {
         resetUser(replica, USER_A);
         seed({
           lastActivity: last,
@@ -660,39 +663,49 @@ describe.skipIf(!PG17_AVAILABLE)("1765900000 evaluate_user_streaks local day (PG
         // with tokens unused.
         expect(awarded.current_streak, `${label} k=${k} return`).toBe(5);
         expect(awarded.streak_freeze_tokens, `${label} k=${k} all tokens spent`).toBe(0);
-        let row = readProfile();
-        expect(row.current_streak).toBe(5);
-        expect(row.streak_freeze_tokens).toBe(0);
-        expect(row.last_activity_date).toBe(ret);
-
-        resetUser(replica, USER_A);
-        seed({
-          lastActivity: last,
-          streak: 5,
-          freeze: k - 1,
-          rest: 0,
-          tzLo: tz,
-          tzHi: tz,
-          creditAt: `${last}T02:00:00.000Z`,
-          setAt: `${last}T02:00:00.000Z`,
-        });
-        runCronsFromLastToReturn(last, k);
-        row = readProfile();
-        if (k === 2) {
-          expect(row.current_streak, `${label} k=2 tokens=1 cron keeps streak`).toBe(5);
-          expect(row.streak_freeze_tokens, `${label} k=2 tokens=1 unused`).toBe(1);
-          expect(row.last_activity_date).toBe(last);
-        }
-        const reset = claimReturn(ret, tz, `short-${label}-k${k}`);
-        expect(reset.current_streak, `${label} k=${k} short tokens reset`).toBe(1);
-        if (k === 2) {
-          expect(reset.streak_freeze_tokens, `${label} k=2 keeps the token`).toBe(1);
-        } else {
-          // Prefix night looked coverable (k appeared as 2); leftover token
-          // is kept when the third miss makes the run unsavable.
-          expect(reset.streak_freeze_tokens, `${label} k=3 leftover kept`).toBeGreaterThan(0);
-        }
+        const covered = readProfile();
+        expect(covered.current_streak).toBe(5);
+        expect(covered.streak_freeze_tokens).toBe(0);
+        expect(covered.last_activity_date).toBe(ret);
       }
+
+      resetUser(replica, USER_A);
+      seed({
+        lastActivity: "2026-10-13",
+        streak: 5,
+        freeze: 1,
+        rest: 0,
+        tzLo: tz,
+        tzHi: tz,
+        creditAt: "2026-10-13T02:00:00.000Z",
+        setAt: "2026-10-13T02:00:00.000Z",
+      });
+      const retK2 = runCronsFromLastToReturn("2026-10-13", 2);
+      const afterCronK2 = readProfile();
+      expect(afterCronK2.current_streak, `${label} k=2 tokens=1 cron keeps streak`).toBe(5);
+      expect(afterCronK2.streak_freeze_tokens, `${label} k=2 tokens=1 unused`).toBe(1);
+      expect(afterCronK2.last_activity_date).toBe("2026-10-13");
+      const resetK2 = claimReturn(retK2, tz, `short-${label}-k2`);
+      expect(resetK2.current_streak, `${label} k=2 short tokens reset`).toBe(1);
+      expect(resetK2.streak_freeze_tokens, `${label} k=2 keeps the token`).toBe(1);
+
+      resetUser(replica, USER_A);
+      seed({
+        lastActivity: "2026-10-12",
+        streak: 5,
+        freeze: 2,
+        rest: 0,
+        tzLo: tz,
+        tzHi: tz,
+        creditAt: "2026-10-12T02:00:00.000Z",
+        setAt: "2026-10-12T02:00:00.000Z",
+      });
+      const retK3 = runCronsFromLastToReturn("2026-10-12", 3);
+      const resetK3 = claimReturn(retK3, tz, `short-${label}-k3`);
+      expect(resetK3.current_streak, `${label} k=3 short tokens reset`).toBe(1);
+      // Prefix night looked coverable (k appeared as 2); leftover token
+      // is kept when the third miss makes the run unsavable.
+      expect(resetK3.streak_freeze_tokens, `${label} k=3 leftover kept`).toBeGreaterThan(0);
     }
   });
 
