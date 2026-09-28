@@ -4,17 +4,23 @@ import {
   DEMO_FIRST_RUN_NOTE_ID,
   DEMO_FIRST_RUN_PATH,
   DEMO_FIRST_RUN_TOPIC_ID,
+  DEMO_WORKSPACE_ENTERED_KEY,
+  ensureDemoFirstRunPath,
+  hasEnteredDemoWorkspace,
   isDemoFirstRunPath,
+  markDemoWorkspaceEntered,
 } from "../../lib/demoData";
 
 describe("demo first-run seed and entry", () => {
   beforeEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
     localStorage.clear();
+    sessionStorage.clear();
   });
 
   it("seeds the first-run topic with exactly three papers and an empty note", () => {
@@ -47,9 +53,11 @@ describe("demo first-run seed and entry", () => {
       value: { assign, reload: vi.fn(), pathname: "/", href: "http://localhost/" },
     });
 
+    sessionStorage.setItem(DEMO_WORKSPACE_ENTERED_KEY, "1");
     supabase.enableDemoModeAndReload();
 
     expect(localStorage.getItem(supabase.DEMO_MODE_STORAGE_KEY)).toBe("1");
+    expect(sessionStorage.getItem(DEMO_WORKSPACE_ENTERED_KEY)).toBeNull();
     expect(assign).toHaveBeenCalledWith(DEMO_FIRST_RUN_PATH);
     expect(DEMO_FIRST_RUN_PATH).toBe(`/topics/${DEMO_FIRST_RUN_TOPIC_ID}`);
     expect(DEMO_FIRST_RUN_PATH).not.toBe("/");
@@ -82,6 +90,35 @@ describe("demo first-run seed and entry", () => {
     expect(confirm).toHaveBeenCalled();
     expect(assign).not.toHaveBeenCalled();
     expect(localStorage.getItem(supabase.DEMO_MODE_STORAGE_KEY)).not.toBe("1");
+  });
+
+  it("Go to full workspace: / stays on Today after the user has entered the demo shell", () => {
+    const replaceState = vi.spyOn(window.history, "replaceState");
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: {
+        assign: vi.fn(),
+        reload: vi.fn(),
+        pathname: "/",
+        href: "http://localhost/",
+      },
+    });
+
+    expect(ensureDemoFirstRunPath(true)).toBe(true);
+    expect(replaceState).toHaveBeenCalledWith(null, "", DEMO_FIRST_RUN_PATH);
+
+    replaceState.mockClear();
+    markDemoWorkspaceEntered();
+    expect(hasEnteredDemoWorkspace()).toBe(true);
+    expect(sessionStorage.getItem(DEMO_WORKSPACE_ENTERED_KEY)).toBe("1");
+    expect(ensureDemoFirstRunPath(true)).toBe(false);
+    expect(replaceState).not.toHaveBeenCalled();
+  });
+
+  it("does not rewrite / when demo mode is off", () => {
+    window.history.replaceState(null, "", "/");
+    expect(ensureDemoFirstRunPath(false)).toBe(false);
+    expect(window.location.pathname).toBe("/");
   });
 
   it("exits demo mode to the full workspace (no dead-end loop)", async () => {

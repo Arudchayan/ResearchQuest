@@ -1,7 +1,7 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
-import { seededTopicDetailHeading } from "./a11y";
+import { enableDemoMode, gotoDemoView, seededTopicDetailHeading } from "./a11y";
 
 /**
  * First-run receipt: one real click of Use demo workspace must land the loop.
@@ -12,8 +12,34 @@ const ARTIFACTS_DIR =
   (process.env.CI ? "e2e/artifacts/first-run" : "/opt/cursor/artifacts");
 const TOPIC_PATH = "/topics/topic-ai-agents";
 
+async function expectSeededFirstRunDoor(page: Page) {
+  await expect(seededTopicDetailHeading(page)).toBeVisible({
+    timeout: 30_000,
+  });
+  await expect(
+    page.getByText(/Retrieval-Augmented Generation/i),
+  ).toBeVisible();
+  await expect(page.getByText(/Attention Is All You Need/i)).toBeVisible();
+  await expect(page.getByText(/ReAct:/i)).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: /Demo workspace/i }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /Go to full workspace/i }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /Exit demo/i }),
+  ).toBeVisible();
+  await expect(page.locator('[data-first-run="true"]')).toHaveCount(1);
+  await expect(page.getByRole("link", { name: /^Today$/i })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /^Feeds$/i })).toHaveCount(0);
+}
+
 test.describe("first-run demo click", () => {
-  test.beforeEach(async ({ context }) => {
+  test("first click of Use demo workspace lands seeded topic loop", async ({
+    page,
+    context,
+  }) => {
     await context.clearCookies();
     await context.addInitScript(() => {
       try {
@@ -22,11 +48,6 @@ test.describe("first-run demo click", () => {
         // ignore
       }
     });
-  });
-
-  test("first click of Use demo workspace lands seeded topic loop", async ({
-    page,
-  }) => {
     mkdirSync(ARTIFACTS_DIR, { recursive: true });
 
     await page.goto("/", { waitUntil: "domcontentloaded" });
@@ -71,32 +92,13 @@ test.describe("first-run demo click", () => {
     });
     expect(page.url()).toContain(TOPIC_PATH);
 
-    await expect(seededTopicDetailHeading(page)).toBeVisible({
-      timeout: 30_000,
-    });
-
-    await expect(
-      page.getByText(/Retrieval-Augmented Generation/i),
-    ).toBeVisible();
-    await expect(page.getByText(/Attention Is All You Need/i)).toBeVisible();
-    await expect(page.getByText(/ReAct:/i)).toBeVisible();
-
-    await expect(
-      page.getByRole("region", { name: /Demo workspace/i }),
-    ).toBeVisible();
+    await expectSeededFirstRunDoor(page);
     await expect(
       page.getByText(
         "Four sample topics — you’re on AI Agents (three papers + a note). Focus Studio starts empty. Explore freely — nothing here affects real data.",
       ),
     ).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: /Go to full workspace/i }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: /Exit demo/i }),
-    ).toBeVisible();
     await expect(page.getByText(/Welcome to ResearchQuest/i)).toBeVisible();
-
     await expect(
       page.getByRole("button", { name: "Export topic", exact: true }),
     ).toBeVisible();
@@ -107,14 +109,37 @@ test.describe("first-run demo click", () => {
     await expect(
       page.getByRole("button", { name: /^Delete$/i }),
     ).toBeVisible();
-    // First-run door: AppShell hides nav chrome and marks the surface.
-    await expect(page.locator('[data-first-run="true"]')).toHaveCount(1);
-    await expect(page.getByRole("link", { name: /^Today$/i })).toHaveCount(0);
-    await expect(page.getByRole("link", { name: /^Feeds$/i })).toHaveCount(0);
 
     await page.screenshot({
       path: path.join(ARTIFACTS_DIR, "first_run_seeded_topic.png"),
       fullPage: true,
     });
+  });
+
+  test("Go to full workspace stays in demo and opens Today", async ({
+    page,
+    context,
+  }) => {
+    await enableDemoMode(context);
+    await gotoDemoView(page, TOPIC_PATH);
+    await expect(
+      page.getByRole("button", { name: /Go to full workspace/i }),
+    ).toBeVisible({ timeout: 15_000 });
+
+    await page.getByRole("button", { name: /Go to full workspace/i }).click();
+    await page.waitForURL((url) => url.pathname === "/", { timeout: 15_000 });
+
+    await expect(page.locator('[data-first-run="true"]')).toHaveCount(0);
+    await expect(page.getByRole("link", { name: /^Today$/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /^Feeds$/i })).toBeVisible();
+    await expect(
+      page.getByText(/Demo workspace — sample data on this device/i),
+    ).toBeVisible();
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("link", { name: /^Today$/i })).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.locator('[data-first-run="true"]')).toHaveCount(0);
   });
 });

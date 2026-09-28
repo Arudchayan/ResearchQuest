@@ -4,7 +4,11 @@ import {
   isDemoMode,
   supabase,
 } from "./lib/supabase";
-import { DEMO_FIRST_RUN_PATH } from "./lib/demoData";
+import {
+  DEMO_FIRST_RUN_PATH,
+  ensureDemoFirstRunPath,
+  markDemoWorkspaceEntered,
+} from "./lib/demoData";
 import { useShallow } from "zustand/react/shallow";
 import { useAppStore } from "./store/appStore";
 import { useLibraryStore } from "./store/libraryStore";
@@ -43,12 +47,8 @@ import { prefetchPlanChunks } from "./lib/prefetchChunks";
 import { KeepAlivePanes } from "./components/layout/KeepAlivePanes";
 import { lazyWithReload } from "./lib/lazyWithReload";
 
-function ensureDemoFirstRunPath(): boolean {
-  if (!isDemoMode || typeof window === "undefined") return false;
-  const path = window.location.pathname;
-  if (path !== "/" && path !== "") return false;
-  window.history.replaceState(null, "", DEMO_FIRST_RUN_PATH);
-  return true;
+function redirectDemoHomeIfNeeded(): boolean {
+  return ensureDemoFirstRunPath(isDemoMode);
 }
 
 const DashboardLazy = lazyWithReload(() =>
@@ -258,11 +258,11 @@ function App() {
   // URL-based routing — initial load, back/forward, soft link clicks, recovery
   useEffect(() => {
     // Demo first-run: never leave a stranger on `/` / dashboard.
-    ensureDemoFirstRunPath();
+    redirectDemoHomeIfNeeded();
 
     const applyPath = (pathname: string, { enforceDemoHome = false } = {}) => {
       if (enforceDemoHome) {
-        ensureDemoFirstRunPath();
+        redirectDemoHomeIfNeeded();
       }
       const route = parseRoute(
         enforceDemoHome ? window.location.pathname : pathname,
@@ -291,6 +291,9 @@ function App() {
         pathname = new URL(path, window.location.origin).pathname;
       } catch {
         pathname = path.split("?")[0]?.split("#")[0] || path;
+      }
+      if (isDemoMode && pathname !== DEMO_FIRST_RUN_PATH) {
+        markDemoWorkspaceEntered();
       }
       applyPath(pathname);
     };
