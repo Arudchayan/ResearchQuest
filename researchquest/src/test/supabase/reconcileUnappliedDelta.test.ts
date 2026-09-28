@@ -322,9 +322,7 @@ describe("1765700000 reconcile unapplied master delta", () => {
   });
 
   it("requires PostgreSQL 17 in CI so live replica cases are not skipped", () => {
-    if (process.env.CI) {
-      expect(PG17_AVAILABLE).toBe(true);
-    }
+    expect(!process.env.CI || PG17_AVAILABLE).toBe(true);
   });
 });
 

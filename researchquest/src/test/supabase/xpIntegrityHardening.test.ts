@@ -219,9 +219,7 @@ describe("1765800000 xp integrity hardening (static)", () => {
   });
 
   it("requires PostgreSQL 17 in CI so live replica cases are not skipped", () => {
-    if (process.env.CI) {
-      expect(PG17_AVAILABLE).toBe(true);
-    }
+    expect(!process.env.CI || PG17_AVAILABLE).toBe(true);
   });
 
   it("removes the client total_xp fallback and does not write XP ledgers from the browser", () => {
