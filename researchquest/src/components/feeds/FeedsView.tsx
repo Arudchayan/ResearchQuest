@@ -13,6 +13,9 @@ import {
 import { useAppStore } from "../../store/appStore";
 import type { FeedPromoteTarget } from "../../types/database";
 import { cn } from "../../lib/utils";
+import { navigateToView } from "../../lib/softNavigation";
+import { Button } from "../ui/button";
+import { EmptyState } from "../ui/EmptyState";
 import { PageHeader } from "../ui/PageHeader";
 import { FeedItemCard } from "./FeedItemCard";
 import { FeedSourcesPanel } from "./FeedSourcesPanel";
@@ -96,6 +99,47 @@ function FeedFilterBar({
         </div>
       </div>
     </div>
+  );
+}
+
+function FeedsInboxEmpty({
+  filtersNarrowed,
+  onShowAll,
+}: {
+  readonly filtersNarrowed: boolean;
+  readonly onShowAll: () => void;
+}) {
+  return (
+    <EmptyState
+      className="surface-card border-dashed"
+      icon={<Inbox className="h-5 w-5" />}
+      title={
+        filtersNarrowed
+          ? "Nothing matches these filters"
+          : "Nothing to triage"
+      }
+      description={
+        filtersNarrowed
+          ? "The inbox may still have items under other types or statuses. New items are not ingested automatically."
+          : "Sources are metadata only — nothing arrives on its own. Promote is how feed items become papers, tasks, or notes. The library still works without an inbox."
+      }
+      action={
+        <>
+          {filtersNarrowed ? (
+            <Button type="button" onClick={onShowAll}>
+              Show all
+            </Button>
+          ) : null}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => navigateToView("papers")}
+          >
+            Open Papers
+          </Button>
+        </>
+      }
+    />
   );
 }
 
@@ -244,22 +288,13 @@ export function FeedsView() {
               </button>
             </div>
           ) : items.length === 0 ? (
-            <div
-              role="status"
-              aria-live="polite"
-              className="surface-card border-dashed p-10 text-center"
-            >
-              <span className="icon-tile mx-auto bg-bg-elevated text-text-tertiary">
-                <Inbox className="h-5 w-5" aria-hidden="true" />
-              </span>
-              <h2 className="mt-4 font-serif text-xl font-semibold text-text-primary">
-                Nothing to triage
-              </h2>
-              <p className="mx-auto mt-2 max-w-md text-small text-text-secondary">
-                Try a different filter, or add a source above. New items only
-                appear through manual triage — nothing arrives on its own.
-              </p>
-            </div>
+            <FeedsInboxEmpty
+              filtersNarrowed={type !== "all" || status !== "all"}
+              onShowAll={() => {
+                handleTypeChange("all");
+                handleStatusChange("all");
+              }}
+            />
           ) : (
             <div className="space-y-3">
               {visibleItems.map((item) => (
