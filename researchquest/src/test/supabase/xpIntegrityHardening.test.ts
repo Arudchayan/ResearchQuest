@@ -147,24 +147,29 @@ describe("1765800000 xp integrity hardening (static)", () => {
     expect(award).toMatch(/streak_tz_set_at/i);
     expect(award).toMatch(/interval\s+'6 hours'/i);
     expect(award).toMatch(/interval\s+'48 hours'/i);
-    expect(award).toMatch(/interval\s+'72 hours'/i);
+    expect(award).toMatch(/interval\s+'23 hours'/i);
+    expect(award).toMatch(/interval\s+'1 hour'/i);
+    expect(award).toMatch(/v_widen_min/i);
+    expect(award).toMatch(/rest_days\s*=\s*v_rest/i);
     expect(award).toMatch(/streak_credit_at/i);
     expect(award).toMatch(/streak_prev_inc_at/i);
     expect(award).toMatch(
-      /v_gap\s*=\s*1[\s\S]{0,1200}v_new_streak\s*:=\s*v_new_streak\s*\+\s*1[\s\S]{0,250}v_tz_set_at\s*:=\s*v_now/i,
+      /interval\s+'23 hours'[\s\S]{0,500}v_new_streak\s*:=\s*v_new_streak\s*\+\s*1[\s\S]{0,250}v_tz_set_at\s*:=\s*v_now/i,
     );
     expect(award).toMatch(/-\s*720/i);
     expect(award).toMatch(/840/i);
     expect(award).not.toMatch(/-\s*180/i);
     expect(award).not.toMatch(/interval\s+'12 hours'/i);
+    expect(award).not.toMatch(/interval\s+'72 hours'/i);
     expect(award).toMatch(
       /GREATEST\s*\(\s*-720\s*,\s*LEAST\s*\(\s*v_tz_lo\s*,\s*v_claim_lo\s*\)\s*\)/i,
     );
     expect(award).toMatch(
       /LEAST\s*\(\s*840\s*,\s*GREATEST\s*\(\s*v_tz_hi\s*,\s*v_claim_hi\s*\)\s*\)/i,
     );
-    expect(award).toMatch(/v_today\s*<\s*v_last/i);
+    expect(award).toMatch(/v_today\s*<=\s*v_last/i);
     expect(award).not.toMatch(/v_gap_last/);
+    expect(award).not.toMatch(/v_would_fr/);
     expect(raw).toMatch(/Empty or inconsistent N/i);
   });
 
@@ -630,11 +635,9 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
     expect(consistent.last_activity_date).toBe("2026-09-28");
   });
 
-  it("X8: 4-day 12:30 walk of (day-1) then (day+1) ends at 2 (rule 4)", () => {
-    // Round 7 union-widen let the D+1 claim on day 1 freeze/reset (g=2) and
-    // the walk ended at 3. Rule 4 keeps that widened miss as XP-only while
-    // e < 48h, so last stays D0; at e=48h the g=3 claim resets, then the
-    // next real day advances once. Genuine change from round 7.
+  it("X8: 4-day 12:30 walk of (day-1) then (day+1) ends at 2", () => {
+    // r9 removes rule 4; this walk still cannot free-skip missed home days.
+    // Keep the assertion; if r9 changes it the live9/T9 cases are the source.
     const d0 = "2026-09-28";
     setXpNow(replica, "2026-09-28T12:30:00.000Z");
     awardXp(replica, USER_A, 10, "create_note", { entityId: "w1", localDay: d0 });
@@ -1122,7 +1125,12 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
     lo: number | null,
     hi: number | null,
     setAt: string | null,
-    extras?: { creditAt?: string | null; incAt?: string | null; prevIncAt?: string | null },
+    extras?: {
+      creditAt?: string | null;
+      incAt?: string | null;
+      prevIncAt?: string | null;
+      restDays?: number;
+    },
   ): void {
     const ts = (v: string | null | undefined, fallback: string | null): string => {
       const x = v === undefined ? fallback : v;
@@ -1134,6 +1142,7 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
           current_streak = ${streak},
           longest_streak = ${streak},
           streak_freeze_tokens = ${freeze},
+          rest_days = ${extras?.restDays ?? 0},
           streak_tz_lo_min = ${lo == null ? "NULL" : String(lo)},
           streak_tz_hi_min = ${hi == null ? "NULL" : String(hi)},
           streak_tz_set_at = ${ts(setAt, setAt)},
@@ -1143,6 +1152,40 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
           total_xp = ${streak * 10}
       WHERE id = '${USER_A}';
     `);
+  }
+
+  function claimStreak(when: string, localDay: string, tag: string): number {
+    setXpNow(replica, when);
+    return awardXp(replica, USER_A, 10, "create_note", {
+      entityId: tag,
+      localDay,
+    }).current_streak;
+  }
+
+  function profileBits(): {
+    fr: number;
+    rs: number;
+    la: string;
+    lo: string;
+    hi: string;
+    ia: string;
+  } {
+    const row = replica
+      .exec(
+        `SELECT streak_freeze_tokens, rest_days, last_activity_date,
+                streak_tz_lo_min, streak_tz_hi_min, streak_inc_at
+         FROM public.user_profiles WHERE id = '${USER_A}'`,
+      )
+      .trim()
+      .split("|");
+    return {
+      fr: Number(row[0]),
+      rs: Number(row[1]),
+      la: row[2],
+      lo: row[3],
+      hi: row[4],
+      ia: row[5],
+    };
   }
 
   it("QA1: g=1 at e=48h exactly resets to 1; 5ms later D0 advances to 2", () => {
@@ -1190,11 +1233,10 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
     expect(streaks).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
   });
 
-  it("QA3: 11:59/17:59/23:59 bursts on D0+1,+4,+7 reset each active day; max 3; never +2 in 24h", () => {
+  it("QA3: 11:59/17:59/23:59 bursts on D0+1,+4,+7 => 5,1,2,1,2,2,1,2,2", () => {
     const d0 = "2026-09-28";
     seedQr(5, d0, 0, 1, 840, "2026-09-27T10:00:00.000Z");
     const seen: number[] = [];
-    const incAt: number[] = [];
     for (const extra of [1, 4, 7]) {
       const day = addDays(d0, extra);
       const claims: Array<[string, string]> = [
@@ -1205,25 +1247,15 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
       for (let i = 0; i < claims.length; i += 1) {
         const [when, p] = claims[i];
         setXpNow(replica, when);
-        const before = Number(
-          replica
-            .exec(`SELECT current_streak FROM public.user_profiles WHERE id = '${USER_A}'`)
-            .trim(),
+        seen.push(
+          awardXp(replica, USER_A, 10, "create_note", {
+            entityId: `qa3-${extra}-${i}`,
+            localDay: p,
+          }).current_streak,
         );
-        const row = awardXp(replica, USER_A, 10, "create_note", {
-          entityId: `qa3-${extra}-${i}`,
-          localDay: p,
-        });
-        seen.push(row.current_streak);
-        if (row.current_streak > before && before > 0) {
-          incAt.push(new Date(when).getTime());
-        }
       }
     }
-    expect(seen[0]).toBe(5);
-    expect(Math.max(...seen.slice(1))).toBeLessThanOrEqual(3);
-    const gaps = incAt.slice(2).map((t, i) => t - incAt[i]);
-    expect(gaps.every((g) => g > 24 * 60 * 60 * 1000)).toBe(true);
+    expect(seen).toEqual([5, 1, 2, 1, 2, 2, 1, 2, 2]);
   });
 
   it("QA4: 73h55m idle gap resets to 1", () => {
@@ -1319,7 +1351,7 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
     expect(b.last_activity_date).toBe(plus);
   });
 
-  it("liveness: g=1 at 48h-1ms advances; at 48h exactly takes the freeze path", () => {
+  it("liveness: g=1 at 48h-1ms advances; at 48h the 1h DST margin still advances", () => {
     const d0 = "2026-09-28";
     seedQr(5, addDays(d0, -1), 1, 0, 0, "2026-09-26T07:00:00.000Z");
     setXpNow(replica, "2026-09-28T06:59:59.999Z");
@@ -1337,12 +1369,12 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
       entityId: "live-exact",
       localDay: d0,
     });
-    expect(exact.current_streak).toBe(5);
-    expect(exact.streak_freeze_tokens).toBe(0);
+    expect(exact.current_streak).toBe(6);
+    expect(exact.streak_freeze_tokens).toBe(1);
     expect(exact.last_activity_date).toBe(d0);
   });
 
-  it("liveness: freeze consumed at 48h..72h; reset at 72h even with a token", () => {
+  it("liveness: token covers a dead g=1 chain inside 24h*(m+2)+margin; 73h resets", () => {
     const d0 = "2026-09-28";
     seedQr(5, addDays(d0, -1), 1, 0, 0, "2026-09-26T07:00:00.000Z");
     setXpNow(replica, "2026-09-28T08:00:00.000Z");
@@ -1350,14 +1382,14 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
       entityId: "live-mid",
       localDay: d0,
     });
-    expect(mid.current_streak).toBe(5);
+    expect(mid.current_streak).toBe(6);
     expect(mid.streak_freeze_tokens).toBe(0);
 
     resetUser(replica, USER_A);
     seedQr(5, addDays(d0, -1), 1, 0, 0, "2026-09-25T07:00:00.000Z");
-    setXpNow(replica, "2026-09-28T07:00:00.000Z");
+    setXpNow(replica, "2026-09-28T08:00:00.000Z");
     const late = awardXp(replica, USER_A, 10, "create_note", {
-      entityId: "live-72",
+      entityId: "live-73",
       localDay: d0,
     });
     expect(late.current_streak).toBe(1);
@@ -1365,69 +1397,61 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
     expect(late.last_activity_date).toBe(d0);
   });
 
-  it("rate: third increment at prev_inc + 24h exactly is a hold; +1ms advances", () => {
-    const d0 = "2026-09-28";
-    const d1 = "2026-09-29";
-    seedQr(7, d0, 0, 0, 0, "2026-09-28T06:00:00.000Z", {
-      creditAt: "2026-09-28T06:00:00.000Z",
-      incAt: "2026-09-28T06:00:00.000Z",
-      prevIncAt: "2026-09-28T00:00:00.000Z",
+  it("rate: third increment at prev_inc + 23h exactly is a hold; +1ms advances", () => {
+    seedQr(5, "2026-10-05", 0, 120, 120, "2026-10-05T08:00:00.000Z", {
+      creditAt: "2026-10-05T08:00:00.000Z",
+      incAt: "2026-10-05T08:00:00.000Z",
+      prevIncAt: "2026-10-04T23:00:00.000Z",
     });
-    setXpNow(replica, "2026-09-29T00:00:00.000Z");
+    setXpNow(replica, "2026-10-05T22:00:00.000Z");
     const held = awardXp(replica, USER_A, 10, "create_note", {
       entityId: "rate-hold",
-      localDay: d1,
+      localDay: "2026-10-06",
     });
-    expect(held.current_streak).toBe(7);
-    expect(held.last_activity_date).toBe(d1);
+    expect(held.current_streak).toBe(5);
+    expect(held.last_activity_date).toBe("2026-10-06");
 
     resetUser(replica, USER_A);
-    seedQr(7, d0, 0, 0, 0, "2026-09-28T06:00:00.000Z", {
-      creditAt: "2026-09-28T06:00:00.000Z",
-      incAt: "2026-09-28T06:00:00.000Z",
-      prevIncAt: "2026-09-28T00:00:00.000Z",
+    seedQr(5, "2026-10-05", 0, 120, 120, "2026-10-05T08:00:00.000Z", {
+      creditAt: "2026-10-05T08:00:00.000Z",
+      incAt: "2026-10-05T08:00:00.000Z",
+      prevIncAt: "2026-10-04T23:00:00.000Z",
     });
-    setXpNow(replica, "2026-09-29T00:00:00.001Z");
+    setXpNow(replica, "2026-10-05T22:00:00.001Z");
     const go = awardXp(replica, USER_A, 10, "create_note", {
       entityId: "rate-go",
-      localDay: d1,
+      localDay: "2026-10-06",
     });
-    expect(go.current_streak).toBe(8);
-    expect(go.last_activity_date).toBe(d1);
+    expect(go.current_streak).toBe(6);
+    expect(go.last_activity_date).toBe("2026-10-06");
   });
 
-  it("rule 4: widened g=3 at e=10h is XP only; same claim at e=48h resets", () => {
+  it("rule 4 removed: widened g=3 at e=10h is a reset (or token/+1), not XP-only", () => {
     const d0 = "2026-09-28";
     seedQr(5, addDays(d0, -3), 0, 60, 60, "2026-09-28T13:00:00.000Z", {
       creditAt: "2026-09-28T13:00:00.000Z",
     });
     setXpNow(replica, "2026-09-28T23:00:00.000Z");
-    const blocked = awardXp(replica, USER_A, 10, "create_note", {
+    const early = awardXp(replica, USER_A, 10, "create_note", {
       entityId: "r4-early",
       localDay: d0,
     });
-    expect(blocked.xp_credited).toBe(10);
-    expect(blocked.current_streak).toBe(5);
-    expect(blocked.last_activity_date).toBe(addDays(d0, -3));
-    const tz = replica
-      .exec(
-        `SELECT streak_tz_lo_min, streak_tz_hi_min, streak_tz_set_at FROM public.user_profiles WHERE id = '${USER_A}'`,
-      )
-      .trim();
-    expect(tz.startsWith("60|60|")).toBe(true);
+    expect(early.xp_credited).toBe(10);
+    expect(early.current_streak).toBe(1);
+    expect(early.last_activity_date).toBe(d0);
 
     resetUser(replica, USER_A);
     seedQr(5, addDays(d0, -3), 0, 60, 60, "2026-09-28T13:00:00.000Z", {
       creditAt: "2026-09-26T23:00:00.000Z",
     });
     setXpNow(replica, "2026-09-28T23:00:00.000Z");
-    const reset = awardXp(replica, USER_A, 10, "create_note", {
+    const late = awardXp(replica, USER_A, 10, "create_note", {
       entityId: "r4-late",
       localDay: d0,
     });
-    expect(reset.xp_credited).toBe(10);
-    expect(reset.current_streak).toBe(1);
-    expect(reset.last_activity_date).toBe(d0);
+    expect(late.xp_credited).toBe(10);
+    expect(late.current_streak).toBe(1);
+    expect(late.last_activity_date).toBe(d0);
   });
 
   it("flight: UTC+1 at 21:00Z then UTC+10 7h later for the next local day advances", () => {
@@ -1567,7 +1591,544 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
     expect(later.current_streak).toBe(4);
   });
 
-  it("property: random adversary never exceeds elapsed days+2 or +2 in one instant", () => {
+  it("T9 Q1 DST fall-back Berlin, 0 token (e=48h58m)", () => {
+    seedQr(5, "2026-10-23", 0, 120, 120, "2026-10-22T22:00:30Z", { creditAt: "2026-10-22T22:00:30Z", incAt: "2026-10-22T22:00:30Z", prevIncAt: "2026-10-21T22:00:30Z", restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-23T22:00:30Z", "2026-10-24", "t9-50999-0"));
+    seen.push(claimStreak("2026-10-25T22:59:00Z", "2026-10-25", "t9-50999-1"));
+    expect(seen).toEqual([6, 7]);
+    const bits = profileBits();
+    expect(bits.fr).toBe(1);
+    expect(bits.la).toBe("2026-10-25");
+  });
+
+  it("T9 Q1b DST fall-back, 1 token (token kept, 7 mints)", () => {
+    seedQr(5, "2026-10-23", 1, 120, 120, "2026-10-22T22:00:30Z", { creditAt: "2026-10-22T22:00:30Z", incAt: "2026-10-22T22:00:30Z", prevIncAt: "2026-10-21T22:00:30Z", restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-23T22:00:30Z", "2026-10-24", "t9-75217-0"));
+    seen.push(claimStreak("2026-10-25T22:59:00Z", "2026-10-25", "t9-75217-1"));
+    expect(seen).toEqual([6, 7]);
+    const bits = profileBits();
+    expect(bits.fr).toBe(2);
+  });
+
+  it("T9 Q2 DST spring-forward (23h day)", () => {
+    seedQr(5, "2027-03-26", 0, 60, 60, "2027-03-26T11:00:00Z", { creditAt: "2027-03-26T11:00:00Z", incAt: "2027-03-26T11:00:00Z", prevIncAt: "2027-03-25T11:00:00Z", restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2027-03-27T22:59:00Z", "2027-03-27", "t9-83271-0"));
+    seen.push(claimStreak("2027-03-28T10:00:00Z", "2027-03-28", "t9-83271-1"));
+    seen.push(claimStreak("2027-03-28T22:00:30Z", "2027-03-29", "t9-83271-2"));
+    expect(seen).toEqual([6, 7, 8]);
+    const bits = profileBits();
+    expect(bits.la).toBe("2027-03-29");
+  });
+
+  it("T9 Q3 band still on winter time [60,60]", () => {
+    seedQr(24, "2027-04-01", 0, 60, 60, "2027-04-01T10:00:00Z", { creditAt: "2027-04-01T10:00:00Z", incAt: "2027-04-01T10:00:00Z", prevIncAt: "2027-03-31T10:00:00Z", restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2027-04-02T21:50:00Z", "2027-04-02", "t9-10361-0"));
+    seen.push(claimStreak("2027-04-02T22:20:00Z", "2027-04-03", "t9-10361-1"));
+    seen.push(claimStreak("2027-04-04T10:00:00Z", "2027-04-04", "t9-10361-2"));
+    expect(seen).toEqual([25, 26, 27]);
+    const bits = profileBits();
+    expect(bits.la).toBe("2027-04-04");
+  });
+
+  it("T9 Q4 TRIP1 Berlin->NY (real gap 39h)", () => {
+    seedQr(3, "2026-10-14", 0, 90, 120, "2026-10-13T22:30:00Z", { creditAt: "2026-10-13T22:30:00Z", incAt: null, prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-14T10:00:00Z", "2026-10-14", "t9-42424-0"));
+    seen.push(claimStreak("2026-10-16T01:00:00Z", "2026-10-15", "t9-42424-1"));
+    expect(seen).toEqual([3, 4]);
+    const bits = profileBits();
+    expect(bits.la).toBe("2026-10-15");
+  });
+
+  it("T9 Q5 TRIP2 Kiritimati->Pago Pago", () => {
+    seedQr(4, "2026-05-06", 0, 840, 840, "2026-05-05T10:01:00Z", { creditAt: "2026-05-05T10:01:00Z", incAt: "2026-05-05T10:01:00Z", prevIncAt: "2026-05-04T10:01:00Z", restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-05-06T10:01:00Z", "2026-05-07", "t9-67795-0"));
+    seen.push(claimStreak("2026-05-07T00:30:00Z", "2026-05-06", "t9-67795-1"));
+    seen.push(claimStreak("2026-05-07T10:00:00Z", "2026-05-06", "t9-67795-2"));
+    seen.push(claimStreak("2026-05-07T11:01:00Z", "2026-05-07", "t9-67795-3"));
+    seen.push(claimStreak("2026-05-07T22:00:00Z", "2026-05-07", "t9-67795-4"));
+    seen.push(claimStreak("2026-05-08T11:01:00Z", "2026-05-08", "t9-67795-5"));
+    expect(seen).toEqual([5, 5, 5, 5, 5, 6]);
+    const bits = profileBits();
+    expect(bits.la).toBe("2026-05-08");
+  });
+
+  it("T9 Q6 lifetime-lead repro (lead < 2+1/24)", () => {
+    seedQr(2, "2026-10-24", 0, 756, 840, "2026-10-23T11:24:44.240Z", { creditAt: "2026-10-23T11:24:44.240Z", incAt: "2026-10-23T11:24:44.240Z", prevIncAt: "2026-10-17T16:27:46Z", restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-26T11:24:44.239Z", "2026-10-25", "t9-51825-0"));
+    seen.push(claimStreak("2026-10-26T11:24:44.239Z", "2026-10-26", "t9-51825-1"));
+    seen.push(claimStreak("2026-10-26T22:17:39.528Z", "2026-10-27", "t9-51825-2"));
+    seen.push(claimStreak("2026-10-27T11:24:28.182Z", "2026-10-26", "t9-51825-3"));
+    seen.push(claimStreak("2026-10-28T04:23:56.399Z", "2026-10-28", "t9-51825-4"));
+    seen.push(claimStreak("2026-10-28T10:25:56.398Z", "2026-10-29", "t9-51825-5"));
+    expect(seen).toEqual([1, 2, 2, 2, 3, 4]);
+    const lead = Number(
+      replica
+        .exec(
+          `SELECT current_streak - extract(epoch from (timestamptz '2026-10-28T10:25:56.398Z' - timestamptz '2026-10-26T11:24:44.239Z'))/86400.0 FROM public.user_profiles WHERE id = '${USER_A}'`,
+        )
+        .trim(),
+    );
+    expect(lead).toBeLessThan(2 + 1 / 24);
+  });
+
+  it("T9 c1 exactly 48h, big widen, no margin", () => {
+    seedQr(5, "2026-09-26", 0, 120, 120, "2026-09-26T07:00:00Z", { creditAt: "2026-09-26T07:00:00Z", incAt: null, prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-09-28T07:00:00Z", "2026-09-27", "t9-27455-0"));
+    seen.push(claimStreak("2026-09-28T07:00:05Z", "2026-09-28", "t9-27455-1"));
+    expect(seen).toEqual([1, 2]);
+  });
+
+  it("T9 c2 two claims every other day", () => {
+    seedQr(5, "2026-09-27", 0, 120, 120, "2026-09-27T07:00:00Z", { creditAt: "2026-09-27T07:00:00Z", incAt: null, prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-09-29T07:00:00Z", "2026-09-28", "t9-77091-0"));
+    seen.push(claimStreak("2026-09-29T13:00:00Z", "2026-09-29", "t9-77091-1"));
+    seen.push(claimStreak("2026-10-01T07:00:00Z", "2026-09-30", "t9-77091-2"));
+    seen.push(claimStreak("2026-10-01T13:00:00Z", "2026-10-01", "t9-77091-3"));
+    seen.push(claimStreak("2026-10-03T07:00:00Z", "2026-10-02", "t9-77091-4"));
+    seen.push(claimStreak("2026-10-03T13:00:00Z", "2026-10-03", "t9-77091-5"));
+    seen.push(claimStreak("2026-10-05T07:00:00Z", "2026-10-04", "t9-77091-6"));
+    seen.push(claimStreak("2026-10-05T13:00:00Z", "2026-10-05", "t9-77091-7"));
+    expect(seen).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+  });
+
+  it("T9 c3 three claims every third day (blocked)", () => {
+    seedQr(5, "2026-09-28", 0, 1, 840, "2026-09-27T10:00:00Z", { creditAt: "2026-09-27T10:00:00Z", incAt: null, prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-09-29T11:59:00Z", "2026-09-28", "t9-88023-0"));
+    seen.push(claimStreak("2026-09-29T17:59:00Z", "2026-09-29", "t9-88023-1"));
+    seen.push(claimStreak("2026-09-29T23:59:00Z", "2026-09-30", "t9-88023-2"));
+    seen.push(claimStreak("2026-10-02T11:59:00Z", "2026-10-01", "t9-88023-3"));
+    seen.push(claimStreak("2026-10-02T17:59:00Z", "2026-10-02", "t9-88023-4"));
+    seen.push(claimStreak("2026-10-02T23:59:00Z", "2026-10-03", "t9-88023-5"));
+    seen.push(claimStreak("2026-10-05T11:59:00Z", "2026-10-04", "t9-88023-6"));
+    seen.push(claimStreak("2026-10-05T17:59:00Z", "2026-10-05", "t9-88023-7"));
+    seen.push(claimStreak("2026-10-05T23:59:00Z", "2026-10-06", "t9-88023-8"));
+    expect(seen).toEqual([5, 1, 2, 1, 2, 2, 1, 2, 2]);
+  });
+
+  it("T9 c4", () => {
+    seedQr(5, "2026-09-28", 0, 120, 120, "2026-09-28T07:00:00Z", { creditAt: "2026-09-28T07:00:00Z", incAt: null, prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-01T08:55:00Z", "2026-10-01", "t9-71230-0"));
+    expect(seen).toEqual([1]);
+  });
+
+  it("T9 c5", () => {
+    seedQr(5, "2026-09-26", 0, -720, -720, "2026-09-26T12:00:00Z", { creditAt: "2026-09-26T12:00:00Z", incAt: null, prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-09-28T00:00:00Z", "2026-09-27", "t9-91710-0"));
+    seen.push(claimStreak("2026-09-28T06:00:00Z", "2026-09-28", "t9-91710-1"));
+    seen.push(claimStreak("2026-09-28T10:00:00Z", "2026-09-29", "t9-91710-2"));
+    expect(seen).toEqual([6, 7, 7]);
+    const bits = profileBits();
+    expect(bits.la).toBe("2026-09-29");
+  });
+
+  it("T9 c6 legacy all-NULL", () => {
+    seedQr(5, "2026-09-26", 0, null, null, null, { creditAt: null, incAt: null, prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-09-28T11:00:00Z", "2026-09-27", "t9-8284-0"));
+    seen.push(claimStreak("2026-09-28T11:00:00Z", "2026-09-28", "t9-8284-1"));
+    seen.push(claimStreak("2026-09-28T11:00:00Z", "2026-09-29", "t9-8284-2"));
+    seen.push(claimStreak("2026-09-28T17:00:00.001Z", "2026-09-28", "t9-8284-3"));
+    seen.push(claimStreak("2026-09-28T23:59:00Z", "2026-09-29", "t9-8284-4"));
+    expect(seen).toEqual([6, 6, 6, 7, 7]);
+  });
+
+  it("T9 A3 credit NULL westward", () => {
+    seedQr(6, "2026-09-28", 0, 330, 330, "2026-09-27T10:00:00Z", { creditAt: null, incAt: null, prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-09-28T02:00:00Z", "2026-09-27", "t9-42147-0"));
+    seen.push(claimStreak("2026-09-29T02:00:00Z", "2026-09-28", "t9-42147-1"));
+    seen.push(claimStreak("2026-09-30T02:00:00Z", "2026-09-29", "t9-42147-2"));
+    seen.push(claimStreak("2026-10-01T02:00:00Z", "2026-09-30", "t9-42147-3"));
+    seen.push(claimStreak("2026-10-02T02:00:00Z", "2026-10-01", "t9-42147-4"));
+    expect(seen).toEqual([6, 6, 7, 8, 9]);
+  });
+
+  it("T9 B3 credit NULL", () => {
+    seedQr(3, "2026-09-27", 0, 60, 60, "2026-09-27T10:00:00Z", { creditAt: null, incAt: null, prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-09-28T02:00:00Z", "2026-09-28", "t9-84428-0"));
+    seen.push(claimStreak("2026-09-28T15:00:00Z", "2026-09-29", "t9-84428-1"));
+    seen.push(claimStreak("2026-09-29T15:00:00Z", "2026-09-30", "t9-84428-2"));
+    expect(seen).toEqual([4, 5, 6]);
+  });
+
+  it("T9 L49- g=1 at 49h-1ms (DST margin) advances", () => {
+    seedQr(5, "2026-10-05", 0, 60, 120, "2026-10-04T22:00:30Z", { creditAt: "2026-10-04T22:00:30Z", incAt: "2026-10-04T22:00:30Z", prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-06T23:00:29.999Z", "2026-10-06", "t9-86558-0"));
+    expect(seen).toEqual([6]);
+  });
+
+  it("T9 L49 g=1 at exactly 49h resets (0 token)", () => {
+    seedQr(5, "2026-10-05", 0, 60, 120, "2026-10-04T22:00:30Z", { creditAt: "2026-10-04T22:00:30Z", incAt: "2026-10-04T22:00:30Z", prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-06T23:00:30Z", "2026-10-06", "t9-63652-0"));
+    expect(seen).toEqual([1]);
+    const bits = profileBits();
+    const iaMatch = replica
+      .exec(
+        `SELECT streak_inc_at = '2026-10-06T23:00:30Z'::timestamptz FROM public.user_profiles WHERE id = '${USER_A}'`,
+      )
+      .trim();
+    expect(iaMatch).toBe("t");
+  });
+
+  it("T9 L49t g=1 at exactly 49h with 1 token: token spent, then +1", () => {
+    seedQr(5, "2026-10-05", 1, 60, 120, "2026-10-04T22:00:30Z", { creditAt: "2026-10-04T22:00:30Z", incAt: "2026-10-04T22:00:30Z", prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-06T23:00:30Z", "2026-10-06", "t9-21849-0"));
+    expect(seen).toEqual([6]);
+    const bits = profileBits();
+    expect(bits.fr).toBe(0);
+    expect(bits.la).toBe("2026-10-06");
+  });
+
+  it("T9 W48- big widen (no margin) at 48h-1ms advances", () => {
+    seedQr(5, "2026-09-26", 0, 120, 120, "2026-09-26T07:00:00Z", { creditAt: "2026-09-26T07:00:00Z", incAt: null, prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-09-28T06:59:59.999Z", "2026-09-27", "t9-70516-0"));
+    expect(seen).toEqual([6]);
+  });
+
+  it("T9 F73- g=2 at 73h-1ms (margin): token spent, then +1", () => {
+    seedQr(5, "2026-10-05", 1, 60, 120, "2026-10-04T22:00:30Z", { creditAt: "2026-10-04T22:00:30Z", incAt: "2026-10-04T22:00:30Z", prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-07T23:00:29.999Z", "2026-10-07", "t9-27331-0"));
+    expect(seen).toEqual([6]);
+    const bits = profileBits();
+    expect(bits.fr).toBe(0);
+  });
+
+  it("T9 F73 g=2 at exactly 73h resets, token kept", () => {
+    seedQr(5, "2026-10-05", 1, 60, 120, "2026-10-04T22:00:30Z", { creditAt: "2026-10-04T22:00:30Z", incAt: "2026-10-04T22:00:30Z", prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-07T23:00:30Z", "2026-10-07", "t9-60599-0"));
+    expect(seen).toEqual([1]);
+    const bits = profileBits();
+    expect(bits.fr).toBe(1);
+  });
+
+  it("T9 B48h home band g=2 at 48h-1ms (real missed day, 0 token): reset", () => {
+    seedQr(5, "2026-10-05", 0, 120, 120, "2026-10-04T22:00:30Z", { creditAt: "2026-10-04T22:00:30Z", incAt: "2026-10-04T22:00:30Z", prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-06T22:00:29.999Z", "2026-10-07", "t9-88281-0"));
+    expect(seen).toEqual([1]);
+  });
+
+  it("T9 B48 home band g=2 (real missed day): token spent, then +1", () => {
+    seedQr(5, "2026-10-05", 1, 120, 120, "2026-10-04T22:00:30Z", { creditAt: "2026-10-04T22:00:30Z", incAt: "2026-10-04T22:00:30Z", prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-06T22:00:30Z", "2026-10-07", "t9-16010-0"));
+    expect(seen).toEqual([6]);
+    const bits = profileBits();
+    expect(bits.fr).toBe(0);
+  });
+
+  it("T9 B48z g=2 at exactly 48h: reset (0 token)", () => {
+    seedQr(5, "2026-10-05", 0, 120, 120, "2026-10-04T22:00:30Z", { creditAt: "2026-10-04T22:00:30Z", incAt: "2026-10-04T22:00:30Z", prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-06T22:00:30Z", "2026-10-07", "t9-19303-0"));
+    expect(seen).toEqual([1]);
+    const bits = profileBits();
+    const iaMatch = replica
+      .exec(
+        `SELECT streak_inc_at = '2026-10-06T22:00:30Z'::timestamptz FROM public.user_profiles WHERE id = '${USER_A}'`,
+      )
+      .trim();
+    expect(iaMatch).toBe("t");
+  });
+
+  it("T9 B3g g=3 at 47h (real gap < 48h, fixed offset impossible; band [-720,840])", () => {
+    seedQr(5, "2026-10-05", 0, -720, 840, "2026-10-05T11:00:00Z", { creditAt: "2026-10-05T11:00:00Z", incAt: "2026-10-05T11:00:00Z", prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-07T10:00:00Z", "2026-10-08", "t9-32672-0"));
+    expect(seen).toEqual([6]);
+  });
+
+  it("T9 R23 increment at prev+23h exactly: HOLD", () => {
+    seedQr(5, "2026-10-05", 0, 120, 120, "2026-10-05T08:00:00Z", { creditAt: "2026-10-05T08:00:00Z", incAt: "2026-10-05T08:00:00Z", prevIncAt: "2026-10-04T23:00:00Z", restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-05T22:00:00Z", "2026-10-06", "t9-28726-0"));
+    expect(seen).toEqual([5]);
+    const bits = profileBits();
+    expect(bits.la).toBe("2026-10-06");
+  });
+
+  it("T9 R23+ increment at prev+23h+1ms: advances", () => {
+    seedQr(5, "2026-10-05", 0, 120, 120, "2026-10-05T08:00:00Z", { creditAt: "2026-10-05T08:00:00Z", incAt: "2026-10-05T08:00:00Z", prevIncAt: "2026-10-04T23:00:00.000Z", restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-05T22:00:00.001Z", "2026-10-06", "t9-79399-0"));
+    expect(seen).toEqual([6]);
+  });
+
+  it("T9 LC at C-1h exactly: HOLD", () => {
+    seedQr(5, "2026-10-05", 0, 120, 120, "2026-10-05T08:00:00Z", { creditAt: "2026-10-05T08:00:00Z", incAt: "2026-10-06T12:00:00Z", prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-06T11:00:00Z", "2026-10-06", "t9-83869-0"));
+    expect(seen).toEqual([5]);
+    const bits = profileBits();
+    expect(bits.la).toBe("2026-10-06");
+    const iaMatch = replica
+      .exec(
+        `SELECT streak_inc_at = '2026-10-06T12:00:00Z'::timestamptz FROM public.user_profiles WHERE id = '${USER_A}'`,
+      )
+      .trim();
+    expect(iaMatch).toBe("t");
+  });
+
+  it("T9 LC+ at C-1h+1ms: advances, C += 24h", () => {
+    seedQr(5, "2026-10-05", 0, 120, 120, "2026-10-05T08:00:00Z", { creditAt: "2026-10-05T08:00:00Z", incAt: "2026-10-06T12:00:00Z", prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-06T11:00:00.001Z", "2026-10-06", "t9-13972-0"));
+    expect(seen).toEqual([6]);
+    const bits = profileBits();
+    const iaMatch = replica
+      .exec(
+        `SELECT streak_inc_at = '2026-10-07T12:00:00Z'::timestamptz FROM public.user_profiles WHERE id = '${USER_A}'`,
+      )
+      .trim();
+    expect(iaMatch).toBe("t");
+  });
+
+  it("T9 N0 1-min inconsistent claim at the same instant as set_at: XP only", () => {
+    seedQr(5, "2026-10-05", 0, 120, 120, "2026-10-05T21:59:30Z", { creditAt: "2026-10-05T21:59:30Z", incAt: "2026-10-05T21:59:30Z", prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-05T21:59:30Z", "2026-10-06", "t9-18301-0"));
+    expect(seen).toEqual([5]);
+    const bits = profileBits();
+    expect(bits.la).toBe("2026-10-05");
+    expect(bits.lo).toBe("120");
+    expect(bits.hi).toBe("120");
+  });
+
+  it("T9 N0+ same 1 ms later: nudge, advances", () => {
+    seedQr(5, "2026-10-05", 0, 120, 120, "2026-10-05T21:59:30Z", { creditAt: "2026-10-05T21:59:30Z", incAt: "2026-10-05T21:59:30Z", prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-05T21:59:30.001Z", "2026-10-06", "t9-58242-0"));
+    expect(seen).toEqual([6]);
+    const bits = profileBits();
+    expect(bits.lo).toBe("121");
+    expect(bits.hi).toBe("180");
+  });
+
+  it("T9 RFd no refresh once dead (e >= 48h), break remembered", () => {
+    seedQr(5, "2026-10-06", 0, -720, 840, "2026-10-04T21:59:00Z", { creditAt: "2026-10-04T21:59:00Z", incAt: "2026-10-04T21:59:00Z", prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-06T23:00:00Z", "2026-10-06", "t9-95808-0"));
+    seen.push(claimStreak("2026-10-06T23:00:01Z", "2026-10-07", "t9-95808-1"));
+    expect(seen).toEqual([5, 1]);
+  });
+
+  it("T9 R8-2b legacy all-NULL sessions, 49h+1ms idle", () => {
+    seedQr(5, "2026-09-27", 0, null, null, null, { creditAt: null, incAt: null, prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-09-28T07:00:00.000Z", "2026-09-27", "t9-30376-0"));
+    seen.push(claimStreak("2026-09-28T13:00:00.000Z", "2026-09-28", "t9-30376-1"));
+    seen.push(claimStreak("2026-09-30T14:00:00.001Z", "2026-09-29", "t9-30376-2"));
+    seen.push(claimStreak("2026-09-30T20:00:00.001Z", "2026-09-30", "t9-30376-3"));
+    seen.push(claimStreak("2026-10-02T21:00:00.002Z", "2026-10-01", "t9-30376-4"));
+    seen.push(claimStreak("2026-10-03T03:00:00.002Z", "2026-10-02", "t9-30376-5"));
+    seen.push(claimStreak("2026-10-05T04:00:00.003Z", "2026-10-04", "t9-30376-6"));
+    seen.push(claimStreak("2026-10-05T10:00:00.003Z", "2026-10-05", "t9-30376-7"));
+    seen.push(claimStreak("2026-10-07T11:00:00.004Z", "2026-10-06", "t9-30376-8"));
+    seen.push(claimStreak("2026-10-07T17:00:00.004Z", "2026-10-07", "t9-30376-9"));
+    expect(seen).toEqual([5, 6, 6, 1, 1, 1, 1, 2, 1, 2]);
+  });
+
+  it("T9 BE- east skip (offset artefact) at 48h-1ms: bridged +1, no token", () => {
+    seedQr(5, "2026-10-05", 0, 60, 120, "2026-10-04T20:00:00Z", { creditAt: "2026-10-04T20:00:00Z", incAt: "2026-10-04T20:00:00Z", prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-06T19:59:59.999Z", "2026-10-07", "t9-89254-0"));
+    expect(seen).toEqual([6]);
+    const bits = profileBits();
+    expect(bits.la).toBe("2026-10-07");
+  });
+
+  it("T9 BE east skip at exactly 48h, 0 token: reset", () => {
+    seedQr(5, "2026-10-05", 0, 60, 120, "2026-10-04T20:00:00Z", { creditAt: "2026-10-04T20:00:00Z", incAt: "2026-10-04T20:00:00Z", prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-06T20:00:00Z", "2026-10-07", "t9-15388-0"));
+    expect(seen).toEqual([1]);
+  });
+
+  it("T9 BEt east skip at exactly 48h, 1 token: token spent, +1", () => {
+    seedQr(5, "2026-10-05", 1, 60, 120, "2026-10-04T20:00:00Z", { creditAt: "2026-10-04T20:00:00Z", incAt: "2026-10-04T20:00:00Z", prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-06T20:00:00Z", "2026-10-07", "t9-82719-0"));
+    expect(seen).toEqual([6]);
+    const bits = profileBits();
+    expect(bits.fr).toBe(0);
+  });
+
+  it("T9 TK2 #827 R1: UTC+10, 2 freeze, misses 10-14/10-15, claims 10-16: 2 tokens, +1", () => {
+    seedQr(5, "2026-10-13", 2, 600, 600, "2026-10-13T02:00:00Z", { creditAt: "2026-10-13T02:00:00Z", incAt: "2026-10-13T02:00:00Z", prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-16T02:00:00Z", "2026-10-16", "t9-73949-0"));
+    expect(seen).toEqual([6]);
+    const bits = profileBits();
+    expect(bits.fr).toBe(0);
+    expect(bits.rs).toBe(0);
+    expect(bits.la).toBe("2026-10-16");
+  });
+
+  it("T9 TK1 same with 1 freeze: reset, token kept", () => {
+    seedQr(5, "2026-10-13", 1, 600, 600, "2026-10-13T02:00:00Z", { creditAt: "2026-10-13T02:00:00Z", incAt: "2026-10-13T02:00:00Z", prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-16T02:00:00Z", "2026-10-16", "t9-1731-0"));
+    expect(seen).toEqual([1]);
+    const bits = profileBits();
+    expect(bits.fr).toBe(1);
+    expect(bits.rs).toBe(0);
+  });
+
+  it("T9 TKr #827 R2: UTC+10, 0 freeze 1 rest, misses 10-14: rest spent, +1", () => {
+    seedQr(5, "2026-10-13", 0, 600, 600, "2026-10-13T02:00:00Z", { creditAt: "2026-10-13T02:00:00Z", incAt: "2026-10-13T02:00:00Z", prevIncAt: null, restDays: 1 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-15T02:00:00Z", "2026-10-15", "t9-29701-0"));
+    expect(seen).toEqual([6]);
+    const bits = profileBits();
+    expect(bits.fr).toBe(0);
+    expect(bits.rs).toBe(0);
+  });
+
+  it("T9 TKm g=3, 1 freeze + 1 rest: freeze first then rest, +1", () => {
+    seedQr(5, "2026-10-13", 1, 600, 600, "2026-10-13T02:00:00Z", { creditAt: "2026-10-13T02:00:00Z", incAt: "2026-10-13T02:00:00Z", prevIncAt: null, restDays: 1 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-16T02:00:00Z", "2026-10-16", "t9-60424-0"));
+    expect(seen).toEqual([6]);
+    const bits = profileBits();
+    expect(bits.fr).toBe(0);
+    expect(bits.rs).toBe(0);
+  });
+
+  it("T9 TKf g=2, 1 freeze + 1 rest: freeze used, rest kept", () => {
+    seedQr(5, "2026-10-13", 1, 600, 600, "2026-10-13T02:00:00Z", { creditAt: "2026-10-13T02:00:00Z", incAt: "2026-10-13T02:00:00Z", prevIncAt: null, restDays: 1 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-15T02:00:00Z", "2026-10-15", "t9-80330-0"));
+    expect(seen).toEqual([6]);
+    const bits = profileBits();
+    expect(bits.fr).toBe(0);
+    expect(bits.rs).toBe(1);
+  });
+
+  it("T9 HM home Berlin misses 10-07 (21:15 -> 06:45, real gap 33.5h), 0 token: reset", () => {
+    seedQr(5, "2026-10-06", 0, 120, 120, "2026-10-06T19:15:00Z", { creditAt: "2026-10-06T19:15:00Z", incAt: "2026-10-06T19:15:00Z", prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-08T04:45:00Z", "2026-10-08", "t9-51085-0"));
+    expect(seen).toEqual([1]);
+    const bits = profileBits();
+    expect(bits.fr).toBe(0);
+    expect(bits.rs).toBe(0);
+  });
+
+  it("T9 HMr same with 1 rest day: rest spent, +1", () => {
+    seedQr(5, "2026-10-06", 0, 120, 120, "2026-10-06T19:15:00Z", { creditAt: "2026-10-06T19:15:00Z", incAt: "2026-10-06T19:15:00Z", prevIncAt: null, restDays: 1 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-08T04:45:00Z", "2026-10-08", "t9-26591-0"));
+    expect(seen).toEqual([6]);
+    const bits = profileBits();
+    expect(bits.rs).toBe(0);
+  });
+
+  it("T9 SY Sydney spring-forward, misses 10-04 (00:30 claims), stale band [600,600], 0 token: reset (no DST bridge)", () => {
+    seedQr(5, "2026-10-03", 0, 600, 600, "2026-10-02T14:30:00Z", { creditAt: "2026-10-02T14:30:00Z", incAt: "2026-10-02T14:30:00Z", prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-04T13:30:00Z", "2026-10-05", "t9-73747-0"));
+    expect(seen).toEqual([1]);
+  });
+
+  it("T9 SYt same with 1 freeze: token spent, +1", () => {
+    seedQr(5, "2026-10-03", 1, 600, 600, "2026-10-02T14:30:00Z", { creditAt: "2026-10-02T14:30:00Z", incAt: "2026-10-02T14:30:00Z", prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-04T13:30:00Z", "2026-10-05", "t9-35360-0"));
+    expect(seen).toEqual([6]);
+    const bits = profileBits();
+    expect(bits.fr).toBe(0);
+  });
+
+  it("T9 BM wide band [-600,840], g=2 bridgeable date, e=48h30m (margin 1h, wd 0): strict 48h -> reset", () => {
+    seedQr(5, "2026-10-05", 0, -600, 840, "2026-10-05T06:00:00Z", { creditAt: "2026-10-05T06:00:00Z", incAt: "2026-10-05T06:00:00Z", prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-07T06:30:00Z", "2026-10-07", "t9-37917-0"));
+    expect(seen).toEqual([1]);
+  });
+
+  it("T9 BMt same at e=47h30m: claim inside the wide stored band (no evidence of an eastward move, e > 23h) -> not bridged, 0 token: reset", () => {
+    seedQr(5, "2026-10-05", 0, -600, 840, "2026-10-05T06:00:00Z", { creditAt: "2026-10-05T06:00:00Z", incAt: "2026-10-05T06:00:00Z", prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-07T05:30:00Z", "2026-10-07", "t9-24876-0"));
+    expect(seen).toEqual([1]);
+  });
+
+  it("T9 TW g=3, 2 freeze, e=90h (< 24h*(2+2)+1h): 2 tokens, +1", () => {
+    seedQr(5, "2026-10-05", 2, 60, 120, "2026-10-04T22:00:30Z", { creditAt: "2026-10-04T22:00:30Z", incAt: "2026-10-04T22:00:30Z", prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-08T16:00:30Z", "2026-10-08", "t9-95986-0"));
+    expect(seen).toEqual([6]);
+    const bits = profileBits();
+    expect(bits.fr).toBe(0);
+  });
+
+  it("T9 BN band [0,120], claim 30 min east of hi (east move, nudge -> margin 1h), g=2, e=48h30m: strict 48h -> reset", () => {
+    seedQr(5, "2026-10-05", 0, 0, 120, "2026-10-04T21:00:00Z", { creditAt: "2026-10-04T21:00:00Z", incAt: "2026-10-04T21:00:00Z", prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-06T21:30:00Z", "2026-10-07", "t9-48829-0"));
+    expect(seen).toEqual([1]);
+  });
+
+  it("T9 BNt same at e=47h30m: bridged +1, no token", () => {
+    seedQr(5, "2026-10-05", 0, 0, 120, "2026-10-04T22:00:00Z", { creditAt: "2026-10-04T22:00:00Z", incAt: "2026-10-04T22:00:00Z", prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-06T21:30:00Z", "2026-10-07", "t9-49371-0"));
+    expect(seen).toEqual([6]);
+    const bits = profileBits();
+    expect(bits.fr).toBe(0);
+    expect(bits.la).toBe("2026-10-07");
+  });
+
+  it("T9 BW wide band [-720,840] (N5b): Kiritimati misses 10-13, returns 10-14 00:30 local (e=36.5h), 0 token: reset", () => {
+    seedQr(2, "2026-10-12", 0, -720, 840, "2026-10-11T22:00:00Z", { creditAt: "2026-10-11T22:00:00Z", incAt: null, prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-13T10:30:00Z", "2026-10-14", "t9-78303-0"));
+    expect(seen).toEqual([1]);
+  });
+
+  it("T9 BWt same with 1 rest day: rest spent, +1", () => {
+    seedQr(2, "2026-10-12", 0, -720, 840, "2026-10-11T22:00:00Z", { creditAt: "2026-10-11T22:00:00Z", incAt: null, prevIncAt: null, restDays: 1 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-13T10:30:00Z", "2026-10-14", "t9-65613-0"));
+    expect(seen).toEqual([3]);
+    const bits = profileBits();
+    expect(bits.rs).toBe(0);
+  });
+
+  it("T9 BG g=3 within 47h (impossible for any fixed zone), wide band: bridged +1", () => {
+    seedQr(5, "2026-10-05", 0, -720, 840, "2026-10-05T11:00:00Z", { creditAt: "2026-10-05T11:00:00Z", incAt: null, prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-07T10:00:00Z", "2026-10-08", "t9-70105-0"));
+    expect(seen).toEqual([6]);
+  });
+
+  it("T9 BS stationary Berlin noon-claimer, loose band [-600,839], misses 10-06, returns 10-07 00:30 local (e=36.5h), 0 token: reset (no free skip)", () => {
+    seedQr(5, "2026-10-05", 0, -600, 839, "2026-10-05T10:00:00Z", { creditAt: "2026-10-05T10:00:00Z", incAt: null, prevIncAt: null, restDays: 0 });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-06T22:30:00Z", "2026-10-07", "t9-13950-0"));
+    expect(seen).toEqual([1]);
+  });
+
+  it("property: random adversary never exceeds lead 2+1/24 or +2 in 23h", () => {
     const report = replica.exec(`
 RESET ROLE;
 SELECT set_config('app.uid', '${USER_A}', false);
@@ -1588,8 +2149,7 @@ DECLARE
   v_p date;
   v_prev int;
   v_streak int;
-  v_elapsed int;
-  v_credit_before timestamptz;
+  v_lead numeric;
   v_inc1 timestamptz;
   v_inc2 timestamptz;
   v_uid uuid := '${USER_A}'::uuid;
@@ -1601,7 +2161,7 @@ BEGIN
     DELETE FROM public.daily_logs WHERE user_id = v_uid;
     UPDATE public.user_profiles
     SET total_xp = 0, current_level = 1, current_streak = 0, longest_streak = 0,
-        last_activity_date = NULL, streak_freeze_tokens = 0,
+        last_activity_date = NULL, streak_freeze_tokens = 0, rest_days = 0,
         streak_tz_lo_min = NULL, streak_tz_hi_min = NULL, streak_tz_set_at = NULL,
         streak_credit_at = NULL, streak_inc_at = NULL, streak_prev_inc_at = NULL
     WHERE id = v_uid;
@@ -1617,7 +2177,7 @@ BEGIN
       UPDATE public._xp_prop_clock SET t = v_now;
       v_utc := (v_now AT TIME ZONE 'UTC')::date;
       v_p := v_utc + (floor(random() * 3)::int - 1);
-      SELECT current_streak, streak_credit_at INTO v_prev, v_credit_before
+      SELECT current_streak INTO v_prev
       FROM public.user_profiles WHERE id = v_uid;
       PERFORM set_config('app.uid', v_uid::text, false);
       SET LOCAL ROLE authenticated;
@@ -1625,28 +2185,23 @@ BEGIN
         v_uid, 10, NULL, 'create_note', 'p' || run || '-' || day, v_p, NULL
       ) AS a;
       RESET ROLE;
-      v_elapsed := ((v_now AT TIME ZONE 'UTC')::date - (v_first AT TIME ZONE 'UTC')::date) + 1;
-      IF v_streak > v_elapsed + 2 THEN
-        RAISE EXCEPTION 'run % day % streak % > elapsed % + 2', run, day, v_streak, v_elapsed;
+      v_lead := v_streak - EXTRACT(EPOCH FROM (v_now - v_first)) / 86400.0;
+      IF v_lead >= 2 + 1.0/24 THEN
+        RAISE EXCEPTION 'run % day % lead % >= 2+1/24', run, day, v_lead;
       END IF;
       IF v_streak - v_prev >= 2 THEN
         RAISE EXCEPTION 'run % day % gained % in one instant (prev %, now %)',
           run, day, v_streak - v_prev, v_prev, v_streak;
       END IF;
       IF v_streak > v_prev AND v_prev > 0 THEN
-        IF v_credit_before IS NOT NULL
-           AND (v_now - v_credit_before) >= interval '48 hours' THEN
-          RAISE EXCEPTION 'run % day % increment while e >= 48h', run, day;
-        END IF;
-        IF v_inc1 IS NOT NULL AND (v_now - v_inc1) <= interval '24 hours' THEN
-          RAISE EXCEPTION 'run % day % more than +2 increments in 24h', run, day;
+        IF v_inc1 IS NOT NULL AND (v_now - v_inc1) <= interval '23 hours' THEN
+          RAISE EXCEPTION 'run % day % more than +2 increments in 23h', run, day;
         END IF;
         v_inc1 := v_inc2;
         v_inc2 := v_now;
       END IF;
       v_prev := v_streak;
       v_p := v_utc + (floor(random() * 3)::int - 1);
-      SELECT streak_credit_at INTO v_credit_before FROM public.user_profiles WHERE id = v_uid;
       PERFORM set_config('app.uid', v_uid::text, false);
       SET LOCAL ROLE authenticated;
       SELECT a.current_streak INTO v_streak FROM public.award_xp(
@@ -1658,20 +2213,15 @@ BEGIN
           run, day, v_streak - v_prev;
       END IF;
       IF v_streak > v_prev AND v_prev > 0 THEN
-        IF v_credit_before IS NOT NULL
-           AND (v_now - v_credit_before) >= interval '48 hours' THEN
-          RAISE EXCEPTION 'run % day % second increment while e >= 48h', run, day;
-        END IF;
-        IF v_inc1 IS NOT NULL AND (v_now - v_inc1) <= interval '24 hours' THEN
-          RAISE EXCEPTION 'run % day % second claim more than +2 in 24h', run, day;
+        IF v_inc1 IS NOT NULL AND (v_now - v_inc1) <= interval '23 hours' THEN
+          RAISE EXCEPTION 'run % day % second claim more than +2 in 23h', run, day;
         END IF;
         v_inc1 := v_inc2;
         v_inc2 := v_now;
       END IF;
-      v_elapsed := ((v_now AT TIME ZONE 'UTC')::date - (v_first AT TIME ZONE 'UTC')::date) + 1;
-      IF v_streak > v_elapsed + 2 THEN
-        RAISE EXCEPTION 'run % day % streak % > elapsed % + 2 after second claim',
-          run, day, v_streak, v_elapsed;
+      v_lead := v_streak - EXTRACT(EPOCH FROM (v_now - v_first)) / 86400.0;
+      IF v_lead >= 2 + 1.0/24 THEN
+        RAISE EXCEPTION 'run % day % lead % >= 2+1/24 after second claim', run, day, v_lead;
       END IF;
     END LOOP;
   END LOOP;
