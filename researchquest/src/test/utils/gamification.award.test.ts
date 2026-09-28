@@ -1,12 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { mockSupabaseClient } from "../mocks/supabase";
 
-// Mock supabase module - MUST be before imports that use it
 vi.mock("../../lib/supabase", () => ({
   supabase: mockSupabaseClient,
 }));
 
-// Import after mock
 import {
   awardXP,
   XP_REWARDS,
@@ -19,15 +17,22 @@ const daysAgo = (n: number): string =>
   new Date(Date.now() - n * 86400000).toISOString().split("T")[0]!;
 
 const futureISO = () => new Date(Date.now() + 3600000).toISOString();
-const pastISO = () => new Date(Date.now() - 3600000).toISOString();
+
+interface RpcCall {
+  fn: string;
+  params: Record<string, unknown>;
+}
 
 interface MockState {
   profile: Record<string, unknown>;
-  profileUpdates: Record<string, any>[];
-  achievementInserts: Record<string, any>[];
+  profileUpdates: Record<string, unknown>[];
+  achievementInserts: Record<string, unknown>[];
+  rpcCalls: RpcCall[];
+  awardXpRow: Record<string, unknown> | null;
+  achievementRow: Record<string, unknown> | null;
 }
 
-function setupSupabaseMock(state: MockState) {
+function setupMocks(state: MockState) {
   mockSupabaseClient.from.mockImplementation((table: string) => {
     const builder: any = {
       select: vi.fn().mockReturnThis(),
@@ -57,6 +62,25 @@ function setupSupabaseMock(state: MockState) {
     };
     return builder;
   });
+
+  mockSupabaseClient.rpc.mockImplementation((fn: string, params: any) => {
+    state.rpcCalls.push({ fn, params });
+    if (fn === "award_xp") {
+      return Promise.resolve(
+        state.awardXpRow
+          ? { data: state.awardXpRow, error: null }
+          : { data: null, error: { message: "rpc unavailable" } },
+      );
+    }
+    if (fn === "award_achievement_xp") {
+      return Promise.resolve(
+        state.achievementRow
+          ? { data: state.achievementRow, error: null }
+          : { data: null, error: { message: "rpc unavailable" } },
+      );
+    }
+    return Promise.resolve({ data: null, error: null });
+  });
 }
 
 function makeProfile(overrides: Record<string, unknown> = {}) {
@@ -82,7 +106,22 @@ function makeProfile(overrides: Record<string, unknown> = {}) {
   };
 }
 
-describe("Gamification Award Pipeline (trust)", () => {
+const BASE_XP_ROW = {
+  total_xp: 110,
+  current_level: 1,
+  current_streak: 4,
+  longest_streak: 5,
+  last_activity_date: "2026-01-02",
+  notes_count: 0,
+  papers_count: 0,
+  tasks_completed_count: 0,
+  papers_with_insights_count: 0,
+  streak_freeze_tokens: 0,
+  xp_credited: 10,
+  is_duplicate: false,
+};
+
+describe("Gamification Award Pipeline (RPC-only)", () => {
   let state: MockState;
   const consoleErrorSpy = vi
     .spyOn(console, "error")
@@ -93,19 +132,20 @@ describe("Gamification Award Pipeline (trust)", () => {
     consoleErrorSpy.mockClear();
     clearAchievementsCache();
     useAppStore.setState({ user: null });
-    useGamificationStore
-      .getState()
-      .hydrateFromProfile({
-        streak_freeze_tokens: 0,
-        rest_days: 0,
-        active_boost: null,
-      });
+    useGamificationStore.getState().hydrateFromProfile({
+      streak_freeze_tokens: 0,
+      rest_days: 0,
+      active_boost: null,
+    });
     state = {
       profile: makeProfile(),
       profileUpdates: [],
       achievementInserts: [],
+      rpcCalls: [],
+      awardXpRow: { ...BASE_XP_ROW },
+      achievementRow: null,
     };
-    setupSupabaseMock(state);
+    setupMocks(state);
   });
 
   afterEach(() => {
@@ -113,123 +153,41 @@ describe("Gamification Award Pipeline (trust)", () => {
     vi.restoreAllMocks();
   });
 
-  it("applies the active boost multiplier to awarded XP", async () => {
+  it("sends the raw xp amount as p_delta and does not write total_xp", async () => {
     state.profile = makeProfile({
       active_boost: { type: "xp", multiplier: 2, expires_at: futureISO() },
     });
-
-    const result = await awardXP("user-a", 10, "create_note");
-
-    expect(result?.xpEarned).toBe(20);
-    expect(state.profileUpdates[0]?.total_xp).toBe(120);
-  });
-
-  it("rounds fractional multiplied XP to the nearest integer", async () => {
-    state.profile = makeProfile({
-      active_boost: { type: "xp", multiplier: 1.5, expires_at: futureISO() },
-    });
-
-    const result = await awardXP("user-a", 7, "create_note");
-
-    expect(result?.xpEarned).toBe(11);
-    expect(state.profileUpdates[0]?.total_xp).toBe(111);
-  });
-
-  it("ignores an expired boost multiplier", async () => {
-    state.profile = makeProfile({
-      active_boost: { type: "xp", multiplier: 2, expires_at: pastISO() },
-    });
+    state.awardXpRow = { ...BASE_XP_ROW, xp_credited: 10, total_xp: 110 };
 
     const result = await awardXP("user-a", 10, "create_note");
 
     expect(result?.xpEarned).toBe(10);
-    expect(state.profileUpdates[0]?.total_xp).toBe(110);
+    expect(state.rpcCalls[0]?.params.p_delta).toBe(10);
+    expect(state.profileUpdates).toHaveLength(0);
   });
 
-  it("preserves the streak by consuming one freeze token on a multi-day gap", async () => {
+  it("does not apply a client-side boost multiplier to p_delta", async () => {
     state.profile = makeProfile({
-      last_activity_date: daysAgo(3),
-      current_streak: 12,
-      longest_streak: 12,
-      streak_freeze_tokens: 1,
+      active_boost: { type: "xp", multiplier: 1.5, expires_at: futureISO() },
     });
+
+    await awardXP("user-a", 7, "create_note");
+
+    expect(state.rpcCalls[0]?.params.p_delta).toBe(7);
+    expect(state.profileUpdates).toHaveLength(0);
+  });
+
+  it("hydrates streak from the RPC row without a client profile write", async () => {
+    state.awardXpRow = { ...BASE_XP_ROW, current_streak: 12, xp_credited: 10 };
 
     const result = await awardXP("user-a", 10, "create_note");
 
     expect(result?.streak).toBe(12);
-    expect(state.profileUpdates[0]?.current_streak).toBe(12);
-    expect(state.profileUpdates[0]?.streak_freeze_tokens).toBe(0);
+    expect(useAppStore.getState().user?.current_streak).toBe(12);
+    expect(state.profileUpdates).toHaveLength(0);
   });
 
-  it("resets the streak on a multi-day gap when no freeze tokens remain", async () => {
-    state.profile = makeProfile({
-      last_activity_date: daysAgo(3),
-      current_streak: 12,
-      streak_freeze_tokens: 0,
-    });
-
-    const result = await awardXP("user-a", 10, "create_note");
-
-    expect(result?.streak).toBe(1);
-    expect(state.profileUpdates[0]?.current_streak).toBe(1);
-    expect(state.profileUpdates[0]).not.toHaveProperty("streak_freeze_tokens");
-  });
-
-  it("grants a freeze token when the streak reaches a multiple of 7 (6 -> 7)", async () => {
-    state.profile = makeProfile({
-      last_activity_date: daysAgo(1),
-      current_streak: 6,
-      streak_freeze_tokens: 0,
-    });
-
-    const result = await awardXP("user-a", 10, "create_note");
-
-    expect(result?.streak).toBe(7);
-    expect(state.profileUpdates[0]?.streak_freeze_tokens).toBe(1);
-  });
-
-  it("grants a freeze token at every new multiple of 7 (13 -> 14)", async () => {
-    state.profile = makeProfile({
-      last_activity_date: daysAgo(1),
-      current_streak: 13,
-      streak_freeze_tokens: 1,
-    });
-
-    const result = await awardXP("user-a", 10, "create_note");
-
-    expect(result?.streak).toBe(14);
-    expect(state.profileUpdates[0]?.streak_freeze_tokens).toBe(2);
-  });
-
-  it("does not grant a token when the streak merely rests on a multiple of 7", async () => {
-    state.profile = makeProfile({
-      last_activity_date: daysAgo(3),
-      current_streak: 14,
-      streak_freeze_tokens: 2,
-    });
-
-    const result = await awardXP("user-a", 10, "create_note");
-
-    expect(result?.streak).toBe(14);
-    expect(state.profileUpdates[0]?.streak_freeze_tokens).toBe(1);
-  });
-
-  it("does not burn a freeze token to preserve a zero streak after a cron reset", async () => {
-    state.profile = makeProfile({
-      last_activity_date: daysAgo(3),
-      current_streak: 0,
-      longest_streak: 12,
-      streak_freeze_tokens: 1,
-    });
-
-    const result = await awardXP("user-a", 10, "create_note");
-
-    expect(result?.streak).toBe(1);
-    expect(state.profileUpdates[0]?.current_streak).toBe(1);
-    expect(state.profileUpdates[0]).not.toHaveProperty("streak_freeze_tokens");
-  });
-
-  it("returns the result shape and reports level-ups", async () => {
+  it("returns the result shape and reports level-ups from the RPC totals", async () => {
     const result = await awardXP("user-a", 10, "create_note");
 
     expect(result).toEqual({
@@ -241,63 +199,77 @@ describe("Gamification Award Pipeline (trust)", () => {
     });
 
     state.profile = makeProfile({ total_xp: 490, current_level: 1 });
+    state.awardXpRow = {
+      ...BASE_XP_ROW,
+      total_xp: 510,
+      current_level: 2,
+      xp_credited: 20,
+    };
     const leveled = await awardXP("user-a", XP_REWARDS.CREATE_IDEA, "create_idea");
     expect(leveled?.xpEarned).toBe(20);
     expect(leveled?.level).toBe(2);
     expect(leveled?.leveledUp).toBe(true);
   });
 
-  it("reports the level when achievement XP lands exactly on a level boundary", async () => {
-    state.profile = makeProfile({
-      total_xp: 440,
-      current_level: 1,
-      papers_count: 0,
-    });
+  it("on RPC failure logs and writes nothing", async () => {
+    state.awardXpRow = null;
 
-    // 440 + 10 = 450 (still level 1) — only the +50 First Paper achievement
-    // crosses the 500 XP boundary
-    const result = await awardXP("user-a", 10, "create_paper");
+    const result = await awardXP("user-a", 10, "create_note");
 
-    expect(result?.achievementsEarned).toHaveLength(1);
-    expect(result?.level).toBe(2);
-    expect(result?.leveledUp).toBe(true);
-    expect(useAppStore.getState().user?.current_level).toBe(2);
-    expect(useAppStore.getState().user?.total_xp).toBe(500);
+    expect(result).toBeNull();
+    expect(state.profileUpdates).toHaveLength(0);
+    expect(state.achievementInserts).toHaveLength(0);
+    expect(useAppStore.getState().user).toBeNull();
   });
 
-  it("returns earned achievements in the result", async () => {
+  it("credits first-paper through award_achievement_xp without ledger inserts", async () => {
     state.profile = makeProfile({ papers_count: 0 });
+    state.awardXpRow = {
+      ...BASE_XP_ROW,
+      papers_count: 1,
+      xp_credited: 15,
+      total_xp: 115,
+    };
+    state.achievementRow = {
+      total_xp: 165,
+      current_level: 1,
+      xp_credited: 50,
+      is_duplicate: false,
+    };
 
     const result = await awardXP("user-a", 15, "create_paper");
 
     expect(result?.achievementsEarned).toHaveLength(1);
     expect(result?.achievementsEarned[0]?.title).toBe("First Paper");
-    expect(state.achievementInserts[0]?.xp_awarded).toBe(50);
+    expect(state.achievementInserts).toHaveLength(0);
+    expect(state.profileUpdates).toHaveLength(0);
+    expect(useAppStore.getState().user?.total_xp).toBe(165);
   });
 
-  it("re-hydrates the profile into the app store after a successful update", async () => {
-    state.profile = makeProfile({
-      last_activity_date: daysAgo(1),
-      current_streak: 6,
-      streak_freeze_tokens: 0,
-    });
+  it("re-hydrates the profile into the app store after a successful RPC", async () => {
+    state.awardXpRow = {
+      ...BASE_XP_ROW,
+      current_streak: 7,
+      streak_freeze_tokens: 1,
+      notes_count: 1,
+      total_xp: 110,
+    };
 
     const result = await awardXP("user-a", 10, "create_note");
 
-    // Streak 6->7 also earns the Research Streak achievement (+100 XP),
-    // which is folded into the hydrated profile
-    expect(result?.achievementsEarned[0]?.title).toBe("Research Streak");
     const hydrated = useAppStore.getState().user;
+    expect(result?.streak).toBe(7);
     expect(hydrated).not.toBeNull();
-    expect(hydrated?.total_xp).toBe(210);
-    expect(hydrated?.current_streak).toBe(result?.streak);
+    expect(hydrated?.total_xp).toBe(110);
+    expect(hydrated?.current_streak).toBe(7);
     expect(hydrated?.streak_freeze_tokens).toBe(1);
     expect(hydrated?.username).toBe("test-user");
     expect(hydrated?.notes_count).toBe(1);
     expect(useGamificationStore.getState().streakFreezeTokens).toBe(1);
+    expect(state.profileUpdates).toHaveLength(0);
   });
 
-  it("keeps the anti-N+1 guarantee: one profile fetch, one profile update per award", async () => {
+  it("keeps the anti-N+1 guarantee: one profile fetch and no profile update per award", async () => {
     await awardXP("user-a", 10, "create_note");
     await awardXP("user-b", 10, "create_note");
 
@@ -305,8 +277,9 @@ describe("Gamification Award Pipeline (trust)", () => {
       (call) => call[0] === "user_profiles",
     );
 
-    expect(userProfileCalls).toHaveLength(4); // 2 awards x (1 select + 1 update)
-    expect(state.profileUpdates).toHaveLength(2);
+    expect(userProfileCalls).toHaveLength(2);
+    expect(state.profileUpdates).toHaveLength(0);
+    expect(state.rpcCalls.filter((c) => c.fn === "award_xp")).toHaveLength(2);
   });
 
   it("purges dead XP reward constants", () => {
