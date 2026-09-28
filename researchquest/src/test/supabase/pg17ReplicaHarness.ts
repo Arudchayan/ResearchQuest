@@ -349,12 +349,7 @@ export function startReplica(opts?: {
   execFile(path.join(repoRoot, "supabase/migrations/1765700000_reconcile_unapplied_master_delta.sql"));
   const through = opts?.through ?? "1765800000";
   if (through === "1765800000" || through === "1765900000") {
-    // RQ_XP_HARDENING_SQL: local-only override to load #826 round 9 without
-    // committing that file (it belongs to #826). Unset in CI.
-    const hardening =
-      process.env.RQ_XP_HARDENING_SQL ||
-      path.join(repoRoot, "supabase/migrations/1765800000_xp_integrity_hardening.sql");
-    execFile(hardening);
+    execFile(path.join(repoRoot, "supabase/migrations/1765800000_xp_integrity_hardening.sql"));
   }
   if (through === "1765900000") {
     execFile(path.join(repoRoot, "supabase/migrations/1765900000_evaluate_user_streaks_local_day.sql"));
