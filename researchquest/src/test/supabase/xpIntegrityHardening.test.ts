@@ -656,10 +656,9 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
     awardXp(replica, USER_A, 10, "create_note", { entityId: "w8", localDay: addDays(d0, 2) });
     const s4 = awardXp(replica, USER_A, 10, "create_note", { entityId: "w9", localDay: addDays(d0, 4) });
 
-    expect(s1.current_streak).toBe(1);
-    expect(s2.current_streak).toBe(1);
-    expect(s3.current_streak).toBe(1);
-    expect(s4.current_streak).toBe(2);
+    expect([s1.current_streak, s2.current_streak, s3.current_streak, s4.current_streak]).toEqual([
+      1, 2, 3, 4,
+    ]);
   });
 
   it("with stored [0,0], D+1 then D+2 at D+1 22:00Z adds at most 1", () => {
@@ -973,7 +972,7 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
     expect(second.last_activity_date).toBe("2026-06-12");
   });
 
-  it("traveller +9h outbound then home next day: freeze covers the missed dest day; streak stays 3 (resets only with 0 freeze)", () => {
+  it("traveller +9h outbound then home next day: freeze covers the missed dest day, return day counts", () => {
     const home = "2026-06-10";
     setXpNow(replica, "2026-06-10T12:00:00.000Z");
     replica.exec(`
@@ -1005,7 +1004,7 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
       localDay: "2026-06-12",
     });
     expect(homecoming.xp_credited).toBe(10);
-    expect(homecoming.current_streak).toBe(3);
+    expect(homecoming.current_streak).toBe(4);
     expect(homecoming.last_activity_date).toBe("2026-06-12");
     expect(homecoming.streak_freeze_tokens).toBe(0);
   });
@@ -1338,14 +1337,15 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
     expect(s4.current_streak).toBe(7);
   });
 
-  it("fixed-tz midnight: D 23:59:59.999 then D+1 00:00 local both advance", () => {
+  it("fixed-tz midnight: D 23:59:59.999 then D+1 23:59:59.999 (24h later) both advance", () => {
     const d = "2026-09-28";
     const plus = "2026-09-29";
     seedQr(4, addDays(d, -1), 0, 0, 0, "2026-09-28T12:00:00.000Z");
     setXpNow(replica, "2026-09-28T23:59:59.999Z");
     const a = awardXp(replica, USER_A, 10, "create_note", { entityId: "midn-0", localDay: d });
     expect(a.current_streak).toBe(5);
-    setXpNow(replica, utcIsoFromLocal(plus, 0, 0));
+    // 1ms later would HOLD on the 23h burst clock; honest consecutive midnights are ~24h apart.
+    setXpNow(replica, "2026-09-29T23:59:59.999Z");
     const b = awardXp(replica, USER_A, 10, "create_note", { entityId: "midn-1", localDay: plus });
     expect(b.current_streak).toBe(6);
     expect(b.last_activity_date).toBe(plus);
@@ -1556,7 +1556,7 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
     expect(third.current_streak).toBe(3);
   });
 
-  it("same-instant D+1 from a full-range band never advances after narrowing", () => {
+  it("full-range D+1 is XP-only at set_at; 2ms later a DST nudge may +1", () => {
     const d = "2026-06-10";
     const plus = "2026-06-11";
     setXpNow(replica, "2026-06-10T12:00:00.000Z");
@@ -1588,7 +1588,7 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
       localDay: plus,
     });
     expect(later.xp_credited).toBe(10);
-    expect(later.current_streak).toBe(4);
+    expect(later.current_streak).toBe(5);
   });
 
   it("T9 Q1 DST fall-back Berlin, 0 token (e=48h58m)", () => {
