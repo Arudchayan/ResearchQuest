@@ -148,7 +148,7 @@ describe("1765800000 xp integrity hardening (static)", () => {
     expect(award).toMatch(/interval\s+'12 hours'/i);
     expect(award).toMatch(/-\s*720/i);
     expect(award).toMatch(/840/i);
-    expect(award).toMatch(/-\s*90/i);
+    expect(award).toMatch(/-\s*180/i);
     expect(award).toMatch(/v_today\s*<\s*v_last/i);
     expect(award).not.toMatch(/v_gap_last/);
     expect(raw).toMatch(/Empty or inconsistent N/i);
@@ -539,7 +539,7 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
     expect(second.current_streak).toBeLessThanOrEqual(2);
   });
 
-  it("QA bug 2 stray D-3: last=D-4 with a freeze token does not +1 from a held event", () => {
+  it("QA bug 2 stray D-3: last=D-4 self-heals to 1; a held event does not keep the old streak", () => {
     const today = replica.exec("SELECT (public.xp_server_now() AT TIME ZONE 'UTC')::date").trim();
     const dMinus3 = replica.exec("SELECT ((public.xp_server_now() AT TIME ZONE 'UTC')::date - 3)").trim();
     const dMinus4 = replica.exec("SELECT ((public.xp_server_now() AT TIME ZONE 'UTC')::date - 4)").trim();
@@ -557,9 +557,9 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
     `);
 
     const row = awardXp(replica, USER_A, 10, "create_note", { localDay: today });
-    expect(row.current_streak).toBe(5);
+    expect(row.current_streak).toBe(1);
     expect(row.last_activity_date).toBe(today);
-    expect(row.streak_freeze_tokens).toBe(0);
+    expect(row.streak_freeze_tokens).toBe(1);
     expect(row.xp_credited).toBe(10);
   });
 
@@ -741,7 +741,7 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
     expect(row.last_activity_date).toBe(d1);
   });
 
-  it("documents the traveller bound: +9h jump is not bridged; a stall vs last consistent day may reset", () => {
+  it("relocates from [60,60] to UTC+10 and advances again within 3 real days", () => {
     const home = "2026-06-10";
     setXpNow(replica, "2026-06-10T02:00:00.000Z");
     replica.exec(`
@@ -756,39 +756,141 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
       WHERE id = '${USER_A}';
     `);
 
-    // Destination UTC+10 (offset 600). After 12h, W is [60±90]=[-30,150] and
-    // never contains 600. Inconsistent claims must not move last_activity_date
-    // or the stored interval, so they cannot bridge a real gap. Recovery is
-    // only via 12h-gated widening; a jump this large does not recover.
-    for (let i = 0; i < 3; i += 1) {
-      const t = new Date(Date.UTC(2026, 5, 10 + i, 14, 0, 0)).toISOString();
-      const localDay = addDays("2026-06-11", i);
-      setXpNow(replica, t);
+    // Arrive 2026-06-11 02:00Z = UTC+10 noon. Bound: ±180 per 12h, or
+    // self-heal once last is more than 2 days before p. Either way they
+    // must be advancing again within 3 real days of arriving.
+    const destOffset = 600;
+    let advancingBy: string | null = null;
+    let streak = 3;
+    for (let i = 0; i < 4; i += 1) {
+      const day = addDays("2026-06-11", i);
+      setXpNow(replica, utcIsoFromLocal(day, 12, destOffset));
       const row = awardXp(replica, USER_A, 10, "create_note", {
-        entityId: `jump${i}`,
-        localDay,
+        entityId: `rel${i}`,
+        localDay: day,
       });
       expect(row.xp_credited).toBe(10);
-      expect(row.current_streak).toBe(3);
-      expect(row.last_activity_date).toBe(home);
+      if (
+        advancingBy === null
+        && day <= "2026-06-14"
+        && (row.current_streak === 1 || row.current_streak > streak)
+      ) {
+        advancingBy = day;
+      }
+      streak = row.current_streak;
     }
-    const tz = replica
-      .exec(
-        `SELECT streak_tz_lo_min, streak_tz_hi_min FROM public.user_profiles WHERE id = '${USER_A}'`,
-      )
-      .trim();
-    expect(tz).toBe("60|60");
+    expect(advancingBy).not.toBeNull();
+    expect((advancingBy ?? "") <= "2026-06-14").toBe(true);
+    setXpNow(replica, utcIsoFromLocal("2026-06-15", 12, destOffset));
+    const kept = awardXp(replica, USER_A, 10, "create_note", {
+      entityId: "rel-keep",
+      localDay: "2026-06-15",
+    });
+    expect(kept.xp_credited).toBe(10);
+    expect(kept.current_streak).toBeGreaterThanOrEqual(2);
+    expect(kept.last_activity_date).toBe("2026-06-15");
+  });
 
-    // Bound: returning home on 06-14 (4 calendar days after last consistent
-    // activity, 0 freeze) resets rather than treating dest claims as activity.
-    setXpNow(replica, "2026-06-14T12:00:00.000Z");
+  it("self-heals: after streak 0, first credited claim is 1 and the next real day is 2", () => {
+    setXpNow(replica, "2026-06-10T02:00:00.000Z");
+    replica.exec(`
+      UPDATE public.user_profiles
+      SET current_streak = 0,
+          longest_streak = 5,
+          last_activity_date = '2026-06-01'::date,
+          streak_tz_lo_min = 60,
+          streak_tz_hi_min = 60,
+          streak_tz_set_at = public.xp_server_now() - interval '3 days',
+          streak_freeze_tokens = 0,
+          total_xp = 50
+      WHERE id = '${USER_A}';
+    `);
+    const dest = 600;
+    setXpNow(replica, utcIsoFromLocal("2026-06-11", 12, dest));
+    const first = awardXp(replica, USER_A, 10, "create_note", {
+      entityId: "heal0",
+      localDay: "2026-06-11",
+    });
+    expect(first.xp_credited).toBe(10);
+    expect(first.current_streak).toBe(1);
+    expect(first.last_activity_date).toBe("2026-06-11");
+
+    setXpNow(replica, utcIsoFromLocal("2026-06-12", 12, dest));
+    const second = awardXp(replica, USER_A, 10, "create_note", {
+      entityId: "heal1",
+      localDay: "2026-06-12",
+    });
+    expect(second.xp_credited).toBe(10);
+    expect(second.current_streak).toBe(2);
+    expect(second.last_activity_date).toBe("2026-06-12");
+  });
+
+  it("traveller +9h outbound then home next day: freeze covers the missed dest day; streak stays 3 (resets only with 0 freeze)", () => {
+    const home = "2026-06-10";
+    setXpNow(replica, "2026-06-10T12:00:00.000Z");
+    replica.exec(`
+      UPDATE public.user_profiles
+      SET last_activity_date = '${home}'::date,
+          current_streak = 3,
+          longest_streak = 3,
+          streak_freeze_tokens = 1,
+          streak_tz_lo_min = 60,
+          streak_tz_hi_min = 60,
+          streak_tz_set_at = public.xp_server_now(),
+          total_xp = 30
+      WHERE id = '${USER_A}';
+    `);
+
+    setXpNow(replica, utcIsoFromLocal("2026-06-11", 2, 600));
+    const outbound = awardXp(replica, USER_A, 10, "create_note", {
+      entityId: "trip-out",
+      localDay: "2026-06-11",
+    });
+    expect(outbound.xp_credited).toBe(10);
+    expect(outbound.current_streak).toBe(3);
+    expect(outbound.last_activity_date).toBe(home);
+    expect(outbound.streak_freeze_tokens).toBe(1);
+
+    setXpNow(replica, utcIsoFromLocal("2026-06-12", 12, 60));
     const homecoming = awardXp(replica, USER_A, 10, "create_note", {
-      entityId: "home",
-      localDay: "2026-06-14",
+      entityId: "trip-home",
+      localDay: "2026-06-12",
     });
     expect(homecoming.xp_credited).toBe(10);
-    expect(homecoming.current_streak).toBe(1);
-    expect(homecoming.last_activity_date).toBe("2026-06-14");
+    expect(homecoming.current_streak).toBe(3);
+    expect(homecoming.last_activity_date).toBe("2026-06-12");
+    expect(homecoming.streak_freeze_tokens).toBe(0);
+  });
+
+  it("same-instant D, D+1, D+2 after the interval is full-range give at most +1", () => {
+    const d = "2026-06-10";
+    const minus = "2026-06-09";
+    setXpNow(replica, "2026-06-09T12:30:00.000Z");
+    replica.exec(`
+      UPDATE public.user_profiles
+      SET last_activity_date = '${minus}'::date,
+          current_streak = 1,
+          longest_streak = 1,
+          streak_tz_lo_min = -720,
+          streak_tz_hi_min = 840,
+          streak_tz_set_at = public.xp_server_now()
+      WHERE id = '${USER_A}';
+    `);
+    setXpNow(replica, "2026-06-10T12:30:00.000Z");
+    const s1 = awardXp(replica, USER_A, 10, "create_note", { entityId: "full-d", localDay: d });
+    const s2 = awardXp(replica, USER_A, 10, "create_note", {
+      entityId: "full-d1",
+      localDay: addDays(d, 1),
+    });
+    const s3 = awardXp(replica, USER_A, 10, "create_note", {
+      entityId: "full-d2",
+      localDay: addDays(d, 2),
+    });
+    expect(s1.xp_credited).toBe(10);
+    expect(s2.xp_credited).toBe(10);
+    expect(s3.xp_credited).toBe(10);
+    expect(s3.current_streak - 1).toBeLessThanOrEqual(1);
+    expect(s3.current_streak).toBeLessThanOrEqual(2);
   });
 
   it("xp_server_now is EXECUTE-able only by its owner; service_role is revoked", () => {
