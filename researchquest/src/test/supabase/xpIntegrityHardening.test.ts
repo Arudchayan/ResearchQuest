@@ -1194,8 +1194,7 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
     const d0 = "2026-09-28";
     seedQr(5, d0, 0, 1, 840, "2026-09-27T10:00:00.000Z");
     const seen: number[] = [];
-    let lastIncAt: string | null = null;
-    let prevIncAt: string | null = null;
+    const incAt: number[] = [];
     for (const extra of [1, 4, 7]) {
       const day = addDays(d0, extra);
       const claims: Array<[string, string]> = [
@@ -1206,27 +1205,25 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
       for (let i = 0; i < claims.length; i += 1) {
         const [when, p] = claims[i];
         setXpNow(replica, when);
-        const before = replica
-          .exec(`SELECT current_streak FROM public.user_profiles WHERE id = '${USER_A}'`)
-          .trim();
+        const before = Number(
+          replica
+            .exec(`SELECT current_streak FROM public.user_profiles WHERE id = '${USER_A}'`)
+            .trim(),
+        );
         const row = awardXp(replica, USER_A, 10, "create_note", {
           entityId: `qa3-${extra}-${i}`,
           localDay: p,
         });
         seen.push(row.current_streak);
-        if (row.current_streak > Number(before) && Number(before) > 0) {
-          if (prevIncAt != null) {
-            expect(new Date(when).getTime() - new Date(prevIncAt).getTime()).toBeGreaterThan(
-              24 * 60 * 60 * 1000,
-            );
-          }
-          prevIncAt = lastIncAt;
-          lastIncAt = when;
+        if (row.current_streak > before && before > 0) {
+          incAt.push(new Date(when).getTime());
         }
       }
     }
     expect(seen[0]).toBe(5);
     expect(Math.max(...seen.slice(1))).toBeLessThanOrEqual(3);
+    const gaps = incAt.slice(2).map((t, i) => t - incAt[i]);
+    expect(gaps.every((g) => g > 24 * 60 * 60 * 1000)).toBe(true);
   });
 
   it("QA4: 73h55m idle gap resets to 1", () => {
