@@ -5,6 +5,9 @@ import { useTopics } from "../../../hooks/useTopics";
 import { mockSupabaseClient } from "../../mocks/supabase";
 
 vi.mock("../../../hooks/useTopics");
+vi.mock("../../../lib/softNavigation", () => ({
+  navigateToView: vi.fn(),
+}));
 vi.mock("../../../lib/supabase", async () => {
   const { mockSupabaseClient: client } = await import("../../mocks/supabase");
   return {
@@ -133,6 +136,7 @@ function mockAssociationQueries() {
 describe("TopicDetailView first-run (unified shell)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    sessionStorage.clear();
     (useTopics as any).mockReturnValue({
       quests: [],
       questsLoading: false,
@@ -203,5 +207,29 @@ describe("TopicDetailView first-run (unified shell)", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Exit demo/i }));
     expect(disableDemoModeAndReload).toHaveBeenCalledWith("/");
+  });
+
+  it("Go to full workspace stays in demo and opens Today", async () => {
+    const { disableDemoModeAndReload } = await import("../../../lib/supabase");
+    const { navigateToView } = await import("../../../lib/softNavigation");
+    const { DEMO_WORKSPACE_ENTERED_KEY } = await import(
+      "../../../lib/demoData"
+    );
+
+    render(
+      <TopicDetailView
+        topic={mockTopic}
+        onUpdate={vi.fn().mockResolvedValue(true)}
+        onDelete={vi.fn().mockResolvedValue(true)}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /Go to full workspace/i }),
+    );
+
+    expect(disableDemoModeAndReload).not.toHaveBeenCalled();
+    expect(navigateToView).toHaveBeenCalledWith("dashboard");
+    expect(sessionStorage.getItem(DEMO_WORKSPACE_ENTERED_KEY)).toBe("1");
   });
 });
