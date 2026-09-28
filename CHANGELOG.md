@@ -13,6 +13,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
   `/topics/topic-ai-agents`; other topic URLs stay intentional.
 - DOI lookup for `10.48550/arXiv.1706.03762` returns Attention Is All You
   Need (demo fetch-paper matched by DOI; Crossref/client reject mismatches).
+- Demo DOI search resolves Crossref-registered works (e.g. `10.1038/nature14539`)
+  via `https://api.crossref.org/works/{doi}` after the seeded arXiv catalog miss.
 - Creating a task no longer duplicates the row (submit guard + id-deduped
   optimistic/realtime apply).
 - Note sidebar titles follow the saved/derived title instead of staying

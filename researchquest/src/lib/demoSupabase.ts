@@ -16,6 +16,7 @@ import {
   type Row as DemoRow,
 } from "./demoData";
 import { doisMatch, normalizeDoi } from "../utils/paperUtils";
+import { lookupDoiFromCrossref } from "../utils/doiLookup";
 
 type Row = DemoRow;
 type TableName = string;
@@ -737,7 +738,11 @@ const demoFunctions = {
         typeof body.doi === "string" ? normalizeDoi(body.doi) : "";
       if (doi) {
         const match = mockPapers.find((paper) => doisMatch(paper.doi, doi));
-        if (!match) {
+        if (match) {
+          return { data: { data: match, error: null }, error: null };
+        }
+        const paper = await lookupDoiFromCrossref(doi);
+        if (!paper) {
           return {
             data: {
               error: { code: "NOT_FOUND", message: "Paper not found" },
@@ -745,7 +750,7 @@ const demoFunctions = {
             error: null,
           };
         }
-        return { data: { data: match, error: null }, error: null };
+        return { data: { data: paper, error: null }, error: null };
       }
       const isQuery = Boolean(body.query);
       const result = isQuery ? mockPapers.slice(0, Number(body.rows) || 3) : mockPapers[0];
