@@ -25,10 +25,23 @@ describe("AuthScreen client-side validation", () => {
     expect(email).toHaveAttribute("aria-invalid", "true");
     expect(email).toHaveAttribute("aria-describedby", "auth-email-error");
     expect(password).toHaveAttribute("aria-invalid", "true");
-    expect(password.getAttribute("aria-describedby")).toContain(
-      "auth-password-error",
-    );
+    expect(password).toHaveAttribute("aria-describedby", "auth-password-error");
     expect(email).toHaveFocus();
+  });
+
+  it("treats whitespace-only email as empty and does not call auth", async () => {
+    const user = userEvent.setup();
+    render(<AuthScreen />);
+
+    await user.type(screen.getByLabelText(/^Email$/i), "   ");
+    await user.click(screen.getByRole("button", { name: /^Sign In$/i }));
+
+    expect(screen.getByText("Enter your email address.")).toBeInTheDocument();
+    expect(mockSupabaseClient.auth.signInWithPassword).not.toHaveBeenCalled();
+    expect(screen.getByLabelText(/^Email$/i)).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
   });
 
   it("does not call auth for an invalid email format", async () => {
@@ -41,7 +54,32 @@ describe("AuthScreen client-side validation", () => {
 
     expect(screen.getByText("Enter a valid email address.")).toBeInTheDocument();
     expect(mockSupabaseClient.auth.signInWithPassword).not.toHaveBeenCalled();
+    expect(screen.getByLabelText(/^Email$/i)).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(screen.getByLabelText(/^Email$/i)).toHaveAttribute(
+      "aria-describedby",
+      "auth-email-error",
+    );
     expect(screen.getByLabelText(/^Email$/i)).toHaveFocus();
+  });
+
+  it("shows a password required message when email is filled and password is empty", async () => {
+    const user = userEvent.setup();
+    render(<AuthScreen />);
+
+    await user.type(screen.getByLabelText(/^Email$/i), "scholar@university.edu");
+    await user.click(screen.getByRole("button", { name: /^Sign In$/i }));
+
+    expect(screen.getByText("Enter your password.")).toBeInTheDocument();
+    expect(screen.queryByText("Enter your email address.")).not.toBeInTheDocument();
+    expect(mockSupabaseClient.auth.signInWithPassword).not.toHaveBeenCalled();
+    expect(screen.getByLabelText(/^Password$/i)).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(screen.getByLabelText(/^Password$/i)).toHaveFocus();
   });
 
   it("calls auth when email and password are filled", async () => {

@@ -22,17 +22,20 @@ type AuthFieldErrors = {
   passwordError: string | null;
 };
 
-function getAuthFieldErrors(email: string, password: string): AuthFieldErrors {
+function emailErrorFromValue(email: string, requireValue: boolean): string | null {
   const trimmed = email.trim();
-  let emailError: string | null = null;
   if (!trimmed) {
-    emailError = EMAIL_REQUIRED_MESSAGE;
-  } else if (!EMAIL_REGEX.test(trimmed)) {
-    emailError = EMAIL_INVALID_MESSAGE;
+    return requireValue ? EMAIL_REQUIRED_MESSAGE : null;
   }
+  if (!EMAIL_REGEX.test(trimmed)) {
+    return EMAIL_INVALID_MESSAGE;
+  }
+  return null;
+}
 
+function getAuthFieldErrors(email: string, password: string): AuthFieldErrors {
   return {
-    emailError,
+    emailError: emailErrorFromValue(email, true),
     passwordError: password.length === 0 ? PASSWORD_REQUIRED_MESSAGE : null,
   };
 }
@@ -58,13 +61,11 @@ export function AuthScreen() {
   }, []);
 
   const validateEmail = useCallback((value: string): boolean => {
-    if (value.trim().length > 0 && !EMAIL_REGEX.test(value.trim())) {
-      setEmailError(EMAIL_INVALID_MESSAGE);
-      return false;
-    }
-    setEmailError(null);
-    return true;
-  }, []);
+    const requireValue = emailError === EMAIL_REQUIRED_MESSAGE;
+    const next = emailErrorFromValue(value, requireValue);
+    setEmailError(next);
+    return next === null;
+  }, [emailError]);
 
   const handleEmailBlur = useCallback(() => {
     validateEmail(email);
