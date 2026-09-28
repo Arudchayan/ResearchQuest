@@ -341,10 +341,12 @@ describe("AddPaperView Component", () => {
     it("does not add a paper whose DOI is already in the library, even with a different case or prefix", async () => {
       useAppStore.setState({ papers: [existingReactPaper] });
       mockSearchByDOI.mockResolvedValue(reactCrossrefPaper);
+      const mockOnExistingPaper = vi.fn();
 
       render(
         <TooltipProvider delayDuration={0}><AddPaperView
           onAdd={mockOnAdd}
+          onExistingPaper={mockOnExistingPaper}
           searchByDOI={mockSearchByDOI}
           searchByQuery={mockSearchByQuery}
         /></TooltipProvider>,
@@ -378,6 +380,7 @@ describe("AddPaperView Component", () => {
       expect(useAppStore.getState().selectedPaper?.id).toBe(
         existingReactPaper.id,
       );
+      expect(mockOnExistingPaper).toHaveBeenCalledWith(existingReactPaper);
     });
 
     it("still adds a paper when the DOI is not in the library", async () => {

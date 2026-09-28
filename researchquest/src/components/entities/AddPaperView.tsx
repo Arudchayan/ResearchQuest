@@ -21,6 +21,7 @@ import { BibTeXImportTab } from "./AddPaperTabs/BibTeXImportTab";
 interface AddPaperViewProps {
   onAdd: (paperData: PaperDraft) => Promise<Paper | null>;
   onAddBatch?: (papersData: PaperDraft[]) => Promise<Paper[]>;
+  onExistingPaper?: (paper: Paper) => void;
   searchByDOI: (doi: string) => Promise<CrossrefPaper | null>;
   searchByQuery: (query: string, options?: PaperSearchOptions) => Promise<CrossrefPaper[]>;
 }
@@ -81,7 +82,7 @@ function toDraftAndWarning(
   return { draft: built as PaperDraft };
 }
 
-export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: AddPaperViewProps) {
+export function AddPaperView({ onAdd, onAddBatch, onExistingPaper, searchByDOI, searchByQuery }: AddPaperViewProps) {
   const [activeTab, setActiveTab] = useState<"doi" | "search" | "manual" | "import">("doi");
   const [successMessage, setSuccessMessage] = useState("");
   const [isAdding, setIsAdding] = useState(false);
@@ -181,8 +182,9 @@ export function AddPaperView({ onAdd, onAddBatch, searchByDOI, searchByQuery }: 
     (paper: Paper) => {
       setSelectedPaper(paper);
       navigateToView("papers", `/papers/${paper.id}`);
+      onExistingPaper?.(paper);
     },
-    [setSelectedPaper],
+    [onExistingPaper, setSelectedPaper],
   );
 
   const handleDOISearchAction = async (doi: string) => {

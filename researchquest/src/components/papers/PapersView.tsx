@@ -574,6 +574,7 @@ export function PapersView() {
                   if (newPapers.length > 0) setIsAddDialogOpen(false);
                   return newPapers;
                 }}
+                onExistingPaper={() => setIsAddDialogOpen(false)}
                 searchByDOI={searchPaperByDOI}
                 searchByQuery={searchPapersByQuery}
               />
