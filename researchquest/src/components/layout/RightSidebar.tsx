@@ -16,7 +16,7 @@ import { useMemo } from "react";
 import { isDemoMode, supabase } from "../../lib/supabase";
 import { useGamificationStore } from "../../store/gamificationStore";
 import { logger } from "../../utils/logger";
-import { formatTimeUntil, formatDateLabel } from "../../utils/time";
+import { formatTimeUntil, formatDateLabel, parseDateInput } from "../../utils/time";
 import { useBacklinks } from "../../hooks/useBacklinks";
 import { useRelatedItems } from "../../hooks/useRelatedItems";
 import { useShallow } from "zustand/react/shallow";
@@ -98,7 +98,9 @@ export function RightSidebar() {
       if (!t.due_date) continue;
       if (("completed" in t && t.completed) || ("status" in t && (t.status === "completed" || t.status === "done"))) continue;
 
-      const parsedDue = new Date(t.due_date).getTime();
+      const parsed = parseDateInput(t.due_date);
+      if (!parsed) continue;
+      const parsedDue = parsed.getTime();
       if (parsedDue >= nowTime && parsedDue <= horizonTime) {
         validTasks.push({ ...t, parsedDue });
       }
