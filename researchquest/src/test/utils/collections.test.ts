@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { dedupeById, preferNewerByUpdatedAt } from "../../utils/collections";
+import {
+  appendUniqueId,
+  dedupeById,
+  preferNewerByUpdatedAt,
+} from "../../utils/collections";
 
 describe("dedupeById", () => {
   it("collapses duplicate ids, keeping the later copy in input order", () => {
@@ -8,6 +12,33 @@ describe("dedupeById", () => {
     const existing = { id: "task-0", title: "Older" };
 
     expect(dedupeById([created, echo, existing])).toEqual([echo, existing]);
+  });
+});
+
+describe("appendUniqueId", () => {
+  it("appends a new id and reports a change", () => {
+    expect(appendUniqueId(["paper-1"], "paper-2")).toEqual({
+      next: ["paper-1", "paper-2"],
+      changed: true,
+    });
+  });
+
+  it("does not duplicate an id that is already linked", () => {
+    expect(appendUniqueId(["paper-1"], "paper-1")).toEqual({
+      next: ["paper-1"],
+      changed: false,
+    });
+  });
+
+  it("starts a list from undefined and ignores a blank id", () => {
+    expect(appendUniqueId(undefined, "paper-9")).toEqual({
+      next: ["paper-9"],
+      changed: true,
+    });
+    expect(appendUniqueId(undefined, "")).toEqual({
+      next: [],
+      changed: false,
+    });
   });
 });
 
