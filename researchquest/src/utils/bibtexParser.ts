@@ -469,13 +469,64 @@ function parseAuthors(authorString: string): string[] {
   }
   parts.push(cur);
   return parts
-    .map((a) => {
-      let clean = a.trim().replace(/[\r\n\s]+/g, " ");
-      // Strip ONE outer brace pair.
-      if (clean.startsWith("{") && clean.endsWith("}") && clean.length >= 2) {
-        clean = clean.substring(1, clean.length - 1).trim().replace(/[\r\n\s]+/g, " ");
-      }
-      return clean;
-    })
+    .map((a) => normalizeAuthorName(a))
     .filter((a) => a.length > 0);
+}
+
+const UMLAUT_LETTER: Record<string, string> = {
+  a: "ä",
+  e: "ë",
+  i: "ï",
+  o: "ö",
+  u: "ü",
+  y: "ÿ",
+  A: "Ä",
+  E: "Ë",
+  I: "Ï",
+  O: "Ö",
+  U: "Ü",
+  Y: "Ÿ",
+};
+
+/**
+ * Decode common BibTeX/TeX umlaut forms (`{\"{o}}`, `{\"o}`, `\"{o}`, `\"o`)
+ * before braces are stripped for display.
+ */
+function decodeBibTeXUmlauts(s: string): string {
+  const patterns = [
+    /\{\\"\{([a-zA-Z])\}\}/g,
+    /\\"\{([a-zA-Z])\}/g,
+    /\{\\"([a-zA-Z])\}/g,
+    /\\"([a-zA-Z])/g,
+  ];
+  let out = s;
+  for (const pattern of patterns) {
+    out = out.replace(
+      pattern,
+      (match, letter: string) => UMLAUT_LETTER[letter] ?? match,
+    );
+  }
+  return out;
+}
+
+/**
+ * Map BibTeX `Last, First` (one comma) onto the same `First Last` string
+ * Crossref/DOI import stores. Names without a comma stay unchanged.
+ */
+function lastFirstToFirstLast(name: string): string {
+  const comma = name.indexOf(",");
+  if (comma === -1) return name;
+  const last = name.slice(0, comma).trim();
+  const first = name.slice(comma + 1).trim();
+  if (!first) return last;
+  return `${first} ${last}`.replace(/\s+/g, " ").trim();
+}
+
+function normalizeAuthorName(raw: string): string {
+  let clean = raw.trim().replace(/[\r\n\s]+/g, " ");
+  if (!clean) return "";
+  clean = decodeBibTeXUmlauts(clean);
+  clean = clean.replace(/[{}]/g, "").replace(/\s+/g, " ").trim();
+  if (!clean || /^others$/i.test(clean)) return "";
+  return lastFirstToFirstLast(clean);
 }

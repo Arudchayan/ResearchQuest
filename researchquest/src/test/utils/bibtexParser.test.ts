@@ -18,7 +18,7 @@ describe("parseBibTeX", () => {
       id: "key1",
       type: "article",
       title: "Sample Title",
-      authors: ["Smith, John", "Doe, Jane"],
+      authors: ["John Smith", "Jane Doe"],
       year: "2023",
       journal: "Journal of Testing",
       doi: "10.1234/5678",
@@ -65,8 +65,8 @@ describe("parseBibTeX", () => {
     `;
     const result = parseBibTeX(input);
     expect(result[0].authors).toEqual([
-      "Van der Waal, J.",
-      "O'Neil, T.",
+      "J. Van der Waal",
+      "T. O'Neil",
       "Corporate Author",
     ]);
   });
@@ -214,12 +214,12 @@ describe("parseBibTeX", () => {
   describe("Brace-depth-aware author splitting", () => {
     it("splits simple authors", () => {
       const result = parseBibTeX(`@article{k, author = {Smith, J. and Doe, J.}}`);
-      expect(result[0].authors).toEqual(["Smith, J.", "Doe, J."]);
+      expect(result[0].authors).toEqual(["J. Smith", "J. Doe"]);
     });
 
     it("protects braced corporate author containing 'and'", () => {
       const result = parseBibTeX(`@article{k, author = {{Corporate and Partners} and Smith, J.}}`);
-      expect(result[0].authors).toEqual(["Corporate and Partners", "Smith, J."]);
+      expect(result[0].authors).toEqual(["Corporate and Partners", "J. Smith"]);
     });
 
     it("leaves Fish-and-Chips untouched", () => {
@@ -227,9 +227,58 @@ describe("parseBibTeX", () => {
       expect(result[0].authors).toEqual(["Fish-and-Chips"]);
     });
 
-    it("strips only ONE outer pair for doubly-braced author", () => {
+    it("strips braces after splitting so a protected 'and' stays one author", () => {
       const result = parseBibTeX(`@article{k, author = {{{a and b}} and C}}`);
-      expect(result[0].authors).toEqual(["{a and b}", "C"]);
+      expect(result[0].authors).toEqual(["a and b", "C"]);
+    });
+  });
+
+  describe("Author display format (Crossref First Last)", () => {
+    it("splits Last, First lists on 'and' and stores First Last like DOI imports", () => {
+      const result = parseBibTeX(`@article{lecun2015deep,
+  title = {Deep learning},
+  author = {LeCun, Yann and Bengio, Yoshua and Hinton, Geoffrey}
+}`);
+      expect(result[0].authors).toEqual([
+        "Yann LeCun",
+        "Yoshua Bengio",
+        "Geoffrey Hinton",
+      ]);
+    });
+
+    it("keeps First Last lists as separate authors", () => {
+      const result = parseBibTeX(
+        `@article{k, author = {Yann LeCun and Yoshua Bengio and Geoffrey Hinton}}`,
+      );
+      expect(result[0].authors).toEqual([
+        "Yann LeCun",
+        "Yoshua Bengio",
+        "Geoffrey Hinton",
+      ]);
+    });
+
+    it("strips braces around TeX accents and von particles", () => {
+      const result = parseBibTeX(
+        String.raw`@article{k, author = {G{\"{o}}del, Kurt and {van der Berg}, Ludwig}}`,
+      );
+      expect(result[0].authors).toEqual(["Kurt Gödel", "Ludwig van der Berg"]);
+    });
+
+    it("normalizes a single Last, First author", () => {
+      const result = parseBibTeX(`@article{k, author = {LeCun, Yann}}`);
+      expect(result[0].authors).toEqual(["Yann LeCun"]);
+    });
+
+    it("keeps a single First Last author", () => {
+      const result = parseBibTeX(`@article{k, author = {Yann LeCun}}`);
+      expect(result[0].authors).toEqual(["Yann LeCun"]);
+    });
+
+    it("drops the BibTeX 'and others' token", () => {
+      const result = parseBibTeX(
+        `@article{k, author = {LeCun, Yann AND others}}`,
+      );
+      expect(result[0].authors).toEqual(["Yann LeCun"]);
     });
   });
 
