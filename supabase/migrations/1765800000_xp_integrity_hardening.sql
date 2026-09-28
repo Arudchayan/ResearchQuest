@@ -280,6 +280,8 @@ DECLARE
   v_r_tasks INTEGER;
   v_r_insights INTEGER;
   v_r_freeze INTEGER;
+  v_persist_tz BOOLEAN := FALSE;
+  v_apply_streak BOOLEAN := FALSE;
 BEGIN
   IF v_uid IS NULL OR p_uid IS NULL OR p_uid <> v_uid THEN
     RAISE EXCEPTION 'permission denied'
@@ -474,56 +476,82 @@ BEGIN
   v_last := v_profile.last_activity_date;
   v_new_streak := COALESCE(v_profile.current_streak, 0);
 
-  IF v_profile.streak_tz_lo_min IS NULL OR v_profile.streak_tz_hi_min IS NULL THEN
-    v_w_lo := -720;
-    v_w_hi := 840;
-  ELSIF v_profile.streak_tz_set_at IS NOT NULL
-     AND (v_now - v_profile.streak_tz_set_at) >= interval '12 hours' THEN
-    v_w_lo := v_profile.streak_tz_lo_min - 90;
-    v_w_hi := v_profile.streak_tz_hi_min + 90;
+  -- Self-heal: no streak left to protect. A feasible claim starts fresh so a
+  -- relocator or reset user cannot stay locked to a stale interval.
+  IF v_claim_lo <= v_claim_hi
+     AND (
+       v_new_streak = 0
+       OR v_last IS NULL
+       OR v_last < v_today - 2
+     ) THEN
+    v_tz_lo := v_claim_lo;
+    v_tz_hi := v_claim_hi;
+    v_tz_set_at := v_now;
+    v_new_streak := 1;
+    v_last := v_today;
+    v_apply_streak := TRUE;
   ELSE
-    v_w_lo := v_profile.streak_tz_lo_min;
-    v_w_hi := v_profile.streak_tz_hi_min;
+    -- Time-gated ±180 persist, including inconsistent claims, so a permanent
+    -- timezone move can walk into the new offset (180 min per 12h).
+    IF v_tz_lo IS NOT NULL AND v_tz_hi IS NOT NULL
+       AND (
+         v_tz_set_at IS NULL
+         OR (v_now - v_tz_set_at) >= interval '12 hours'
+       ) THEN
+      v_tz_lo := GREATEST(-720, v_tz_lo - 180);
+      v_tz_hi := LEAST(840, v_tz_hi + 180);
+      v_tz_set_at := v_now;
+      v_persist_tz := TRUE;
+    END IF;
+
+    IF v_tz_lo IS NULL OR v_tz_hi IS NULL THEN
+      v_w_lo := -720;
+      v_w_hi := 840;
+    ELSE
+      v_w_lo := v_tz_lo;
+      v_w_hi := v_tz_hi;
+    END IF;
+
+    v_n_lo := GREATEST(v_w_lo, v_claim_lo);
+    v_n_hi := LEAST(v_w_hi, v_claim_hi);
+
+    IF v_claim_lo <= v_claim_hi AND v_n_lo <= v_n_hi
+       AND NOT (
+         -- A 1-minute overlap between adjacent local days (D-1 then D ~61s
+         -- later near UTC-11) is a boundary nick against a wider stored band,
+         -- not a real timezone. Singleton stored offsets such as [60,60] stay
+         -- consistent (W is not wider than N).
+         v_n_lo = v_n_hi
+         AND v_profile.streak_tz_lo_min IS NOT NULL
+         AND v_w_lo < v_w_hi
+       ) THEN
+      IF v_tz_lo IS DISTINCT FROM v_n_lo OR v_tz_hi IS DISTINCT FROM v_n_hi THEN
+        v_tz_set_at := v_now;
+      END IF;
+      v_tz_lo := v_n_lo;
+      v_tz_hi := v_n_hi;
+      IF v_last IS NULL THEN
+        v_new_streak := 1;
+        v_last := v_today;
+      ELSIF v_today < v_last THEN
+        NULL;
+      ELSIF v_today = v_last THEN
+        NULL;
+      ELSIF v_today = v_last + 1 THEN
+        v_new_streak := v_new_streak + 1;
+        v_last := v_today;
+      ELSIF v_freeze > 0 AND v_new_streak > 0 THEN
+        v_freeze := v_freeze - 1;
+        v_last := v_today;
+      ELSE
+        v_new_streak := 1;
+        v_last := v_today;
+      END IF;
+      v_apply_streak := TRUE;
+    END IF;
   END IF;
 
-  v_n_lo := GREATEST(v_w_lo, v_claim_lo);
-  v_n_hi := LEAST(v_w_hi, v_claim_hi);
-
-  IF v_claim_lo <= v_claim_hi AND v_n_lo <= v_n_hi
-     AND NOT (
-       -- A 1-minute overlap between adjacent local days (D-1 then D ~61s
-       -- later near UTC-11) is a boundary nick against a wider stored band,
-       -- not a real timezone. Singleton stored offsets such as [60,60] stay
-       -- consistent (W is not wider than N).
-       v_n_lo = v_n_hi
-       AND v_profile.streak_tz_lo_min IS NOT NULL
-       AND v_w_lo < v_w_hi
-     ) THEN
-    -- Timezone-consistent: apply streak rules for p against last_activity_date
-    -- only. Inconsistent claims must not bridge a real gap.
-    IF v_tz_lo IS DISTINCT FROM v_n_lo OR v_tz_hi IS DISTINCT FROM v_n_hi THEN
-      v_tz_set_at := v_now;
-    END IF;
-    v_tz_lo := v_n_lo;
-    v_tz_hi := v_n_hi;
-    IF v_last IS NULL THEN
-      v_new_streak := 1;
-      v_last := v_today;
-    ELSIF v_today < v_last THEN
-      NULL;
-    ELSIF v_today = v_last THEN
-      NULL;
-    ELSIF v_today = v_last + 1 THEN
-      v_new_streak := v_new_streak + 1;
-      v_last := v_today;
-    ELSIF v_freeze > 0 AND v_new_streak > 0 THEN
-      v_freeze := v_freeze - 1;
-      v_last := v_today;
-    ELSE
-      v_new_streak := 1;
-      v_last := v_today;
-    END IF;
-
+  IF v_apply_streak THEN
     IF v_new_streak % 7 = 0 AND v_new_streak > COALESCE(v_profile.current_streak, 0) THEN
       v_freeze := v_freeze + 1;
     END IF;
@@ -555,9 +583,25 @@ BEGIN
     DO UPDATE SET
       xp_earned = COALESCE(d.xp_earned, 0) + EXCLUDED.xp_earned,
       streak_count = EXCLUDED.streak_count;
+  ELSIF v_persist_tz THEN
+    -- Inconsistent: persist only the 12h-gated ±180 widen. No streak, last,
+    -- freeze, or daily_logs change (no gap bridge).
+    UPDATE public.user_profiles AS p
+    SET
+      total_xp = COALESCE(p.total_xp, 0) + v_credited,
+      current_level = ((COALESCE(p.total_xp, 0) + v_credited) / 500) + 1,
+      streak_tz_lo_min = v_tz_lo,
+      streak_tz_hi_min = v_tz_hi,
+      streak_tz_set_at = v_tz_set_at
+    WHERE p.id = v_uid
+    RETURNING
+      p.total_xp, p.current_level, p.current_streak, p.longest_streak,
+      p.last_activity_date, p.streak_freeze_tokens
+    INTO
+      v_r_total, v_r_level, v_r_streak,
+      v_r_longest, v_r_last, v_r_freeze;
   ELSE
-    -- Empty or inconsistent N: credit XP only. Do not touch streak, last,
-    -- freeze, tz interval, or daily_logs (no gap bridge).
+    -- Empty or inconsistent N with no widen due: credit XP only.
     UPDATE public.user_profiles AS p
     SET
       total_xp = COALESCE(p.total_xp, 0) + v_credited,
@@ -599,7 +643,7 @@ GRANT EXECUTE ON FUNCTION public.award_xp(UUID, INTEGER, TEXT, TEXT, TEXT, DATE,
 GRANT EXECUTE ON FUNCTION public.award_xp(UUID, INTEGER, TEXT, TEXT, TEXT, DATE, INTEGER) TO service_role;
 
 COMMENT ON FUNCTION public.award_xp(UUID, INTEGER, TEXT, TEXT, TEXT, DATE, INTEGER) IS
-  'Atomic XP award for auth.uid() only. Credits least(p_delta, server XP_REWARDS mapping); unknown actions 0. Local-day ±1 plus rolling 24h cap. Streak updates only on credited timezone-consistent awards; empty or inconsistent N credits XP without touching streak, last_activity_date, freeze, or the tz interval. Does not write *_count columns.';
+  'Atomic XP award for auth.uid() only. Credits least(p_delta, server XP_REWARDS mapping); unknown actions 0. Local-day ±1 plus rolling 24h cap. Streak updates on credited timezone-consistent awards; empty or inconsistent N credits XP without touching streak, last_activity_date, freeze, or daily_logs. Credited awards persist a ±180 widen of the stored tz interval when streak_tz_set_at is NULL or at least 12h old. A credited feasible claim self-heals to streak 1 when current_streak is 0 or last_activity_date is NULL or more than 2 days before p. Does not write *_count columns.';
 
 -- ===========================================================================
 -- E. award_achievement_xp: catalogue XP + real-table eligibility
