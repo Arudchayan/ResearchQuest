@@ -82,7 +82,7 @@ COMMENT ON COLUMN public.user_profiles.streak_tz_lo_min IS
 COMMENT ON COLUMN public.user_profiles.streak_tz_hi_min IS
   'Inclusive UTC-offset minutes consistent with recent credited streak claims. Written only by award_xp.';
 COMMENT ON COLUMN public.user_profiles.streak_tz_set_at IS
-  'Server time when streak_tz_lo_min/hi_min last changed. Written only by award_xp.';
+  'Server time when streak_tz_lo_min/hi_min last changed, or when the streak last advanced. Written only by award_xp.';
 
 -- Test-replaceable clock. Production is clock_timestamp(); tests CREATE OR
 -- REPLACE this function as table owner. Not a GUC. Authenticated cannot
@@ -527,9 +527,15 @@ BEGIN
       END IF;
       v_tz_lo := v_n_lo;
       v_tz_hi := v_n_hi;
+      -- Stamp set_at on every advance (v_today > v_last), even when N equals
+      -- the stored interval. Otherwise a D+1 claim 1ms before the 12h gate
+      -- leaves set_at stale, and a D+2 claim 1ms after widens into a
+      -- singleton overlap and credits +2 in the same instant (stored
+      -- [-720,-35] at D+1 21:35Z).
       IF v_last IS NULL THEN
         v_new_streak := 1;
         v_last := v_today;
+        v_tz_set_at := v_now;
       ELSIF v_today < v_last THEN
         NULL;
       ELSIF v_today = v_last THEN
@@ -537,12 +543,15 @@ BEGIN
       ELSIF v_today = v_last + 1 THEN
         v_new_streak := v_new_streak + 1;
         v_last := v_today;
+        v_tz_set_at := v_now;
       ELSIF v_freeze > 0 AND v_new_streak > 0 THEN
         v_freeze := v_freeze - 1;
         v_last := v_today;
+        v_tz_set_at := v_now;
       ELSE
         v_new_streak := 1;
         v_last := v_today;
+        v_tz_set_at := v_now;
       END IF;
       v_apply_streak := TRUE;
     END IF;
@@ -640,7 +649,7 @@ GRANT EXECUTE ON FUNCTION public.award_xp(UUID, INTEGER, TEXT, TEXT, TEXT, DATE,
 GRANT EXECUTE ON FUNCTION public.award_xp(UUID, INTEGER, TEXT, TEXT, TEXT, DATE, INTEGER) TO service_role;
 
 COMMENT ON FUNCTION public.award_xp(UUID, INTEGER, TEXT, TEXT, TEXT, DATE, INTEGER) IS
-  'Atomic XP award for auth.uid() only. Credits least(p_delta, server XP_REWARDS mapping); unknown actions 0. Local-day ±1 plus rolling 24h cap. Streak updates on credited timezone-consistent awards; empty or inconsistent N credits XP without touching streak, last_activity_date, freeze, or daily_logs. Credited awards persist a ±180 widen of the stored tz interval when streak_tz_set_at is NULL or at least 12h old. A credited feasible claim self-heals to streak 1 when current_streak is 0 or last_activity_date is NULL or more than 2 days before p. Does not write *_count columns.';
+  'Atomic XP award for auth.uid() only. Credits least(p_delta, server XP_REWARDS mapping); unknown actions 0. Local-day ±1 plus rolling 24h cap. Streak updates on credited timezone-consistent awards; empty or inconsistent N credits XP without touching streak, last_activity_date, freeze, or daily_logs. Credited awards persist a ±180 widen of the stored tz interval when streak_tz_set_at is NULL or at least 12h old. Streak advance (v_today > v_last) always refreshes streak_tz_set_at. A credited feasible claim self-heals to streak 1 when current_streak is 0 or last_activity_date is NULL or more than 2 days before p. Does not write *_count columns.';
 
 -- ===========================================================================
 -- E. award_achievement_xp: catalogue XP + real-table eligibility
@@ -778,10 +787,11 @@ GRANT EXECUTE ON FUNCTION public.award_achievement_xp(TEXT, INTEGER, TEXT, TEXT)
 COMMENT ON FUNCTION public.award_achievement_xp(TEXT, INTEGER, TEXT, TEXT) IS
   'Atomic one-time achievement award for auth.uid(): server catalogue XP (p_xp ignored), eligibility from notes/papers/tasks/streak, one row per (user, type).';
 
--- Defence-in-depth: TRUNCATE ignores RLS. Client and edge only SELECT/UPDATE
+-- Defence-in-depth: TRUNCATE ignores RLS. MAINTAIN (PG17) allows LOCK TABLE
+-- in any mode, VACUUM, and REINDEX. Client and edge only SELECT/UPDATE
 -- user_profiles; account deletion is auth.users CASCADE / DEFINER, not a
 -- client DELETE on this table.
-REVOKE TRUNCATE, TRIGGER, REFERENCES ON ALL TABLES IN SCHEMA public
+REVOKE TRUNCATE, TRIGGER, REFERENCES, MAINTAIN ON ALL TABLES IN SCHEMA public
   FROM anon, authenticated;
 REVOKE DELETE ON TABLE public.user_profiles FROM anon, authenticated;
 
@@ -794,21 +804,481 @@ BEGIN
   WHERE c.oid = 'public.user_profiles'::regclass;
   EXECUTE format(
     'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public '
-    || 'REVOKE TRUNCATE, TRIGGER, REFERENCES ON TABLES FROM anon, authenticated',
+    || 'REVOKE TRUNCATE, TRIGGER, REFERENCES, MAINTAIN ON TABLES FROM anon, authenticated',
     v_owner
   );
 END $$;
 
--- Rollback (manual, do not run in this file):
+-- Rollback (manual, do not run in this file). Self-contained restore of the
+-- 1765700000 definitions this migration replaced. Apply as a single script.
+-- Does not re-apply the rest of 1765700000.
+--
+--   DROP TRIGGER IF EXISTS lock_freeze_rest_no_mint ON public.user_profiles;
+--   DROP FUNCTION IF EXISTS public.enforce_freeze_rest_no_mint();
+--   ALTER TABLE public.user_profiles
+--     DROP CONSTRAINT IF EXISTS user_profiles_streak_freeze_tokens_nonnegative;
+--   ALTER TABLE public.user_profiles
+--     DROP CONSTRAINT IF EXISTS user_profiles_rest_days_nonnegative;
+--
+--   GRANT UPDATE ON TABLE public.user_profiles TO authenticated;
+--   GRANT INSERT ON TABLE public.user_profiles TO authenticated;
+--   GRANT DELETE ON TABLE public.user_profiles TO anon, authenticated;
+--
+--   GRANT INSERT, UPDATE, DELETE ON TABLE public.research_achievements TO authenticated;
+--   GRANT INSERT, UPDATE, DELETE ON TABLE public.xp_events TO authenticated;
+--
+--   DROP POLICY IF EXISTS "Users can insert own achievements" ON public.research_achievements;
+--   CREATE POLICY "Users can insert own achievements"
+--     ON public.research_achievements FOR INSERT
+--     WITH CHECK ((select auth.uid()) = user_id);
+--   DROP POLICY IF EXISTS "Users can update own achievements" ON public.research_achievements;
+--   CREATE POLICY "Users can update own achievements"
+--     ON public.research_achievements FOR UPDATE
+--     USING ((select auth.uid()) = user_id)
+--     WITH CHECK ((select auth.uid()) = user_id);
+--   DROP POLICY IF EXISTS "Users can delete own achievements" ON public.research_achievements;
+--   CREATE POLICY "Users can delete own achievements"
+--     ON public.research_achievements FOR DELETE
+--     USING ((select auth.uid()) = user_id);
+--
+--   GRANT TRUNCATE, TRIGGER, REFERENCES, MAINTAIN ON ALL TABLES IN SCHEMA public
+--     TO anon, authenticated;
+--   ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+--     GRANT TRUNCATE, TRIGGER, REFERENCES, MAINTAIN ON TABLES TO anon, authenticated;
+--
 --   ALTER TABLE public.user_profiles
 --     DROP COLUMN IF EXISTS streak_tz_lo_min,
 --     DROP COLUMN IF EXISTS streak_tz_hi_min,
 --     DROP COLUMN IF EXISTS streak_tz_set_at;
 --   DROP FUNCTION IF EXISTS public.xp_server_now();
---   Restore award_xp / award_achievement_xp / grants from 1765700000.
---   GRANT TRUNCATE, TRIGGER, REFERENCES ON ALL TABLES IN SCHEMA public
---     TO anon, authenticated;
---   GRANT DELETE ON TABLE public.user_profiles TO anon, authenticated;
---   ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
---     GRANT TRUNCATE, TRIGGER, REFERENCES ON TABLES TO anon, authenticated;
-
+--
+--   DROP INDEX IF EXISTS public.idx_xp_events_user_action_created;
+--
+-- 1765700000 enforce_total_xp_monotonic (restore GUC-backed trigger):
+--   CREATE OR REPLACE FUNCTION public.enforce_total_xp_monotonic()
+--   RETURNS TRIGGER
+--   LANGUAGE plpgsql
+--   SECURITY INVOKER
+--   SET search_path = public
+--   AS $$
+--   BEGIN
+--     -- award_xp / award_achievement_xp set this transaction-local flag around
+--     -- their own atomic increment and clear it right after.
+--     IF current_setting('app.bypass_xp_guard', true) = 'on' THEN
+--       RETURN NEW;
+--     END IF;
+--
+--     IF NEW.total_xp IS DISTINCT FROM OLD.total_xp THEN
+--       IF NEW.total_xp IS NULL OR NEW.total_xp < 0 THEN
+--         RAISE EXCEPTION 'total_xp must be non-negative'
+--           USING ERRCODE = '42501';
+--       END IF;
+--       IF NEW.total_xp < OLD.total_xp THEN
+--         RAISE EXCEPTION 'total_xp is append-only: use the award_xp RPC'
+--           USING ERRCODE = '42501';
+--       END IF;
+--     END IF;
+--
+--     RETURN NEW;
+--   END;
+--   $$;
+--
+--   REVOKE ALL ON FUNCTION public.enforce_total_xp_monotonic() FROM PUBLIC;
+--   REVOKE ALL ON FUNCTION public.enforce_total_xp_monotonic() FROM anon;
+--   REVOKE ALL ON FUNCTION public.enforce_total_xp_monotonic() FROM authenticated;
+--   DROP TRIGGER IF EXISTS lock_total_xp_monotonic ON public.user_profiles;
+--   CREATE TRIGGER lock_total_xp_monotonic
+--     BEFORE UPDATE OF total_xp ON public.user_profiles
+--     FOR EACH ROW EXECUTE FUNCTION public.enforce_total_xp_monotonic();
+--
+--   COMMENT ON COLUMN public.user_profiles.total_xp IS
+--     'Canonical writers: award_xp / award_achievement_xp RPCs (atomic increment). Direct decreases are rejected by lock_total_xp_monotonic.';
+--
+-- 1765700000 award_xp body (CREATE OR REPLACE; signature/return types match):
+--   CREATE OR REPLACE FUNCTION public.award_xp(
+--     p_uid UUID,
+--     p_delta INTEGER,
+--     p_idempotency_key TEXT DEFAULT NULL,
+--     p_action TEXT DEFAULT NULL,
+--     p_entity_id TEXT DEFAULT '',
+--     p_local_day DATE DEFAULT NULL,
+--     p_duration_minutes INTEGER DEFAULT NULL
+--   )
+--   RETURNS TABLE (
+--     total_xp INTEGER,
+--     current_level INTEGER,
+--     current_streak INTEGER,
+--     longest_streak INTEGER,
+--     last_activity_date DATE,
+--     notes_count INTEGER,
+--     papers_count INTEGER,
+--     tasks_completed_count INTEGER,
+--     papers_with_insights_count INTEGER,
+--     streak_freeze_tokens INTEGER,
+--     xp_credited INTEGER,
+--     is_duplicate BOOLEAN
+--   )
+--   LANGUAGE plpgsql
+--   SECURITY DEFINER
+--   SET search_path = public
+--   AS $$
+--   DECLARE
+--     v_uid UUID := auth.uid();
+--     v_utc_day DATE := (now() AT TIME ZONE 'UTC')::DATE;
+--     v_today DATE;
+--     v_profile public.user_profiles%ROWTYPE;
+--     v_days_diff INTEGER;
+--     v_new_streak INTEGER := 1;
+--     v_freeze INTEGER := 0;
+--     v_longest INTEGER := 0;
+--     v_ledger_rows INTEGER := 0;
+--     v_key TEXT;
+--     v_action TEXT := COALESCE(NULLIF(trim(COALESCE(p_action, '')), ''), 'unknown');
+--     v_entity TEXT := COALESCE(p_entity_id, '');
+--     v_credited INTEGER;
+--     v_cap INTEGER;
+--     v_used_today INTEGER;
+--     v_duration INTEGER;
+--     v_last_award TIMESTAMPTZ;
+--     v_r_total INTEGER;
+--     v_r_level INTEGER;
+--     v_r_streak INTEGER;
+--     v_r_longest INTEGER;
+--     v_r_last DATE;
+--     v_r_notes INTEGER;
+--     v_r_papers INTEGER;
+--     v_r_tasks INTEGER;
+--     v_r_insights INTEGER;
+--     v_r_freeze INTEGER;
+--   BEGIN
+--     -- Caller must be authenticated and may only award itself.
+--     IF v_uid IS NULL OR p_uid IS NULL OR p_uid <> v_uid THEN
+--       RAISE EXCEPTION 'permission denied'
+--         USING ERRCODE = '42501';
+--     END IF;
+--
+--     -- 0 is a valid no-op credit (e.g. update_note); NULL / negative / absurd
+--     -- deltas are rejected.
+--     IF p_delta IS NULL OR p_delta < 0 OR p_delta > 1000 THEN
+--       RAISE EXCEPTION 'invalid XP delta: %', p_delta
+--         USING ERRCODE = '22023';
+--     END IF;
+--
+--     IF length(v_action) > 64 OR length(v_entity) > 256
+--        OR length(COALESCE(p_idempotency_key, '')) > 512 THEN
+--       RAISE EXCEPTION 'invalid award_xp argument length'
+--         USING ERRCODE = '22023';
+--     END IF;
+--
+--     -- STREAK AUTHORITY: local calendar day from the client's todayKey(),
+--     -- accepted within +-1 day of the server UTC date, else the UTC day.
+--     IF p_local_day IS NOT NULL
+--        AND p_local_day >= v_utc_day - 1
+--        AND p_local_day <= v_utc_day + 1 THEN
+--       v_today := p_local_day;
+--     ELSE
+--       v_today := v_utc_day;
+--     END IF;
+--
+--     -- Serialize concurrent awards for this user BEFORE reading cap sums, so two
+--     -- parallel calls cannot both see the same remaining cap.
+--     SELECT * INTO v_profile
+--     FROM public.user_profiles
+--     WHERE id = v_uid
+--     FOR UPDATE;
+--
+--     IF NOT FOUND THEN
+--       RAISE EXCEPTION 'profile not found for user %', v_uid;
+--     END IF;
+--
+--     -- ---- Server-side anti-farming policy (authoritative; the client mirrors
+--     -- these values in XP_DAILY_CAPS for display only). ----
+--     v_credited := p_delta;
+--
+--     IF v_action = 'update_note' THEN
+--       v_credited := 0;
+--     END IF;
+--
+--     -- Focus: needs a trustworthy duration >= 25 min.
+--     IF v_action = 'complete_focus_session' THEN
+--       IF p_duration_minutes IS NULL THEN
+--         v_credited := 0;
+--       ELSE
+--         v_duration := GREATEST(0, LEAST(p_duration_minutes, 1440));
+--         IF v_duration < 25 THEN
+--           v_credited := 0;
+--         END IF;
+--       END IF;
+--     END IF;
+--
+--     -- Per-action daily caps (mirror XP_DAILY_CAPS). Unknown actions credit 0.
+--     v_cap := CASE v_action
+--       WHEN 'create_note' THEN 100
+--       WHEN 'update_note' THEN 0
+--       WHEN 'create_paper' THEN 150
+--       WHEN 'update_paper_status' THEN 100
+--       WHEN 'add_paper_insights' THEN 150
+--       WHEN 'create_idea' THEN 200
+--       WHEN 'advance_idea_stage' THEN 250
+--       WHEN 'create_task' THEN 100
+--       WHEN 'complete_task' THEN 200
+--       WHEN 'daily_task_completion' THEN 100
+--       WHEN 'create_topic' THEN 150
+--       WHEN 'update_topic' THEN 80
+--       WHEN 'tag_entity_with_topic' THEN 60
+--       WHEN 'complete_topic_quest' THEN 300
+--       WHEN 'complete_focus_session' THEN 240
+--       ELSE 0
+--     END;
+--
+--     SELECT COALESCE(SUM(e.xp), 0) INTO v_used_today
+--     FROM public.xp_events AS e
+--     WHERE e.user_id = v_uid
+--       AND e.action = v_action
+--       AND e.local_day = v_today;
+--
+--     v_credited := GREATEST(0, LEAST(v_credited, v_cap - v_used_today));
+--
+--     -- Focus cooldown: 300 s since the last credited focus award.
+--     IF v_action = 'complete_focus_session' AND v_credited > 0 THEN
+--       SELECT max(e.created_at) INTO v_last_award
+--       FROM public.xp_events AS e
+--       WHERE e.user_id = v_uid
+--         AND e.action = 'complete_focus_session'
+--         AND e.xp > 0;
+--
+--       IF v_last_award IS NOT NULL
+--          AND EXTRACT(EPOCH FROM (now() - v_last_award)) < 300 THEN
+--         v_credited := 0;
+--       END IF;
+--     END IF;
+--
+--     -- Ledger. Keyed / entity awards dedupe (ON CONFLICT covers the per-user key
+--     -- unique and the partial entity unique); no-entity awards never dedupe and
+--     -- are recorded only when they credit XP (cap accounting).
+--     IF NULLIF(p_idempotency_key, '') IS NOT NULL OR v_entity <> '' THEN
+--       v_key := COALESCE(
+--         NULLIF(p_idempotency_key, ''),
+--         'auto:' || v_uid::TEXT || ':' || v_action || ':' || v_entity
+--       );
+--
+--       INSERT INTO public.xp_events (user_id, action, entity_id, xp, idempotency_key, local_day)
+--       VALUES (v_uid, v_action, v_entity, v_credited, v_key, v_today)
+--       ON CONFLICT DO NOTHING;
+--
+--       GET DIAGNOSTICS v_ledger_rows = ROW_COUNT;
+--
+--       IF v_ledger_rows = 0 THEN
+--         -- Duplicate delivery: report current totals, credit nothing.
+--         total_xp := v_profile.total_xp;
+--         current_level := (COALESCE(v_profile.total_xp, 0) / 500) + 1;
+--         current_streak := v_profile.current_streak;
+--         longest_streak := v_profile.longest_streak;
+--         last_activity_date := v_profile.last_activity_date;
+--         notes_count := v_profile.notes_count;
+--         papers_count := v_profile.papers_count;
+--         tasks_completed_count := v_profile.tasks_completed_count;
+--         papers_with_insights_count := v_profile.papers_with_insights_count;
+--         streak_freeze_tokens := v_profile.streak_freeze_tokens;
+--         xp_credited := 0;
+--         is_duplicate := TRUE;
+--         RETURN NEXT;
+--         RETURN;
+--       END IF;
+--     ELSIF v_credited > 0 THEN
+--       INSERT INTO public.xp_events (user_id, action, entity_id, xp, idempotency_key, local_day)
+--       VALUES (v_uid, v_action, '', v_credited, NULL, v_today);
+--     END IF;
+--
+--     -- Streak math on the local day.
+--     v_freeze := COALESCE(v_profile.streak_freeze_tokens, 0);
+--
+--     IF v_profile.last_activity_date IS NOT NULL THEN
+--       v_days_diff := v_today - v_profile.last_activity_date;
+--
+--       IF v_days_diff <= 0 THEN
+--         v_new_streak := GREATEST(COALESCE(v_profile.current_streak, 1), 1);
+--       ELSIF v_days_diff = 1 THEN
+--         v_new_streak := COALESCE(v_profile.current_streak, 0) + 1;
+--       ELSIF v_freeze > 0 AND COALESCE(v_profile.current_streak, 0) > 0 THEN
+--         -- Preserve a nonzero streak by consuming one freeze token.
+--         v_freeze := v_freeze - 1;
+--         v_new_streak := v_profile.current_streak;
+--       ELSE
+--         v_new_streak := 1;
+--       END IF;
+--     END IF;
+--
+--     IF v_new_streak % 7 = 0 AND v_new_streak > COALESCE(v_profile.current_streak, 0) THEN
+--       v_freeze := v_freeze + 1;
+--     END IF;
+--
+--     v_longest := GREATEST(v_new_streak, COALESCE(v_profile.longest_streak, 0));
+--
+--     -- Transaction-local bypass of lock_total_xp_monotonic for our own increment.
+--     PERFORM set_config('app.bypass_xp_guard', 'on', true);
+--
+--     UPDATE public.user_profiles AS p
+--     SET
+--       total_xp = COALESCE(p.total_xp, 0) + v_credited,
+--       current_level = ((COALESCE(p.total_xp, 0) + v_credited) / 500) + 1,
+--       current_streak = v_new_streak,
+--       longest_streak = v_longest,
+--       last_activity_date = GREATEST(v_today, COALESCE(p.last_activity_date, v_today)),
+--       streak_freeze_tokens = v_freeze,
+--       notes_count = CASE
+--         WHEN v_action = 'create_note' THEN COALESCE(p.notes_count, 0) + 1
+--         ELSE p.notes_count
+--       END,
+--       papers_count = CASE
+--         WHEN v_action = 'create_paper' THEN COALESCE(p.papers_count, 0) + 1
+--         ELSE p.papers_count
+--       END,
+--       tasks_completed_count = CASE
+--         WHEN v_action = 'complete_task' THEN COALESCE(p.tasks_completed_count, 0) + 1
+--         ELSE p.tasks_completed_count
+--       END,
+--       papers_with_insights_count = CASE
+--         WHEN v_action = 'add_paper_insights' THEN COALESCE(p.papers_with_insights_count, 0) + 1
+--         ELSE p.papers_with_insights_count
+--       END
+--     WHERE p.id = v_uid
+--     RETURNING
+--       p.total_xp, p.current_level, p.current_streak, p.longest_streak,
+--       p.last_activity_date, p.notes_count, p.papers_count,
+--       p.tasks_completed_count, p.papers_with_insights_count,
+--       p.streak_freeze_tokens
+--     INTO
+--       v_r_total, v_r_level, v_r_streak,
+--       v_r_longest, v_r_last, v_r_notes,
+--       v_r_papers, v_r_tasks,
+--       v_r_insights, v_r_freeze;
+--
+--     PERFORM set_config('app.bypass_xp_guard', 'off', true);
+--
+--     -- Local-day daily log with the credited amount.
+--     INSERT INTO public.daily_logs AS d (user_id, date, xp_earned, streak_count)
+--     VALUES (v_uid, v_today, v_credited, v_new_streak)
+--     ON CONFLICT (user_id, date)
+--     DO UPDATE SET
+--       xp_earned = COALESCE(d.xp_earned, 0) + EXCLUDED.xp_earned,
+--       streak_count = EXCLUDED.streak_count;
+--
+--     total_xp := v_r_total;
+--     current_level := v_r_level;
+--     current_streak := v_r_streak;
+--     longest_streak := v_r_longest;
+--     last_activity_date := v_r_last;
+--     notes_count := v_r_notes;
+--     papers_count := v_r_papers;
+--     tasks_completed_count := v_r_tasks;
+--     papers_with_insights_count := v_r_insights;
+--     streak_freeze_tokens := v_r_freeze;
+--     xp_credited := v_credited;
+--     is_duplicate := FALSE;
+--     RETURN NEXT;
+--     RETURN;
+--   END;
+--   $$;
+--
+--   REVOKE ALL ON FUNCTION public.award_xp(UUID, INTEGER, TEXT, TEXT, TEXT, DATE, INTEGER) FROM PUBLIC;
+--   REVOKE ALL ON FUNCTION public.award_xp(UUID, INTEGER, TEXT, TEXT, TEXT, DATE, INTEGER) FROM anon;
+--   GRANT EXECUTE ON FUNCTION public.award_xp(UUID, INTEGER, TEXT, TEXT, TEXT, DATE, INTEGER) TO authenticated;
+--   GRANT EXECUTE ON FUNCTION public.award_xp(UUID, INTEGER, TEXT, TEXT, TEXT, DATE, INTEGER) TO service_role;
+--
+-- 1765700000 award_achievement_xp body (CREATE OR REPLACE; signature/return types match):
+--   CREATE OR REPLACE FUNCTION public.award_achievement_xp(
+--     p_achievement_type TEXT,
+--     p_xp INTEGER DEFAULT NULL,
+--     p_title TEXT DEFAULT NULL,
+--     p_description TEXT DEFAULT NULL
+--   )
+--   RETURNS TABLE (
+--     total_xp INTEGER,
+--     current_level INTEGER,
+--     xp_credited INTEGER,
+--     is_duplicate BOOLEAN
+--   )
+--   LANGUAGE plpgsql
+--   SECURITY DEFINER
+--   SET search_path = public
+--   AS $$
+--   DECLARE
+--     v_uid UUID := auth.uid();
+--     v_type TEXT := trim(COALESCE(p_achievement_type, ''));
+--     v_xp INTEGER;
+--     v_title TEXT;
+--     v_description TEXT;
+--     v_rows INTEGER := 0;
+--   BEGIN
+--     IF v_uid IS NULL THEN
+--       RAISE EXCEPTION 'permission denied'
+--         USING ERRCODE = '42501';
+--     END IF;
+--
+--     CASE v_type
+--       WHEN 'first_paper' THEN
+--         v_xp := 50;  v_title := 'First Paper';       v_description := 'Added your first research paper';
+--       WHEN 'research_streak_7' THEN
+--         v_xp := 100; v_title := 'Research Streak';   v_description := '7 days consecutive research activity';
+--       WHEN 'note_master' THEN
+--         v_xp := 200; v_title := 'Note Master';       v_description := 'Written 50 notes';
+--       WHEN 'task_warrior' THEN
+--         v_xp := 150; v_title := 'Task Warrior';      v_description := 'Completed 25 tasks';
+--       WHEN 'insight_collector' THEN
+--         v_xp := 120; v_title := 'Insight Collector'; v_description := 'Added insights from 10 papers';
+--       ELSE
+--         RAISE EXCEPTION 'unknown achievement type: %', left(v_type, 64)
+--           USING ERRCODE = '22023';
+--     END CASE;
+--
+--     INSERT INTO public.research_achievements AS ra
+--       (user_id, achievement_type, title, description, xp_awarded)
+--     VALUES (v_uid, v_type, v_title, v_description, v_xp)
+--     ON CONFLICT (user_id, achievement_type) DO NOTHING;
+--
+--     GET DIAGNOSTICS v_rows = ROW_COUNT;
+--
+--     IF v_rows = 0 THEN
+--       SELECT t.total_xp, (COALESCE(t.total_xp, 0) / 500) + 1
+--       INTO total_xp, current_level
+--       FROM public.user_profiles AS t
+--       WHERE t.id = v_uid;
+--
+--       IF NOT FOUND THEN
+--         RAISE EXCEPTION 'profile not found for user %', v_uid;
+--       END IF;
+--
+--       xp_credited := 0;
+--       is_duplicate := TRUE;
+--       RETURN NEXT;
+--       RETURN;
+--     END IF;
+--
+--     PERFORM set_config('app.bypass_xp_guard', 'on', true);
+--
+--     UPDATE public.user_profiles AS p
+--     SET
+--       total_xp = COALESCE(p.total_xp, 0) + v_xp,
+--       current_level = ((COALESCE(p.total_xp, 0) + v_xp) / 500) + 1
+--     WHERE p.id = v_uid
+--     RETURNING p.total_xp, p.current_level
+--     INTO total_xp, current_level;
+--
+--     PERFORM set_config('app.bypass_xp_guard', 'off', true);
+--
+--     IF NOT FOUND THEN
+--       RAISE EXCEPTION 'profile not found for user %', v_uid;
+--     END IF;
+--
+--     xp_credited := v_xp;
+--     is_duplicate := FALSE;
+--     RETURN NEXT;
+--     RETURN;
+--   END;
+--   $$;
+--
+--   REVOKE ALL ON FUNCTION public.award_achievement_xp(TEXT, INTEGER, TEXT, TEXT) FROM PUBLIC;
+--   REVOKE ALL ON FUNCTION public.award_achievement_xp(TEXT, INTEGER, TEXT, TEXT) FROM anon;
+--   GRANT EXECUTE ON FUNCTION public.award_achievement_xp(TEXT, INTEGER, TEXT, TEXT) TO authenticated;
+--   GRANT EXECUTE ON FUNCTION public.award_achievement_xp(TEXT, INTEGER, TEXT, TEXT) TO service_role;
