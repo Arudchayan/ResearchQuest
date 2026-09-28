@@ -188,6 +188,54 @@ describe("demoSupabase", () => {
     expect(data?.title).toBe("RPC demo idea");
   });
 
+  it("keeps edited idea title and linked ids across a demo table rehydrate", async () => {
+    clearPersistedDemoTables();
+    resetDemoTablesToSeed();
+
+    const { data: created } = await demoSupabase.rpc("save_idea_with_links", {
+      p_user_id: DEMO_USER_ID,
+      p_idea_id: null,
+      p_title: "QA idea 807",
+      p_description: "Created through the demo RPC.",
+      p_stage: "Seed",
+      p_linked_note_ids: [],
+      p_linked_paper_ids: [],
+    });
+    expect(created?.id).toBeDefined();
+
+    const linkedNoteIds = [DEMO_FIRST_RUN_NOTE_ID];
+    const linkedPaperIds = ["paper-0001"];
+    const { data: edited } = await demoSupabase.rpc("save_idea_with_links", {
+      p_user_id: DEMO_USER_ID,
+      p_idea_id: created?.id,
+      p_title: "QA idea 807 edited",
+      p_description: "Edited through the demo RPC.",
+      p_stage: "Developing",
+      p_linked_note_ids: linkedNoteIds,
+      p_linked_paper_ids: linkedPaperIds,
+    });
+    expect(edited?.title).toBe("QA idea 807 edited");
+
+    resetDemoTablesToSeed();
+    const hydrated = reloadDemoTablesFromStorage();
+    expect(hydrated).toBe(true);
+
+    const { data: restored } = await demoSupabase
+      .from("ideas")
+      .select("title, description, stage, linked_note_ids, linked_paper_ids")
+      .eq("id", created?.id)
+      .maybeSingle();
+
+    expect(restored?.title).toBe("QA idea 807 edited");
+    expect(restored?.description).toBe("Edited through the demo RPC.");
+    expect(restored?.stage).toBe("Developing");
+    expect(restored?.linked_note_ids).toEqual(linkedNoteIds);
+    expect(restored?.linked_paper_ids).toEqual(linkedPaperIds);
+
+    resetDemoTablesToSeed();
+    clearPersistedDemoTables();
+  });
+
   it("invokes the deep research function", async () => {
     const { data, error } = await demoSupabase.functions.invoke("deep-research", {
       body: { query: "attention mechanisms" },
