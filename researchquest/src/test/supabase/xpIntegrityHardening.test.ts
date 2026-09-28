@@ -245,8 +245,17 @@ describe("1765800000 xp integrity hardening (static)", () => {
     expect(sql).toMatch(
       /ALTER\s+DEFAULT\s+PRIVILEGES[\s\S]*REVOKE\s+TRUNCATE\s*,\s*TRIGGER\s*,\s*REFERENCES\s*,\s*MAINTAIN\s+ON\s+TABLES\s+FROM\s+anon\s*,\s*authenticated/i,
     );
-    expect(raw).toMatch(
+    expect(raw).not.toMatch(
+      /GRANT\s+INSERT\s*,\s*UPDATE\s*,\s*DELETE\s+ON\s+TABLE\s+public\.xp_events\s+TO\s+authenticated/i,
+    );
+    expect(raw).not.toMatch(
       /GRANT\s+TRUNCATE\s*,\s*TRIGGER\s*,\s*REFERENCES\s*,\s*MAINTAIN\s+ON\s+ALL\s+TABLES\s+IN\s+SCHEMA\s+public[\s\S]*TO\s+anon\s*,\s*authenticated/i,
+    );
+    expect(raw).toMatch(/c\.relname\s+NOT\s+IN/i);
+    expect(raw).toMatch(/'atlas_identities'/i);
+    expect(raw).toMatch(/'atlas_link_checks'/i);
+    expect(raw).toMatch(
+      /GRANT\s+%s\s+ON\s+TABLE\s+public\.%I\s+TO\s+anon\s*,\s*authenticated/i,
     );
     expect(raw).toMatch(
       /GRANT\s+DELETE\s+ON\s+TABLE\s+public\.user_profiles\s+TO\s+anon\s*,\s*authenticated/i,
