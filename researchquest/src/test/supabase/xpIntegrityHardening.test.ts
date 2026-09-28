@@ -328,6 +328,16 @@ describe("1765800000 xp integrity hardening (static)", () => {
 });
 
 describe("1765800000 round 10 pending date (static)", () => {
+  it("r11: the token path counts missed days from the last CLAIMED date (valid pending, else last)", () => {
+    const award = functionBlock(sql, "award_xp");
+    expect(award).toMatch(
+      /v_need\s*:=\s*GREATEST\s*\(\s*1\s*,\s*v_today\s*-\s*COALESCE\s*\(\s*v_pending\s*,\s*v_last\s*\)\s*-\s*1\s*\)/i,
+    );
+    expect(award).not.toMatch(/v_need\s*:=\s*GREATEST\s*\(\s*1\s*,\s*v_gap\s*-\s*1\s*\)/i);
+    // v_pending is only ever non-NULL when it is later than last (read side) and is cleared on reset/self-heal
+    expect(award).toMatch(/WHEN\s+v_profile\.streak_pending_date\s*>\s*v_last\s+THEN\s+v_profile\.streak_pending_date/i);
+  });
+
   it("r10: adds a server-owned streak_pending_date used only to bridge dates already claimed XP only", () => {
     expect(raw).toMatch(/ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\s+streak_pending_date\s+date/i);
     expect(sql).toMatch(/REVOKE\s+UPDATE\s*\(\s*streak_pending_date\s*\)\s+ON\s+TABLE\s+public\.user_profiles\s+FROM\s+authenticated/i);
@@ -2489,27 +2499,27 @@ SELECT 'ok';
     expect(r10.ca).toBe(iso("2026-10-06T06:00:00Z"));
   });
 
-  it("T10 P10 pending D+1, real miss of D+2, claim D+3: token path unchanged from r9 (m = g-1 = 2), 2 tokens spent", () => {
+  it("T10 P10 [r11 flipped] pending D+1, real miss of D+2, claim D+3: m counted from pending = 1 (r10: m = g-1 = 2), 1 token spent", () => {
     seedQr(5, "2026-10-05", 2, -600, -600, "2026-10-06T06:00:00Z", { creditAt: "2026-10-06T06:00:00Z", incAt: "2026-10-06T06:00:00Z", prevIncAt: "2026-10-05T05:00:00Z", restDays: 0, pendingDate: null });
     const seen: number[] = [];
     seen.push(claimStreak("2026-10-06T07:00:00Z", "2026-10-06", "t10-11-0"));
     seen.push(claimStreak("2026-10-08T10:30:00Z", "2026-10-08", "t10-11-1"));
     expect(seen).toEqual([5, 6]);
     const bits = profileBits();
-    expect(bits.fr).toBe(0);
+    expect(bits.fr).toBe(1);
     expect(bits.la).toBe("2026-10-08");
     const r10 = r10Bits();
     expect(r10.pd).toBe("NULL");
   });
 
-  it("T10 P10b pending D+1 then claim D+3 at e=41.5h (skipped D+2 not claimed): pending does not bridge; 2 tokens spent", () => {
+  it("T10 P10b [r11 flipped] pending D+1 then claim D+3 at e=41.5h (skipped D+2 not claimed): pending does not bridge; m = 1 from pending, 1 token spent (r10: 2)", () => {
     seedQr(5, "2026-10-05", 2, -600, -600, "2026-10-06T06:00:00Z", { creditAt: "2026-10-06T06:00:00Z", incAt: "2026-10-06T06:00:00Z", prevIncAt: "2026-10-05T05:00:00Z", restDays: 0, pendingDate: null });
     const seen: number[] = [];
     seen.push(claimStreak("2026-10-06T07:00:00Z", "2026-10-06", "t10-12-0"));
     seen.push(claimStreak("2026-10-08T00:30:00Z", "2026-10-08", "t10-12-1"));
     expect(seen).toEqual([5, 6]);
     const bits = profileBits();
-    expect(bits.fr).toBe(0);
+    expect(bits.fr).toBe(1);
     expect(bits.la).toBe("2026-10-08");
     const r10 = r10Bits();
     expect(r10.pd).toBe("NULL");
@@ -2547,6 +2557,185 @@ SELECT 'ok';
     const r10 = r10Bits();
     expect(r10.pd).toBe("NULL");
   });
+  it("T11 P13 QA repro_pending_token 1 freeze: XP-only 09-07 (pending), 09-08 missed, 09-09 noon NZST -> 6,7, 1 spent (+1 minted at 7) (r10: 6,1 reset)", () => {
+    seedQr(6, "2026-09-06", 1, 15, 356, "2026-09-06T11:59:32.456Z", { creditAt: "2026-09-06T11:59:32.456Z", incAt: "2026-09-06T09:28:52.555Z", prevIncAt: "2026-09-05T03:19:42.078Z", restDays: 0, pendingDate: null });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-09-06T14:58:23.589Z", "2026-09-07", "t11-16-0"));
+    seen.push(claimStreak("2026-09-09T00:00:00.000Z", "2026-09-09", "t11-16-1"));
+    expect(seen).toEqual([6, 7]);
+    const bits = profileBits();
+    expect(bits.fr).toBe(1);
+    expect(bits.rs).toBe(0);
+    expect(bits.la).toBe("2026-09-09");
+    const r10 = r10Bits();
+    expect(r10.pd).toBe("NULL");
+  });
+
+  it("T11 P13b QA repro 1 rest day -> 6,7, rest spent (r10: 6,1)", () => {
+    seedQr(6, "2026-09-06", 0, 15, 356, "2026-09-06T11:59:32.456Z", { creditAt: "2026-09-06T11:59:32.456Z", incAt: "2026-09-06T09:28:52.555Z", prevIncAt: "2026-09-05T03:19:42.078Z", restDays: 1, pendingDate: null });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-09-06T14:58:23.589Z", "2026-09-07", "t11-17-0"));
+    seen.push(claimStreak("2026-09-09T00:00:00.000Z", "2026-09-09", "t11-17-1"));
+    expect(seen).toEqual([6, 7]);
+    const bits = profileBits();
+    expect(bits.fr).toBe(1);
+    expect(bits.rs).toBe(0);
+    expect(bits.la).toBe("2026-09-09");
+    const r10 = r10Bits();
+    expect(r10.pd).toBe("NULL");
+  });
+
+  it("T11 P13c QA repro 2 freeze -> 6,7, exactly 1 spent (r10: 2 spent)", () => {
+    seedQr(6, "2026-09-06", 2, 15, 356, "2026-09-06T11:59:32.456Z", { creditAt: "2026-09-06T11:59:32.456Z", incAt: "2026-09-06T09:28:52.555Z", prevIncAt: "2026-09-05T03:19:42.078Z", restDays: 0, pendingDate: null });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-09-06T14:58:23.589Z", "2026-09-07", "t11-18-0"));
+    seen.push(claimStreak("2026-09-09T00:00:00.000Z", "2026-09-09", "t11-18-1"));
+    expect(seen).toEqual([6, 7]);
+    const bits = profileBits();
+    expect(bits.fr).toBe(2);
+    expect(bits.rs).toBe(0);
+    const r10 = r10Bits();
+    expect(r10.pd).toBe("NULL");
+  });
+
+  it("T11 P13d QA repro 2 rest days -> 6,7, exactly 1 rest spent (r10: 2 spent)", () => {
+    seedQr(6, "2026-09-06", 0, 15, 356, "2026-09-06T11:59:32.456Z", { creditAt: "2026-09-06T11:59:32.456Z", incAt: "2026-09-06T09:28:52.555Z", prevIncAt: "2026-09-05T03:19:42.078Z", restDays: 2, pendingDate: null });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-09-06T14:58:23.589Z", "2026-09-07", "t11-19-0"));
+    seen.push(claimStreak("2026-09-09T00:00:00.000Z", "2026-09-09", "t11-19-1"));
+    expect(seen).toEqual([6, 7]);
+    const bits = profileBits();
+    expect(bits.fr).toBe(1);
+    expect(bits.rs).toBe(1);
+    const r10 = r10Bits();
+    expect(r10.pd).toBe("NULL");
+  });
+
+  it("T11 P13e QA repro 0 tokens -> 6,1 reset (one date really missed)", () => {
+    seedQr(6, "2026-09-06", 0, 15, 356, "2026-09-06T11:59:32.456Z", { creditAt: "2026-09-06T11:59:32.456Z", incAt: "2026-09-06T09:28:52.555Z", prevIncAt: "2026-09-05T03:19:42.078Z", restDays: 0, pendingDate: null });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-09-06T14:58:23.589Z", "2026-09-07", "t11-20-0"));
+    seen.push(claimStreak("2026-09-09T00:00:00.000Z", "2026-09-09", "t11-20-1"));
+    expect(seen).toEqual([6, 1]);
+    const bits = profileBits();
+    expect(bits.fr).toBe(0);
+    expect(bits.rs).toBe(0);
+    expect(bits.la).toBe("2026-09-09");
+    const r10 = r10Bits();
+    expect(r10.pd).toBe("NULL");
+  });
+
+  it("T11 P13f QA control: no 09-07 claim, 1 freeze -> reset, token kept (2 dates missed, pending does not exist)", () => {
+    seedQr(6, "2026-09-06", 1, 15, 356, "2026-09-06T11:59:32.456Z", { creditAt: "2026-09-06T11:59:32.456Z", incAt: "2026-09-06T09:28:52.555Z", prevIncAt: "2026-09-05T03:19:42.078Z", restDays: 0, pendingDate: null });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-09-09T00:00:00.000Z", "2026-09-09", "t11-21-0"));
+    expect(seen).toEqual([1]);
+    const bits = profileBits();
+    expect(bits.fr).toBe(1);
+    const r10 = r10Bits();
+    expect(r10.pd).toBe("NULL");
+  });
+
+  it("T11 P13g QA control: fixed NZ band, 09-07 credited, 1 freeze -> 7,8 (unchanged)", () => {
+    seedQr(6, "2026-09-06", 1, 720, 720, "2026-09-06T11:59:32.456Z", { creditAt: "2026-09-06T11:59:32.456Z", incAt: "2026-09-06T09:28:52.555Z", prevIncAt: "2026-09-05T03:19:42.078Z", restDays: 0, pendingDate: null });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-09-07T08:00:00.000Z", "2026-09-07", "t11-22-0"));
+    seen.push(claimStreak("2026-09-09T00:00:00.000Z", "2026-09-09", "t11-22-1"));
+    expect(seen).toEqual([7, 8]);
+    const bits = profileBits();
+    expect(bits.fr).toBe(1);
+    const r10 = r10Bits();
+    expect(r10.pd).toBe("NULL");
+  });
+
+  it("T11 P14 pending chain to D+2, claim D+3 at e=48.5h (dead for the bridge, nothing missed): 1 liveness token (r10: 2 -> reset with 1)", () => {
+    seedQr(5, "2026-10-05", 1, -600, -600, "2026-10-06T06:00:00Z", { creditAt: "2026-10-06T06:00:00Z", incAt: "2026-10-06T06:00:00Z", prevIncAt: "2026-10-05T05:00:00Z", restDays: 0, pendingDate: null });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-06T07:00:00Z", "2026-10-06", "t11-23-0"));
+    seen.push(claimStreak("2026-10-06T10:30:00Z", "2026-10-07", "t11-23-1"));
+    seen.push(claimStreak("2026-10-08T11:00:00Z", "2026-10-08", "t11-23-2"));
+    expect(seen).toEqual([5, 5, 6]);
+    const bits = profileBits();
+    expect(bits.fr).toBe(0);
+    expect(bits.la).toBe("2026-10-08");
+    const r10 = r10Bits();
+    expect(r10.pd).toBe("NULL");
+  });
+
+  it("T11 P14b same with 0 tokens: reset (liveness still needs a token)", () => {
+    seedQr(5, "2026-10-05", 0, -600, -600, "2026-10-06T06:00:00Z", { creditAt: "2026-10-06T06:00:00Z", incAt: "2026-10-06T06:00:00Z", prevIncAt: "2026-10-05T05:00:00Z", restDays: 0, pendingDate: null });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-06T07:00:00Z", "2026-10-06", "t11-24-0"));
+    seen.push(claimStreak("2026-10-06T10:30:00Z", "2026-10-07", "t11-24-1"));
+    seen.push(claimStreak("2026-10-08T11:00:00Z", "2026-10-08", "t11-24-2"));
+    expect(seen).toEqual([5, 5, 1]);
+    const bits = profileBits();
+    expect(bits.fr).toBe(0);
+    expect(bits.la).toBe("2026-10-08");
+    const r10 = r10Bits();
+    expect(r10.pd).toBe("NULL");
+  });
+
+  it("T11 P15 forgery bound: pending D+1 then D+2, D+3 unclaimed, claim D+4 (e=77h): m = 2 real unclaimed dates, 2 spent", () => {
+    seedQr(5, "2026-10-05", 2, -600, -600, "2026-10-06T06:00:00Z", { creditAt: "2026-10-06T06:00:00Z", incAt: "2026-10-06T06:00:00Z", prevIncAt: "2026-10-05T05:00:00Z", restDays: 0, pendingDate: null });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-06T07:00:00Z", "2026-10-06", "t11-25-0"));
+    seen.push(claimStreak("2026-10-09T12:00:00Z", "2026-10-09", "t11-25-1"));
+    expect(seen).toEqual([5, 6]);
+    const bits = profileBits();
+    expect(bits.fr).toBe(0);
+    expect(bits.la).toBe("2026-10-09");
+    const r10 = r10Bits();
+    expect(r10.pd).toBe("NULL");
+  });
+
+  it("T11 P15b same with 1 token: reset, token kept (pending cannot cover a date nobody claimed)", () => {
+    seedQr(5, "2026-10-05", 1, -600, -600, "2026-10-06T06:00:00Z", { creditAt: "2026-10-06T06:00:00Z", incAt: "2026-10-06T06:00:00Z", prevIncAt: "2026-10-05T05:00:00Z", restDays: 0, pendingDate: null });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-06T07:00:00Z", "2026-10-06", "t11-26-0"));
+    seen.push(claimStreak("2026-10-09T12:00:00Z", "2026-10-09", "t11-26-1"));
+    expect(seen).toEqual([5, 1]);
+    const bits = profileBits();
+    expect(bits.fr).toBe(1);
+    expect(bits.la).toBe("2026-10-09");
+    const r10 = r10Bits();
+    expect(r10.pd).toBe("NULL");
+  });
+
+  it("T11 P15c 1 token, pending D+1, claim D+3 after the 72h window (e=73.5h from the pending claim): reset, token kept (window counted from pending with m = 1)", () => {
+    seedQr(5, "2026-10-05", 1, -600, -600, "2026-10-06T06:00:00Z", { creditAt: "2026-10-06T06:00:00Z", incAt: "2026-10-06T06:00:00Z", prevIncAt: "2026-10-05T05:00:00Z", restDays: 0, pendingDate: null });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-06T07:00:00Z", "2026-10-06", "t11-27-0"));
+    seen.push(claimStreak("2026-10-09T08:30:00Z", "2026-10-08", "t11-27-1"));
+    expect(seen).toEqual([5, 1]);
+    const bits = profileBits();
+    expect(bits.fr).toBe(1);
+    const r10 = r10Bits();
+    expect(r10.pd).toBe("NULL");
+  });
+
+  it("T11 P16 stale pending <= last ignored by the token count: g=3 home-band claim with 1 token -> reset (needs 2)", () => {
+    seedQr(5, "2026-10-05", 1, 120, 120, "2026-10-05T07:00:00Z", { creditAt: "2026-10-05T07:00:00Z", incAt: null, prevIncAt: null, restDays: 0, pendingDate: "2026-10-05" });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-08T06:00:00Z", "2026-10-08", "t11-28-0"));
+    expect(seen).toEqual([1]);
+    const bits = profileBits();
+    expect(bits.fr).toBe(1);
+    const r10 = r10Bits();
+    expect(r10.pd).toBe("NULL");
+  });
+
+  it("T11 P16b stale pending < last (10-03 < 10-05) is not read by the token count: g=2 home-band claim with 1 token -> 6, 1 spent (a raw-pending read would need 3 and reset)", () => {
+    seedQr(5, "2026-10-05", 1, 120, 120, "2026-10-05T07:00:00Z", { creditAt: "2026-10-05T07:00:00Z", incAt: null, prevIncAt: null, restDays: 0, pendingDate: "2026-10-03" });
+    const seen: number[] = [];
+    seen.push(claimStreak("2026-10-07T06:00:00Z", "2026-10-07", "t11-29-0"));
+    expect(seen).toEqual([6]);
+    const bits = profileBits();
+    expect(bits.fr).toBe(0);
+    const r10 = r10Bits();
+    expect(r10.pd).toBe("NULL");
+  });
+
   it("T10 L1 denies an authenticated UPDATE of the server-owned streak_pending_date", () => {
     awardXp(replica, USER_A, 10, "create_note");
     expect(() =>
