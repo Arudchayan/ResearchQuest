@@ -135,6 +135,9 @@ test.describe("first-run demo click", () => {
     await expect(
       page.getByText(/Demo workspace — sample data on this device/i),
     ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /Start Focus Session/i }),
+    ).toBeVisible({ timeout: 15_000 });
 
     await page.screenshot({
       path: path.join(ARTIFACTS_DIR, "after_go_to_full_workspace_today.png"),
@@ -146,6 +149,9 @@ test.describe("first-run demo click", () => {
       timeout: 15_000,
     });
     await expect(page.locator('[data-first-run="true"]')).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: /Start Focus Session/i }),
+    ).toBeVisible({ timeout: 15_000 });
 
     await page.screenshot({
       path: path.join(ARTIFACTS_DIR, "after_reload_stays_on_today.png"),
