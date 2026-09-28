@@ -197,7 +197,7 @@ export function FeedsView() {
                     onChange={(event) => setOlderThanDays(event.target.value)}
                     placeholder="days"
                     aria-label="Archive items older than N days"
-                    className="w-16 rounded-lg border border-border-moderate bg-bg-surface px-2 py-1 text-caption text-text-primary shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+                    className="w-16 rounded-lg border border-border-moderate bg-bg-surface px-2 py-1 text-caption text-text-primary shadow-sm"
                   />
                   days
                 </label>
@@ -268,7 +268,7 @@ export function FeedsView() {
                   type="button"
                   onClick={() => void loadOlderFeedItems()}
                   disabled={loadingOlder}
-                  className="w-full rounded-xl border border-border-moderate bg-bg-surface px-3 py-2.5 text-small font-medium text-text-secondary shadow-sm transition-colors hover:border-border-strong hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-50"
+                  className="w-full rounded-xl border border-border-moderate bg-bg-surface px-3 py-2.5 text-small font-medium text-text-secondary shadow-sm transition-colors hover:border-border-strong hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
                 >
                   {loadingOlder
                     ? "Loading older…"
