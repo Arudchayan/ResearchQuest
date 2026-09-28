@@ -28,21 +28,16 @@
 --   Boost expiry still uses now(), matching the live body.
 --
 -- FREEZE/REST COVERAGE
---   Completed missed local days are
---   k = local_today_max - last_activity_date - 1, with
---   local_today_max = xp_server_now() at COALESCE(streak_tz_hi_min, 840).
---   UTC-12 gap=2 exposes one Earth-closed miss. Spend exactly one
---   freeze (else rest) token and set last = local_today_min - 1 only
---   when freeze+rest >= k (the whole missed run up to local yesterday).
---   That is N-for-N without double-spend: each 00:05Z run covers one
---   newly closed miss; award_xp spends the last token on an east
---   return (g=2, s=5, frz=0 at +10). West waits one extra UTC-12
---   night so the cron spends the last token and the return is g=1
---   (s=6, frz=0). CONTINUE (no token) when 0 < tokens < k so a token
---   is never wasted on a gap it cannot save (the 1-token east two-day
---   miss keeps its token). Zero when gap >= 3 or gap = 2 with zero
---   tokens. UTC-12 still gates visibility (gap <= 1 continues).
---   NULL hi uses +14.
+--   On UTC-12 gap = 2 with any tokens:
+--     local_today_max := xp_server_now() at COALESCE(streak_tz_hi_min, 840)
+--     need := GREATEST(1, local_today_max - last_activity_date - 1)
+--     IF freeze+rest < need THEN CONTINUE (do not waste a token on a
+--     gap it cannot save). ELSE spend exactly ONE freeze (else rest)
+--     token, last := local_today_min - 1, stamp streak_credit_at.
+--   award_xp's g=2 freeze covers the second local miss; later 00:05Z
+--   runs chain the rest (one token per run). The old max-last <= 2
+--   guard skipped east k>=2 even when tokens >= need. Zero when
+--   gap >= 3 or gap = 2 with zero tokens. NULL hi uses +14.
 --
 -- CREDIT
 --   The freeze/rest UPDATE sets streak_credit_at = public.xp_server_now().
@@ -129,7 +124,7 @@ DECLARE
   gap INTEGER;
   freeze_tokens INTEGER;
   rest_tokens INTEGER;
-  missed_days INTEGER;
+  need INTEGER;
 BEGIN
   FOR profile IN
     SELECT
@@ -162,15 +157,15 @@ BEGIN
     rest_tokens := COALESCE(profile.rest_days, 0);
 
     IF gap = 2 AND (freeze_tokens > 0 OR rest_tokens > 0) THEN
-      -- Spend one token only when freeze+rest covers every completed
-      -- local miss (k). The old max-last <= 2 / >= 3 CONTINUE guard
-      -- skipped east k>=2 even when tokens >= k.
+      -- Spend one token only when freeze+rest covers need. The old
+      -- max-last <= 2 / >= 3 CONTINUE guard skipped east k>=2 even
+      -- when tokens >= need. Never spend more than one token per run.
       local_today_max := (
         (public.xp_server_now() AT TIME ZONE 'UTC')
         + make_interval(mins => COALESCE(profile.streak_tz_hi_min, 840))
       )::date;
-      missed_days := local_today_max - profile.last_activity_date - 1;
-      IF missed_days >= 1 AND freeze_tokens + rest_tokens < missed_days THEN
+      need := GREATEST(1, local_today_max - profile.last_activity_date - 1);
+      IF freeze_tokens + rest_tokens < need THEN
         CONTINUE;
       END IF;
       IF freeze_tokens > 0 THEN
