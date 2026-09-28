@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { todayKey } from "../../utils/time";
+import {
+  formatDueCaption,
+  formatDueDate,
+  isOverdue,
+  parseDateInput,
+  todayKey,
+} from "../../utils/time";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const expectedKey = (d: Date) =>
@@ -35,5 +41,70 @@ describe("todayKey", () => {
 
   it("defaults to now and is stable within the same day", () => {
     expect(todayKey()).toBe(expectedKey(new Date()));
+  });
+});
+
+const DATE_ONLY_TODAY = "2026-09-28";
+const localTodayNoon = () => new Date(2026, 8, 28, 12, 2, 0);
+const expectedDueLabel = () =>
+  new Date(2026, 8, 28).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+
+describe("parseDateInput date-only local calendar", () => {
+  it("parses YYYY-MM-DD as local midnight, not UTC", () => {
+    const parsed = parseDateInput(DATE_ONLY_TODAY);
+    expect(parsed).not.toBeNull();
+    expect(parsed!.getFullYear()).toBe(2026);
+    expect(parsed!.getMonth()).toBe(8);
+    expect(parsed!.getDate()).toBe(28);
+    expect(parsed!.getHours()).toBe(0);
+    expect(parsed!.getMinutes()).toBe(0);
+    expect(parsed!.getTime()).toBe(new Date(2026, 8, 28).getTime());
+  });
+
+  it("does not follow Date.parse UTC midnight for date-only strings", () => {
+    const parsed = parseDateInput(DATE_ONLY_TODAY)!;
+    const utcParsed = new Date(DATE_ONLY_TODAY);
+    expect(utcParsed.toISOString()).toBe("2026-09-28T00:00:00.000Z");
+    // East of UTC (and after local midnight on UTC hosts) the UTC-parsed
+    // instant is already in the past at 12:02 local — the trap that made
+    // Today tasks look overdue.
+    expect(utcParsed.getTime() < localTodayNoon().getTime()).toBe(true);
+    expect(parsed.getHours()).toBe(0);
+    expect(parsed.getDate()).toBe(28);
+  });
+});
+
+describe("formatDueDate / formatDueCaption", () => {
+  it("formats a date-only due date without a time", () => {
+    const label = formatDueDate(DATE_ONLY_TODAY);
+    expect(label).toBe(expectedDueLabel());
+    expect(label).not.toMatch(/\d{1,2}:\d{2}/);
+    expect(label).not.toMatch(/\b(?:AM|PM)\b/i);
+    expect(formatDueCaption(DATE_ONLY_TODAY)).toBe(`Due ${expectedDueLabel()}`);
+    expect(formatDueCaption(undefined)).toBe("No due date");
+    expect(formatDueCaption(null)).toBe("No due date");
+    expect(formatDueCaption("")).toBe("No due date");
+  });
+});
+
+describe("isOverdue local-date semantics", () => {
+  it("does not mark a date-only due of today as overdue at 12:02 local", () => {
+    const now = localTodayNoon();
+    expect(isOverdue(DATE_ONLY_TODAY, now)).toBe(false);
+    expect(isOverdue(todayKey(now), now)).toBe(false);
+  });
+
+  it("marks a date-only due of yesterday as overdue", () => {
+    expect(isOverdue("2026-09-27", localTodayNoon())).toBe(true);
+  });
+
+  it("treats missing or invalid due dates as not overdue", () => {
+    expect(isOverdue(undefined, localTodayNoon())).toBe(false);
+    expect(isOverdue(null, localTodayNoon())).toBe(false);
+    expect(isOverdue("", localTodayNoon())).toBe(false);
+    expect(isOverdue("not-a-date", localTodayNoon())).toBe(false);
   });
 });

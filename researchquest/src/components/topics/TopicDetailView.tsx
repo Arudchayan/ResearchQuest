@@ -20,6 +20,7 @@ import type {
 } from "../../types/database";
 import { Badge, type BadgeVariant } from "../ui/Badge";
 import { deriveTitleFromMarkdown } from "../../utils/text";
+import { formatDueDate } from "../../utils/time";
 import {
   Pencil,
   Save,
@@ -605,7 +606,7 @@ export function TopicDetailView({
                   </div>
                   {quest.due_date && (
                     <p className="text-caption text-text-tertiary">
-                      Due {new Date(quest.due_date).toLocaleDateString()}
+                      Due {formatDueDate(quest.due_date)}
                     </p>
                   )}
                 </div>

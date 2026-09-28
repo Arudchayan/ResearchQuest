@@ -12,7 +12,7 @@ import { Badge, type BadgeVariant } from "../ui/Badge";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
 import type { Task } from "../../types/database";
-import { parseDateInput } from "../../utils/time";
+import { isOverdue, parseDateInput } from "../../utils/time";
 import { highlightMatch } from "../../utils/highlight";
 import type { TaskPriority } from "./taskTypes";
 import { savedAtlasLessonUrl } from "./savedLessonLink";
@@ -29,15 +29,7 @@ export function getPriorityColor(priority: TaskPriority): BadgeVariant {
   return priorityBadgeVariants[priority] ?? "priority-medium";
 }
 
-export function isOverdue(dueDate: string | undefined | null): boolean {
-  if (!dueDate) return false;
-  const parsed = parseDateInput(dueDate);
-  if (!parsed) return false;
-  const now = new Date();
-  // Treat tasks as overdue only after the day has passed
-  parsed.setHours(23, 59, 59, 999);
-  return parsed.getTime() < now.getTime();
-}
+export { isOverdue };
 
 export interface TaskCardProps {
   task: Task;
