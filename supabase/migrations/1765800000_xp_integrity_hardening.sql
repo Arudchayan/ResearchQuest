@@ -33,7 +33,9 @@
 -- auto_create_reading_tasks, active_boost, streak_freeze_tokens, rest_days,
 -- updated_at.
 -- Excluded: total_xp, current_level, current_streak, longest_streak,
--- last_activity_date, streak_tz_lo_min, streak_tz_hi_min, and all *_count.
+-- Excluded: total_xp, current_level, current_streak, longest_streak,
+-- last_activity_date, streak_tz_lo_min, streak_tz_hi_min, streak_tz_set_at,
+-- and all *_count.
 
 -- ===========================================================================
 -- A. Rolling-window lookup
@@ -72,11 +74,15 @@ ALTER TABLE public.user_profiles
   ADD COLUMN IF NOT EXISTS streak_tz_lo_min integer;
 ALTER TABLE public.user_profiles
   ADD COLUMN IF NOT EXISTS streak_tz_hi_min integer;
+ALTER TABLE public.user_profiles
+  ADD COLUMN IF NOT EXISTS streak_tz_set_at timestamptz;
 
 COMMENT ON COLUMN public.user_profiles.streak_tz_lo_min IS
   'Inclusive UTC-offset minutes consistent with recent credited streak claims. Written only by award_xp.';
 COMMENT ON COLUMN public.user_profiles.streak_tz_hi_min IS
   'Inclusive UTC-offset minutes consistent with recent credited streak claims. Written only by award_xp.';
+COMMENT ON COLUMN public.user_profiles.streak_tz_set_at IS
+  'Server time when streak_tz_lo_min/hi_min last changed. Written only by award_xp.';
 
 -- Test-replaceable clock. Production is clock_timestamp(); tests CREATE OR
 -- REPLACE this function as table owner. Not a GUC. Authenticated cannot
@@ -84,14 +90,14 @@ COMMENT ON COLUMN public.user_profiles.streak_tz_hi_min IS
 CREATE OR REPLACE FUNCTION public.xp_server_now()
 RETURNS timestamptz
 LANGUAGE sql
-STABLE
+VOLATILE
 SET search_path = ''
 AS $$ SELECT clock_timestamp(); $$;
 
 REVOKE ALL ON FUNCTION public.xp_server_now() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.xp_server_now() FROM anon;
 REVOKE ALL ON FUNCTION public.xp_server_now() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.xp_server_now() TO CURRENT_USER;
+REVOKE ALL ON FUNCTION public.xp_server_now() FROM service_role;
 
 COMMENT ON COLUMN public.user_profiles.total_xp IS
   'Canonical writers: award_xp / award_achievement_xp (SECURITY DEFINER, table owner). Authenticated has no UPDATE privilege on this column.';
@@ -263,6 +269,9 @@ DECLARE
   v_n_hi INTEGER;
   v_tz_lo INTEGER;
   v_tz_hi INTEGER;
+  v_tz_set_at TIMESTAMPTZ;
+  v_gap_last DATE;
+  v_prior_day DATE;
   v_r_total INTEGER;
   v_r_level INTEGER;
   v_r_streak INTEGER;
@@ -460,40 +469,57 @@ BEGIN
   v_claim_lo := GREATEST(-720, CEILING(v_raw_lo)::integer);
   v_claim_hi := LEAST(840, FLOOR(v_raw_hi - 0.0000001)::integer);
 
+  v_tz_lo := v_profile.streak_tz_lo_min;
+  v_tz_hi := v_profile.streak_tz_hi_min;
+  v_tz_set_at := v_profile.streak_tz_set_at;
+  v_freeze := COALESCE(v_profile.streak_freeze_tokens, 0);
+  v_last := v_profile.last_activity_date;
+  v_new_streak := COALESCE(v_profile.current_streak, 0);
+
   IF v_profile.streak_tz_lo_min IS NULL OR v_profile.streak_tz_hi_min IS NULL THEN
     v_w_lo := -720;
     v_w_hi := 840;
-  ELSIF (v_profile.streak_tz_hi_min - v_profile.streak_tz_lo_min) <= 180
-     AND v_profile.streak_tz_lo_min > -720
-     AND v_profile.streak_tz_hi_min < 840 THEN
-    -- Localized interior band: ±90 minutes covers DST.
+  ELSIF v_profile.streak_tz_set_at IS NOT NULL
+     AND (v_now - v_profile.streak_tz_set_at) >= interval '12 hours' THEN
     v_w_lo := v_profile.streak_tz_lo_min - 90;
     v_w_hi := v_profile.streak_tz_hi_min + 90;
   ELSE
-    -- Wide or world-clipped claims must not be widened across the
-    -- adjacent-day boundary at the same instant.
     v_w_lo := v_profile.streak_tz_lo_min;
     v_w_hi := v_profile.streak_tz_hi_min;
   END IF;
 
   v_n_lo := GREATEST(v_w_lo, v_claim_lo);
   v_n_hi := LEAST(v_w_hi, v_claim_hi);
-  v_freeze := COALESCE(v_profile.streak_freeze_tokens, 0);
-  v_last := v_profile.last_activity_date;
-  v_new_streak := COALESCE(v_profile.current_streak, 0);
+
+  SELECT max(e.local_day) INTO v_prior_day
+  FROM public.xp_events AS e
+  WHERE e.user_id = v_uid
+    AND e.xp > 0
+    AND e.created_at < v_now;
+  v_gap_last := v_profile.last_activity_date;
+  IF v_prior_day IS NOT NULL AND (v_gap_last IS NULL OR v_prior_day > v_gap_last) THEN
+    v_gap_last := v_prior_day;
+  END IF;
 
   IF v_claim_lo <= v_claim_hi AND v_n_lo <= v_n_hi THEN
-    -- Timezone-consistent: apply normal streak rules for p, store N.
+    -- Timezone-consistent: apply streak rules against last consistent day
+    -- or the latest credited local_day (so a travel stall is activity for
+    -- gap/freeze/reset without incrementing on the inconsistent calls).
+    IF v_tz_lo IS DISTINCT FROM v_n_lo OR v_tz_hi IS DISTINCT FROM v_n_hi THEN
+      v_tz_set_at := v_now;
+    END IF;
     v_tz_lo := v_n_lo;
     v_tz_hi := v_n_hi;
-    IF v_last IS NULL THEN
+    IF v_gap_last IS NULL THEN
       v_new_streak := 1;
       v_last := v_today;
-    ELSIF v_today < v_last THEN
+    ELSIF v_today < v_gap_last THEN
       NULL;
-    ELSIF v_today = v_last THEN
-      NULL;
-    ELSIF v_today = v_last + 1 THEN
+    ELSIF v_today = v_gap_last THEN
+      IF v_last IS NULL OR v_today > v_last THEN
+        v_last := v_today;
+      END IF;
+    ELSIF v_today = v_gap_last + 1 THEN
       v_new_streak := v_new_streak + 1;
       v_last := v_today;
     ELSIF v_freeze > 0 AND v_new_streak > 0 THEN
@@ -503,19 +529,15 @@ BEGIN
       v_new_streak := 1;
       v_last := v_today;
     END IF;
-  ELSE
-    -- Burst or travel: credit XP, do not advance streak. Store the claim
-    -- interval alone. If p > last, move last without incrementing.
-    IF v_claim_lo <= v_claim_hi THEN
-      v_tz_lo := v_claim_lo;
-      v_tz_hi := v_claim_hi;
-    ELSE
-      v_tz_lo := NULL;
-      v_tz_hi := NULL;
-    END IF;
-    IF v_last IS NULL OR v_today > v_last THEN
-      v_last := v_today;
-    END IF;
+  ELSIF v_profile.streak_tz_lo_min IS NOT NULL
+     AND v_profile.streak_tz_hi_min IS NOT NULL
+     AND v_profile.streak_tz_set_at IS NOT NULL
+     AND (v_now - v_profile.streak_tz_set_at) >= interval '12 hours' THEN
+    -- Traveller adaptation: persist one ±90 widen. Do not take the claim
+    -- interval, do not move last_activity_date, do not increment.
+    v_tz_lo := GREATEST(-720, v_profile.streak_tz_lo_min - 90);
+    v_tz_hi := LEAST(840, v_profile.streak_tz_hi_min + 90);
+    v_tz_set_at := v_now;
   END IF;
 
   IF v_new_streak % 7 = 0 AND v_new_streak > COALESCE(v_profile.current_streak, 0) THEN
@@ -533,7 +555,8 @@ BEGIN
     last_activity_date = v_last,
     streak_freeze_tokens = v_freeze,
     streak_tz_lo_min = v_tz_lo,
-    streak_tz_hi_min = v_tz_hi
+    streak_tz_hi_min = v_tz_hi,
+    streak_tz_set_at = v_tz_set_at
   WHERE p.id = v_uid
   RETURNING
     p.total_xp, p.current_level, p.current_streak, p.longest_streak,
@@ -577,7 +600,7 @@ GRANT EXECUTE ON FUNCTION public.award_xp(UUID, INTEGER, TEXT, TEXT, TEXT, DATE,
 GRANT EXECUTE ON FUNCTION public.award_xp(UUID, INTEGER, TEXT, TEXT, TEXT, DATE, INTEGER) TO service_role;
 
 COMMENT ON FUNCTION public.award_xp(UUID, INTEGER, TEXT, TEXT, TEXT, DATE, INTEGER) IS
-  'Atomic XP award for auth.uid() only. Credits least(p_delta, server XP_REWARDS mapping); unknown actions 0. Local-day ±1 plus rolling 24h cap. Streak updates only on credited awards and only when the claimed local day is timezone-consistent with recent claims; never backfills an earlier local day. Does not write *_count columns.';
+  'Atomic XP award for auth.uid() only. Credits least(p_delta, server XP_REWARDS mapping); unknown actions 0. Local-day ±1 plus rolling 24h cap. Streak updates only on credited timezone-consistent awards; empty N credits XP without touching the tz interval or last_activity_date. Does not write *_count columns.';
 
 -- ===========================================================================
 -- E. award_achievement_xp: catalogue XP + real-table eligibility
@@ -718,7 +741,8 @@ COMMENT ON FUNCTION public.award_achievement_xp(TEXT, INTEGER, TEXT, TEXT) IS
 -- Rollback (manual, do not run in this file):
 --   ALTER TABLE public.user_profiles
 --     DROP COLUMN IF EXISTS streak_tz_lo_min,
---     DROP COLUMN IF EXISTS streak_tz_hi_min;
+--     DROP COLUMN IF EXISTS streak_tz_hi_min,
+--     DROP COLUMN IF EXISTS streak_tz_set_at;
 --   DROP FUNCTION IF EXISTS public.xp_server_now();
 --   Restore award_xp / award_achievement_xp / grants from 1765700000.
 

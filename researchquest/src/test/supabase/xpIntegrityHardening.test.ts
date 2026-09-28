@@ -144,10 +144,12 @@ describe("1765800000 xp integrity hardening (static)", () => {
     expect(award).not.toMatch(/v_held/i);
     expect(award).toMatch(/v_credited\s*<=\s*0/i);
     expect(award).toMatch(/streak_tz_lo_min/i);
+    expect(award).toMatch(/streak_tz_set_at/i);
+    expect(award).toMatch(/interval\s+'12 hours'/i);
     expect(award).toMatch(/-\s*720/i);
     expect(award).toMatch(/840/i);
     expect(award).toMatch(/-\s*90/i);
-    expect(award).toMatch(/v_today\s*<\s*v_last/i);
+    expect(award).toMatch(/v_today\s*<\s*v_gap_last/i);
   });
 
   it("does not increment running counts from award_xp", () => {
@@ -206,11 +208,14 @@ describe("1765800000 xp integrity hardening (static)", () => {
     expect(sql).toMatch(/ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\s+streak_tz_lo_min\s+integer/i);
     expect(sql).toMatch(/ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\s+streak_tz_hi_min\s+integer/i);
     expect(sql).toMatch(/CREATE\s+OR\s+REPLACE\s+FUNCTION\s+public\.xp_server_now\s*\(/i);
+    expect(functionBlock(sql, "xp_server_now")).toMatch(/VOLATILE/i);
     expect(functionBlock(sql, "xp_server_now")).toMatch(/clock_timestamp\s*\(\s*\)/i);
+    expect(sql).toMatch(/REVOKE\s+ALL\s+ON\s+FUNCTION\s+public\.xp_server_now\s*\(\s*\)\s+FROM\s+service_role/i);
     expect(functionBlock(sql, "award_xp")).toMatch(/public\.xp_server_now\s*\(\s*\)/i);
     expect(functionBlock(sql, "award_xp")).not.toMatch(/current_setting/i);
+    expect(raw).toMatch(/ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\s+streak_tz_set_at\s+timestamptz/i);
     expect(raw).toMatch(
-      /DROP\s+COLUMN\s+IF\s+EXISTS\s+streak_tz_lo_min[\s\S]*DROP\s+COLUMN\s+IF\s+EXISTS\s+streak_tz_hi_min/i,
+      /DROP\s+COLUMN\s+IF\s+EXISTS\s+streak_tz_lo_min[\s\S]*DROP\s+COLUMN\s+IF\s+EXISTS\s+streak_tz_hi_min[\s\S]*DROP\s+COLUMN\s+IF\s+EXISTS\s+streak_tz_set_at/i,
     );
   });
 
@@ -311,12 +316,12 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
 
     const tomorrow = awardXp(replica, USER_A, 10, "create_note", { localDay: plus });
     expect(tomorrow.current_streak).toBe(1);
-    expect(tomorrow.last_activity_date).toBe(plus);
+    expect(tomorrow.last_activity_date).toBe(today);
     expect(tomorrow.xp_credited).toBe(10);
 
     const backfill = awardXp(replica, USER_A, 10, "create_note", { localDay: minus });
     expect(backfill.current_streak).toBe(1);
-    expect(backfill.last_activity_date).toBe(plus);
+    expect(backfill.last_activity_date).toBe(today);
   });
 
   it("QA bug 1: zero-XP update_note on UTC D-1/D/D+1 leaves streak untouched", () => {
@@ -361,6 +366,51 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
     const c = awardXp(replica, USER_A, 10, "create_note", { entityId: "c", localDay: plus });
     expect(c.current_streak).toBe(1);
     expect(c.xp_credited).toBe(10);
+  });
+
+  it("keeps streak 1 for D then empty D-1 then D+1 at 13:00Z", () => {
+    setXpNow(replica, "2026-06-10T13:00:00.000Z");
+    const today = "2026-06-10";
+    const plus = "2026-06-11";
+    const minus = "2026-06-09";
+
+    const first = awardXp(replica, USER_A, 10, "create_note", { entityId: "d", localDay: today });
+    expect(first.current_streak).toBe(1);
+    expect(first.last_activity_date).toBe(today);
+
+    const empty = awardXp(replica, USER_A, 10, "create_note", { entityId: "d-1", localDay: minus });
+    expect(empty.current_streak).toBe(1);
+    expect(empty.last_activity_date).toBe(today);
+    expect(empty.xp_credited).toBe(10);
+
+    const plusRow = awardXp(replica, USER_A, 10, "create_note", { entityId: "d+1", localDay: plus });
+    expect(plusRow.current_streak).toBe(1);
+    expect(plusRow.last_activity_date).toBe(today);
+  });
+
+  it("with stored [0,0], D+1 then D+2 at D+1 22:00Z adds at most 1", () => {
+    const d = "2026-06-10";
+    const plus = "2026-06-11";
+    const plus2 = "2026-06-12";
+    setXpNow(replica, "2026-06-11T22:00:00.000Z");
+    replica.exec(`
+      UPDATE public.user_profiles
+      SET last_activity_date = '${d}'::date,
+          current_streak = 1,
+          longest_streak = 1,
+          streak_tz_lo_min = 0,
+          streak_tz_hi_min = 0,
+          streak_tz_set_at = public.xp_server_now()
+      WHERE id = '${USER_A}';
+    `);
+
+    const first = awardXp(replica, USER_A, 10, "create_note", { entityId: "p1", localDay: plus });
+    expect(first.xp_credited).toBe(10);
+    const second = awardXp(replica, USER_A, 10, "create_note", { entityId: "p2", localDay: plus2 });
+    expect(second.xp_credited).toBe(10);
+    expect(second.current_streak - 1).toBeLessThanOrEqual(1);
+    expect(second.current_streak).toBeGreaterThanOrEqual(1);
+    expect(second.current_streak).toBeLessThanOrEqual(2);
   });
 
   it("QA bug 2 stray D-3: last=D-4 with a freeze token does not +1 from a held event", () => {
@@ -544,42 +594,65 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
     }
   });
 
-  it("keeps the streak across a DST shift of +1h", () => {
+  it("keeps the streak across a DST +1h shift via 12h widening near a day boundary", () => {
     const d0 = "2026-06-10";
-    const offsets = [120, 180, 180];
-    for (let i = 0; i < 3; i += 1) {
-      const day = addDays(d0, i);
-      setXpNow(replica, utcIsoFromLocal(day, 12, offsets[i]));
-      const row = awardXp(replica, USER_A, 10, "create_note", { entityId: `dst${i}`, localDay: day });
-      expect(row.current_streak).toBe(i + 1);
-    }
+    const d1 = "2026-06-11";
+    setXpNow(replica, "2026-06-10T09:30:00.000Z");
+    replica.exec(`
+      UPDATE public.user_profiles
+      SET last_activity_date = '${d0}'::date,
+          current_streak = 1,
+          longest_streak = 1,
+          streak_tz_lo_min = 120,
+          streak_tz_hi_min = 120,
+          streak_tz_set_at = public.xp_server_now()
+      WHERE id = '${USER_A}';
+    `);
+    setXpNow(replica, "2026-06-10T21:30:00.000Z");
+    const row = awardXp(replica, USER_A, 10, "create_note", { entityId: "dst", localDay: d1 });
+    expect(row.xp_credited).toBe(10);
+    expect(row.current_streak).toBe(2);
+    expect(row.last_activity_date).toBe(d1);
   });
 
-  it("loses at most one advance on a +9h travel jump and never resets", () => {
-    const d0 = "2026-06-10";
-    const home = 60;
-    const away = 60 + 540;
-    for (let i = 0; i < 3; i += 1) {
-      const day = addDays(d0, i);
-      setXpNow(replica, utcIsoFromLocal(day, 12, home));
-      const row = awardXp(replica, USER_A, 10, "create_note", { entityId: `h${i}`, localDay: day });
-      expect(row.current_streak).toBe(i + 1);
-    }
-    const jumpDay = addDays(d0, 3);
-    setXpNow(replica, utcIsoFromLocal(jumpDay, 12, away));
-    const jump = awardXp(replica, USER_A, 10, "create_note", { entityId: "jump", localDay: jumpDay });
-    expect(jump.xp_credited).toBe(10);
-    expect(jump.current_streak).toBeGreaterThanOrEqual(3);
-    expect(jump.current_streak).toBeLessThanOrEqual(4);
-    expect(jump.current_streak).not.toBe(1);
-    expect(jump.last_activity_date).toBe(jumpDay);
+  it("recovers a +9h travel jump within 6 daily 12h widens and never resets", () => {
+    const home = "2026-06-10";
+    setXpNow(replica, "2026-06-10T02:00:00.000Z");
+    replica.exec(`
+      UPDATE public.user_profiles
+      SET last_activity_date = '${home}'::date,
+          current_streak = 3,
+          longest_streak = 3,
+          streak_tz_lo_min = 60,
+          streak_tz_hi_min = 60,
+          streak_tz_set_at = public.xp_server_now(),
+          total_xp = 30
+      WHERE id = '${USER_A}';
+    `);
 
-    const nextDay = addDays(d0, 4);
-    setXpNow(replica, utcIsoFromLocal(nextDay, 12, away));
-    const after = awardXp(replica, USER_A, 10, "create_note", { entityId: "after", localDay: nextDay });
-    expect(after.current_streak).toBeGreaterThanOrEqual(jump.current_streak);
-    expect(after.current_streak).not.toBe(1);
-    expect(after.last_activity_date).toBe(nextDay);
+    let streak = 3;
+    for (let i = 0; i < 6; i += 1) {
+      const t = new Date(Date.UTC(2026, 5, 10 + i, 14, 0, 0)).toISOString();
+      const localDay = addDays("2026-06-11", i);
+      setXpNow(replica, t);
+      const row = awardXp(replica, USER_A, 10, "create_note", {
+        entityId: `jump${i}`,
+        localDay,
+      });
+      expect(row.xp_credited).toBe(10);
+      expect(row.current_streak).toBeGreaterThanOrEqual(3);
+      expect(row.current_streak).not.toBe(1);
+      streak = row.current_streak;
+    }
+    expect(streak).toBeGreaterThanOrEqual(3);
+    expect(streak).toBeLessThanOrEqual(4);
+
+    const logs = replica
+      .exec(
+        `SELECT count(*) FROM public.daily_logs WHERE user_id = '${USER_A}' AND xp_earned > 0`,
+      )
+      .trim();
+    expect(Number(logs)).toBeGreaterThanOrEqual(6);
   });
 
   it("lets authenticated update username, theme_preference and auto_create_reading_tasks", () => {
@@ -607,7 +680,7 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
     expect(() =>
       replica.execAs(
         USER_A,
-        `UPDATE public.user_profiles SET streak_tz_lo_min = 0, streak_tz_hi_min = 0 WHERE id = '${USER_A}'`,
+        `UPDATE public.user_profiles SET streak_tz_lo_min = 0, streak_tz_hi_min = 0, streak_tz_set_at = now() WHERE id = '${USER_A}'`,
       ),
     ).toThrow(/permission denied|must be owner/i);
   });
