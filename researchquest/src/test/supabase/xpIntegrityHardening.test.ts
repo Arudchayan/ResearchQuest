@@ -14,10 +14,14 @@ import {
   PG17_AVAILABLE,
   USER_A,
   USER_B,
+  addDays,
   awardAchievement,
   awardXp,
   resetUser,
+  resetXpNow,
+  setXpNow,
   startReplica,
+  utcIsoFromLocal,
   type Replica,
 } from "./pg17ReplicaHarness";
 
@@ -52,9 +56,12 @@ const XP_REWARDS: Record<string, number> = {
 
 const PROFILE_UPDATE_COLUMNS = [
   "active_boost",
+  "auto_create_reading_tasks",
   "rest_days",
   "streak_freeze_tokens",
+  "theme_preference",
   "updated_at",
+  "username",
 ];
 
 function stripLineComments(text: string): string {
@@ -127,14 +134,20 @@ describe("1765800000 xp integrity hardening (static)", () => {
   it("enforces a rolling 24h per-action cap in addition to the local-day window", () => {
     const award = functionBlock(sql, "award_xp");
     expect(award).toMatch(/interval\s+'24 hours'/i);
-    expect(award).toMatch(/created_at\s*>\s*now\(\)\s*-\s*interval\s+'24 hours'/i);
+    expect(award).toMatch(/created_at\s*>\s*v_now\s*-\s*interval\s+'24 hours'/i);
     expect(award).toMatch(/p_local_day\s*>=\s*v_utc_day\s*-\s*1/i);
   });
 
-  it("advances the streak at most once per 20h and never for an earlier local day", () => {
+  it("updates the streak only on credited awards using a timezone-consistency interval", () => {
     const award = functionBlock(sql, "award_xp");
-    expect(award).toMatch(/interval\s+'20 hours'/i);
-    expect(award).toMatch(/v_today\s*<\s*v_profile\.last_activity_date/i);
+    expect(award).not.toMatch(/interval\s+'20 hours'/i);
+    expect(award).not.toMatch(/v_held/i);
+    expect(award).toMatch(/v_credited\s*<=\s*0/i);
+    expect(award).toMatch(/streak_tz_lo_min/i);
+    expect(award).toMatch(/-\s*720/i);
+    expect(award).toMatch(/840/i);
+    expect(award).toMatch(/-\s*90/i);
+    expect(award).toMatch(/v_today\s*<\s*v_last/i);
   });
 
   it("does not increment running counts from award_xp", () => {
@@ -160,6 +173,7 @@ describe("1765800000 xp integrity hardening (static)", () => {
     expect(grant.toLowerCase()).not.toMatch(/total_xp/);
     expect(grant.toLowerCase()).not.toMatch(/current_level/);
     expect(grant.toLowerCase()).not.toMatch(/current_streak/);
+    expect(grant.toLowerCase()).not.toMatch(/streak_tz_/);
     expect(grant.toLowerCase()).not.toMatch(/_count/);
   });
 
@@ -188,12 +202,16 @@ describe("1765800000 xp integrity hardening (static)", () => {
     expect(raw).not.toMatch(/supabase db push/i);
   });
 
-  it("measures the 20h streak gate from the first claim of last_activity_date", () => {
-    const award = functionBlock(sql, "award_xp");
-    expect(award).toMatch(/min\s*\(\s*e\.created_at\s*\)/i);
-    expect(award).toMatch(/e\.local_day\s*=\s*v_profile\.last_activity_date/i);
-    expect(award).toMatch(/last_activity_date\s*\+\s*1/i);
-    expect(award).not.toMatch(/SELECT\s+max\s*\(\s*e\.created_at\s*\)\s+INTO\s+v_last_event/i);
+  it("adds non-user-writable timezone interval columns and a replaceable server clock", () => {
+    expect(sql).toMatch(/ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\s+streak_tz_lo_min\s+integer/i);
+    expect(sql).toMatch(/ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\s+streak_tz_hi_min\s+integer/i);
+    expect(sql).toMatch(/CREATE\s+OR\s+REPLACE\s+FUNCTION\s+public\.xp_server_now\s*\(/i);
+    expect(functionBlock(sql, "xp_server_now")).toMatch(/clock_timestamp\s*\(\s*\)/i);
+    expect(functionBlock(sql, "award_xp")).toMatch(/public\.xp_server_now\s*\(\s*\)/i);
+    expect(functionBlock(sql, "award_xp")).not.toMatch(/current_setting/i);
+    expect(raw).toMatch(
+      /DROP\s+COLUMN\s+IF\s+EXISTS\s+streak_tz_lo_min[\s\S]*DROP\s+COLUMN\s+IF\s+EXISTS\s+streak_tz_hi_min/i,
+    );
   });
 
   it("revokes INSERT on user_profiles and blocks freeze/rest minting by role", () => {
@@ -247,6 +265,7 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
 
   beforeEach(() => {
     resetUser(replica, USER_A);
+    resetXpNow(replica);
   });
 
   it("credits a normal create_note at the server value", () => {
@@ -280,9 +299,11 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
   });
 
   it("does not add +2 to the streak in one real day via utc+1, and does not backfill", () => {
-    const today = replica.exec("SELECT (now() AT TIME ZONE 'UTC')::date").trim();
-    const plus = replica.exec("SELECT ((now() AT TIME ZONE 'UTC')::date + 1)").trim();
-    const minus = replica.exec("SELECT ((now() AT TIME ZONE 'UTC')::date - 1)").trim();
+    // 11:00 UTC is the window where UTC-1, UTC and UTC+1 are all feasible.
+    setXpNow(replica, "2026-06-10T11:00:00.000Z");
+    const today = "2026-06-10";
+    const plus = "2026-06-11";
+    const minus = "2026-06-09";
 
     const first = awardXp(replica, USER_A, 10, "create_note", { localDay: today });
     expect(first.current_streak).toBe(1);
@@ -290,30 +311,102 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
 
     const tomorrow = awardXp(replica, USER_A, 10, "create_note", { localDay: plus });
     expect(tomorrow.current_streak).toBe(1);
-    expect(tomorrow.last_activity_date).toBe(today);
+    expect(tomorrow.last_activity_date).toBe(plus);
+    expect(tomorrow.xp_credited).toBe(10);
 
     const backfill = awardXp(replica, USER_A, 10, "create_note", { localDay: minus });
     expect(backfill.current_streak).toBe(1);
-    expect(backfill.last_activity_date).toBe(today);
+    expect(backfill.last_activity_date).toBe(plus);
   });
 
-  it("advances the streak by 1 after ~20h of server time on the next local day", () => {
-    const today = replica.exec("SELECT (now() AT TIME ZONE 'UTC')::date").trim();
-    const first = awardXp(replica, USER_A, 10, "create_note", { localDay: today });
-    expect(first.current_streak).toBe(1);
+  it("QA bug 1: zero-XP update_note on UTC D-1/D/D+1 leaves streak untouched", () => {
+    setXpNow(replica, "2026-06-10T11:00:00.000Z");
+    const today = "2026-06-10";
+    const plus = "2026-06-11";
+    const minus = "2026-06-09";
+
+    const first = awardXp(replica, USER_A, 0, "update_note", { key: null, entityId: "", localDay: minus });
+    expect(first.xp_credited).toBe(0);
+    expect(first.current_streak).toBe(0);
+    expect(first.last_activity_date).toBeNull();
+    const eventsAfterFirst = replica
+      .exec(`SELECT count(*) FROM public.xp_events WHERE user_id = '${USER_A}'`)
+      .trim();
+    expect(Number(eventsAfterFirst)).toBe(0);
+
+    const second = awardXp(replica, USER_A, 0, "update_note", { key: null, entityId: "", localDay: today });
+    expect(second.current_streak).toBe(0);
+    expect(second.last_activity_date).toBeNull();
+
+    const third = awardXp(replica, USER_A, 0, "update_note", { key: null, entityId: "", localDay: plus });
+    expect(third.current_streak).toBe(0);
+    expect(third.last_activity_date).toBeNull();
+    expect(third.streak_freeze_tokens).toBe(0);
+  });
+
+  it("QA bug 2: burst D-1, D, D+1 in one instant stays at streak 1", () => {
+    setXpNow(replica, "2026-06-10T11:00:00.000Z");
+    const today = "2026-06-10";
+    const plus = "2026-06-11";
+    const minus = "2026-06-09";
+
+    const a = awardXp(replica, USER_A, 10, "create_note", { entityId: "a", localDay: minus });
+    expect(a.current_streak).toBe(1);
+    expect(a.xp_credited).toBe(10);
+
+    const b = awardXp(replica, USER_A, 10, "create_note", { entityId: "b", localDay: today });
+    expect(b.current_streak).toBe(1);
+    expect(b.xp_credited).toBe(10);
+
+    const c = awardXp(replica, USER_A, 10, "create_note", { entityId: "c", localDay: plus });
+    expect(c.current_streak).toBe(1);
+    expect(c.xp_credited).toBe(10);
+  });
+
+  it("QA bug 2 stray D-3: last=D-4 with a freeze token does not +1 from a held event", () => {
+    const today = replica.exec("SELECT (public.xp_server_now() AT TIME ZONE 'UTC')::date").trim();
+    const dMinus3 = replica.exec("SELECT ((public.xp_server_now() AT TIME ZONE 'UTC')::date - 3)").trim();
+    const dMinus4 = replica.exec("SELECT ((public.xp_server_now() AT TIME ZONE 'UTC')::date - 4)").trim();
 
     replica.exec(`
-      UPDATE public.xp_events
-      SET created_at = now() - interval '21 hours'
-      WHERE user_id = '${USER_A}';
+      INSERT INTO public.xp_events (user_id, action, entity_id, xp, local_day, created_at)
+      VALUES ('${USER_A}', 'create_note', 'stray', 10, '${dMinus3}', public.xp_server_now() - interval '3 days');
       UPDATE public.user_profiles
-      SET last_activity_date = (now() AT TIME ZONE 'UTC')::date - 1
+      SET last_activity_date = '${dMinus4}'::date,
+          current_streak = 5,
+          longest_streak = 5,
+          streak_freeze_tokens = 1,
+          total_xp = 50
       WHERE id = '${USER_A}';
     `);
 
-    const next = awardXp(replica, USER_A, 10, "create_note", { localDay: today });
-    expect(next.current_streak).toBe(2);
-    expect(next.xp_credited).toBe(10);
+    const row = awardXp(replica, USER_A, 10, "create_note", { localDay: today });
+    expect(row.current_streak).toBe(5);
+    expect(row.last_activity_date).toBe(today);
+    expect(row.streak_freeze_tokens).toBe(0);
+    expect(row.xp_credited).toBe(10);
+  });
+
+  it("reaches streak 3 for 22:00 then 09:00 then 09:00 at UTC+2 with spaced now()", () => {
+    const offset = 120;
+    const d0 = "2026-06-10";
+    const d1 = addDays(d0, 1);
+    const d2 = addDays(d0, 2);
+
+    setXpNow(replica, utcIsoFromLocal(d0, 22, offset));
+    const first = awardXp(replica, USER_A, 10, "create_note", { entityId: "n0", localDay: d0 });
+    expect(first.current_streak).toBe(1);
+    expect(first.last_activity_date).toBe(d0);
+
+    setXpNow(replica, utcIsoFromLocal(d1, 9, offset));
+    const second = awardXp(replica, USER_A, 10, "create_note", { entityId: "n1", localDay: d1 });
+    expect(second.current_streak).toBe(2);
+    expect(second.last_activity_date).toBe(d1);
+
+    setXpNow(replica, utcIsoFromLocal(d2, 9, offset));
+    const third = awardXp(replica, USER_A, 10, "create_note", { entityId: "n2", localDay: d2 });
+    expect(third.current_streak).toBe(3);
+    expect(third.last_activity_date).toBe(d2);
   });
 
   it("clamps a crafted p_delta to the server action value", () => {
@@ -412,92 +505,111 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
   });
 
   it("advances the streak to 3 with two sessions a day on 3 consecutive days", () => {
-    const today = replica.exec("SELECT (now() AT TIME ZONE 'UTC')::date").trim();
-    const d1 = replica.exec("SELECT ((now() AT TIME ZONE 'UTC')::date - 2)").trim();
-    const d2 = replica.exec("SELECT ((now() AT TIME ZONE 'UTC')::date - 1)").trim();
-
-    replica.exec(`
-      INSERT INTO public.xp_events (user_id, action, entity_id, xp, local_day, created_at)
-      VALUES
-        ('${USER_A}', 'create_note', '', 10, '${d1}', now() - interval '50 hours'),
-        ('${USER_A}', 'create_note', '', 10, '${d1}', now() - interval '49 hours');
-      UPDATE public.user_profiles
-      SET last_activity_date = '${d1}'::date,
-          current_streak = 1,
-          longest_streak = 1,
-          total_xp = 20
-      WHERE id = '${USER_A}';
-    `);
-
-    const day2a = awardXp(replica, USER_A, 10, "create_note", { localDay: d2 });
-    expect(day2a.current_streak).toBe(2);
-    const day2b = awardXp(replica, USER_A, 10, "create_note", { localDay: d2 });
-    expect(day2b.current_streak).toBe(2);
-
-    replica.exec(`
-      UPDATE public.xp_events
-      SET created_at = now() - interval '21 hours'
-      WHERE user_id = '${USER_A}'
-        AND local_day = '${d2}'::date
-        AND created_at = (
-          SELECT min(e.created_at) FROM public.xp_events AS e
-          WHERE e.user_id = '${USER_A}' AND e.local_day = '${d2}'::date
-        );
-    `);
-
-    const day3a = awardXp(replica, USER_A, 10, "create_note", { localDay: today });
-    expect(day3a.current_streak).toBe(3);
-    const day3b = awardXp(replica, USER_A, 10, "create_note", { localDay: today });
-    expect(day3b.current_streak).toBe(3);
+    const offset = 0;
+    const d0 = "2026-06-10";
+    const days = [d0, addDays(d0, 1), addDays(d0, 2)];
+    let streak = 0;
+    for (let i = 0; i < days.length; i += 1) {
+      const day = days[i];
+      setXpNow(replica, utcIsoFromLocal(day, 9, offset));
+      const morning = awardXp(replica, USER_A, 10, "create_note", {
+        entityId: `m${i}`,
+        localDay: day,
+      });
+      streak += 1;
+      expect(morning.current_streak).toBe(streak);
+      setXpNow(replica, utcIsoFromLocal(day, 21, offset));
+      const evening = awardXp(replica, USER_A, 10, "create_note", {
+        entityId: `e${i}`,
+        localDay: day,
+      });
+      expect(evening.current_streak).toBe(streak);
+      expect(evening.last_activity_date).toBe(day);
+    }
   });
 
-  it("reaches streak 3 for 22:00 then 09:00 then 09:00 across three local days", () => {
-    const d1 = replica.exec("SELECT ((now() AT TIME ZONE 'UTC')::date - 2)").trim();
-    const d2 = replica.exec("SELECT ((now() AT TIME ZONE 'UTC')::date - 1)").trim();
-    const d3 = replica.exec("SELECT (now() AT TIME ZONE 'UTC')::date").trim();
-
-    replica.exec(`
-      INSERT INTO public.xp_events (user_id, action, entity_id, xp, local_day, created_at)
-      VALUES
-        ('${USER_A}', 'create_note', '', 10, '${d1}', now() - interval '35 hours'),
-        ('${USER_A}', 'create_note', '', 10, '${d2}', now() - interval '24 hours');
-      UPDATE public.user_profiles
-      SET last_activity_date = '${d1}'::date,
-          current_streak = 1,
-          longest_streak = 1,
-          total_xp = 20
-      WHERE id = '${USER_A}';
-    `);
-
-    const third = awardXp(replica, USER_A, 10, "create_note", { localDay: d3 });
-    expect(third.current_streak).toBe(3);
-    expect(third.last_activity_date).toBe(d3);
+  it("reaches streak 3 for a user at UTC+14 and a user at UTC-12 over 3 days", () => {
+    resetUser(replica, USER_B);
+    const d0 = "2026-06-10";
+    const plus14 = 840;
+    const minus12 = -720;
+    for (let i = 0; i < 3; i += 1) {
+      const day = addDays(d0, i);
+      setXpNow(replica, utcIsoFromLocal(day, 12, plus14));
+      const east = awardXp(replica, USER_A, 10, "create_note", { entityId: `e${i}`, localDay: day });
+      expect(east.current_streak).toBe(i + 1);
+      setXpNow(replica, utcIsoFromLocal(day, 12, minus12));
+      const west = awardXp(replica, USER_B, 10, "create_note", { entityId: `w${i}`, localDay: day });
+      expect(west.current_streak).toBe(i + 1);
+    }
   });
 
-  it("holds the streak when the next local day is under 20h from the first claim", () => {
-    const yesterday = replica.exec("SELECT ((now() AT TIME ZONE 'UTC')::date - 1)").trim();
-    const today = replica.exec("SELECT (now() AT TIME ZONE 'UTC')::date").trim();
+  it("keeps the streak across a DST shift of +1h", () => {
+    const d0 = "2026-06-10";
+    const offsets = [120, 180, 180];
+    for (let i = 0; i < 3; i += 1) {
+      const day = addDays(d0, i);
+      setXpNow(replica, utcIsoFromLocal(day, 12, offsets[i]));
+      const row = awardXp(replica, USER_A, 10, "create_note", { entityId: `dst${i}`, localDay: day });
+      expect(row.current_streak).toBe(i + 1);
+    }
+  });
 
-    replica.exec(`
-      INSERT INTO public.xp_events (user_id, action, entity_id, xp, local_day, created_at)
-      VALUES ('${USER_A}', 'create_note', '', 10, '${yesterday}', now() - interval '11 hours');
-      UPDATE public.user_profiles
-      SET last_activity_date = '${yesterday}'::date,
-          current_streak = 1,
-          longest_streak = 1,
-          total_xp = 10
-      WHERE id = '${USER_A}';
-    `);
+  it("loses at most one advance on a +9h travel jump and never resets", () => {
+    const d0 = "2026-06-10";
+    const home = 60;
+    const away = 60 + 540;
+    for (let i = 0; i < 3; i += 1) {
+      const day = addDays(d0, i);
+      setXpNow(replica, utcIsoFromLocal(day, 12, home));
+      const row = awardXp(replica, USER_A, 10, "create_note", { entityId: `h${i}`, localDay: day });
+      expect(row.current_streak).toBe(i + 1);
+    }
+    const jumpDay = addDays(d0, 3);
+    setXpNow(replica, utcIsoFromLocal(jumpDay, 12, away));
+    const jump = awardXp(replica, USER_A, 10, "create_note", { entityId: "jump", localDay: jumpDay });
+    expect(jump.xp_credited).toBe(10);
+    expect(jump.current_streak).toBeGreaterThanOrEqual(3);
+    expect(jump.current_streak).toBeLessThanOrEqual(4);
+    expect(jump.current_streak).not.toBe(1);
+    expect(jump.last_activity_date).toBe(jumpDay);
 
-    const held = awardXp(replica, USER_A, 10, "create_note", { localDay: today });
-    expect(held.current_streak).toBe(1);
-    expect(held.last_activity_date).toBe(yesterday);
-    const todayEvents = replica
-      .exec(
-        `SELECT count(*) FROM public.xp_events WHERE user_id = '${USER_A}' AND local_day = '${today}'::date`,
-      )
-      .trim();
-    expect(Number(todayEvents)).toBe(1);
+    const nextDay = addDays(d0, 4);
+    setXpNow(replica, utcIsoFromLocal(nextDay, 12, away));
+    const after = awardXp(replica, USER_A, 10, "create_note", { entityId: "after", localDay: nextDay });
+    expect(after.current_streak).toBeGreaterThanOrEqual(jump.current_streak);
+    expect(after.current_streak).not.toBe(1);
+    expect(after.last_activity_date).toBe(nextDay);
+  });
+
+  it("lets authenticated update username, theme_preference and auto_create_reading_tasks", () => {
+    replica.execAs(
+      USER_A,
+      `UPDATE public.user_profiles
+       SET username = 'qa-user',
+           theme_preference = 'dark',
+           auto_create_reading_tasks = false
+       WHERE id = '${USER_A}'`,
+    );
+    const row = replica.jsonAs<{
+      username: string;
+      theme_preference: string;
+      auto_create_reading_tasks: boolean;
+    }>(
+      USER_A,
+      `SELECT username, theme_preference, auto_create_reading_tasks
+       FROM public.user_profiles WHERE id = '${USER_A}'`,
+    );
+    expect(row.username).toBe("qa-user");
+    expect(row.theme_preference).toBe("dark");
+    expect(row.auto_create_reading_tasks).toBe(false);
+
+    expect(() =>
+      replica.execAs(
+        USER_A,
+        `UPDATE public.user_profiles SET streak_tz_lo_min = 0, streak_tz_hi_min = 0 WHERE id = '${USER_A}'`,
+      ),
+    ).toThrow(/permission denied|must be owner/i);
   });
 
   it("denies a direct INSERT into user_profiles by authenticated", () => {
