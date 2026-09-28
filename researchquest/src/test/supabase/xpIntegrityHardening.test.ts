@@ -232,6 +232,24 @@ describe("1765800000 xp integrity hardening (static)", () => {
     expect(sql).toMatch(/CHECK\s*\(\s*rest_days\s*>=\s*0\s*\)\s*NOT\s+VALID/i);
   });
 
+  it("revokes TRUNCATE/TRIGGER/REFERENCES and user_profiles DELETE from anon and authenticated", () => {
+    expect(sql).toMatch(
+      /REVOKE\s+TRUNCATE\s*,\s*TRIGGER\s*,\s*REFERENCES\s+ON\s+ALL\s+TABLES\s+IN\s+SCHEMA\s+public\s+FROM\s+anon\s*,\s*authenticated/i,
+    );
+    expect(sql).toMatch(
+      /REVOKE\s+DELETE\s+ON\s+TABLE\s+public\.user_profiles\s+FROM\s+anon\s*,\s*authenticated/i,
+    );
+    expect(sql).toMatch(
+      /ALTER\s+DEFAULT\s+PRIVILEGES[\s\S]*REVOKE\s+TRUNCATE\s*,\s*TRIGGER\s*,\s*REFERENCES\s+ON\s+TABLES\s+FROM\s+anon\s*,\s*authenticated/i,
+    );
+    expect(raw).toMatch(
+      /GRANT\s+TRUNCATE\s*,\s*TRIGGER\s*,\s*REFERENCES\s+ON\s+ALL\s+TABLES\s+IN\s+SCHEMA\s+public[\s\S]*TO\s+anon\s*,\s*authenticated/i,
+    );
+    expect(raw).toMatch(
+      /GRANT\s+DELETE\s+ON\s+TABLE\s+public\.user_profiles\s+TO\s+anon\s*,\s*authenticated/i,
+    );
+  });
+
   it("counts insights with NULLIF(btrim(key_insights),'') and has no explicit BEGIN/COMMIT", () => {
     expect(sql).toMatch(
       /NULLIF\s*\(\s*btrim\s*\(\s*p\.key_insights\s*\)\s*,\s*''\s*\)\s*IS\s+NOT\s+NULL/i,
@@ -422,7 +440,7 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
     expect([s1.current_streak, s2.current_streak, s3.current_streak]).toEqual([1, 1, 1]);
   });
 
-  it("X4: 61-minute D-1/D/D-1/D+1 variant must not exceed streak 1", () => {
+  it("X4: 61-minute D-1/D midnight-minute may +1 once; D+1 empty so no second advance", () => {
     const d0 = "2026-09-28";
     const minus = "2026-09-27";
     const plus = "2026-09-29";
@@ -441,14 +459,57 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
     expect(s2.xp_credited).toBe(10);
     expect(s3.xp_credited).toBe(10);
     expect(s4.xp_credited).toBe(10);
-    const peak = Math.max(
-      s1.current_streak,
-      s2.current_streak,
-      s3.current_streak,
-      s4.current_streak,
-    );
-    expect(peak).toBeLessThanOrEqual(1);
-    expect(s4.current_streak).toBeLessThanOrEqual(1);
+    // Inclusive midnight minute can +1 on D-1→D. Same-instant bursts stay
+    // capped because those intersections are empty (n_lo > n_hi), not a
+    // shared minute. D+1 at 12:00 must not add a second advance.
+    expect(s2.current_streak).toBeLessThanOrEqual(2);
+    expect(s4.current_streak).toBe(s2.current_streak);
+  });
+
+  it("midnight-minute UTC+2 [30,120] at 22:00:30Z increments +1", () => {
+    setXpNow(replica, "2026-06-10T21:00:00.000Z");
+    replica.exec(`
+      UPDATE public.user_profiles
+      SET last_activity_date = '2026-06-10'::date,
+          current_streak = 1,
+          longest_streak = 1,
+          streak_tz_lo_min = 30,
+          streak_tz_hi_min = 120,
+          streak_tz_set_at = public.xp_server_now(),
+          total_xp = 10
+      WHERE id = '${USER_A}';
+    `);
+    setXpNow(replica, "2026-06-10T22:00:30.000Z");
+    const row = awardXp(replica, USER_A, 10, "create_note", {
+      entityId: "mid-utc2",
+      localDay: "2026-06-11",
+    });
+    expect(row.xp_credited).toBe(10);
+    expect(row.current_streak).toBe(2);
+    expect(row.last_activity_date).toBe("2026-06-11");
+  });
+
+  it("midnight-minute UTC+14 [780,840] at 10:00:30Z increments +1", () => {
+    setXpNow(replica, "2026-06-11T09:00:00.000Z");
+    replica.exec(`
+      UPDATE public.user_profiles
+      SET last_activity_date = '2026-06-11'::date,
+          current_streak = 1,
+          longest_streak = 1,
+          streak_tz_lo_min = 780,
+          streak_tz_hi_min = 840,
+          streak_tz_set_at = public.xp_server_now(),
+          total_xp = 10
+      WHERE id = '${USER_A}';
+    `);
+    setXpNow(replica, "2026-06-11T10:00:30.000Z");
+    const row = awardXp(replica, USER_A, 10, "create_note", {
+      entityId: "mid-utc14",
+      localDay: "2026-06-12",
+    });
+    expect(row.xp_credited).toBe(10);
+    expect(row.current_streak).toBe(2);
+    expect(row.last_activity_date).toBe("2026-06-12");
   });
 
   it("X5: streak 30 last=09-18, claim 09-27 then 09-28 at 12:30 resets to 1", () => {
@@ -970,5 +1031,24 @@ describe.skipIf(!PG17_AVAILABLE)("1765800000 xp integrity hardening (PG17 replic
          VALUES ('${USER_A}', 'first_paper', 'x')`,
       ),
     ).toThrow(/permission denied/i);
+  });
+
+  it("denies authenticated TRUNCATE of user_profiles, research_achievements and xp_events, and DELETE from user_profiles", () => {
+    expect(() => replica.execAs(USER_A, "TRUNCATE public.user_profiles")).toThrow(
+      /42501|permission denied/i,
+    );
+    expect(() => replica.execAs(USER_A, "TRUNCATE public.research_achievements")).toThrow(
+      /42501|permission denied/i,
+    );
+    expect(() => replica.execAs(USER_A, "TRUNCATE public.xp_events")).toThrow(
+      /42501|permission denied/i,
+    );
+    expect(() =>
+      replica.execAs(USER_A, `DELETE FROM public.user_profiles WHERE id = '${USER_A}'`),
+    ).toThrow(/42501|permission denied/i);
+    const stillThere = replica
+      .exec(`SELECT count(*) FROM public.user_profiles WHERE id = '${USER_A}'`)
+      .trim();
+    expect(Number(stillThere)).toBe(1);
   });
 });
