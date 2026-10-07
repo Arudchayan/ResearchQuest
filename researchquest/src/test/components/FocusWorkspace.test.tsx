@@ -9,9 +9,10 @@ import {
   useFocusHydrateEpoch,
 } from "../../components/focus/focusSessionGuard";
 
-const { supabaseInsert, completeTaskMock } = vi.hoisted(() => ({
+const { supabaseInsert, completeTaskMock, taskDueFixture } = vi.hoisted(() => ({
   supabaseInsert: vi.fn().mockResolvedValue({ error: null }),
   completeTaskMock: vi.fn().mockResolvedValue(true),
+  taskDueFixture: { due_date: "2026-09-28" },
 }));
 
 vi.mock("../../lib/supabase", () => ({
@@ -73,7 +74,7 @@ vi.mock("../../hooks/useTasks", () => ({
         id: "task-1",
         title: "Gym",
         completed: false,
-        due_date: new Date().toISOString().slice(0, 10),
+        due_date: taskDueFixture.due_date,
       },
     ],
     loading: false,
@@ -112,6 +113,7 @@ describe("FocusWorkspace", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
+    taskDueFixture.due_date = "2026-09-28";
     window.localStorage.clear();
     // The live timer store is a module singleton: reset it so each test
     // starts from a clean slate (localStorage.clear alone cannot).
@@ -1243,6 +1245,19 @@ describe("FocusWorkspace", () => {
 
     expect(screen.getByText("Colophon")).toBeInTheDocument();
     expect(screen.getByText(/25 MIN · \+75 XP/)).toBeInTheDocument();
+  });
+
+  it("formats a date-only Focus due line without a UTC midnight time", () => {
+    render(<FocusWorkspace userId={userId} />);
+    fireEvent.click(screen.getByText("Gym"));
+    const dueLine = screen.getByText(/^Due /);
+    const expected = new Date(2026, 8, 28).toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+    });
+    expect(dueLine.textContent).toBe(`Due ${expected}`);
+    expect(dueLine.textContent).not.toMatch(/\d{1,2}:\d{2}/);
+    expect(dueLine.textContent).not.toMatch(/\b(?:AM|PM)\b/i);
   });
 
   it("offers Mark task done after a task session completes", async () => {

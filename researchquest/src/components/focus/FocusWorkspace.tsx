@@ -39,6 +39,7 @@ import {
 import { toast } from "sonner";
 import { supabase } from "../../lib/supabase";
 import { logger } from "../../utils/logger";
+import { formatDueCaption, formatDueDate } from "../../utils/time";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader } from "../ui/card";
@@ -478,12 +479,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
       taskItems.push({
         id: task.id,
         title: task.title,
-        meta: task.due_date
-          ? new Date(task.due_date).toLocaleString(undefined, {
-              month: "short",
-              day: "numeric",
-            })
-          : "Today",
+        meta: task.due_date ? formatDueDate(task.due_date) : "Today",
       });
     }
     for (let i = 0; i < tasks.length; i++) {
@@ -493,12 +489,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
       taskItems.push({
         id: task.id,
         title: task.title,
-        meta: task.due_date
-          ? new Date(task.due_date).toLocaleString(undefined, {
-              month: "short",
-              day: "numeric",
-            })
-          : "No due date",
+        meta: task.due_date ? formatDueDate(task.due_date) : "No due date",
       });
     }
 
@@ -1057,21 +1048,7 @@ export function FocusWorkspace({ userId }: FocusWorkspaceProps) {
                       {selectedTarget?.type === "paper" &&
                         (selectedItem as Paper).status}
                       {selectedTarget?.type === "task" &&
-                        (() => {
-                          const dueDate = (selectedItem as Task).due_date;
-                          if (!dueDate) {
-                            return "No due date";
-                          }
-                          return `Due ${new Date(dueDate).toLocaleString(
-                            undefined,
-                            {
-                              month: "short",
-                              day: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            },
-                          )}`;
-                        })()}
+                        formatDueCaption((selectedItem as Task).due_date)}
                     </div>
                     <Button
                       type="button"
