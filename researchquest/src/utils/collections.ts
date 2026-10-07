@@ -38,6 +38,20 @@ export function preferNewerByUpdatedAt<T extends { id: string; updated_at: strin
  * Gets the top N items from an array in a single O(N) pass without sorting the entire array.
  * Useful for widgets that only need to display a small slice of a large collection.
  */
+/** Append `id` to a link list, skipping blanks and duplicates. */
+export function appendUniqueId(
+  ids: readonly string[] | undefined,
+  id: string,
+): { next: string[]; changed: boolean } {
+  if (!id) {
+    return { next: ids ? [...ids] : [], changed: false };
+  }
+  if (ids?.includes(id)) {
+    return { next: [...ids], changed: false };
+  }
+  return { next: [...(ids ?? []), id], changed: true };
+}
+
 export function getTopN<T>(
   items: T[],
   limit: number,
