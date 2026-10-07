@@ -3,6 +3,7 @@ import { EyeOpenIcon, EyeClosedIcon } from "@radix-ui/react-icons";
 import { FlaskConical } from "lucide-react";
 import { DEMO_DATA_BADGE_LABEL, demoEntryPath } from "../../lib/demoEntry";
 import { enableDemoModeAndReload, supabase } from "../../lib/supabase";
+import { toFriendlyAuthError } from "../../utils/errors";
 
 type AuthMessage = {
   readonly type: "success" | "error";
@@ -10,6 +11,34 @@ type AuthMessage = {
 } | null;
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const EMAIL_REQUIRED_MESSAGE = "Enter your email address.";
+const EMAIL_INVALID_MESSAGE = "Enter a valid email address.";
+const PASSWORD_REQUIRED_MESSAGE = "Enter your password.";
+const SIGN_IN_ERROR_FALLBACK = "Unable to sign in. Please try again.";
+const RESET_ERROR_FALLBACK = "Unable to send password reset email.";
+
+type AuthFieldErrors = {
+  emailError: string | null;
+  passwordError: string | null;
+};
+
+function emailErrorFromValue(email: string, requireValue: boolean): string | null {
+  const trimmed = email.trim();
+  if (!trimmed) {
+    return requireValue ? EMAIL_REQUIRED_MESSAGE : null;
+  }
+  if (!EMAIL_REGEX.test(trimmed)) {
+    return EMAIL_INVALID_MESSAGE;
+  }
+  return null;
+}
+
+function getAuthFieldErrors(email: string, password: string): AuthFieldErrors {
+  return {
+    emailError: emailErrorFromValue(email, true),
+    passwordError: password.length === 0 ? PASSWORD_REQUIRED_MESSAGE : null,
+  };
+}
 
 export function AuthScreen() {
   const [email, setEmail] = useState("");
@@ -19,23 +48,24 @@ export function AuthScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState<AuthMessage>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
 
   const emailRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
   const messageId = "auth-message";
   const emailErrorId = "auth-email-error";
+  const passwordErrorId = "auth-password-error";
 
   useEffect(() => {
     emailRef.current?.focus();
   }, []);
 
   const validateEmail = useCallback((value: string): boolean => {
-    if (value.length > 0 && !EMAIL_REGEX.test(value)) {
-      setEmailError("Enter a valid email address.");
-      return false;
-    }
-    setEmailError(null);
-    return true;
-  }, []);
+    const requireValue = emailError === EMAIL_REQUIRED_MESSAGE;
+    const next = emailErrorFromValue(value, requireValue);
+    setEmailError(next);
+    return next === null;
+  }, [emailError]);
 
   const handleEmailBlur = useCallback(() => {
     validateEmail(email);
@@ -54,9 +84,15 @@ export function AuthScreen() {
 
   const handlePasswordChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      setPassword(e.target.value);
+      const value = e.target.value;
+      setPassword(value);
+      if (passwordError !== null) {
+        setPasswordError(
+          value.length === 0 ? PASSWORD_REQUIRED_MESSAGE : null,
+        );
+      }
     },
-    [],
+    [passwordError],
   );
 
   const handleAuth = useCallback(
@@ -64,7 +100,16 @@ export function AuthScreen() {
       e.preventDefault();
       setMessage(null);
 
-      if (!validateEmail(email)) {
+      const nextErrors = getAuthFieldErrors(email, password);
+      setEmailError(nextErrors.emailError);
+      setPasswordError(nextErrors.passwordError);
+
+      if (nextErrors.emailError || nextErrors.passwordError) {
+        if (nextErrors.emailError) {
+          emailRef.current?.focus();
+        } else {
+          passwordRef.current?.focus();
+        }
         return;
       }
 
@@ -72,37 +117,31 @@ export function AuthScreen() {
 
       try {
         const { error } = await supabase.auth.signInWithPassword({
-          email,
+          email: email.trim(),
           password,
         });
         if (error) throw error;
       } catch (error: unknown) {
-        const errMsg =
-          error instanceof Error ? error.message : "An error occurred";
-        let displayMsg = errMsg;
-        if (errMsg.includes("Invalid login credentials")) {
-          displayMsg = "Invalid email or password. Please try again.";
-        } else if (errMsg.includes("Email not confirmed")) {
-          displayMsg =
-            "Please confirm your email address before signing in.";
-        }
-        setMessage({ type: "error", text: displayMsg });
+        setMessage({
+          type: "error",
+          text: toFriendlyAuthError(error, SIGN_IN_ERROR_FALLBACK),
+        });
       } finally {
         setLoading(false);
       }
     },
-    [email, password, validateEmail],
+    [email, password],
   );
 
   const handlePasswordReset = useCallback(async () => {
-    if (!email) {
+    if (!email.trim()) {
       setMessage({
         type: "error",
         text: "Enter your email address to receive a reset link.",
       });
       return;
     }
-    if (!EMAIL_REGEX.test(email)) {
+    if (!EMAIL_REGEX.test(email.trim())) {
       setMessage({
         type: "error",
         text: "Enter a valid email address to receive a reset link.",
@@ -114,18 +153,17 @@ export function AuthScreen() {
     setMessage(null);
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
       if (error) throw error;
       setMessage({
         type: "success",
         text: "Password reset link sent! Check your email to continue.",
       });
     } catch (error: unknown) {
-      const errMsg =
-        error instanceof Error
-          ? error.message
-          : "Unable to send password reset email.";
-      setMessage({ type: "error", text: errMsg });
+      setMessage({
+        type: "error",
+        text: toFriendlyAuthError(error, RESET_ERROR_FALLBACK),
+      });
     } finally {
       setResetting(false);
     }
@@ -241,6 +279,7 @@ export function AuthScreen() {
             </label>
             <div className="relative">
               <input
+                ref={passwordRef}
                 id="auth-password"
                 type={showPassword ? "text" : "password"}
                 value={password}
@@ -248,6 +287,8 @@ export function AuthScreen() {
                 required
                 maxLength={100}
                 disabled={isBusy}
+                aria-describedby={passwordError ? passwordErrorId : undefined}
+                aria-invalid={passwordError ? true : undefined}
                 className="w-full px-4 py-2 bg-bg-base border border-border-moderate rounded-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 transition-shadow pr-10 disabled:opacity-50"
                 placeholder={"\u2022".repeat(8)}
               />
@@ -265,6 +306,15 @@ export function AuthScreen() {
                 )}
               </button>
             </div>
+            {passwordError && (
+              <p
+                id={passwordErrorId}
+                role="alert"
+                className="mt-1 text-caption text-warning"
+              >
+                {passwordError}
+              </p>
+            )}
             <button
               type="button"
               onClick={handlePasswordReset}
