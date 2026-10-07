@@ -273,4 +273,73 @@ describe("demoSupabase", () => {
     resetDemoTablesToSeed();
     clearPersistedDemoTables();
   });
+
+  it("supports PostgREST or() filters used by Load older and older-than", async () => {
+    resetDemoTablesToSeed();
+    const newer = await demoSupabase.from("feed_items").insert({
+      user_id: DEMO_USER_ID,
+      type: "paper",
+      title: "Newer",
+      payload: {},
+      status: "new",
+      published_at: "2026-09-20T12:00:00.000Z",
+      created_at: "2026-09-21T12:00:00.000Z",
+    }).select("id").single();
+    const older = await demoSupabase.from("feed_items").insert({
+      user_id: DEMO_USER_ID,
+      type: "paper",
+      title: "Older",
+      payload: {},
+      status: "new",
+      published_at: "2026-01-01T00:00:00.000Z",
+      created_at: "2026-01-02T00:00:00.000Z",
+    }).select("id").single();
+    const nullPublished = await demoSupabase.from("feed_items").insert({
+      user_id: DEMO_USER_ID,
+      type: "paper",
+      title: "Null published",
+      payload: {},
+      status: "new",
+      published_at: null,
+      created_at: "2026-01-03T00:00:00.000Z",
+    }).select("id").single();
+
+    const keyset = await demoSupabase
+      .from("feed_items")
+      .select("id, title")
+      .eq("user_id", DEMO_USER_ID)
+      .or(
+        [
+          'published_at.lt."2026-09-20T12:00:00.000Z"',
+          'and(published_at.eq."2026-09-20T12:00:00.000Z",created_at.lt."2026-09-21T12:00:00.000Z")',
+          `and(published_at.eq."2026-09-20T12:00:00.000Z",created_at.eq."2026-09-21T12:00:00.000Z",id.lt."${String(newer.data?.id)}")`,
+          "published_at.is.null",
+        ].join(","),
+      )
+      .order("published_at", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false });
+
+    expect(keyset.error).toBeNull();
+    const titles = (keyset.data as Array<{ title: string }>).map((row) => row.title);
+    expect(titles).toEqual(["Older", "Null published"]);
+    expect(titles).not.toContain("Newer");
+
+    const olderThan = await demoSupabase
+      .from("feed_items")
+      .select("id, title")
+      .or(
+        'published_at.lt."2026-02-01T00:00:00.000Z",and(published_at.is.null,created_at.lt."2026-02-01T00:00:00.000Z")',
+      );
+    const olderTitles = (olderThan.data as Array<{ title: string }>).map(
+      (row) => row.title,
+    );
+    expect(olderTitles).toContain("Older");
+    expect(olderTitles).toContain("Null published");
+    expect(olderTitles).not.toContain("Newer");
+    void older.data;
+    void nullPublished.data;
+
+    resetDemoTablesToSeed();
+    clearPersistedDemoTables();
+  });
 });

@@ -61,8 +61,8 @@ export function FeedSourcesPanel({ userId }: { userId: string | undefined }) {
             Sources
           </h2>
           <p className="mt-1 text-caption text-text-secondary">
-            Alpha: sources are tracked metadata only — no automatic ingest
-            runs yet. Triage stays manual.
+            Source records describe where your connected agent or API key
+            should pull from. Items still arrive even without a linked source.
           </p>
         </div>
         <button
