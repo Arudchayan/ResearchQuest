@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   demoSupabase,
   reloadDemoTablesFromStorage,
@@ -218,6 +218,71 @@ describe("demoSupabase", () => {
     expect(result.data?.data?.title).toBe("Attention Is All You Need");
     expect(result.data?.data?.doi).toBe("10.48550/arXiv.1706.03762");
     expect(result.data?.data?.title).not.toContain("Retrieval-Augmented");
+  });
+
+  describe("fetch-paper Crossref fallback", () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it("resolves a Crossref-registered DOI via api.crossref.org/works/{doi}", async () => {
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          status: "ok",
+          message: {
+            DOI: "10.1038/nature14539",
+            title: ["Deep learning"],
+            author: [
+              { given: "Yann", family: "LeCun" },
+              { given: "Yoshua", family: "Bengio" },
+              { given: "Geoffrey", family: "Hinton" },
+            ],
+            published: { "date-parts": [[2015, 5, 27]] },
+            URL: "https://doi.org/10.1038/nature14539",
+            "container-title": ["Nature"],
+            publisher: "Springer Nature",
+            type: "journal-article",
+          },
+        }),
+      });
+      vi.stubGlobal("fetch", fetchMock);
+
+      const result = await demoSupabase.functions.invoke("fetch-paper", {
+        body: { doi: "10.1038/nature14539" },
+      });
+
+      expect(result.error).toBeNull();
+      expect(result.data?.error).toBeNull();
+      expect(result.data?.data).toMatchObject({
+        doi: "10.1038/nature14539",
+        title: "Deep learning",
+        authors: ["Yann LeCun", "Yoshua Bengio", "Geoffrey Hinton"],
+        publicationDate: 2015,
+        containerTitle: "Nature",
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
+        "https://api.crossref.org/works/10.1038%2Fnature14539",
+      );
+    });
+
+    it("keeps a seeded arXiv DOI on the local catalog without calling Crossref", async () => {
+      const fetchMock = vi.fn();
+      vi.stubGlobal("fetch", fetchMock);
+
+      const result = await demoSupabase.functions.invoke("fetch-paper", {
+        body: { doi: "10.48550/arXiv.2210.03629" },
+      });
+
+      expect(result.error).toBeNull();
+      expect(result.data?.data?.title).toBe(
+        "ReAct: Synergizing Reasoning and Acting in Language Models",
+      );
+      expect(result.data?.data?.doi).toBe("10.48550/arXiv.2210.03629");
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
   });
 
   it("subscribes and emits realtime channel events", async () => {
