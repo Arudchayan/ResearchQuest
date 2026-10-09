@@ -1,4 +1,5 @@
-const ATLAS_ORIGIN = "https://learning-platform-chi-ten.vercel.app";
+export const ATLAS_ORIGIN = "https://lp.arudchayan.com";
+const RETIRED_ATLAS_ORIGIN = "https://learning-platform-chi-ten.vercel.app";
 // Leave room for the origin marker and exact URL in a 1000-character task description.
 const MAX_TRUSTED_URL_LENGTH = 900;
 const SHARED_LESSON_PATH = /^\/learn\/(?:analysis-1-lab|bioinformatics-algorithms-lab|drug-discovery-lab|multimedia-retrieval-lab|random-processes-lab|scientific-computing-ch1)\/[a-z0-9]+(?:-[a-z0-9]+)*\/$/;
@@ -23,9 +24,11 @@ export function trustedAtlasLessonUrl(value: string | null): string | null {
   if (!value) return null;
   try {
     const url = new URL(value);
-    if (url.origin !== ATLAS_ORIGIN || url.username || url.password) return null;
+    if ((url.origin !== ATLAS_ORIGIN && url.origin !== RETIRED_ATLAS_ORIGIN) || url.username || url.password) return null;
     if (url.href.length > MAX_TRUSTED_URL_LENGTH) return null;
     if (!SHARED_LESSON_PATH.test(url.pathname) && !APPROVED_LEGACY_PATHS.has(url.pathname)) return null;
+    // Existing saved tasks keep their text; their approved links open the current site.
+    url.hostname = new URL(ATLAS_ORIGIN).hostname;
     return url.href;
   } catch {
     return null;

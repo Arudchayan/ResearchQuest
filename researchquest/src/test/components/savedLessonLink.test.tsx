@@ -4,30 +4,43 @@ import { TaskCard } from "../../components/tasks/TaskCard";
 import { savedAtlasLessonUrl } from "../../components/tasks/savedLessonLink";
 import type { Task } from "../../types/database";
 
-const lessonUrl = "https://learning-platform-chi-ten.vercel.app/learn/drug-discovery-lab/model-and-evidence/";
+const lessonUrl = "https://lp.arudchayan.com/learn/drug-discovery-lab/model-and-evidence/";
 const description = `From Learning Platform\nSubject: Drug Discovery\nLesson: Model and evidence\nOpen lesson: ${lessonUrl}`;
 
 describe("saved Atlas lesson links", () => {
+  it("moves trusted retired-domain task links to the current domain without changing the saved description", () => {
+    const savedText = "From Learning Platform\nOpen lesson: https://learning-platform-chi-ten.vercel.app/learn/analysis-1-lab/sequence-convergence/?ref=notes#proof";
+    expect(savedAtlasLessonUrl(savedText)).toBe("https://lp.arudchayan.com/learn/analysis-1-lab/sequence-convergence/?ref=notes#proof");
+  });
+
   it("accepts an approved shared lesson and legacy subject page", () => {
     expect(savedAtlasLessonUrl(description)).toBe(lessonUrl);
-    const futureLesson = "https://learning-platform-chi-ten.vercel.app/learn/drug-discovery-lab/future-model-check/";
+    const futureLesson = "https://lp.arudchayan.com/learn/drug-discovery-lab/future-model-check/";
     expect(savedAtlasLessonUrl(`From Learning Platform\nOpen lesson: ${futureLesson}`)).toBe(futureLesson);
-    expect(savedAtlasLessonUrl("From Learning Platform\nOpen lesson: https://learning-platform-chi-ten.vercel.app/random-processes-lab/?page=markov"))
-      .toBe("https://learning-platform-chi-ten.vercel.app/random-processes-lab/?page=markov");
-    expect(savedAtlasLessonUrl("From Learning Platform\nOpen lesson: https://learning-platform-chi-ten.vercel.app/analysis-1-lab/reader.html#page=1"))
-      .toBe("https://learning-platform-chi-ten.vercel.app/analysis-1-lab/reader.html#page=1");
-    expect(savedAtlasLessonUrl("From Learning Platform\nOpen lesson: https://learning-platform-chi-ten.vercel.app/scientific-computing-ch1/index.html"))
-      .toBe("https://learning-platform-chi-ten.vercel.app/scientific-computing-ch1/index.html");
+    expect(savedAtlasLessonUrl("From Learning Platform\nOpen lesson: https://lp.arudchayan.com/random-processes-lab/?page=markov"))
+      .toBe("https://lp.arudchayan.com/random-processes-lab/?page=markov");
+    expect(savedAtlasLessonUrl("From Learning Platform\nOpen lesson: https://lp.arudchayan.com/analysis-1-lab/reader.html#page=1"))
+      .toBe("https://lp.arudchayan.com/analysis-1-lab/reader.html#page=1");
+    expect(savedAtlasLessonUrl("From Learning Platform\nOpen lesson: https://lp.arudchayan.com/scientific-computing-ch1/index.html"))
+      .toBe("https://lp.arudchayan.com/scientific-computing-ch1/index.html");
   });
 
   it("rejects external origins, lookalike domains, unapproved paths, and ordinary task text", () => {
+    const withCredentials = new URL(lessonUrl);
+    withCredentials.username = "test-user";
+    withCredentials.password = "test-password";
     for (const url of [
       "https://evil.example/learn/drug-discovery-lab/model-and-evidence/",
+      "https://lp.arudchayan.com.evil.example/learn/drug-discovery-lab/model-and-evidence/",
       "https://learning-platform-chi-ten.vercel.app.evil.example/learn/drug-discovery-lab/model-and-evidence/",
+      "http://lp.arudchayan.com/learn/drug-discovery-lab/model-and-evidence/",
+      "https://lp.arudchayan.com:444/learn/drug-discovery-lab/model-and-evidence/",
+      withCredentials.href,
       "https://learning-platform-chi-ten.vercel.app/admin/",
-      "https://learning-platform-chi-ten.vercel.app/learn/drug-discovery-lab/Bad_Slug/",
-      "https://learning-platform-chi-ten.vercel.app/learn/drug-discovery-lab/future-model-check/admin/",
-      "https://learning-platform-chi-ten.vercel.app/learn/drug-discovery-lab/../admin/",
+      "https://lp.arudchayan.com/admin/",
+      "https://lp.arudchayan.com/learn/drug-discovery-lab/Bad_Slug/",
+      "https://lp.arudchayan.com/learn/drug-discovery-lab/future-model-check/admin/",
+      "https://lp.arudchayan.com/learn/drug-discovery-lab/../admin/",
       "javascript:alert(1)",
     ]) {
       expect(savedAtlasLessonUrl(`From Learning Platform\nOpen lesson: ${url}`)).toBeNull();

@@ -6,6 +6,15 @@ import {
 import { savedAtlasLessonUrl } from "../../components/tasks/savedLessonLink";
 
 describe("learning task handoff", () => {
+  it("normalizes a retired-domain draft return link to the current domain", () => {
+    const retired = "https://learning-platform-chi-ten.vercel.app/analysis-1-lab/reader.html#page=17";
+    const url = new URL("https://rq.arudchayan.com/tasks?source=learning-platform&title=Read&lessonUrl=" + encodeURIComponent(retired));
+    const draft = readLearningTaskHandoff(url);
+    expect(draft?.lessonUrl).toBe("https://lp.arudchayan.com/analysis-1-lab/reader.html#page=17");
+    expect(draft?.description).toContain("Open lesson: https://lp.arudchayan.com/analysis-1-lab/reader.html#page=17");
+    expect(draft?.description).not.toContain("learning-platform-chi-ten.vercel.app");
+  });
+
   it("prefills an editable draft and consumes only handoff fields", () => {
     const url = new URL("https://researchquest.example/tasks?source=learning-platform&subject=Biology&lesson=Cells&title=Review%20cell%20structure&tab=mine#today");
     expect(readLearningTaskHandoff(url)).toEqual({
@@ -36,7 +45,7 @@ describe("learning task handoff", () => {
   });
 
   it("links back to a trusted exact lesson and removes the handoff URL field", () => {
-    const lessonUrl = "https://learning-platform-chi-ten.vercel.app/learn/multimedia-retrieval-lab/boolean-retrieval/";
+    const lessonUrl = "https://lp.arudchayan.com/learn/multimedia-retrieval-lab/boolean-retrieval/";
     const url = new URL("https://researchquest.example/tasks?source=learning-platform&title=Explore&lessonUrl=" + encodeURIComponent(lessonUrl) + "&tab=mine");
     expect(readLearningTaskHandoff(url)?.lessonUrl).toBe(lessonUrl);
     expect(readLearningTaskHandoff(url)?.description).toContain("Open lesson: " + lessonUrl);
@@ -44,7 +53,7 @@ describe("learning task handoff", () => {
   });
 
   it("accepts the new Drug Discovery shared lesson as an exact return URL", () => {
-    const lessonUrl = "https://learning-platform-chi-ten.vercel.app/learn/drug-discovery-lab/model-and-evidence/";
+    const lessonUrl = "https://lp.arudchayan.com/learn/drug-discovery-lab/model-and-evidence/";
     const url = new URL("https://researchquest.example/tasks?source=learning-platform&title=Practice&lessonUrl=" + encodeURIComponent(lessonUrl));
     expect(readLearningTaskHandoff(url)?.lessonUrl).toBe(lessonUrl);
   });
@@ -55,15 +64,15 @@ describe("learning task handoff", () => {
   });
 
   it("uses the saved-link allowlist for draft return links", () => {
-    const legacy = "https://learning-platform-chi-ten.vercel.app/analysis-1-lab/reader.html#page=17";
+    const legacy = "https://lp.arudchayan.com/analysis-1-lab/reader.html#page=17";
     const valid = new URL("https://researchquest.example/tasks?source=learning-platform&title=Read&lessonUrl=" + encodeURIComponent(legacy));
     expect(readLearningTaskHandoff(valid)?.lessonUrl).toBe(legacy);
 
     for (const unsafe of [
-      "https://learning-platform-chi-ten.vercel.app/admin/",
-      "https://learning-platform-chi-ten.vercel.app/learn/analysis-1-lab/sequence-convergence/admin/",
-      "https://learning-platform-chi-ten.vercel.app/learn/analysis-1-lab/Bad_Slug/",
-      "https://learning-platform-chi-ten.vercel.app.evil.example/learn/analysis-1-lab/sequence-convergence/",
+      "https://lp.arudchayan.com/admin/",
+      "https://lp.arudchayan.com/learn/analysis-1-lab/sequence-convergence/admin/",
+      "https://lp.arudchayan.com/learn/analysis-1-lab/Bad_Slug/",
+      "https://lp.arudchayan.com.evil.example/learn/analysis-1-lab/sequence-convergence/",
     ]) {
       const url = new URL("https://researchquest.example/tasks?source=learning-platform&title=Read&lessonUrl=" + encodeURIComponent(unsafe));
       expect(readLearningTaskHandoff(url)?.lessonUrl).toBeNull();
@@ -72,7 +81,7 @@ describe("learning task handoff", () => {
   });
 
   it("bounds maximum handoff text and preserves the exact trusted return URL", () => {
-    const lessonUrl = "https://learning-platform-chi-ten.vercel.app/learn/analysis-1-lab/sequence-convergence/?ref=" + "x".repeat(700);
+    const lessonUrl = "https://lp.arudchayan.com/learn/analysis-1-lab/sequence-convergence/?ref=" + "x".repeat(700);
     const url = new URL("https://researchquest.example/tasks");
     url.searchParams.set("source", "learning-platform");
     url.searchParams.set("title", "T".repeat(200));
