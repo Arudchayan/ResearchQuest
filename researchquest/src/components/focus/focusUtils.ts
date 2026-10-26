@@ -15,6 +15,7 @@ export type CollapsedGroups = Record<FocusEntityType, boolean>;
 export type CollapsiblePanel = "suggestions";
 
 export const FOCUS_SESSION_STORAGE_KEY = "rq_focus_session";
+export const FOCUS_TIMER_STORAGE_KEY = "researchquest-focus-timer";
 
 export interface FocusSessionSnapshot {
   version: 1;
@@ -144,14 +145,73 @@ export function saveFocusSession(snapshot: FocusSessionSnapshot): void {
   );
 }
 
+function remainingSecondsFromPersistState(
+  state: {
+    status?: unknown;
+    deadlineMs?: unknown;
+    remainingSec?: unknown;
+  },
+  now: number,
+): number {
+  if (
+    state.status === "running" &&
+    typeof state.deadlineMs === "number"
+  ) {
+    return Math.max(0, Math.ceil((state.deadlineMs - now) / 1000));
+  }
+  if (typeof state.remainingSec === "number") {
+    return Math.max(0, Math.floor(state.remainingSec));
+  }
+  return 0;
+}
+
+/**
+ * New-document boot rewrite of the zustand persist key. 9ae5ce7 made
+ * `researchquest-focus-timer` the live authority; pausing only
+ * `rq_focus_session` left a running deadline that auto-ticked after
+ * Ctrl+Shift+R. Empty persist storage stays empty.
+ */
+export function rewritePersistedFocusTimerPaused(
+  now = Date.now(),
+): void {
+  if (typeof window === "undefined") return;
+  try {
+    const raw = window.localStorage.getItem(FOCUS_TIMER_STORAGE_KEY);
+    if (!raw) return;
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== "object" || parsed === null) return;
+    const wrapper = parsed as { state?: Record<string, unknown> };
+    const state = wrapper.state;
+    if (!state || state["status"] !== "running") return;
+    const remaining = remainingSecondsFromPersistState(state, now);
+    window.localStorage.setItem(
+      FOCUS_TIMER_STORAGE_KEY,
+      JSON.stringify({
+        ...wrapper,
+        state: {
+          ...state,
+          status: "paused",
+          remainingSec: remaining,
+          deadlineMs: null,
+          endsAt: null,
+        },
+      }),
+    );
+  } catch {
+    return;
+  }
+}
+
 /**
  * New-document hard refresh reads this before React paints. Disarm to an
  * explicit paused hold: clear `isRunning` AND the wall-clock anchors
  * (`startedAt`, `deadline`) so the restore freezes at the last painted
  * `timeLeft` instead of deriving from a stale anchor.
- * Empty storage stays empty (fresh Start-only).
+ * Empty storage stays empty (fresh Start-only). Also pauses the live
+ * persist-store snapshot so a hard reload cannot resume from deadline.
  */
 export function rewriteStoredFocusSessionPaused(): FocusSessionSnapshot | null {
+  rewritePersistedFocusTimerPaused();
   const snapshot = loadStoredFocusSession();
   if (!snapshot) return null;
   const paused: FocusSessionSnapshot = {

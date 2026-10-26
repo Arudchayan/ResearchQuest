@@ -2,18 +2,22 @@
 //
 // The countdown is deadline-derived: `remaining = deadline - Date.now()`.
 // The tick interval only re-renders; wall-clock time always counts, so the
-// timer survives in-app navigation, unmount/remount, hidden tabs, and full
-// document reloads. Pause/resume shifts the deadline; completion fires when
-// the deadline passes. Persisted to localStorage (same zustand/persist
-// pattern as todayPlanStore/topicKindStore) so a remount restores the live
-// run instead of a frozen snapshot.
+// timer survives in-app navigation, unmount/remount, and hidden tabs.
+// Hard reload (new document) is different: boot rewrite pauses the persisted
+// snapshot so Focus remounts frozen with Continue, matching #805.
+// Pause/resume shifts the deadline; completion fires when the deadline
+// passes. Persisted to localStorage (same zustand/persist pattern as
+// todayPlanStore/topicKindStore).
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { SelectedTarget } from "../components/focus/focusUtils";
+import {
+  FOCUS_TIMER_STORAGE_KEY,
+  type SelectedTarget,
+} from "../components/focus/focusUtils";
 
 export type FocusTimerStatus = "idle" | "running" | "paused" | "complete";
 
-export const FOCUS_TIMER_STORAGE_KEY = "researchquest-focus-timer";
+export { FOCUS_TIMER_STORAGE_KEY };
 
 export const DEFAULT_FOCUS_SESSION_SECONDS = 25 * 60;
 

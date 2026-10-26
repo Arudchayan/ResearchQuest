@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import type { EditorView } from "@codemirror/view";
+import { citationInsertText } from "../../../utils/citationInsert";
 
 export function useFormatting(editorViewRef: React.MutableRefObject<EditorView | null>) {
   const applyWrappedFormatting = useCallback(
@@ -169,10 +170,11 @@ export function useFormatting(editorViewRef: React.MutableRefObject<EditorView |
 
     const { state } = view;
     const { from, to } = state.selection.main;
+    const insert = citationInsertText(state.doc.toString(), from, citation);
 
     view.dispatch({
-      changes: { from, to, insert: citation },
-      selection: { anchor: from + citation.length },
+      changes: { from, to, insert },
+      selection: { anchor: from + insert.length },
       scrollIntoView: true,
     });
     view.focus();

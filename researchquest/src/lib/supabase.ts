@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { DEMO_FIRST_RUN_PATH } from "./demoData";
+import { DEMO_FIRST_RUN_PATH, DEMO_WORKSPACE_ENTERED_KEY } from "./demoData";
 import { clearPersistedDemoTables, demoSupabase } from "./demoSupabase";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -55,6 +55,7 @@ export function enableDemoModeAndReload(
   }
   try {
     localStorage.setItem(DEMO_MODE_STORAGE_KEY, "1");
+    sessionStorage.removeItem(DEMO_WORKSPACE_ENTERED_KEY);
   } catch {
     // Ignore quota / private-mode errors; navigation still attempts demo.
   }
@@ -71,6 +72,7 @@ export function enableDemoModeAndReload(
 export function disableDemoModeAndReload(nextPath = "/"): void {
   try {
     localStorage.removeItem(DEMO_MODE_STORAGE_KEY);
+    sessionStorage.removeItem(DEMO_WORKSPACE_ENTERED_KEY);
     clearPersistedDemoTables();
   } catch {
     // Ignore private-mode errors; navigation still leaves demo when the

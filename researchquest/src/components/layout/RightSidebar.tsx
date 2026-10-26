@@ -16,19 +16,21 @@ import { useMemo } from "react";
 import { isDemoMode, supabase } from "../../lib/supabase";
 import { useGamificationStore } from "../../store/gamificationStore";
 import { logger } from "../../utils/logger";
-import { formatTimeUntil, formatDateLabel } from "../../utils/time";
+import { formatTimeUntil, formatDateLabel, parseDateInput } from "../../utils/time";
 import { useBacklinks } from "../../hooks/useBacklinks";
 import { useRelatedItems } from "../../hooks/useRelatedItems";
 import { useShallow } from "zustand/react/shallow";
 import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
 import { getTopN } from "../../utils/collections";
 import { navigateToView } from "../../lib/softNavigation";
+import { resolveViewedEntity } from "../../lib/viewedEntity";
 
 export function RightSidebar() {
   const {
     selectedNote,
     selectedPaper,
     selectedIdea,
+    currentView,
     user,
     isRightSidebarOpen,
     setSelectedNote,
@@ -39,6 +41,7 @@ export function RightSidebar() {
       selectedNote: state.selectedNote,
       selectedPaper: state.selectedPaper,
       selectedIdea: state.selectedIdea,
+      currentView: state.currentView,
       user: state.user,
       isRightSidebarOpen: state.isRightSidebarOpen,
       setSelectedNote: state.setSelectedNote,
@@ -98,7 +101,9 @@ export function RightSidebar() {
       if (!t.due_date) continue;
       if (("completed" in t && t.completed) || ("status" in t && (t.status === "completed" || t.status === "done"))) continue;
 
-      const parsedDue = new Date(t.due_date).getTime();
+      const parsed = parseDateInput(t.due_date);
+      if (!parsed) continue;
+      const parsedDue = parsed.getTime();
       if (parsedDue >= nowTime && parsedDue <= horizonTime) {
         validTasks.push({ ...t, parsedDue });
       }
@@ -118,16 +123,13 @@ export function RightSidebar() {
     }));
   }, [storeTasks]);
 
-  // Determine current entity
-  const currentEntity = selectedNote || selectedPaper || selectedIdea;
-  const currentEntityId = currentEntity?.id || null;
-  const currentEntityType = selectedNote
-    ? "note"
-    : selectedPaper
-      ? "paper"
-      : selectedIdea
-        ? "idea"
-        : null;
+  const viewedEntity = resolveViewedEntity(currentView, {
+    note: selectedNote,
+    paper: selectedPaper,
+    idea: selectedIdea,
+  });
+  const currentEntityId = viewedEntity?.id ?? null;
+  const currentEntityType = viewedEntity?.type ?? null;
 
   // Fetch backlinks and related items
   const { backlinks, loading: backlinksLoading } = useBacklinks(
@@ -147,7 +149,7 @@ export function RightSidebar() {
   // which is kept up to date by useDataSync (daily_logs, papers, ideas) and
   // useTasks (tasks).
 
-  const hasSelection = selectedNote || selectedPaper || selectedIdea;
+  const hasSelection = viewedEntity !== null;
   const nextDeadline = upcomingDeadlines[0];
 
   const handleNavigateToItem = (

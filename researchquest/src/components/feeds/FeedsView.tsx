@@ -1,9 +1,6 @@
 import { Archive, Inbox, RefreshCw } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
-  FEED_ITEMS_INITIAL_WINDOW,
-  FEED_ITEMS_PAGE_SIZE,
-  FEED_ITEMS_WINDOW_STEP,
   FEED_ITEM_STATUSES,
   FEED_ITEM_TYPES,
   type FeedStatusFilter,
@@ -102,55 +99,37 @@ function FeedFilterBar({
 export function FeedsView() {
   const [type, setType] = useState<FeedTypeFilter>("all");
   const [status, setStatus] = useState<FeedStatusFilter>("new");
-  const [visibleCount, setVisibleCount] = useState(FEED_ITEMS_INITIAL_WINDOW);
+  const [olderThanDays, setOlderThanDays] = useState("");
   const userId = useAppStore((state) => state.user?.id);
   const {
     items,
+    totalCount,
     loading,
+    loadingOlder,
+    hasMore,
     error,
     actionItemId,
     refreshFeedItems,
     archiveFeedItem,
     markFeedItemTriaged,
     promoteFeedItem,
-    updateFeedItemsStatusBatch,
-  } = useFeedItems(userId, { type, status, owner: false });
-
-  // Windowed render: the store holds at most FEED_ITEMS_PAGE_SIZE rows and
-  // the view renders a slice, so the list stays bounded (no unbounded DOM).
-  const visibleItems = useMemo(
-    () => items.slice(0, visibleCount),
-    [items, visibleCount],
-  );
-  const hasMore = visibleCount < items.length;
+    loadOlderFeedItems,
+    archiveMatchingFeedItems,
+  } = useFeedItems(userId, { type, status, paged: true });
 
   const handlePromote = (itemId: string, target: FeedPromoteTarget) => {
     void promoteFeedItem(itemId, target);
   };
 
-  const handleArchiveAllVisible = () => {
-    const ids = visibleItems
-      .filter((item) => item.status !== "archived" && item.status !== "promoted")
-      .map((item) => item.id);
-    if (ids.length === 0) return;
-    const confirmed =
-      typeof window === "undefined" ||
-      window.confirm(
-        `Archive ${ids.length} visible feed item${ids.length === 1 ? "" : "s"}?`,
-      );
-    if (!confirmed) return;
-    void updateFeedItemsStatusBatch(ids, "archived");
+  const handleArchiveAllMatching = () => {
+    const parsed = olderThanDays.trim() === "" ? null : Number(olderThanDays);
+    const days =
+      parsed != null && Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+    void archiveMatchingFeedItems(days);
   };
 
-  const handleTypeChange = (next: FeedTypeFilter) => {
-    setType(next);
-    setVisibleCount(FEED_ITEMS_INITIAL_WINDOW);
-  };
-
-  const handleStatusChange = (next: FeedStatusFilter) => {
-    setStatus(next);
-    setVisibleCount(FEED_ITEMS_INITIAL_WINDOW);
-  };
+  const canArchiveMatching =
+    totalCount > 0 && status !== "archived" && status !== "promoted";
 
   return (
     <div className="min-h-full bg-bg-base p-4 sm:p-6 lg:p-8">
@@ -181,9 +160,8 @@ export function FeedsView() {
           className="rounded-xl border border-gold-strong/30 bg-gold-soft px-4 py-3 text-small text-text-secondary"
         >
           <strong className="font-semibold text-text-primary">Alpha:</strong>{" "}
-          feeds are manual triage only. Sources are tracked metadata — no
-          automatic ingest runs — and promoting is the only way items become
-          papers, tasks, or notes.
+          Items arrive from your connected agent or API key. Promoting is how
+          an item becomes a paper, task, or note.
         </div>
 
         <FeedSourcesPanel userId={userId} />
@@ -195,30 +173,43 @@ export function FeedsView() {
           <FeedFilterBar
             type={type}
             status={status}
-            onTypeChange={handleTypeChange}
-            onStatusChange={handleStatusChange}
+            onTypeChange={setType}
+            onStatusChange={setStatus}
           />
         </section>
 
         <section aria-label="Feed items">
-          <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <p className="text-small text-text-secondary">
               {loading
                 ? "Loading feed items..."
-                : `${visibleItems.length} of ${items.length} item${items.length === 1 ? "" : "s"} (latest ${FEED_ITEMS_PAGE_SIZE})`}
+                : `${items.length} of ${totalCount} item${totalCount === 1 ? "" : "s"}`}
             </p>
-            {visibleItems.some(
-              (item) =>
-                item.status !== "archived" && item.status !== "promoted",
-            ) && (
-              <button
-                type="button"
-                onClick={handleArchiveAllVisible}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-border-moderate bg-bg-surface px-2.5 py-1.5 text-caption font-medium text-text-secondary shadow-sm transition-colors hover:border-border-strong hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
-              >
-                <Archive className="h-3.5 w-3.5" aria-hidden="true" />
-                Archive visible
-              </button>
+            {canArchiveMatching && (
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="flex items-center gap-1.5 text-caption text-text-secondary">
+                  Older than
+                  <input
+                    type="number"
+                    min={1}
+                    inputMode="numeric"
+                    value={olderThanDays}
+                    onChange={(event) => setOlderThanDays(event.target.value)}
+                    placeholder="days"
+                    aria-label="Archive items older than N days"
+                    className="w-16 rounded-lg border border-border-moderate bg-bg-surface px-2 py-1 text-caption text-text-primary shadow-sm"
+                  />
+                  days
+                </label>
+                <button
+                  type="button"
+                  onClick={handleArchiveAllMatching}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border-moderate bg-bg-surface px-2.5 py-1.5 text-caption font-medium text-text-secondary shadow-sm transition-colors hover:border-border-strong hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+                >
+                  <Archive className="h-3.5 w-3.5" aria-hidden="true" />
+                  Archive all matching
+                </button>
+              </div>
             )}
           </div>
 
@@ -229,7 +220,7 @@ export function FeedsView() {
               ))}
               <span className="sr-only">Loading feeds</span>
             </div>
-          ) : error ? (
+          ) : items.length === 0 && error ? (
             <div className="surface-card flex items-center justify-between gap-3 p-6">
               <p className="text-small text-text-secondary" role="alert">
                 {error}
@@ -256,13 +247,13 @@ export function FeedsView() {
                 Nothing to triage
               </h2>
               <p className="mx-auto mt-2 max-w-md text-small text-text-secondary">
-                Try a different filter, or add a source above. New items only
-                appear through manual triage — nothing arrives on its own.
+                Try a different filter. New items arrive from your connected
+                agent or API key.
               </p>
             </div>
           ) : (
             <div className="space-y-3">
-              {visibleItems.map((item) => (
+              {items.map((item) => (
                 <FeedItemCard
                   key={item.id}
                   item={item}
@@ -272,15 +263,31 @@ export function FeedsView() {
                   onPromote={handlePromote}
                 />
               ))}
+              {error && (
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-border-moderate bg-bg-surface px-3 py-2">
+                  <p className="text-small text-text-secondary" role="alert">
+                    {error}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void loadOlderFeedItems()}
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border-moderate bg-bg-surface px-3 py-2 text-small font-medium text-text-secondary shadow-sm transition-colors hover:border-border-strong hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+                  >
+                    <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                    Retry
+                  </button>
+                </div>
+              )}
               {hasMore && (
                 <button
                   type="button"
-                  onClick={() =>
-                    setVisibleCount((count) => count + FEED_ITEMS_WINDOW_STEP)
-                  }
+                  onClick={() => void loadOlderFeedItems()}
+                  disabled={loadingOlder}
                   className="w-full rounded-xl border border-border-moderate bg-bg-surface px-3 py-2.5 text-small font-medium text-text-secondary shadow-sm transition-colors hover:border-border-strong hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
                 >
-                  Show more ({items.length - visibleCount} remaining)
+                  {loadingOlder
+                    ? "Loading older…"
+                    : `Load older (${totalCount - items.length} remaining)`}
                 </button>
               )}
             </div>

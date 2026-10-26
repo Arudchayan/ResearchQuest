@@ -36,6 +36,7 @@ import type { TaskFilter, TaskPriority, TaskCategory, SortOption } from "./taskT
 import { PRIORITIES, CATEGORIES, PRIORITY_ORDER } from "./taskTypes";
 import { TaskCard, isOverdue } from "./TaskCard";
 import { clearLearningTaskHandoff, readLearningTaskHandoff } from "./learningHandoff";
+import { ATLAS_ORIGIN } from "./savedLessonLink";
 import { navigateToView, subscribeSoftNavigation } from "../../lib/softNavigation";
 import { useTodayPlanStore } from "../../store/todayPlanStore";
 
@@ -64,7 +65,7 @@ export function TaskManager() {
   const [projectFilter, setProjectFilter] = useState<string>("all");
   const [showAddModal, setShowAddModal] = useState(false);
   const [isLearningHandoff, setIsLearningHandoff] = useState(false);
-  const [learningReturnUrl, setLearningReturnUrl] = useState("https://learning-platform-chi-ten.vercel.app/");
+  const [learningReturnUrl, setLearningReturnUrl] = useState(`${ATLAS_ORIGIN}/`);
   const [taskSaveError, setTaskSaveError] = useState<string | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -103,7 +104,7 @@ export function TaskManager() {
       setFormDueDate("");
       setFormProjectId("");
       setIsLearningHandoff(true);
-      setLearningReturnUrl(draft.lessonUrl || "https://learning-platform-chi-ten.vercel.app/");
+      setLearningReturnUrl(draft.lessonUrl || `${ATLAS_ORIGIN}/`);
       setTaskSaveError(null);
       setShowAddModal(true);
       window.history.replaceState(window.history.state, "", clearLearningTaskHandoff(url));
@@ -253,7 +254,7 @@ export function TaskManager() {
       setFormProjectId("");
       setShowAddModal(false);
       setIsLearningHandoff(false);
-      setLearningReturnUrl("https://learning-platform-chi-ten.vercel.app/");
+      setLearningReturnUrl(`${ATLAS_ORIGIN}/`);
     } catch (error) {
       logger.error("Failed to create task", error);
       setTaskSaveError("Task was not saved. Please try again.");
@@ -654,7 +655,7 @@ export function TaskManager() {
           setShowAddModal(false);
           setTaskSaveError(null);
           setIsLearningHandoff(false);
-          setLearningReturnUrl("https://learning-platform-chi-ten.vercel.app/");
+          setLearningReturnUrl(`${ATLAS_ORIGIN}/`);
           handleCancelEdit();
         }}
         onSubmit={(e) => {

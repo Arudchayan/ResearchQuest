@@ -35,6 +35,7 @@ import { TodayPlan } from "./TodayPlan";
 import type { Idea, Note, Paper, Task, TopicWithCounts } from "../../types/database";
 import { navigateToView } from "../../lib/softNavigation";
 import { isDemoMode } from "../../lib/supabase";
+import { formatDueDate } from "../../utils/time";
 
 type DashboardView = "notes" | "papers" | "focus" | "tasks" | "ideas" | "topics";
 
@@ -685,10 +686,7 @@ export function Dashboard() {
                         </Badge>
                         {task.due_date && (
                           <span className="font-mono text-caption text-text-tertiary">
-                            {new Date(task.due_date).toLocaleDateString(undefined, {
-                              month: "short",
-                              day: "numeric",
-                            })}
+                            {formatDueDate(task.due_date)}
                           </span>
                         )}
                       </span>

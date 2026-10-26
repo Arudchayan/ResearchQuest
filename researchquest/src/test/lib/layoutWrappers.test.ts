@@ -128,7 +128,9 @@ describe("PR12 layout wrappers + containment (static guards)", () => {
     expect(feeds).not.toContain("const ingestReady = (sourceCount ?? 0) > 0");
     expect(feeds).not.toContain("const visibleItems = ingestReady ? items : []");
     expect(feeds).toContain("Source and RSS management is not fully shipped");
-    expect(feeds).toContain("visibleItems.map");
+    expect(feeds).not.toContain("visibleItems.map");
+    expect(feeds).toContain("items.map((item) => (");
+    expect(feeds).toContain("Load older");
   });
 
   it("dashboard counts grid steps through an intermediate breakpoint (no orphan)", () => {

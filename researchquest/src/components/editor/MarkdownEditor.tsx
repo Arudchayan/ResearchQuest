@@ -3,6 +3,9 @@ import type { EditorView } from "@codemirror/view";
 import { CitationPicker } from "./CitationPicker";
 import { TopicSelector } from "../topics/TopicSelector";
 import { persistedNoteTitle } from "../../utils/text";
+import { appendUniqueId } from "../../utils/collections";
+import { useAppStore } from "../../store/appStore";
+import type { Paper } from "../../types/database";
 
 // Hooks
 import { useMarkdownEditor } from "./hooks/useMarkdownEditor";
@@ -49,6 +52,18 @@ export function MarkdownEditor({ onBackToList }: MarkdownEditorProps) {
   const { applyFormatting, handleCitationSelect } = useFormatting(editorViewRef);
   const { linkDialogOpen, openLinkDialog, closeLinkDialog, handleLinkSubmit, linkTextValue, setLinkTextValue, linkUrlValue, setLinkUrlValue, linkError, linkUrlInputRef } = useLinkDialog(editorViewRef);
   const { handleCopyMarkdown, handleCopyRichText, handleExport, handlePrint, saveNote } = useEditorActions({ content, title, previewRef, selectedNote, userId, updateNote, setSaveState });
+
+  const handleCitationPicked = useCallback(
+    (citation: string, paper: Paper) => {
+      handleCitationSelect(citation, setCitationPickerOpen);
+      const note = useAppStore.getState().selectedNote;
+      if (!note) return;
+      const { next, changed } = appendUniqueId(note.linked_entity_ids, paper.id);
+      if (!changed) return;
+      void updateNote(note.id, { linked_entity_ids: next });
+    },
+    [handleCitationSelect, updateNote],
+  );
 
   const saveNoteRef = useRef(saveNote);
   saveNoteRef.current = saveNote;
@@ -167,7 +182,7 @@ export function MarkdownEditor({ onBackToList }: MarkdownEditorProps) {
         <CitationPicker
           open={citationPickerOpen}
           onOpenChange={setCitationPickerOpen}
-          onSelect={(c) => handleCitationSelect(c, setCitationPickerOpen)}
+          onSelect={handleCitationPicked}
         />
       )}
     </div>
