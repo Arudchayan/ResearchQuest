@@ -282,8 +282,8 @@ export function FeedsView() {
             <FeedsInboxEmpty
               filtersNarrowed={type !== "all" || status !== "all"}
               onShowAll={() => {
-                handleTypeChange("all");
-                handleStatusChange("all");
+                setType("all");
+                setStatus("all");
               }}
             />
           ) : (
