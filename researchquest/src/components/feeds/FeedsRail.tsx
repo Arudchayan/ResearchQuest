@@ -127,8 +127,7 @@ export function FeedsRail() {
             No new feed items
           </p>
           <p className="mt-1 text-caption text-text-secondary">
-            New items only appear through manual triage — nothing is
-            ingested automatically.
+            New items arrive from your connected agent or API key.
           </p>
         </div>
       ) : (

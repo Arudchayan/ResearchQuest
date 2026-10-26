@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   FOCUS_SESSION_STORAGE_KEY,
+  FOCUS_TIMER_STORAGE_KEY,
   legacyImportForStore,
   persistPausedFocusSession,
   remainingSecondsOnRestore,
@@ -161,6 +162,48 @@ describe("focus session hydrate", () => {
     expect(rewritten?.timeLeft).toBe(24 * 60 + 55);
     expect(restoredSessionNeedsContinue(rewritten)).toBe(true);
     expect(remainingSecondsOnRestore(rewritten!)).toBe(24 * 60 + 55);
+  });
+
+  it("boot rewrite pauses a live persist-store run at deadline remaining, empty persist stays empty", () => {
+    expect(window.localStorage.getItem(FOCUS_TIMER_STORAGE_KEY)).toBeNull();
+    rewriteStoredFocusSessionPaused();
+    expect(window.localStorage.getItem(FOCUS_TIMER_STORAGE_KEY)).toBeNull();
+
+    const now = Date.now();
+    const remaining = 24 * 60 + 55;
+    window.localStorage.setItem(
+      FOCUS_TIMER_STORAGE_KEY,
+      JSON.stringify({
+        state: {
+          selectedTarget: { type: "note", id: "note-1" },
+          sessionLength: 25 * 60,
+          status: "running",
+          deadlineMs: now + remaining * 1000,
+          endsAt: now + remaining * 1000,
+          remainingSec: 25 * 60,
+          startedAtMs: now - 5 * 1000,
+          runId: "run-1",
+          sessionCount: 1,
+          awardedRunId: null,
+        },
+        version: 0,
+      }),
+    );
+    rewriteStoredFocusSessionPaused();
+    const parsed = JSON.parse(
+      window.localStorage.getItem(FOCUS_TIMER_STORAGE_KEY)!,
+    ) as {
+      state: {
+        status: string;
+        deadlineMs: number | null;
+        endsAt: number | null;
+        remainingSec: number;
+      };
+    };
+    expect(parsed.state.status).toBe("paused");
+    expect(parsed.state.deadlineMs).toBeNull();
+    expect(parsed.state.endsAt).toBeNull();
+    expect(parsed.state.remainingSec).toBe(remaining);
   });
 
   it("empty / never-started snapshot stays Start-only and does not persist", () => {

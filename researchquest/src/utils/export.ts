@@ -3,6 +3,7 @@ import { generateBibTeX } from "./citation";
 import { supabase } from "../lib/supabase";
 import { logger } from "./logger";
 import { deriveTitleFromMarkdown } from "./text";
+import { formatDueDate } from "./time";
 
 /** Rows from `topic_notes` (export/import backup). */
 export interface TopicNoteLink {
@@ -304,7 +305,7 @@ export function convertTasksToMarkdown(tasks: Task[]): string {
       const status = t.completed ? "Completed" : "Pending";
       const priority = t.priority ? `\nPriority: ${t.priority}` : "";
       const category = t.category ? `\nCategory: ${t.category}` : "";
-      const dueDate = t.due_date ? `\nDue Date: ${new Date(t.due_date).toLocaleDateString()}` : "";
+      const dueDate = t.due_date ? `\nDue Date: ${formatDueDate(t.due_date)}` : "";
 
       return `## ${status === "Completed" ? "[x]" : "[ ]"} ${title}\n*Created: ${date}*\nStatus: ${status}${priority}${category}${dueDate}\n\n${t.description || "No description provided."}`;
     })

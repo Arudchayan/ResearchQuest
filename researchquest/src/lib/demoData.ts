@@ -20,6 +20,48 @@ export function isDemoFirstRunPath(pathname: string | null | undefined): boolean
   return pathname === DEMO_FIRST_RUN_PATH;
 }
 
+/** Session flag: the user has left the chromeless first-run door for Today. */
+export const DEMO_WORKSPACE_ENTERED_KEY = "rq_demo_workspace_entered";
+
+export function hasEnteredDemoWorkspace(
+  storage: Pick<Storage, "getItem"> | null = typeof sessionStorage !== "undefined"
+    ? sessionStorage
+    : null,
+): boolean {
+  if (!storage) return false;
+  try {
+    return storage.getItem(DEMO_WORKSPACE_ENTERED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function markDemoWorkspaceEntered(
+  storage: Pick<Storage, "setItem"> | null = typeof sessionStorage !== "undefined"
+    ? sessionStorage
+    : null,
+): void {
+  if (!storage) return;
+  try {
+    storage.setItem(DEMO_WORKSPACE_ENTERED_KEY, "1");
+  } catch {
+    // Ignore quota / private-mode errors; navigation still proceeds.
+  }
+}
+
+/**
+ * Demo strangers hitting `/` land on the seeded topic — never Today —
+ * until they choose Go to full workspace (or otherwise leave first-run).
+ */
+export function ensureDemoFirstRunPath(isDemo: boolean): boolean {
+  if (!isDemo || typeof window === "undefined") return false;
+  if (hasEnteredDemoWorkspace()) return false;
+  const path = window.location.pathname;
+  if (path !== "/" && path !== "") return false;
+  window.history.replaceState(null, "", DEMO_FIRST_RUN_PATH);
+  return true;
+}
+
 export type Row = Record<string, unknown>;
 type TableMap = Record<string, Row[]>;
 

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   demoSupabase,
   reloadDemoTablesFromStorage,
@@ -188,6 +188,54 @@ describe("demoSupabase", () => {
     expect(data?.title).toBe("RPC demo idea");
   });
 
+  it("keeps edited idea title and linked ids across a demo table rehydrate", async () => {
+    clearPersistedDemoTables();
+    resetDemoTablesToSeed();
+
+    const { data: created } = await demoSupabase.rpc("save_idea_with_links", {
+      p_user_id: DEMO_USER_ID,
+      p_idea_id: null,
+      p_title: "QA idea 807",
+      p_description: "Created through the demo RPC.",
+      p_stage: "Seed",
+      p_linked_note_ids: [],
+      p_linked_paper_ids: [],
+    });
+    expect(created?.id).toBeDefined();
+
+    const linkedNoteIds = [DEMO_FIRST_RUN_NOTE_ID];
+    const linkedPaperIds = ["paper-0001"];
+    const { data: edited } = await demoSupabase.rpc("save_idea_with_links", {
+      p_user_id: DEMO_USER_ID,
+      p_idea_id: created?.id,
+      p_title: "QA idea 807 edited",
+      p_description: "Edited through the demo RPC.",
+      p_stage: "Developing",
+      p_linked_note_ids: linkedNoteIds,
+      p_linked_paper_ids: linkedPaperIds,
+    });
+    expect(edited?.title).toBe("QA idea 807 edited");
+
+    resetDemoTablesToSeed();
+    const hydrated = reloadDemoTablesFromStorage();
+    expect(hydrated).toBe(true);
+
+    const { data: restored } = await demoSupabase
+      .from("ideas")
+      .select("title, description, stage, linked_note_ids, linked_paper_ids")
+      .eq("id", created?.id)
+      .maybeSingle();
+
+    expect(restored?.title).toBe("QA idea 807 edited");
+    expect(restored?.description).toBe("Edited through the demo RPC.");
+    expect(restored?.stage).toBe("Developing");
+    expect(restored?.linked_note_ids).toEqual(linkedNoteIds);
+    expect(restored?.linked_paper_ids).toEqual(linkedPaperIds);
+
+    resetDemoTablesToSeed();
+    clearPersistedDemoTables();
+  });
+
   it("invokes the deep research function", async () => {
     const { data, error } = await demoSupabase.functions.invoke("deep-research", {
       body: { query: "attention mechanisms" },
@@ -218,6 +266,71 @@ describe("demoSupabase", () => {
     expect(result.data?.data?.title).toBe("Attention Is All You Need");
     expect(result.data?.data?.doi).toBe("10.48550/arXiv.1706.03762");
     expect(result.data?.data?.title).not.toContain("Retrieval-Augmented");
+  });
+
+  describe("fetch-paper Crossref fallback", () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it("resolves a Crossref-registered DOI via api.crossref.org/works/{doi}", async () => {
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          status: "ok",
+          message: {
+            DOI: "10.1038/nature14539",
+            title: ["Deep learning"],
+            author: [
+              { given: "Yann", family: "LeCun" },
+              { given: "Yoshua", family: "Bengio" },
+              { given: "Geoffrey", family: "Hinton" },
+            ],
+            published: { "date-parts": [[2015, 5, 27]] },
+            URL: "https://doi.org/10.1038/nature14539",
+            "container-title": ["Nature"],
+            publisher: "Springer Nature",
+            type: "journal-article",
+          },
+        }),
+      });
+      vi.stubGlobal("fetch", fetchMock);
+
+      const result = await demoSupabase.functions.invoke("fetch-paper", {
+        body: { doi: "10.1038/nature14539" },
+      });
+
+      expect(result.error).toBeNull();
+      expect(result.data?.error).toBeNull();
+      expect(result.data?.data).toMatchObject({
+        doi: "10.1038/nature14539",
+        title: "Deep learning",
+        authors: ["Yann LeCun", "Yoshua Bengio", "Geoffrey Hinton"],
+        publicationDate: 2015,
+        containerTitle: "Nature",
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
+        "https://api.crossref.org/works/10.1038%2Fnature14539",
+      );
+    });
+
+    it("keeps a seeded arXiv DOI on the local catalog without calling Crossref", async () => {
+      const fetchMock = vi.fn();
+      vi.stubGlobal("fetch", fetchMock);
+
+      const result = await demoSupabase.functions.invoke("fetch-paper", {
+        body: { doi: "10.48550/arXiv.2210.03629" },
+      });
+
+      expect(result.error).toBeNull();
+      expect(result.data?.data?.title).toBe(
+        "ReAct: Synergizing Reasoning and Acting in Language Models",
+      );
+      expect(result.data?.data?.doi).toBe("10.48550/arXiv.2210.03629");
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
   });
 
   it("subscribes and emits realtime channel events", async () => {
@@ -269,6 +382,75 @@ describe("demoSupabase", () => {
       .maybeSingle();
     expect(restored.data?.title).toBe("Demo research synthesis");
     expect(String(restored.data?.markdown_body)).toContain("Demo research synthesis");
+
+    resetDemoTablesToSeed();
+    clearPersistedDemoTables();
+  });
+
+  it("supports PostgREST or() filters used by Load older and older-than", async () => {
+    resetDemoTablesToSeed();
+    const newer = await demoSupabase.from("feed_items").insert({
+      user_id: DEMO_USER_ID,
+      type: "paper",
+      title: "Newer",
+      payload: {},
+      status: "new",
+      published_at: "2026-09-20T12:00:00.000Z",
+      created_at: "2026-09-21T12:00:00.000Z",
+    }).select("id").single();
+    const older = await demoSupabase.from("feed_items").insert({
+      user_id: DEMO_USER_ID,
+      type: "paper",
+      title: "Older",
+      payload: {},
+      status: "new",
+      published_at: "2026-01-01T00:00:00.000Z",
+      created_at: "2026-01-02T00:00:00.000Z",
+    }).select("id").single();
+    const nullPublished = await demoSupabase.from("feed_items").insert({
+      user_id: DEMO_USER_ID,
+      type: "paper",
+      title: "Null published",
+      payload: {},
+      status: "new",
+      published_at: null,
+      created_at: "2026-01-03T00:00:00.000Z",
+    }).select("id").single();
+
+    const keyset = await demoSupabase
+      .from("feed_items")
+      .select("id, title")
+      .eq("user_id", DEMO_USER_ID)
+      .or(
+        [
+          'published_at.lt."2026-09-20T12:00:00.000Z"',
+          'and(published_at.eq."2026-09-20T12:00:00.000Z",created_at.lt."2026-09-21T12:00:00.000Z")',
+          `and(published_at.eq."2026-09-20T12:00:00.000Z",created_at.eq."2026-09-21T12:00:00.000Z",id.lt."${String(newer.data?.id)}")`,
+          "published_at.is.null",
+        ].join(","),
+      )
+      .order("published_at", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false });
+
+    expect(keyset.error).toBeNull();
+    const titles = (keyset.data as Array<{ title: string }>).map((row) => row.title);
+    expect(titles).toEqual(["Older", "Null published"]);
+    expect(titles).not.toContain("Newer");
+
+    const olderThan = await demoSupabase
+      .from("feed_items")
+      .select("id, title")
+      .or(
+        'published_at.lt."2026-02-01T00:00:00.000Z",and(published_at.is.null,created_at.lt."2026-02-01T00:00:00.000Z")',
+      );
+    const olderTitles = (olderThan.data as Array<{ title: string }>).map(
+      (row) => row.title,
+    );
+    expect(olderTitles).toContain("Older");
+    expect(olderTitles).toContain("Null published");
+    expect(olderTitles).not.toContain("Newer");
+    void older.data;
+    void nullPublished.data;
 
     resetDemoTablesToSeed();
     clearPersistedDemoTables();

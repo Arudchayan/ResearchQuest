@@ -209,27 +209,16 @@ describe("Gamification RPC policy (caps, achievements, streak authority)", () =>
     expect(useAppStore.getState().user?.total_xp).toBe(110);
   });
 
-  it("keeps the legacy direct-write achievement fallback consistent when the RPC is unavailable", async () => {
+  it("does not write achievements or total_xp when award_achievement_xp is unavailable", async () => {
     state.awardXpRow = { ...BASE_XP_ROW, notes_count: 50 };
-    state.achievementRow = null; // achievement RPC unavailable
+    state.achievementRow = null;
 
     const result = await awardXP("user-a", 10, "create_note");
 
-    expect(result!.achievementsEarned.map((a) => a.type)).toEqual([
-      "note_master",
-    ]);
-    // Legacy path: direct insert + total_xp update with the same 200 XP.
-    expect(state.achievementInserts).toHaveLength(1);
-    expect(state.achievementInserts[0]).toMatchObject({
-      user_id: "user-a",
-      achievement_type: "note_master",
-      xp_awarded: 200,
-    });
-    const totalUpdates = state.profileUpdates.filter(
-      (u) => typeof u.total_xp === "number",
-    );
-    expect(totalUpdates).toHaveLength(1);
-    expect(totalUpdates[0]!.total_xp).toBe(100 + 200);
+    expect(result!.achievementsEarned).toEqual([]);
+    expect(state.achievementInserts).toHaveLength(0);
+    expect(state.profileUpdates).toHaveLength(0);
+    expect(useAppStore.getState().user?.total_xp).toBe(110);
   });
 
   it("sends the local-day key and focus duration to the award_xp RPC", async () => {
@@ -252,22 +241,14 @@ describe("Gamification RPC policy (caps, achievements, streak authority)", () =>
     expect(result!.achievementsEarned).toEqual([]);
   });
 
-  it("mirrors the server zero-credit policy for update_note (RPC and legacy)", async () => {
+  it("mirrors the server zero-credit policy for update_note without a client write", async () => {
     expect(XP_REWARDS.UPDATE_NOTE).toBe(0);
 
-    // RPC path: server no-op row credits 0.
     state.awardXpRow = { ...BASE_XP_ROW, xp_credited: 0, total_xp: 100 };
     const viaRpc = await awardXP("user-a", 0, "update_note");
     expect(viaRpc!.xpEarned).toBe(0);
     expect(viaRpc!.achievementsEarned).toEqual([]);
     expect(state.profileUpdates).toHaveLength(0);
-
-    // Legacy path: 0 XP keeps the stored total unchanged.
-    state.awardXpRow = null;
-    state.profileUpdates = [];
-    const viaLegacy = await awardXP("user-a", 0, "update_note");
-    expect(viaLegacy!.xpEarned).toBe(0);
-    expect(state.profileUpdates[0]).toMatchObject({ total_xp: 100 });
   });
 
   it("mirrors the server focus gate: sessions below 25 minutes earn 0 XP", () => {

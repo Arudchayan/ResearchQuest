@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { seededTopicDetailHeading } from "./a11y";
 
-const lessonUrl = "https://learning-platform-chi-ten.vercel.app/learn/bioinformatics-algorithms-lab/sequence-to-alignment/";
+const lessonUrl = "https://lp.arudchayan.com/learn/bioinformatics-algorithms-lab/sequence-to-alignment/";
 const prompt = "Compare two DNA sequences and explain what a gap represents.";
 const handoff = `/tasks?source=learning-platform&subject=Biology&lesson=Cells&title=Review%20cells&lessonUrl=${encodeURIComponent(lessonUrl)}&prompt=${encodeURIComponent(prompt)}`;
 
@@ -25,6 +25,19 @@ test("a demo visitor reaches an editable lesson task draft", async ({ page }) =>
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.getByRole("button", { name: "New Task" }).first().click();
   await expect(page.getByRole("link", { name: "Back to lesson" })).toHaveCount(0);
+});
+
+test("a retired Atlas handoff returns to the canonical lesson", async ({ page }) => {
+  const retiredLessonUrl = lessonUrl.replace("lp.arudchayan.com", "learning-platform-chi-ten.vercel.app");
+  const retiredHandoff = handoff.replace(encodeURIComponent(lessonUrl), encodeURIComponent(retiredLessonUrl));
+  await page.goto(retiredHandoff);
+  await page.locator("[data-rq-demo-entry]").first().click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("link", { name: "Back to lesson" })).toHaveAttribute("href", lessonUrl);
+  await expect(dialog.getByLabel("Description (Optional)")).toHaveValue(new RegExp(lessonUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(dialog).toHaveCount(0);
 });
 
 test("a saved demo task retains the exact Atlas return link", async ({ page }) => {
