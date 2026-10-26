@@ -9,7 +9,7 @@ import type { Paper } from "../../types/database";
 interface CitationPickerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSelect: (citation: string) => void;
+  onSelect: (citation: string, paper: Paper) => void;
 }
 
 export function CitationPicker({
@@ -51,7 +51,7 @@ export function CitationPicker({
     // If no link, just text: (Smith et al., 2023)
     const markdownCitation = link ? `[${citationText}](${link})` : citationText;
 
-    onSelect(markdownCitation);
+    onSelect(markdownCitation, paper);
     onOpenChange(false);
   };
 

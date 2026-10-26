@@ -88,3 +88,41 @@ export const formatDateLabel = (dateString: string) => {
     day: "numeric",
   });
 };
+
+const DATE_ONLY_DUE_FORMAT: Intl.DateTimeFormatOptions = {
+  month: "short",
+  day: "numeric",
+};
+
+/** Date-only dues render as a calendar day, never a UTC-midnight clock time. */
+export function formatDueDate(dateString: string): string {
+  const due = parseDateInput(dateString);
+  if (!due) {
+    return "N/A";
+  }
+
+  return due.toLocaleDateString(undefined, DATE_ONLY_DUE_FORMAT);
+}
+
+export function formatDueCaption(
+  dateString: string | undefined | null,
+): string {
+  if (!dateString) {
+    return "No due date";
+  }
+  const formatted = formatDueDate(dateString);
+  if (formatted === "N/A") {
+    return "No due date";
+  }
+  return `Due ${formatted}`;
+}
+
+/** Overdue only after the local calendar day has passed — due today is not overdue. */
+export function isOverdue(
+  dueDate: string | undefined | null,
+  now: Date = new Date(),
+): boolean {
+  const parsed = parseDateInput(dueDate);
+  if (!parsed) return false;
+  return todayKey(parsed) < todayKey(now);
+}

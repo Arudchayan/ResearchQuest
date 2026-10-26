@@ -85,8 +85,10 @@ describe("CitationPicker", () => {
     fireEvent.click(screen.getByText("Quantum Computing"));
 
     // Expected format: [(Smith et al., 2023)](https://doi.org/10.1000/1)
+    // Second argument is the library paper so the note can write linked_entity_ids.
     expect(handleSelect).toHaveBeenCalledWith(
       "[(Smith et al., 2023)](https://doi.org/10.1000/1)",
+      expect.objectContaining({ id: "paper-1" }),
     );
   });
 
@@ -106,6 +108,7 @@ describe("CitationPicker", () => {
     // Expected format: [(Turing, 1950)](https://example.com/2)
     expect(handleSelect).toHaveBeenCalledWith(
       "[(Turing, 1950)](https://example.com/2)",
+      expect.objectContaining({ id: "paper-2" }),
     );
   });
 });

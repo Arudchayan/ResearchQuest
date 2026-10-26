@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FeedsView } from "../../../components/feeds/FeedsView";
 import { useAppStore } from "../../../store/appStore";
@@ -20,8 +21,23 @@ const orphanItem: FeedItem = {
   updated_at: "2026-09-24T12:00:00Z",
 };
 
-const { mockUseFeedItems, navigateToViewMock } = vi.hoisted(() => ({
-  mockUseFeedItems: vi.fn(),
+const hookState = {
+  items: [orphanItem] as FeedItem[],
+  totalCount: 1,
+  loading: false,
+  loadingOlder: false,
+  hasMore: false,
+  error: null as string | null,
+  actionItemId: null as string | null,
+  refreshFeedItems: vi.fn(),
+  archiveFeedItem: vi.fn(),
+  markFeedItemTriaged: vi.fn(),
+  promoteFeedItem: vi.fn(),
+  loadOlderFeedItems: vi.fn(),
+  archiveMatchingFeedItems: vi.fn(),
+};
+
+const { navigateToViewMock } = vi.hoisted(() => ({
   navigateToViewMock: vi.fn(),
 }));
 
@@ -30,7 +46,7 @@ vi.mock("../../../hooks/useFeedItems", async (importOriginal) => {
     await importOriginal<typeof import("../../../hooks/useFeedItems")>();
   return {
     ...actual,
-    useFeedItems: mockUseFeedItems,
+    useFeedItems: () => hookState,
   };
 });
 
@@ -42,24 +58,22 @@ vi.mock("../../../components/feeds/FeedSourcesPanel", () => ({
   FeedSourcesPanel: () => null,
 }));
 
-function stubFeedItems(items: FeedItem[]) {
-  mockUseFeedItems.mockReturnValue({
-    items,
-    loading: false,
-    error: null,
-    actionItemId: null,
-    refreshFeedItems: vi.fn(),
-    archiveFeedItem: vi.fn(),
-    markFeedItemTriaged: vi.fn(),
-    promoteFeedItem: vi.fn(),
-    updateFeedItemsStatusBatch: vi.fn(),
-  });
-}
-
 describe("FeedsView", () => {
   beforeEach(() => {
+    hookState.items = [orphanItem];
+    hookState.totalCount = 1;
+    hookState.loading = false;
+    hookState.loadingOlder = false;
+    hookState.hasMore = false;
+    hookState.error = null;
+    hookState.actionItemId = null;
+    hookState.refreshFeedItems.mockReset();
+    hookState.archiveFeedItem.mockReset();
+    hookState.markFeedItemTriaged.mockReset();
+    hookState.promoteFeedItem.mockReset();
+    hookState.loadOlderFeedItems.mockReset();
+    hookState.archiveMatchingFeedItems.mockReset();
     navigateToViewMock.mockReset();
-    stubFeedItems([orphanItem]);
     useAppStore.setState({
       user: {
         id: "test-user",
@@ -85,8 +99,45 @@ describe("FeedsView", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("offers Show all and Open Papers when the default New filter is empty", () => {
-    stubFeedItems([]);
+  it("shows the exact filtered count, not the loaded page length", () => {
+    hookState.totalCount = 859;
+    hookState.hasMore = true;
+    render(<FeedsView />);
+
+    expect(screen.getByText(/1 of 859 items/i)).toBeInTheDocument();
+    expect(
+      screen.queryByText(/latest 100/i),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /load older/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("loads the next keyset page from Load older", async () => {
+    hookState.totalCount = 200;
+    hookState.hasMore = true;
+    const user = userEvent.setup();
+    render(<FeedsView />);
+
+    await user.click(screen.getByRole("button", { name: /load older/i }));
+    expect(hookState.loadOlderFeedItems).toHaveBeenCalledTimes(1);
+  });
+
+  it("confirms archive-all against the matching count", async () => {
+    hookState.totalCount = 18;
+    const user = userEvent.setup();
+    render(<FeedsView />);
+
+    await user.click(
+      screen.getByRole("button", { name: /archive all matching/i }),
+    );
+    expect(hookState.archiveMatchingFeedItems).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers Show all and Open Papers when the default New filter is empty", async () => {
+    hookState.items = [];
+    hookState.totalCount = 0;
+    const user = userEvent.setup();
     render(<FeedsView />);
 
     expect(
@@ -96,18 +147,20 @@ describe("FeedsView", () => {
       screen.queryByText(/add a source above/i),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Show all" }),
+      screen.getByRole("button", { name: /show all/i }),
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Open Papers" }));
+    await user.click(screen.getByRole("button", { name: /open papers/i }));
     expect(navigateToViewMock).toHaveBeenCalledWith("papers");
   });
 
-  it("keeps Feeds visible and points to the library when every filter is empty", () => {
-    stubFeedItems([]);
+  it("keeps Feeds visible and points to the library when every filter is empty", async () => {
+    hookState.items = [];
+    hookState.totalCount = 0;
+    const user = userEvent.setup();
     render(<FeedsView />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Show all" }));
+    await user.click(screen.getByRole("button", { name: /show all/i }));
 
     expect(
       screen.getByRole("heading", { name: /nothing to triage/i }),
@@ -116,10 +169,22 @@ describe("FeedsView", () => {
       screen.getByText(/nothing arrives on its own/i),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Open Papers" }),
+      screen.getByRole("button", { name: /open papers/i }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Show all" }),
+      screen.queryByRole("button", { name: /show all/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it("keeps loaded items visible when Load older fails", () => {
+    hookState.error = "n.or is not a function";
+    hookState.hasMore = true;
+    hookState.totalCount = 200;
+    render(<FeedsView />);
+
+    expect(screen.getByText("Orphan paper lead")).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent(/n\.or is not a function/i);
+    expect(screen.getByRole("button", { name: /retry/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /load older/i })).toBeInTheDocument();
   });
 });

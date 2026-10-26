@@ -7,6 +7,7 @@ import {
   type GamificationResult,
 } from "../utils/gamification";
 import { sortByUpdatedAt } from "../utils/sort";
+import { dedupeById } from "../utils/collections";
 import { isValidUrl } from "../utils/security";
 import { toast } from "sonner";
 import type { Paper, CrossrefPaper, PaperDraft } from "../types/database";
@@ -619,8 +620,12 @@ export function usePapers(userId: string | undefined) {
         toast.success(`Successfully added ${data.length} papers`);
       }
 
-      // Optimistic update
-      setItems(sortByUpdatedAt([...data, ...useAppStore.getState().papers]));
+      // Realtime may have inserted these rows before the create response resolves.
+      setItems(
+        sortByUpdatedAt(
+          dedupeById([...data, ...useAppStore.getState().papers]),
+        ),
+      );
 
       // Award XP: run per-paper awards concurrently, notify once with the
       // aggregated result so bulk imports don't stack a toast per paper.
