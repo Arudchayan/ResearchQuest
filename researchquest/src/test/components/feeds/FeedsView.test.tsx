@@ -37,6 +37,10 @@ const hookState = {
   archiveMatchingFeedItems: vi.fn(),
 };
 
+const { navigateToViewMock } = vi.hoisted(() => ({
+  navigateToViewMock: vi.fn(),
+}));
+
 vi.mock("../../../hooks/useFeedItems", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("../../../hooks/useFeedItems")>();
@@ -45,6 +49,10 @@ vi.mock("../../../hooks/useFeedItems", async (importOriginal) => {
     useFeedItems: () => hookState,
   };
 });
+
+vi.mock("../../../lib/softNavigation", () => ({
+  navigateToView: navigateToViewMock,
+}));
 
 vi.mock("../../../components/feeds/FeedSourcesPanel", () => ({
   FeedSourcesPanel: () => null,
@@ -65,6 +73,7 @@ describe("FeedsView", () => {
     hookState.promoteFeedItem.mockReset();
     hookState.loadOlderFeedItems.mockReset();
     hookState.archiveMatchingFeedItems.mockReset();
+    navigateToViewMock.mockReset();
     useAppStore.setState({
       user: {
         id: "test-user",
@@ -125,24 +134,43 @@ describe("FeedsView", () => {
     expect(hookState.archiveMatchingFeedItems).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps the demo empty-state heading and says items arrive from agent or API key", () => {
+  it("offers Show all and Open Papers when the default New filter is empty", async () => {
     hookState.items = [];
     hookState.totalCount = 0;
+    const user = userEvent.setup();
     render(<FeedsView />);
+
+    expect(
+      screen.getByRole("heading", { name: /nothing matches these filters/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/add a source above/i),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /show all/i }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /open papers/i }));
+    expect(navigateToViewMock).toHaveBeenCalledWith("papers");
+  });
+
+  it("keeps Feeds visible and points to the library when every filter is empty", async () => {
+    hookState.items = [];
+    hookState.totalCount = 0;
+    const user = userEvent.setup();
+    render(<FeedsView />);
+
+    await user.click(screen.getByRole("button", { name: /show all/i }));
 
     expect(
       screen.getByRole("heading", { name: /nothing to triage/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getAllByText(/arrive from your connected agent or API key/i)
-        .length,
-    ).toBeGreaterThan(0);
+      screen.getByText(/nothing arrives on its own/i),
+    ).toBeInTheDocument();
     expect(
-      screen.queryByText(/nothing arrives on its own/i),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByText(/must add everything manually/i),
-    ).not.toBeInTheDocument();
+      screen.getByRole("button", { name: /open papers/i }),
+    ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /show all/i }),
     ).not.toBeInTheDocument();
