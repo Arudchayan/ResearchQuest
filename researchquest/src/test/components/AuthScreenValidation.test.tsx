@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { AuthScreen } from "../../components/auth/AuthScreen";
@@ -7,6 +7,39 @@ import { mockSupabaseClient } from "../mocks/supabase";
 describe("AuthScreen client-side validation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("starts shared-account recovery on the configured Learning Atlas flow without putting an email in the URL", () => {
+    render(<AuthScreen />);
+    fireEvent.change(screen.getByLabelText(/^Email$/i), {
+      target: { value: "scholar@university.edu" },
+    });
+    const recovery = screen.getByRole("link", { name: "Recover access" });
+    expect(recovery).toHaveAttribute(
+      "href", "https://lp.arudchayan.com/login/?mode=recover",
+    );
+    expect(recovery).toHaveAccessibleDescription(
+      "Reset your password on Learning Atlas, then return here. Your email and password work on both sites.",
+    );
+    expect(mockSupabaseClient.auth.signInWithPassword).not.toHaveBeenCalled();
+  });
+
+  it("submits the full 128-character password accepted by Learning Atlas without truncating it", async () => {
+    mockSupabaseClient.auth.signInWithPassword.mockResolvedValue({
+      data: { user: null, session: null }, error: null,
+    });
+    render(<AuthScreen />);
+    const password = "A7!" + "x".repeat(125);
+    expect(screen.getByLabelText(/^Password$/i)).toHaveAttribute("maxlength", "128");
+    fireEvent.change(screen.getByLabelText(/^Email$/i), {
+      target: { value: "scholar@university.edu" },
+    });
+    fireEvent.change(screen.getByLabelText(/^Password$/i), {
+      target: { value: password },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^Sign In$/i }));
+    await waitFor(() => expect(mockSupabaseClient.auth.signInWithPassword)
+      .toHaveBeenCalledWith({ email: "scholar@university.edu", password }));
   });
 
   it("shows required-field messages on empty submit and does not call auth", async () => {

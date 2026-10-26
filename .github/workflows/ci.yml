@@ -89,6 +89,16 @@ jobs:
       - name: Lint
         run: pnpm run lint
 
+      - name: Install PostgreSQL 17 (live XP replica tests)
+        run: |
+          set -euo pipefail
+          export DEBIAN_FRONTEND=noninteractive
+          sudo apt-get update
+          sudo apt-get install -y postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-17
+          /usr/lib/postgresql/17/bin/initdb --version
+
       - name: Test (coverage thresholds 80/80/75/80)
         run: pnpm run test:coverage:threshold
 

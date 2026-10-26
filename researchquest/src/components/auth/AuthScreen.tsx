@@ -15,7 +15,6 @@ const EMAIL_REQUIRED_MESSAGE = "Enter your email address.";
 const EMAIL_INVALID_MESSAGE = "Enter a valid email address.";
 const PASSWORD_REQUIRED_MESSAGE = "Enter your password.";
 const SIGN_IN_ERROR_FALLBACK = "Unable to sign in. Please try again.";
-const RESET_ERROR_FALLBACK = "Unable to send password reset email.";
 
 type AuthFieldErrors = {
   emailError: string | null;
@@ -44,7 +43,6 @@ export function AuthScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [resetting, setResetting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState<AuthMessage>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
@@ -133,43 +131,7 @@ export function AuthScreen() {
     [email, password],
   );
 
-  const handlePasswordReset = useCallback(async () => {
-    if (!email.trim()) {
-      setMessage({
-        type: "error",
-        text: "Enter your email address to receive a reset link.",
-      });
-      return;
-    }
-    if (!EMAIL_REGEX.test(email.trim())) {
-      setMessage({
-        type: "error",
-        text: "Enter a valid email address to receive a reset link.",
-      });
-      return;
-    }
-
-    setResetting(true);
-    setMessage(null);
-
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
-      if (error) throw error;
-      setMessage({
-        type: "success",
-        text: "Password reset link sent! Check your email to continue.",
-      });
-    } catch (error: unknown) {
-      setMessage({
-        type: "error",
-        text: toFriendlyAuthError(error, RESET_ERROR_FALLBACK),
-      });
-    } finally {
-      setResetting(false);
-    }
-  }, [email]);
-
-  const isBusy = loading || resetting;
+  const isBusy = loading;
   const demoPath = demoEntryPath(new URL(window.location.href));
 
   return (
@@ -285,7 +247,7 @@ export function AuthScreen() {
                 value={password}
                 onChange={handlePasswordChange}
                 required
-                maxLength={100}
+                maxLength={128}
                 disabled={isBusy}
                 aria-describedby={passwordError ? passwordErrorId : undefined}
                 aria-invalid={passwordError ? true : undefined}
@@ -315,16 +277,17 @@ export function AuthScreen() {
                 {passwordError}
               </p>
             )}
-            <button
-              type="button"
-              onClick={handlePasswordReset}
-              disabled={resetting || loading}
-              className="mt-2 text-caption text-text-secondary hover:text-text-primary underline decoration-border-strong underline-offset-2 disabled:opacity-60 font-medium"
+            <a
+              href="https://lp.arudchayan.com/login/?mode=recover"
+              aria-describedby="shared-account-recovery"
+              className="mt-2 inline-block text-caption text-text-secondary hover:text-text-primary underline decoration-border-strong underline-offset-2 font-medium"
             >
-              {resetting
-                ? "Sending reset link\u2026"
-                : "Recover access"}
-            </button>
+              Recover access
+            </a>
+            <p id="shared-account-recovery" className="mt-1 text-caption text-text-tertiary">
+              Reset your password on Learning Atlas, then return here. Your email
+              and password work on both sites.
+            </p>
           </div>
 
           {message && (

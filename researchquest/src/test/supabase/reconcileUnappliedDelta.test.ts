@@ -20,7 +20,15 @@
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import {
+  PG17_AVAILABLE,
+  USER_A,
+  awardXp,
+  resetUser,
+  startReplica,
+  type Replica,
+} from "./pg17ReplicaHarness";
 
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(testDir, "..", "..", "..", "..");
@@ -311,5 +319,41 @@ describe("1765700000 reconcile unapplied master delta", () => {
     expect(sectionK).toMatch(/to_regclass\(format\('public\.%I', t\)\)\s+IS\s+NOT\s+NULL/i);
     expect(sectionK).toMatch(/REVOKE MAINTAIN ON TABLE public\.%I FROM authenticated/);
     expect(sectionK).toMatch(/server_version_num/);
+  });
+
+  it("requires PostgreSQL 17 in CI so live replica cases are not skipped", () => {
+    expect(!process.env.CI || PG17_AVAILABLE).toBe(true);
+  });
+});
+
+describe.skipIf(!PG17_AVAILABLE)("1765700000 reconcile unapplied master delta (PG17 replica)", () => {
+  let replica: Replica;
+
+  beforeAll(() => {
+    replica = startReplica({ through: "1765700000" });
+  });
+
+  afterAll(() => {
+    replica?.stop();
+  });
+
+  beforeEach(() => {
+    resetUser(replica, USER_A);
+  });
+
+  it("credits create_note through award_xp", () => {
+    const row = awardXp(replica, USER_A, 10, "create_note");
+    expect(row.xp_credited).toBe(10);
+    expect(row.total_xp).toBe(10);
+  });
+
+  it("denies authenticated INSERT into xp_events", () => {
+    expect(() =>
+      replica.execAs(
+        USER_A,
+        `INSERT INTO public.xp_events (user_id, action, entity_id, xp, local_day)
+         VALUES ('${USER_A}', 'create_note', '', 10, (now() AT TIME ZONE 'UTC')::date)`,
+      ),
+    ).toThrow(/permission denied/i);
   });
 });
