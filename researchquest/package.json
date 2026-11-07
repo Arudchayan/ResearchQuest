@@ -102,7 +102,7 @@
     "supabase": "^2.119.0",
     "tailwindcss": "^3.4.17",
     "typescript": "~6.0.3",
-    "typescript-eslint": "^8.69.0",
+    "typescript-eslint": "^8.72.0",
     "vite": "^6.4.4",
     "vite-plugin-source-identifier": "1.1.2",
     "vitest": "^4.1.0"
